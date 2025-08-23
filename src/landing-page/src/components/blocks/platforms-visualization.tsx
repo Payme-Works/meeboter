@@ -43,10 +43,10 @@ export function PlatformsVisualization() {
       <div className="flex size-full flex-col items-stretch justify-between gap-1 md:gap-10">
         <div className="flex flex-row items-center justify-between">
           <Circle ref={div1Ref} className="size-14">
-            <Icons.zoom />
+            <Icons.zoomIcon />
           </Circle>
           <Circle ref={div5Ref} className="size-14">
-            <Icons.video />
+            <Icons.videoIcon />
             <p className="absolute hidden w-10 translate-x-14 text-left text-xs md:block">
               recording
             </p>
@@ -54,13 +54,13 @@ export function PlatformsVisualization() {
         </div>
         <div className="flex flex-row items-center justify-between">
           <Circle ref={div2Ref} className="size-14">
-            <Icons.teams />
+            <Icons.teamsIcon />
           </Circle>
           <Circle ref={div4Ref} className="size-20">
-            <Icons.meeting-bot />
+            <Icons.meetingBotIcon />
           </Circle>
           <Circle ref={div6Ref} className="size-14">
-            <Icons.transcript />
+            <Icons.transcriptIcon />
             <p className="absolute hidden w-10 translate-x-14 text-left text-xs md:block">
               transcript
             </p>
@@ -68,10 +68,10 @@ export function PlatformsVisualization() {
         </div>
         <div className="flex flex-row items-center justify-between">
           <Circle ref={div3Ref} className="size-14">
-            <Icons.meet />
+            <Icons.meetIcon />
           </Circle>
           <Circle ref={div7Ref} className="size-14">
-            <Icons.events />
+            <Icons.eventsIcon />
             <p className="absolute hidden w-10 translate-x-14 text-left text-xs md:block">
               events
             </p>
@@ -122,7 +122,7 @@ export function PlatformsVisualization() {
 }
 
 const Icons = {
-  zoom: () => (
+  zoomIcon: () => (
     <Image
       src="/zoom.svg"
       alt="zoom icon"
@@ -131,7 +131,7 @@ const Icons = {
       height={100}
     />
   ),
-  meet: () => (
+  meetIcon: () => (
     <Image
       src="/meet.svg"
       alt="meet icon"
@@ -140,7 +140,7 @@ const Icons = {
       height={100}
     />
   ),
-  teams: () => (
+  teamsIcon: () => (
     <Image
       src="/teams.svg"
       alt="teams icon"
@@ -149,7 +149,7 @@ const Icons = {
       height={100}
     />
   ),
-  meeting-bot: () => (
+  meetingBotIcon: () => (
     <Image
       src="/logo.svg"
       alt="meeting-bot icon"
@@ -158,7 +158,7 @@ const Icons = {
       height={100}
     />
   ),
-  video: () => (
+  videoIcon: () => (
     <svg
       xmlns="http://www.w3.org/2000/svg"
       width="24"
@@ -170,12 +170,13 @@ const Icons = {
       strokeLinecap="round"
       strokeLinejoin="round"
     >
+      <title>video icon</title>
       <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
       <path d="M14 2v4a2 2 0 0 0 2 2h4" />
       <path d="m10 11 5 3-5 3v-6Z" />
     </svg>
   ),
-  transcript: () => (
+  transcriptIcon: () => (
     <svg
       xmlns="http://www.w3.org/2000/svg"
       width="24"
@@ -187,12 +188,13 @@ const Icons = {
       strokeLinecap="round"
       strokeLinejoin="round"
     >
+      <title>transcript icon</title>
       <path d="M17.5 22h.5a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v3" />
       <path d="M14 2v4a2 2 0 0 0 2 2h4" />
       <path d="M2 19a2 2 0 1 1 4 0v1a2 2 0 1 1-4 0v-4a6 6 0 0 1 12 0v4a2 2 0 1 1-4 0v-1a2 2 0 1 1 4 0" />
     </svg>
   ),
-  events: () => (
+  eventsIcon: () => (
     <svg
       xmlns="http://www.w3.org/2000/svg"
       width="24"
@@ -204,6 +206,7 @@ const Icons = {
       strokeLinecap="round"
       strokeLinejoin="round"
     >
+      <title>events icon</title>
       <path d="M3 12h.01" />
       <path d="M3 18h.01" />
       <path d="M3 6h.01" />

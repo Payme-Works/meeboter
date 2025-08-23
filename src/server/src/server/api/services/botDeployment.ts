@@ -91,6 +91,7 @@ export async function deployBot({
       endTime: bot.endTime,
       botDisplayName: bot.botDisplayName,
       botImage: bot.botImage ?? undefined,
+      recordingEnabled: bot.recordingEnabled,
       heartbeatInterval: bot.heartbeatInterval,
       automaticLeave: bot.automaticLeave,
       callbackUrl: bot.callbackUrl ?? undefined,

@@ -25,6 +25,7 @@ const fakeBotData: SelectBotType = {
   meetingInfo: {
     platform: "zoom",
   },
+  recordingEnabled: true,
   startTime: new Date(startTimeString),
   endTime: new Date(endTimeString),
   recording: "https://example.com/recording.mp4",
