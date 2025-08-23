@@ -17,12 +17,12 @@ export default function Component() {
           className="flex items-center justify-center gap-2 font-semibold"
           prefetch={false}
         >
-          <Image src="/logo.svg" alt="MeetingBot" width={28} height={28} />
-          MeetingBot
+          <Image src="/logo.svg" alt="Meeting Bot" width={28} height={28} />
+          Meeting Bot
         </Link>
         <nav className="ml-auto flex items-center gap-4 sm:gap-6">
           <Link
-            href="https://github.com/meetingbot/meetingbot"
+            href="https://github.com/meeting-bot/meeting-bot"
             className="text-sm text-muted-foreground hover:text-foreground"
           >
             GitHub
@@ -68,7 +68,7 @@ export default function Component() {
       <footer className="border-t bg-background py-6 md:py-8">
         <div className="container flex flex-col items-center gap-4 px-4 sm:flex-row md:px-6">
           <p className="text-sm text-muted-foreground">
-            © 2025 MeetingBot. All rights reserved.
+            © 2025 Meeting Bot. All rights reserved.
           </p>
           <nav className="flex gap-4 sm:ml-auto sm:gap-6">
             <Link

@@ -249,6 +249,7 @@ export const bots = pgTable("bots", {
   endTime: timestamp("end_time").notNull(),
   // recording stuff
   recording: varchar("recording", { length: 255 }),
+  recordingEnabled: boolean("recording_enabled").notNull().default(false),
   speakerTimeframes: json('speaker_timeframes')
     .$type<SpeakerTimeframe[]>()
     .notNull()
@@ -275,6 +276,7 @@ export const insertBotSchema = z.object({
   meetingInfo: meetingInfoSchema,
   startTime: z.date().optional(),
   endTime: z.date().optional(),
+  recordingEnabled: z.boolean().optional().default(false),
   heartbeatInterval: z.number().optional(),
   automaticLeave: automaticLeaveSchema.optional(),
   callbackUrl: z
@@ -301,6 +303,7 @@ export const botConfigSchema = z.object({
   endTime: z.date(),
   botDisplayName: z.string(),
   botImage: z.string().url().optional(),
+  recordingEnabled: z.boolean(),
   heartbeatInterval: z.number(),
   automaticLeave: automaticLeaveSchema,
   callbackUrl: z

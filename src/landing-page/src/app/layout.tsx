@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "MeetingBot",
+  title: "Meeting Bot",
   description:
     "Open Source Meeting Bot API: Easily create automated applications that leverage recordings across popular video meeting platforms",
 };

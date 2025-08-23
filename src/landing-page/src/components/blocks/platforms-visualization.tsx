@@ -57,7 +57,7 @@ export function PlatformsVisualization() {
             <Icons.teams />
           </Circle>
           <Circle ref={div4Ref} className="size-20">
-            <Icons.meetingbot />
+            <Icons.meeting-bot />
           </Circle>
           <Circle ref={div6Ref} className="size-14">
             <Icons.transcript />
@@ -149,10 +149,10 @@ const Icons = {
       height={100}
     />
   ),
-  meetingbot: () => (
+  meeting-bot: () => (
     <Image
       src="/logo.svg"
-      alt="meetingbot icon"
+      alt="meeting-bot icon"
       className="size-full"
       width={100}
       height={100}

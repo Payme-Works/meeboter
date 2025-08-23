@@ -25,6 +25,7 @@ export type BotConfig = {
   endTime: Date;
   botDisplayName: string;
   botImage?: string;
+  recordingEnabled: boolean;
   heartbeatInterval: number;
   automaticLeave: AutomaticLeave;
   callbackUrl?: string;

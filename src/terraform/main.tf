@@ -3,7 +3,7 @@ provider "aws" {
   profile = var.aws_profile
   default_tags {
     tags = {
-      Service     = "MeetingBot"
+      Service     = "Meeting Bot"
       Environment = terraform.workspace == "prod" ? "Prod" : (terraform.workspace == "stage" ? "Stage" : "Dev")
     }
   }
@@ -12,7 +12,7 @@ provider "aws" {
 data "aws_availability_zones" "available" {}
 
 locals {
-  name = "meetingbot-${terraform.workspace}"
+  name = "meeting-bot-${terraform.workspace}"
 
   azs = slice(data.aws_availability_zones.available.names, 0, 3)
 

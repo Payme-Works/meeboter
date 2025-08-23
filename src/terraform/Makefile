@@ -6,6 +6,6 @@ reconfigure:
 	terraform init -reconfigure -backend-config=backend.tfvars
 
 login:
-	aws configure --profile meetingbot
+	aws configure --profile meeting-bot
 sso:
-	aws configure sso --profile meetingbot
+	aws configure sso --profile meeting-bot

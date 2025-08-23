@@ -82,6 +82,7 @@ export default function MeetingBotCreator() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [response, setResponse] = useState<any>({});
   const [link, setMeetingLink] = useState('');
+  const [recordingEnabled, setRecordingEnabled] = useState(false);
   const [waitingForResponse, setWaitingForResponse] = useState(false);
   const [showFullResponse, setShowFullResponse] = useState(false);
 
@@ -155,6 +156,7 @@ export default function MeetingBotCreator() {
       meetingTitle: `Test ${inputType && (inputType[0]?.toUpperCase() + inputType?.slice(1) + ' ')}Bot`,
       meetingInfo,
       callbackUrl,
+      recordingEnabled,
     };
 
     setWaitingForResponse(true);
@@ -210,6 +212,19 @@ export default function MeetingBotCreator() {
         placeholder="https:/meet.google.com/abc-defg-hij"
         className={inputFieldClass}
       />
+      
+      <div className="flex items-center space-x-2 mt-4">
+        <input
+          type="checkbox"
+          id="recordingEnabled"
+          checked={recordingEnabled}
+          onChange={(e) => setRecordingEnabled(e.target.checked)}
+          className="rounded"
+        />
+        <label htmlFor="recordingEnabled" className="text-sm font-medium">
+          Enable Recording
+        </label>
+      </div>
 
       {waitingForResponse
       ?

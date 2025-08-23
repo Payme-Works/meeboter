@@ -74,13 +74,14 @@ export const botsRouter = createTRPCRouter({
         // Extract database fields from input
 
         const dbInput = {
-          botDisplayName: input.botDisplayName ?? "MeetingBot",
+          botDisplayName: input.botDisplayName ?? "Meeting Bot",
           botImage: input.botImage,
           userId: ctx.session.user.id,
           meetingTitle: input.meetingTitle ?? "Meeting",
           meetingInfo: input.meetingInfo,
           startTime: input.startTime ?? new Date(),
           endTime: input.endTime ?? new Date(),
+          recordingEnabled: input.recordingEnabled ?? false,
           heartbeatInterval: input.heartbeatInterval ?? 5000,
           automaticLeave: input.automaticLeave ?? {
             waitingRoomTimeout: 300000, // 5 minutes

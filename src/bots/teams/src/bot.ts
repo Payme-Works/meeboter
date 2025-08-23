@@ -255,7 +255,13 @@ export class TeamsBot extends Bot {
       this.settings.heartbeatInterval
     );
 
-    await this.startRecording();
+    // Start Recording only if enabled
+    if (this.settings.recordingEnabled) {
+      console.log("Starting Recording");
+      await this.startRecording();
+    } else {
+      console.log("Recording is disabled for this bot");
+    }
 
     // Then wait for meeting to end by watching for the "Leave" button to disappear
     await this.page.waitForFunction(

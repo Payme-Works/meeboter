@@ -36,7 +36,7 @@ export default function CommunityCard({ className }: CommunityUpdate) {
               <ExternalLink className="ml-2 h-4 w-4" />
             </Link>
             <Link
-              href="https://github.com/meetingbot/meetingbot"
+              href="https://github.com/meeting-bot/meeting-bot"
               className="flex items-center"
             >
               Contribute

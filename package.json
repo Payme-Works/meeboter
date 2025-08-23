@@ -1,6 +1,6 @@
 {
   "type": "commonjs",
-  "name": "meetingbot",
+  "name": "meeting-bot",
   "private": true,
   "version": "0.0.0",
   "engines": {

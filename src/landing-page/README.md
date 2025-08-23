@@ -1,4 +1,4 @@
-# MeetingBot Landing Page
+# Meeting Bot Landing Page
 
 Built using:
 

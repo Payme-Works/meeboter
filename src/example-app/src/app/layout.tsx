@@ -3,7 +3,7 @@ import { GeistSans } from "geist/font/sans";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "MeetingBot Example Application",
+  title: "Meeting Bot Example Application",
   description: "A user-friendly interface for scheduling meetings effortlessly.",
   icons: [{ rel: "icon", url: "/logo.svg" }],
 };

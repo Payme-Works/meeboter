@@ -313,7 +313,7 @@ export class MeetsBot extends Bot {
     });
 
     //Define Bot Name
-    const name = this.settings.botDisplayName || "MeetingBot";
+    const name = this.settings.botDisplayName || "Meeting Bot";
 
     // Go to the meeting URL (Simulate Movement)
     await this.page.mouse.move(10, 672);
@@ -607,9 +607,13 @@ export class MeetsBot extends Bot {
    */
   async meetingActions() {
 
-    // Start Recording, Yes by default
-    console.log("Starting Recording");
-    this.startRecording();
+    // Start Recording only if enabled
+    if (this.settings.recordingEnabled) {
+      console.log("Starting Recording");
+      this.startRecording();
+    } else {
+      console.log("Recording is disabled for this bot");
+    }
 
     console.log("Waiting for the 'Others might see you differently' popup...");
     await this.handleInfoPopup();

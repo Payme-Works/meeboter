@@ -242,10 +242,13 @@ export class ZoomBot extends Bot {
     if (!this.page)
       throw new Error("Page is not initialized");
 
-    // Start the recording -- again, type issue from importing.
-    const stream = await this.startRecording();
-
-    console.log("Recording...");
+    // Start Recording only if enabled
+    if (this.settings.recordingEnabled) {
+      console.log("Starting Recording");
+      await this.startRecording();
+    } else {
+      console.log("Recording is disabled for this bot");
+    }
 
     // Get the Frame containing the meeting
     const iframe = await this.page.waitForSelector(".pwa-webclient__iframe");

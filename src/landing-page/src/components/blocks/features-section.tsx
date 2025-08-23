@@ -14,7 +14,7 @@ export function FeaturesSection() {
   const features = [
     {
       title: "Open Source",
-      description: "MeetingBot is open source. You can contribute to it!",
+      description: "Meeting Bot is open source. You can contribute to it!",
       icon: <IconBrandGithub />,
     },
     {
@@ -54,7 +54,7 @@ export function FeaturesSection() {
     },
     {
       title: "Secure",
-      description: "We're building MeetingBot with security as a top priority.",
+      description: "We're building Meeting Bot with security as a top priority.",
       icon: <IconLock />,
     },
   ];

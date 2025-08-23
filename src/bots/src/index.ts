@@ -70,9 +70,14 @@ export const main = async () => {
       await bot.endLife();
     });
 
-    // Upload recording to S3
-    console.log("Start Upload to S3...");
-    key = await uploadRecordingToS3(s3Client, bot);
+    // Upload recording to S3 only if recording was enabled
+    if (bot.settings.recordingEnabled) {
+      console.log("Start Upload to S3...");
+      key = await uploadRecordingToS3(s3Client, bot);
+    } else {
+      console.log("Recording was disabled, skipping S3 upload");
+      key = ""; // No recording to upload
+    }
 
 
   } catch (error) {
@@ -90,9 +95,9 @@ export const main = async () => {
   // Only report DONE if no error occurred
   if (!hasErrorOccurred) {
     // Report final DONE event
-    const speakerTimeframes = bot.getSpeakerTimeframes();
+    const speakerTimeframes = bot.settings.recordingEnabled ? bot.getSpeakerTimeframes() : [];
     console.debug("Speaker timeframes:", speakerTimeframes);
-    await reportEvent(botId, EventCode.DONE, { recording: key, speakerTimeframes });
+    await reportEvent(botId, EventCode.DONE, { recording: key || undefined, speakerTimeframes });
   }
 
   // Exit with appropriate code

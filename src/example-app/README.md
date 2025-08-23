@@ -7,7 +7,7 @@ It allows you to enter a meeting link. A meeting bot will be summoned to the mee
 
 After the meeting, the recording will be available in the interface, and there is a button to transcribe & summarize the meeting using AI. (Uses OpenAI Whisper and GPT-4o.)
 
-Note: The MeetingBot server automatically sends the recording to this application's NextJS backend when the meeting is finished. However, we still need a button in this example app frontend to fetch the recording from this example app's NextJS backend. (We had it automatically populate before using SSE, but we had to remove SSE in order for this example app to run in a serverless environment.)
+Note: The Meeting Bot server automatically sends the recording to this application's NextJS backend when the meeting is finished. However, we still need a button in this example app frontend to fetch the recording from this example app's NextJS backend. (We had it automatically populate before using SSE, but we had to remove SSE in order for this example app to run in a serverless environment.)
 
 ## Running
 
@@ -37,7 +37,7 @@ pnpm run dev
 It will run on port 3002.
 
 Important: if using an external backend, make sure you host and forward port 3002 using an application like ngrok.
-This will allow the MeetingBot application to communicate with this application. 
+This will allow the Meeting Bot application to communicate with this application. 
 
 ```bash
 ngrok http 3002

@@ -80,8 +80,8 @@ export const communityRouter = createTRPCRouter({
         auth: env.GITHUB_TOKEN,
       });
       const events = await octokit.request("GET /repos/{owner}/{repo}/events", {
-        owner: "meetingbot",
-        repo: "meetingbot",
+        owner: "meeting-bot",
+        repo: "meeting-bot",
         per_page: 20, // Limit to 20 most recent events
       });
 

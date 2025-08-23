@@ -1,6 +1,6 @@
-# MeetingBot Terraform Infrastructure
+# Meeting Bot Terraform Infrastructure
 
-This directory contains the Terraform configuration to deploy MeetingBot infrastructure on AWS.
+This directory contains the Terraform configuration to deploy Meeting Bot infrastructure on AWS.
 
 ## Prerequisites
 - A domain name in Route 53
@@ -22,7 +22,7 @@ make login
 # If you're using AWS' sso login flow:
 make sso
 
-# Both commands configure the AWS SSO profile named 'meetingbot'
+# Both commands configure the AWS SSO profile named 'meeting-bot'
 ```
 
 Initialize Terraform:
@@ -76,7 +76,7 @@ The configuration deploys the following resources:
 # Log in to AWS
 make sso
 # or directly:
-aws sso login --profile meetingbot
+aws sso login --profile meeting-bot
 
 # Switch environments
 terraform workspace select prod  # or dev, etc.

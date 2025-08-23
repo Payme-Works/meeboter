@@ -26,7 +26,7 @@ test.describe("Public Pages", () => {
     test("can navigate to API docs", async ({ page }) => {
       test.setTimeout(30000); // api docs are slow to load
       await page.getByRole("link", { name: "View Documentation" }).click();
-      await expect(page.locator("h2")).toContainText("MeetingBot API");
+      await expect(page.locator("h2")).toContainText("Meeting Bot API");
     });
 
     test("should display sign in button ", async ({ page }) => {

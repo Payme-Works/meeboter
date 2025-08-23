@@ -1,6 +1,6 @@
-# MeetingBot Next.JS Server
+# Meeting Bot Next.JS Server
 
-The `server` folder contains the backend implementation of the MeetingBot application. 
+The `server` folder contains the backend implementation of the Meeting Bot application. 
 It is built using **Next.js** and includes APIs, database configurations, authentication, and other server-side utilities. 
 
 This document provides an overview of the folder structure and how the components work together.

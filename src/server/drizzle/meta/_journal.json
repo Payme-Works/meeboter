@@ -15,6 +15,13 @@
       "when": 1754528997524,
       "tag": "0001_massive_living_tribunal",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1755977414596,
+      "tag": "0002_hard_spitfire",
+      "breakpoints": true
     }
   ]
 }

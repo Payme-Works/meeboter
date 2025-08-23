@@ -6,7 +6,7 @@ on:
   pull_request:
 
 env:
-  REGISTRY: ghcr.io
+  AWS_REGION: us-east-2
   DOCKER_METADATA_PR_HEAD_SHA: true
 
 jobs:
@@ -14,25 +14,29 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write
+      id-token: write
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Log in to the Container registry
+      - name: Configure AWS credentials
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-        uses: docker/login-action@v2
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
 
       - name: Extract server metadata for Docker
         id: meta
         uses: docker/metadata-action@v4
         with:
-          images: ${{ env.REGISTRY }}/meetingbot/server
+          images: ${{ steps.login-ecr.outputs.registry }}/meeting-bot-dev/server
           tags: |
             type=schedule
             type=ref,event=branch
@@ -52,7 +56,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write
+      id-token: write
     strategy:
       matrix:
         bot: [teams, meet, zoom]
@@ -61,19 +65,23 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Log in to the Container registry
+      - name: Configure AWS credentials
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-        uses: docker/login-action@v2
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
 
       - name: Extract metadata for Docker
         id: meta
         uses: docker/metadata-action@v4
         with:
-          images: ${{ env.REGISTRY }}/meetingbot/bots/${{ matrix.bot }}
+          images: ${{ steps.login-ecr.outputs.registry }}/meeting-bot-dev/bots/${{ matrix.bot }}
           tags: |
             type=schedule
             type=ref,event=branch

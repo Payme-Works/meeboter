@@ -33,7 +33,7 @@ export default function Home() {
             variant="outline"
             size="sm"
             onClick={() =>
-              window.open("https://github.com/meetingbot/meetingbot")
+              window.open("https://github.com/meeting-bot/meeting-bot")
             }
           >
             GitHub

@@ -7,7 +7,7 @@ import NavigationBar from "./components/NavigationBar";
 import { SessionProvider } from "next-auth/react";
 
 export const metadata: Metadata = {
-  title: "MeetingBot",
+  title: "Meeting Bot",
   description:
     "A user-friendly interface for managing and scheduling meetings effortlessly.",
   icons: [{ rel: "icon", url: "/logo.svg" }],
