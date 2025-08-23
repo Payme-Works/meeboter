@@ -2,6 +2,7 @@
 
 # Meeting Bot Docker Build & Push Script
 # This script builds all Docker images and pushes them to AWS ECR
+# It also creates the S3 bucket for Terraform state if it doesn't exist
 
 set -euo pipefail
 
@@ -74,6 +75,87 @@ check_prerequisites() {
 get_aws_account_id() {
     AWS_ACCOUNT_ID=$(aws sts get-caller-identity --profile "$AWS_PROFILE" --query Account --output text)
     log_info "Using AWS Account: $AWS_ACCOUNT_ID"
+}
+
+# Create S3 bucket for Terraform state if it doesn't exist
+create_s3_bucket() {
+    local bucket_name="tf-state-meeting-bot"
+    
+    log_info "Checking if S3 bucket '$bucket_name' exists..."
+    
+    if aws s3api head-bucket --bucket "$bucket_name" --profile "$AWS_PROFILE" --region "$AWS_REGION" 2>/dev/null; then
+        log_success "S3 bucket '$bucket_name' already exists"
+        return 0
+    fi
+    
+    log_info "Creating S3 bucket '$bucket_name' for Terraform state..."
+    
+    # Create the bucket
+    if aws s3api create-bucket \
+        --bucket "$bucket_name" \
+        --profile "$AWS_PROFILE" \
+        --region "$AWS_REGION" \
+        --create-bucket-configuration LocationConstraint="$AWS_REGION" 2>/dev/null; then
+        
+        log_success "S3 bucket '$bucket_name' created successfully"
+    else
+        # If LocationConstraint fails (us-east-1 doesn't support it), try without it
+        if aws s3api create-bucket \
+            --bucket "$bucket_name" \
+            --profile "$AWS_PROFILE" \
+            --region "$AWS_REGION" 2>/dev/null; then
+            
+            log_success "S3 bucket '$bucket_name' created successfully"
+        else
+            log_error "Failed to create S3 bucket '$bucket_name'"
+            exit 1
+        fi
+    fi
+    
+    # Enable versioning for the bucket
+    log_info "Enabling versioning for S3 bucket '$bucket_name'..."
+    if aws s3api put-bucket-versioning \
+        --bucket "$bucket_name" \
+        --profile "$AWS_PROFILE" \
+        --versioning-configuration Status=Enabled; then
+        
+        log_success "Versioning enabled for S3 bucket '$bucket_name'"
+    else
+        log_warning "Failed to enable versioning for S3 bucket '$bucket_name'"
+    fi
+    
+    # Add encryption by default
+    log_info "Configuring default encryption for S3 bucket '$bucket_name'..."
+    if aws s3api put-bucket-encryption \
+        --bucket "$bucket_name" \
+        --profile "$AWS_PROFILE" \
+        --server-side-encryption-configuration '{
+            "Rules": [
+                {
+                    "ApplyServerSideEncryptionByDefault": {
+                        "SSEAlgorithm": "AES256"
+                    }
+                }
+            ]
+        }'; then
+        
+        log_success "Default encryption configured for S3 bucket '$bucket_name'"
+    else
+        log_warning "Failed to configure default encryption for S3 bucket '$bucket_name'"
+    fi
+    
+    # Block public access
+    log_info "Blocking public access for S3 bucket '$bucket_name'..."
+    if aws s3api put-public-access-block \
+        --bucket "$bucket_name" \
+        --profile "$AWS_PROFILE" \
+        --public-access-block-configuration \
+        BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true; then
+        
+        log_success "Public access blocked for S3 bucket '$bucket_name'"
+    else
+        log_warning "Failed to block public access for S3 bucket '$bucket_name'"
+    fi
 }
 
 # Build ECR repository URLs
@@ -311,6 +393,7 @@ main() {
     
     check_prerequisites
     get_aws_account_id
+    create_s3_bucket
     build_ecr_urls
     ecr_login
     check_ecr_repositories
@@ -377,11 +460,13 @@ Prerequisites:
   - pnpm package manager
   - git repository
   - Terraform infrastructure deployed (ECR repositories must exist)
+  - S3 bucket for Terraform state will be created automatically if needed
 
 The script will:
   1. Validate prerequisites
-  2. Build all Docker images (server + 3 bot types)
-  3. Push images to AWS ECR
+  2. Create S3 bucket for Terraform state if it doesn't exist
+  3. Build all Docker images (server + 3 bot types)
+  4. Push images to AWS ECR
   5. Restart ECS services to pull latest images
   6. Clean up local Docker images
 EOF
