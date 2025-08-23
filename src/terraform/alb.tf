@@ -58,7 +58,7 @@ resource "aws_lb" "this" {
 
 // Server Target Group
 resource "aws_lb_target_group" "server" {
-  name        = "${local.name}-server-instance"
+  name        = "${local.name}-server"
   port        = local.server_port
   protocol    = "HTTP"
   vpc_id      = aws_vpc.this.id
