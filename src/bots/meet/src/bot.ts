@@ -935,10 +935,13 @@ export class MeetsBot extends Bot {
    * Clean up the meeting
    */
   async endLife() {
-
     // Ensure Recording is done
-    console.log('Stopping Recording ...')
-    await this.stopRecording();
+    if (this.settings.recordingEnabled) {
+      console.log('Stopping Recording ...')
+      
+      await this.stopRecording();
+    }
+    
     console.log('Done.')
 
     // Close my browser
@@ -946,7 +949,6 @@ export class MeetsBot extends Bot {
       await this.browser.close();
       console.log("Closed Browser.");
     }
-
   }
 
   /**
