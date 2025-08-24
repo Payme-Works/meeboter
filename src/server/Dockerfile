@@ -68,8 +68,10 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/drizzle ./drizzle
 COPY --from=builder /app/drizzle.config.ts ./drizzle.config.ts
 
-# Create startup script
-RUN echo '#!/bin/sh\nset -e\necho "Running database migrations..."\nnpx drizzle-kit migrate\necho "Starting server..."\nnode server.js' > /app/start.sh && chmod +x /app/start.sh
+# Create startup script with proper formatting
+RUN printf '#!/bin/sh\nset -e\necho "Running database migrations..."\n# Set Node.js environment variable to ignore SSL certificate errors\nexport NODE_TLS_REJECT_UNAUTHORIZED=0\necho "Set NODE_TLS_REJECT_UNAUTHORIZED=0 to ignore SSL certificate errors"\nnpx drizzle-kit migrate\necho "Starting server..."\nexec node server.js\n' > /app/start.sh && \
+    chmod +x /app/start.sh && \
+    ls -la /app/start.sh
 
 EXPOSE 3000
 ENV PORT 3000
