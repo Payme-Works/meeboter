@@ -11,11 +11,11 @@ const ENV: 'production' | 'development' = 'production';
 const API_BASE_URL = ENV === 'production' ? PRODUCTION_API_BASE_URL : DEVELOPMENT_API_BASE_URL;
 const API_KEY = ENV === 'production' ? PRODUCTION_API_KEY : DEVELOPMENT_API_KEY;
 
-const GOOGLE_MEET_URL = 'https://meet.google.com/qnx-yedm-xhs';
+const GOOGLE_MEET_URL = 'https://meet.google.com/ziq-xaoe-hhd';
 
 // Configuration for multiple bots
 const BOT_CONFIG = {
-  numberOfBots: 2, // Configure how many bots to deploy
+  numberOfBots: 100, // Configure how many bots to deploy
   meetingDurationHours: 1, // Meeting duration in hours
   staggerDelay: 5000, // Delay between bot deployments in milliseconds (5 seconds)
 } as const;
