@@ -1,0 +1,23 @@
+{
+  "name": "@meeting-bot/lab",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node --expose-gc --max-old-space-size=2048 ./node_modules/tsx/dist/cli.mjs src/index.ts",
+    "lint": "eslint . --fix"
+  },
+  "dependencies": {
+    "playwright": "^1.49.1",
+    "playwright-extra": "^4.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "uuid": "^10.0.0"
+  },
+  "devDependencies": {
+    "@meeting-bot/eslint-config": "workspace:*",
+    "@meeting-bot/typescript-config": "workspace:*",
+    "@types/uuid": "^10.0.0",
+    "tsx": "^4.20.3",
+    "eslint": "^8.57.0"
+  }
+}

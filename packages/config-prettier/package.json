@@ -1,0 +1,13 @@
+{
+  "name": "@meeting-bot/prettier-config",
+  "version": "1.0.0",
+  "main": "index.js",
+  "devDependencies": {
+    "@stagewise/toolbar": "^0.5.0",
+    "@stagewise/toolbar-next": "^0.5.0",
+    "prettier-plugin-tailwindcss": "^0.5.4"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

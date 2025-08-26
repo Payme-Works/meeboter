@@ -1,3 +1,5 @@
 packages:
   # Include packages in the src directory
-  - "src/**"
+  - "apps/**"
+  - "apps/bots/providers/**"
+  - "packages/**"

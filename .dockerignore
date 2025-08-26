@@ -34,7 +34,7 @@ logs
 .gitignore
 
 # Terraform
-src/terraform/.terraform/
+terraform/.terraform/
 *.tfstate
 *.tfstate.*
 .terraform.lock.hcl

@@ -1,0 +1,11 @@
+{
+  "extends": "@meeting-bot/typescript-config/base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["**/*.ts", "**/*.tsx", ".eslintrc.js"],
+  "exclude": ["node_modules", "dist"]
+}

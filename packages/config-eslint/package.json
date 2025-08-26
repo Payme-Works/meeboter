@@ -1,0 +1,20 @@
+{
+  "name": "@meeting-bot/eslint-config",
+  "version": "0.0.0",
+  "private": true,
+  "main": "library.js",
+  "files": [
+    "base.js",
+    "library.js",
+    "next.js",
+    "react.js"
+  ],
+  "devDependencies": {
+    "@stagewise/toolbar": "^0.5.0",
+    "@stagewise/toolbar-next": "^0.5.0",
+    "@vercel/style-guide": "^5.2.0",
+    "eslint-config-prettier": "^8.3.0",
+    "eslint-config-turbo": "^1.9.3",
+    "eslint-plugin-react-hooks": "^4.6.0"
+  }
+}

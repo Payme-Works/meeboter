@@ -1,0 +1,118 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "globalDependencies": ["**/.env.*local"],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "inputs": [
+        "src/**/*.ts",
+        "src/**/*.tsx",
+        "src/**/*.js", 
+        "src/**/*.jsx",
+        "public/**/*",
+        "next.config.*",
+        "package.json",
+        "tsconfig.json",
+        "tailwind.config.*",
+        "postcss.config.*",
+        "drizzle.config.*",
+        "components.json"
+      ],
+      "outputs": [
+        ".next/**",
+        "!.next/cache/**",
+        "dist/**",
+        "build/**"
+      ]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "typecheck": {
+      "dependsOn": ["^build"],
+      "inputs": [
+        "src/**/*.ts",
+        "src/**/*.tsx",
+        "tsconfig.json",
+        "package.json"
+      ],
+      "outputs": []
+    },
+    "lint": {
+      "dependsOn": ["^build"],
+      "inputs": [
+        "src/**/*.ts",
+        "src/**/*.tsx",
+        "src/**/*.js",
+        "src/**/*.jsx", 
+        "eslint.config.*",
+        ".eslintrc.*",
+        "package.json"
+      ]
+    },
+    "test": {
+      "dependsOn": ["build"],
+      "inputs": [
+        "src/**/*.ts",
+        "src/**/*.tsx",
+        "tests/**/*.ts",
+        "tests/**/*.tsx", 
+        "__tests__/**/*.ts",
+        "__tests__/**/*.tsx",
+        "jest.config.*",
+        "jest.setup.*",
+        "package.json"
+      ],
+      "outputs": [
+        "coverage/**"
+      ]
+    },
+    "test:coverage": {
+      "dependsOn": ["build"],
+      "inputs": [
+        "src/**/*.ts",
+        "src/**/*.tsx",
+        "tests/**/*.ts",
+        "tests/**/*.tsx",
+        "__tests__/**/*.ts", 
+        "__tests__/**/*.tsx",
+        "jest.config.*",
+        "jest.setup.*",
+        "package.json"
+      ],
+      "outputs": [
+        "coverage/**"
+      ]
+    },
+    "test:e2e": {
+      "dependsOn": ["build"],
+      "inputs": [
+        "src/**/*.ts",
+        "src/**/*.tsx",
+        "tests-e2e/**/*.ts",
+        "playwright.config.*",
+        "package.json"
+      ],
+      "outputs": [
+        "playwright-report/**",
+        "test-results/**"
+      ]
+    },
+    "test:e2e:coverage": {
+      "dependsOn": ["build"],
+      "inputs": [
+        "src/**/*.ts",
+        "src/**/*.tsx",
+        "tests-e2e/**/*.ts",
+        "playwright.config.*",
+        "package.json"
+      ],
+      "outputs": [
+        "playwright-report/**",
+        "test-results/**",
+        "coverage/**"
+      ]
+    }
+  }
+}

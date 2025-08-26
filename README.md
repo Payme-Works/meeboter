@@ -118,7 +118,7 @@ Important:
 
 ### Installation
 
-See more information in the [Terraform README](src/terraform/README.md).
+See more information in the [Terraform README](terraform/README.md).
 
 1.  **Clone the repository**
 
@@ -180,7 +180,7 @@ See more information in the [Terraform README](src/terraform/README.md).
 
 ## Usage
 
-1.  **Deploy the Terraform Infrastructure:** Follow the instructions in the [Terraform README](src/terraform/README.md) to deploy the necessary AWS resources.
+1.  **Deploy the Terraform Infrastructure:** Follow the instructions in the [Terraform README](terraform/README.md) to deploy the necessary AWS resources.
 
 2.  **Run the Backend:** Navigate to the `src/backend` directory and start the server using `pnpm dev`. Access the API documentation at `http://localhost:{env.PORT}/docs` (or the deployed endpoint).
 
