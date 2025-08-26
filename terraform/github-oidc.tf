@@ -1,11 +1,7 @@
 # ---------------------------------------------------------------------------------------------------------------------
 # GitHub Actions OIDC Configuration
 # ---------------------------------------------------------------------------------------------------------------------
-
-# GitHub OIDC provider data source (use existing provider)
-data "aws_iam_openid_connect_provider" "github" {
-  url = "https://token.actions.githubusercontent.com"
-}
+# Note: The OIDC provider is created in shared resources and referenced via remote state
 
 # IAM role for GitHub Actions
 resource "aws_iam_role" "github_actions" {
@@ -17,7 +13,7 @@ resource "aws_iam_role" "github_actions" {
       {
         Effect = "Allow"
         Principal = {
-          Federated = data.aws_iam_openid_connect_provider.github.arn
+          Federated = local.shared_github_oidc_provider_arn
         }
         Action = "sts:AssumeRoleWithWebIdentity"
         Condition = {
@@ -25,7 +21,7 @@ resource "aws_iam_role" "github_actions" {
             "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
           }
           StringLike = {
-            "token.actions.githubusercontent.com:sub" = "repo:meeting-bot/*"
+            "token.actions.githubusercontent.com:sub" = "repo:live-boost/*"
           }
         }
       }

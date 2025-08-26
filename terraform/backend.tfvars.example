@@ -1,5 +1,0 @@
-bucket = "tf-state-5419"
-key = "meeting-bot/terraform.tfstate"
-region = "us-east-2"
-profile = "meeting-bot"
-dynamodb_table = "tf-lock"

@@ -103,7 +103,7 @@ export class TeamsBot extends Bot {
     // Fill in the display name
     await this.page
       .locator(`[data-tid="prejoin-display-name-input"]`)
-      .fill(this.settings.botDisplayName ?? "Meeting Bot");
+      .fill(this.settings.botDisplayName ?? "Live Boost");
     console.log('Entered Display Name');
 
     // Mute microphone before joining

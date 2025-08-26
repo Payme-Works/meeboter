@@ -60,17 +60,17 @@ module.exports = {
         groups: [
           'module',
 
-          '/^@meeting-bot/',
-          '/^@meeting-bot/core/',
-          '/^@meeting-bot/database/',
-          '/^@meeting-bot/graphql/',
-          '/^@meeting-bot/image-generator/',
-          '/^@meeting-bot/tasks/',
-          '/^@meeting-bot/transactional/',
+          '/^@live-boost/',
+          '/^@live-boost/core/',
+          '/^@live-boost/database/',
+          '/^@live-boost/graphql/',
+          '/^@live-boost/image-generator/',
+          '/^@live-boost/tasks/',
+          '/^@live-boost/transactional/',
 
-          '/^@meeting-bot/modules-mining-cards-core/',
-          '/^@meeting-bot/modules-mining-cards-database/',
-          '/^@meeting-bot/modules-mining-cards-mesh-extension-module/',
+          '/^@live-boost/modules-mining-cards-core/',
+          '/^@live-boost/modules-mining-cards-database/',
+          '/^@live-boost/modules-mining-cards-mesh-extension-module/',
 
           '/^@/config/',
           '/^@/application/',

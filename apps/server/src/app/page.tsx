@@ -29,7 +29,7 @@ export default function Home() {
           <>
             <div className="mt-5 mb-5">
               <h1 className="text-3xl font-bold">
-                Welcome to Meeting Bot
+                Welcome to Live Boost
                 <Skeleton className="ml-2 inline-block h-8 w-80" />
               </h1>
               <p className="mt-2 text-gray-600">

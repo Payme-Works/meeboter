@@ -1,5 +1,5 @@
 # Use Node.js 20 Alpine as base image
-FROM --platform=linux/amd64 node:20-alpine
+FROM node:20-alpine
 
 ENV \
     # Configure default locale (important for chrome-headless-shell).
@@ -35,11 +35,14 @@ WORKDIR /home/pptruser
 COPY package.json pnpm-lock.yaml ./
 COPY src ./src
 
-COPY providers/zoom/package.json providers/zoom/pnpm-lock.yaml ./providers/zoom/
+COPY providers/zoom/package.json providers/zoom/pnpm-lock.yaml providers/zoom/entrypoint.sh ./providers/zoom/
 COPY providers/zoom/src ./providers/zoom/src
 
+# Convert entrypoint.sh to use Unix line endings
+RUN sed -i 's/\r$//' ./providers/zoom/entrypoint.sh
+
 # Install dependencies as root
-RUN pnpm install --filter "@meeting-bot/bots-zoom"
+RUN pnpm install --filter "@live-boost/bots-zoom"
 
 # Change ownership of all files after installation
 RUN chown -R pptruser:pptruser /home/pptruser
@@ -47,8 +50,8 @@ RUN chown -R pptruser:pptruser /home/pptruser
 # Switch to pptruser for running the application
 USER pptruser
 
-# Expose the port the app runs on
-EXPOSE 3000
+# Make entrypoint executable
+RUN chmod +x ./providers/zoom/entrypoint.sh
 
 # Command to run the application
-CMD ["pnpm", "run", "dev"]
+CMD ["./providers/zoom/entrypoint.sh"]

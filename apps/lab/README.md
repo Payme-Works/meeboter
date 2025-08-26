@@ -45,7 +45,7 @@ src/
 
 1. **Install dependencies**:
    ```bash
-   cd /Users/andrevictor/www/HAT-CREW/meeting-bot
+   cd /Users/andrevictor/www/HAT-CREW/live-boost
    pnpm install
    ```
 

@@ -13,8 +13,8 @@ import exp from "constants";
 // 
 
 
-// Load the test.env file (overrides variables from .env if they overlap)
-dotenv.config({ path: 'test.env' });
+// Load the .env.test file (overrides variables from .env if they overlap)
+dotenv.config({ path: '.env.test' });
 
 // Create Mock Configs
 const mockMeetConfig = {

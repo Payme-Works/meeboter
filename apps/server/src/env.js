@@ -1,73 +1,78 @@
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
 
+const isProduction = process.env.VERCEL_ENV === "production" || process.env.NODE_ENV === "production";
+
 export const env = createEnv({
   /**
    * Specify your server-side environment variables schema here. This way you can ensure the app
    * isn't built with invalid env vars.
    */
   server: {
+    NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+
     AUTH_SECRET:
-      process.env.NODE_ENV === "production"
+      isProduction
         ? z.string()
         : z.string().optional(),
     AUTH_GITHUB_ID:
-      process.env.NODE_ENV === "test"
+      !isProduction
         ? z.preprocess(() => "fake_github_id", z.string())
         : z.string(),
     AUTH_GITHUB_SECRET:
-      process.env.NODE_ENV === "test"
+      !isProduction
         ? z.preprocess(() => "fake_github_secret", z.string())
         : z.string(),
+
     DATABASE_URL:
-      process.env.NODE_ENV === "test"
+      !isProduction
         ? z.preprocess(
             () => "postgresql://fake_user:fake_password@localhost:5432/fake_db",
             z.string(),
           )
         : z.string().url().startsWith("postgresql://"),
-    NODE_ENV: z
-      .enum(["development", "test", "production"])
-      .default("development"),
+
     GITHUB_TOKEN:
-      process.env.NODE_ENV === "test"
+      !isProduction
         ? z.preprocess(() => "fake_github_token", z.string())
         : z.string(),
+
     AWS_ACCESS_KEY_ID: z.string().optional(),
     AWS_SECRET_ACCESS_KEY: z.string().optional(),
     AWS_BUCKET_NAME:
-      process.env.NODE_ENV === "test"
+      !isProduction
         ? z.preprocess(() => "fake_aws_bucket_name", z.string())
         : z.string(),
     AWS_REGION:
-      process.env.NODE_ENV === "test"
+      !isProduction
         ? z.preprocess(() => "fake_aws_region", z.string())
         : z.string(),
+
     ECS_TASK_DEFINITION_MEET:
-      process.env.NODE_ENV === "production"
-        ? z.string()
-        : z.string().default(""),
+      !isProduction
+        ? z.preprocess(() => "fake_task_definition_meet", z.string())
+        : z.string(),
     ECS_TASK_DEFINITION_TEAMS:
-      process.env.NODE_ENV === "production"
-        ? z.string()
-        : z.string().default(""),
+      !isProduction
+        ? z.preprocess(() => "fake_task_definition_teams", z.string())
+        : z.string(),
     ECS_TASK_DEFINITION_ZOOM:
-      process.env.NODE_ENV === "production"
-        ? z.string()
-        : z.string().default(""),
+      !isProduction
+        ? z.preprocess(() => "fake_task_definition_zoom", z.string())
+        : z.string(),
     ECS_CLUSTER_NAME:
-      process.env.NODE_ENV === "production"
-        ? z.string()
-        : z.string().default(""),
+      !isProduction
+        ? z.preprocess(() => "fake_cluster_name", z.string())
+        : z.string(),
     ECS_SUBNETS:
-      process.env.NODE_ENV === "production"
+      isProduction
         ? z.preprocess(
             (val) => (typeof val === "string" ? val.split(",") : []),
             z.array(z.string()),
           )
         : z.array(z.string()).default([]),
     ECS_SECURITY_GROUPS:
-      process.env.NODE_ENV === "production"
+      isProduction
         ? z.preprocess(
             (val) => (typeof val === "string" ? val.split(",") : []),
             z.array(z.string()),
@@ -106,11 +111,13 @@ export const env = createEnv({
     ECS_SUBNETS: process.env.ECS_SUBNETS,
     ECS_SECURITY_GROUPS: process.env.ECS_SECURITY_GROUPS,
   },
+
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially
    * useful for Docker builds.
    */
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
+
   /**
    * Makes it so that empty strings are treated as undefined. `SOME_VAR: z.string()` and
    * `SOME_VAR=''` will throw an error.

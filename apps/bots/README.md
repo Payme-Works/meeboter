@@ -12,7 +12,7 @@ Each bot is responsible for executing the following key tasks:
 - **Uploading the Recording**: Transferring the recorded content to a designated storage location upon completion.
 - **Notifying the Backend**: Sending updates to the backend system to reflect the recording status and other relevant details.
 
-These bots are integral to the Meeting Bot application, ensuring seamless and automated meeting recording functionality across supported platforms.
+These bots are integral to the Live Boost application, ensuring seamless and automated meeting recording functionality across supported platforms.
 
 ## File Structure
 
@@ -49,14 +49,14 @@ Refer to the `.env.example` file for the required environment variables. Duplica
 
 `env-bot-data-example.ts` is a script used to create the `BOT_DATA` environment variable for the bot when testing locally. This is a visually easier way to fill in the values than doing it manually. Create a duplicate of this file to
 
-1. Copy the script into `envBotData.ts` (this will be ignored by git)
+1. Copy the script into `env-bot-data.ts` (this will be ignored by git)
 2. Fill in the `<...>` with the actual values
 3. Ensure the `.env` file is in this directory with _no_ `BOT_DATA` variable
 4. Run the script using the following command (this will modify your `.env` file)
 
 ```bash
 cd src/bots
-pnpm tsx envBotData.ts
+pnpm tsx env-bot-data.ts
 ```
 
 ### Environment Setup
@@ -112,7 +112,7 @@ pnpm run dev
 
 ## Building
 
-This section provides instructions for building the Docker images required for the Meeting Bot application. 
+This section provides instructions for building the Docker images required for the Live Boost application. 
 The code below outlines the necessary steps and configurations to create containerized environments 
 for deploying the bot services. 
 

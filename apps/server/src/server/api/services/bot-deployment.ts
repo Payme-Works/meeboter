@@ -111,14 +111,15 @@ export async function deployBot({
       botProcess.stdout.on("data", (data) => {
         console.log(`Bot ${botId} stdout: ${data}`);
       });
+
       botProcess.stderr.on("data", (data) => {
         console.error(`Bot ${botId} stderr: ${data}`);
       });
+
       botProcess.on("error", (error) => {
         console.error(`Bot ${botId} process error:`, error);
       });
     } else {
-      // todo: i'm not sure if this works as intended
       const input: RunTaskRequest = {
         cluster: env.ECS_CLUSTER_NAME,
         // taskDefinition: env.ECS_TASK_DEFINITION_MEET,
@@ -148,6 +149,7 @@ export async function deployBot({
       };
 
       const command = new RunTaskCommand(input);
+      
       await client.send(command);
     }
 

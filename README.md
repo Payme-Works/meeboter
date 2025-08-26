@@ -3,20 +3,20 @@
 <!-- PROJECT LOGO -->
 <br />
 <div align="center">
-  <a href="https://github.com/meeting-bot/meeting-bot">
-    <img src="https://raw.githubusercontent.com/meeting-bot/meeting-bot/refs/heads/main/src/landing-page/public/logo.svg" alt="Logo" width="80" height="80">
+  <a href="https://github.com/live-boost/live-boost">
+    <img src="https://raw.githubusercontent.com/live-boost/live-boost/refs/heads/main/src/landing-page/public/logo.svg" alt="Logo" width="80" height="80">
   </a>
 
-  <h3 align="center">Meeting Bot</h3>
+  <h3 align="center">Live Boost</h3>
 
   <p align="center">
     API for sending bots to video meetings while keeping data private & costs low
     <br />
     <a href="https://discord.gg/3q37XYUEnK">Community Discord</a>
     &middot;
-    <a href="https://meeting-bot.tech">Landing Page</a>
+    <a href="https://live-boost.tech">Landing Page</a>
     &middot;
-    <a href="https://github.com/meeting-bot/meeting-bot/issues/new?labels=bug&template=bug_report.md">Report Issue</a>
+    <a href="https://github.com/live-boost/live-boost/issues/new?labels=bug&template=bug_report.md">Report Issue</a>
   </p>
   
   [![Contributors][contributors-shield]][contributors-url]
@@ -27,7 +27,7 @@
     
 </div>
 
-## Hosted Meeting Bot API
+## Hosted Live Boost API
 
 If you’re looking for a hosted meeting bot API, consider checking out [Recall.ai](https://www.recall.ai/?utm_source=github&utm_medium=sponsorship&utm_campaign=meetingbottech), an API for meeting recording.
 
@@ -61,11 +61,11 @@ https://github.com/user-attachments/assets/0e2f2673-a59f-4473-a5ed-e2a5e1cd1cac
 
 ## About The Project
 
-Meeting Bot is an open-source meeting bot API.
+Live Boost is an open-source meeting bot API.
 
-Meeting Bot provides the infrastructure for sending bots to meetings (Google Meet, Microsoft Teams, and Zoom) and recording them, so that developers can build applications that use meeting recording data in just a few lines of code.
+Live Boost provides the infrastructure for sending bots to meetings (Google Meet, Microsoft Teams, and Zoom) and recording them, so that developers can build applications that use meeting recording data in just a few lines of code.
 
-All infrastructure is defined using Terraform and deployed to AWS, so that you can easily self host Meeting Bot to keep your data private & costs low.
+All infrastructure is defined using Terraform and deployed to AWS, so that you can easily self host Live Boost to keep your data private & costs low.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -97,7 +97,7 @@ All infrastructure is defined using Terraform and deployed to AWS, so that you c
   </a>
 </div>
 
-To get started with Meeting Bot, you'll need to set up the infrastructure and configure the different components.
+To get started with Live Boost, you'll need to set up the infrastructure and configure the different components.
 
 ### Prerequisites
 
@@ -123,8 +123,8 @@ See more information in the [Terraform README](terraform/README.md).
 1.  **Clone the repository**
 
     ```sh
-    git clone https://github.com/meeting-bot/meeting-bot.git
-    cd meeting-bot
+    git clone https://github.com/live-boost/live-boost.git
+    cd live-boost
     ```
 
 2.  **Set up AWS credentials**
@@ -132,15 +132,10 @@ See more information in the [Terraform README](terraform/README.md).
     ```sh
     # either login with AWS or run this make command
     make sso
-    # This configures the AWS SSO profile named 'meeting-bot'
+    # This configures the AWS SSO profile named 'live-boost'
     ```
 
 3.  **Initialize Terraform**
-
-    ```sh
-    cp backend.tfvars.example backend.tfvars
-    ```
-
     ```sh
     cp terraform.tfvars.example terraform.tfvars
     ```
@@ -186,7 +181,7 @@ See more information in the [Terraform README](terraform/README.md).
 
 3.  **Run the Frontend:** Navigate to the `src/frontend` directory and start the development server using `pnpm dev`. Access the application at `http://localhost:3000` (or the deployed endpoint).
 
-4.  **Create API Keys:** Use the frontend to create API keys for authenticating your applications with the Meeting Bot API.
+4.  **Create API Keys:** Use the frontend to create API keys for authenticating your applications with the Live Boost API.
 
 5.  **Deploy Bots:** Use the API endpoints to deploy bots to your desired meeting platforms.
 
@@ -202,8 +197,8 @@ See each subdirectory for an additional README with more information.
 
 <!-- We welcome contributions! Please see our [CONTRIBUTING.md](CONTRIBUTING.md) for more information. -->
 
-<a href="https://github.com/meeting-bot/meeting-bot/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=meeting-bot/meeting-bot" alt="contrib.rocks image" />
+<a href="https://github.com/live-boost/live-boost/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=live-boost/live-boost" alt="contrib.rocks image" />
 </a>
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -237,18 +232,18 @@ Community Discord: [https://discord.gg/3q37XYUEnK](https://discord.gg/3q37XYUEnK
 <!-- MARKDOWN LINKS & IMAGES -->
 <!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
 
-[contributors-shield]: https://img.shields.io/github/contributors/meeting-bot/meeting-bot.svg?style=for-the-badge
-[contributors-url]: https://github.com/meeting-bot/meeting-bot/graphs/contributors
-[forks-shield]: https://img.shields.io/github/forks/meeting-bot/meeting-bot.svg?style=for-the-badge
-[forks-url]: https://github.com/meeting-bot/meeting-bot/network/members
-[stars-shield]: https://img.shields.io/github/stars/meeting-bot/meeting-bot.svg?style=for-the-badge
-[stars-url]: https://github.com/meeting-bot/meeting-bot/stargazers
-[issues-shield]: https://img.shields.io/github/issues/meeting-bot/meeting-bot.svg?style=for-the-badge
-[issues-url]: https://github.com/meeting-bot/meeting-bot/issues
-[license-shield]: https://img.shields.io/github/license/meeting-bot/meeting-bot.svg?style=for-the-badge
-[license-url]: https://github.com/meeting-bot/meeting-bot/blob/master/LICENSE
+[contributors-shield]: https://img.shields.io/github/contributors/live-boost/live-boost.svg?style=for-the-badge
+[contributors-url]: https://github.com/live-boost/live-boost/graphs/contributors
+[forks-shield]: https://img.shields.io/github/forks/live-boost/live-boost.svg?style=for-the-badge
+[forks-url]: https://github.com/live-boost/live-boost/network/members
+[stars-shield]: https://img.shields.io/github/stars/live-boost/live-boost.svg?style=for-the-badge
+[stars-url]: https://github.com/live-boost/live-boost/stargazers
+[issues-shield]: https://img.shields.io/github/issues/live-boost/live-boost.svg?style=for-the-badge
+[issues-url]: https://github.com/live-boost/live-boost/issues
+[license-shield]: https://img.shields.io/github/license/live-boost/live-boost.svg?style=for-the-badge
+[license-url]: https://github.com/live-boost/live-boost/blob/master/LICENSE
 [linkedin-shield]: https://img.shields.io/badge/-LinkedIn-black.svg?style=for-the-badge&logo=linkedin&colorB=555
-[linkedin-url]: https://www.linkedin.com/company/meeting-bot/
+[linkedin-url]: https://www.linkedin.com/company/live-boost/
 [Next.js]: https://img.shields.io/badge/next.js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white
 [Next-url]: https://nextjs.org/
 [React.js]: https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB

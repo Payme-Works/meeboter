@@ -10,7 +10,7 @@ test.beforeEach(async ({ page }) => {
 test.describe("Public Pages", () => {
   test.describe("Landing Page", () => {
     test("should display correct heading", async ({ page }) => {
-      await expect(page.locator("h1")).toContainText("Meeting Bot");
+      await expect(page.locator("h1")).toContainText("Live Boost");
     });
 
     test("should display docs link", async ({ page }) => {
@@ -26,7 +26,7 @@ test.describe("Public Pages", () => {
     test("can navigate to API docs", async ({ page }) => {
       test.setTimeout(30000); // api docs are slow to load
       await page.getByRole("link", { name: "View Documentation" }).click();
-      await expect(page.locator("h2")).toContainText("Meeting Bot API");
+      await expect(page.locator("h2")).toContainText("Live Boost API");
     });
 
     test("should display sign in button ", async ({ page }) => {

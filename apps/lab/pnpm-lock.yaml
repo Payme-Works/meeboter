@@ -21,10 +21,10 @@ importers:
         specifier: ^10.0.0
         version: 10.0.0
     devDependencies:
-      '@meeting-bot/eslint-config':
+      '@live-boost/eslint-config':
         specifier: workspace:*
         version: link:../../packages/config-eslint
-      '@meeting-bot/typescript-config':
+      '@live-boost/typescript-config':
         specifier: workspace:*
         version: link:../../packages/config-typescript
       '@types/uuid':

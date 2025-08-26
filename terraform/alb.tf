@@ -89,42 +89,7 @@ resource "aws_lb_target_group" "server" {
   }
 }
 
-// ACM Certificate for HTTPS
-resource "aws_acm_certificate" "this" {
-  domain_name       = local.workspace_domain
-  validation_method = "DNS"
-
-  lifecycle {
-    create_before_destroy = true
-  }
-
-  tags = {
-    Name = "${local.name}-certificate"
-  }
-}
-
-// DNS validation record for the certificate
-resource "aws_route53_record" "cert_validation" {
-  for_each = {
-    for dvo in aws_acm_certificate.this.domain_validation_options : dvo.domain_name => {
-      name   = dvo.resource_record_name
-      record = dvo.resource_record_value
-      type   = dvo.resource_record_type
-    }
-  }
-
-  zone_id = data.aws_route53_zone.this.zone_id
-  name    = each.value.name
-  type    = each.value.type
-  records = [each.value.record]
-  ttl     = 60
-}
-
-// Certificate validation
-resource "aws_acm_certificate_validation" "this" {
-  certificate_arn         = aws_acm_certificate.this.arn
-  validation_record_fqdns = [for record in aws_route53_record.cert_validation : record.fqdn]
-}
+# Certificate is now managed in terraform/shared/ - reference it via data source
 
 // HTTP Listener - Redirects ALL traffic to HTTPS
 resource "aws_lb_listener" "server_http" {
@@ -148,7 +113,7 @@ resource "aws_lb_listener" "server_https" {
   port              = 443
   protocol          = "HTTPS"
   ssl_policy        = "ELBSecurityPolicy-2016-08"
-  certificate_arn   = aws_acm_certificate_validation.this.certificate_arn
+  certificate_arn   = local.shared_certificate_arn
 
   default_action {
     type = "forward"

@@ -59,24 +59,20 @@ ENV NODE_ENV production
 
 # ENV NEXT_TELEMETRY_DISABLED 1
 
-COPY --from=builder /app/next.config.js ./
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/package.json ./package.json
-
 COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/.next/static ./app/.next/static
+COPY --from=builder /app/public ./app/public
 
 # Copy node_modules for drizzle-kit and migration files
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/drizzle ./drizzle
 COPY --from=builder /app/drizzle.config.ts ./drizzle.config.ts
 
-# Create startup script with proper formatting
-RUN printf '#!/bin/sh\nset -e\necho "Running database migrations..."\n# Set Node.js environment variable to ignore SSL certificate errors\nexport NODE_TLS_REJECT_UNAUTHORIZED=0\necho "Set NODE_TLS_REJECT_UNAUTHORIZED=0 to ignore SSL certificate errors"\nnpx drizzle-kit migrate\necho "Starting server..."\nexec node server.js\n' > /app/start.sh && \
-    chmod +x /app/start.sh && \
-    ls -la /app/start.sh
+# Copy entrypoint script
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
 
 EXPOSE 3000
 ENV PORT 3000
 
-CMD ["/app/start.sh"]
+CMD ["/app/entrypoint.sh"]

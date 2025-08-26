@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y \
 # Set the working directory inside the container
 WORKDIR /app
 
-#Install pnpm globally
+# Install pnpm globally
 RUN npm install -g pnpm
 
 # Copy dependency files
@@ -26,7 +26,7 @@ COPY providers/meet/package.json providers/meet/pnpm-lock.yaml providers/meet/en
 RUN sed -i 's/\r$//' ./providers/meet/entrypoint.sh
 
 # Install dependencies
-RUN pnpm install --filter "@meeting-bot/bots-meet"
+RUN pnpm install --filter "@live-boost/bots-meet"
 
 # Install Playwright dependencies
 RUN pnpm dlx playwright@1.52.0 install-deps
@@ -50,22 +50,22 @@ WORKDIR /app
 # Change ownership of all files after installation
 RUN useradd -ms /bin/bash meetbot && chown -R meetbot:meetbot /app
 
-# install xvfb, pulseaudio, and xephyr in a single step
+# install xvfb, pulseaudio, fluxbox, and xephyr in a single step
 RUN apt-get update && apt-get install -y --no-install-recommends \
-xvfb \
-pulseaudio \
-pulseaudio-utils \
-xserver-xephyr \
-x11-xserver-utils \
-pulseaudio \
-&& rm -rf /var/lib/apt/lists/*
+    xvfb \
+    pulseaudio \
+    pulseaudio-utils \
+    xserver-xephyr \
+    x11-xserver-utils \
+    fluxbox \
+    pulseaudio \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install pnpm globally
 RUN npm install -g pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
-# Copy node_modules and package.json from the base stage
-COPY --from=base /app/node_modules /app/node_modules
+# Copy package.json and playwright files from the base stage
 COPY --from=base /app/package.json /app/package.json
 COPY --from=base /root/ms-playwright /root/ms-playwright
 
@@ -76,7 +76,6 @@ COPY --from=base /app/providers/meet/entrypoint.sh /app/entrypoint.sh
 
 # Copy working files into the container
 COPY src ./src
-COPY test.env ./
 COPY providers/meet/src ./providers/meet/src
 
 # Make all files available to the meetbot user
@@ -89,7 +88,9 @@ RUN chown -R meetbot:meetbot ./providers/meet/src
 # Expose display port
 ENV DISPLAY=:99
 
-# # Run Command
+# Run Command
 USER meetbot
+
 RUN chmod +x ./entrypoint.sh
+
 CMD ["./entrypoint.sh"]

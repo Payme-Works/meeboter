@@ -21,7 +21,7 @@ export default function Home() {
           height={48}
           className="mr-2"
         />
-        <h1 className="text-3xl font-bold text-center">Meeting Bot</h1>
+        <h1 className="text-3xl font-bold text-center">Live Boost</h1>
         <h1
           className="text-2xl text-muted-foreground"
           style={{ translate: "0px 2px" }}
@@ -33,7 +33,7 @@ export default function Home() {
             variant="outline"
             size="sm"
             onClick={() =>
-              window.open("https://github.com/meeting-bot/meeting-bot")
+              window.open("https://github.com/live-boost/live-boost")
             }
           >
             GitHub

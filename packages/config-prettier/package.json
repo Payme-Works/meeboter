@@ -1,5 +1,5 @@
 {
-  "name": "@meeting-bot/prettier-config",
+  "name": "@live-boost/prettier-config",
   "version": "1.0.0",
   "main": "index.js",
   "devDependencies": {

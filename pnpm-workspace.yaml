@@ -3,3 +3,9 @@ packages:
   - "apps/**"
   - "apps/bots/providers/**"
   - "packages/**"
+  
+  # Exclude build directories to prevent workspace conflicts
+  - "!**/.next"
+  - "!**/node_modules"
+  - "!**/dist"
+  - "!**/build"

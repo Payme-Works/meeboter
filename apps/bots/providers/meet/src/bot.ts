@@ -313,7 +313,7 @@ export class MeetsBot extends Bot {
     });
 
     //Define Bot Name
-    const name = this.settings.botDisplayName || "Meeting Bot";
+    const name = this.settings.botDisplayName || "Live Boost";
 
     // Go to the meeting URL (Simulate Movement)
     await this.page.mouse.move(10, 672);

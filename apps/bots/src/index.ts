@@ -4,7 +4,7 @@ import { reportEvent, startHeartbeat } from "./monitoring";
 import { createS3Client, uploadRecordingToS3 } from "./s3";
 import { type BotConfig, EventCode } from "./types";
 
-dotenv.config({ path: "../test.env" }); // Load test.env for testing
+dotenv.config({ path: "../.env.test" }); // Load .env.test for testing
 dotenv.config();
 
 export const main = async () => {

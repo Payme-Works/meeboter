@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { Button } from './button';
-import { MeetingType } from '~/types/MeetingType';
+import { MeetingType } from '@/types/MeetingType';
 
 //Meeting Check Functions
 const checkMeetBotLink = (link: string) => {

@@ -1,5 +1,5 @@
 # Use Node.js 20 Alpine as base image
-FROM --platform=linux/amd64 node:20-alpine
+FROM node:20-alpine
 
 ENV \
     # Configure default locale (important for chrome-headless-shell).
@@ -35,11 +35,14 @@ WORKDIR /home/pptruser
 COPY package.json pnpm-lock.yaml ./
 COPY src ./src
 
-COPY providers/teams/package.json providers/teams/pnpm-lock.yaml ./providers/teams/
+COPY providers/teams/package.json providers/teams/pnpm-lock.yaml providers/teams/entrypoint.sh ./providers/teams/
 COPY providers/teams/src ./providers/teams/src
 
+# Convert entrypoint.sh to use Unix line endings
+RUN sed -i 's/\r$//' ./providers/teams/entrypoint.sh
+
 # Install dependencies as root
-RUN pnpm install --filter "@meeting-bot/bots-teams"
+RUN pnpm install --filter "@live-boost/bots-teams"
 
 # Change ownership of all files after installation
 RUN chown -R pptruser:pptruser /home/pptruser
@@ -51,8 +54,8 @@ RUN chown -R pptruser:pptruser /home/pptruser/providers/teams/src && chmod -R 75
 # Switch to pptruser for running the application
 USER pptruser
 
-# Expose the port the app runs on
-EXPOSE 3000
+# Make entrypoint executable
+RUN chmod +x ./providers/teams/entrypoint.sh
 
 # Command to run the application
-CMD ["pnpm", "run", "dev"]
+CMD ["./providers/teams/entrypoint.sh"]

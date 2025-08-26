@@ -1,5 +1,5 @@
 {
-  "name": "@meeting-bot/server",
+  "name": "@live-boost/server",
   "version": "0.1.0",
   "private": true,
   "type": "module",

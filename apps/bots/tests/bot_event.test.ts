@@ -16,7 +16,7 @@ import exp from "constants";
 
 
 // Create Mock Configs
-dotenv.config({ path: 'test.env' });
+dotenv.config({ path: '.env.test' });
 
 describe('Meet Event Tests', () => {
 

@@ -6,14 +6,14 @@ export async function POST(req: Request) {
     const body = await req.json();
 
     // Get Key
-    const key = process.env.BOT_API_KEY;
-    if (!key) throw new Error(`Missing required environment variable: BOT_API_KEY`);
+    const key = process.env.LIVE_BOOST_API_KEY;
+    if (!key) throw new Error(`Missing required environment variable: LIVE_BOOST_API_KEY`);
     
     const endpoint = process.env.MEETINGBOT_END_POINT;
     if (!endpoint) throw new Error(`Missing required environment variable: MEETINGBOT_END_POINT`);
 
     //
-    // Send request to Meeting Bot API to start and send a bot to a meeting
+    // Send request to Live Boost API to start and send a bot to a meeting
     //
     const eurl = `${endpoint}/api/bots`;
     console.log('Sending Request to', eurl ,'with body', body);
@@ -29,7 +29,7 @@ export async function POST(req: Request) {
     });
 
     //
-    // Return the response from the Meeting Bot API
+    // Return the response from the Live Boost API
     //
 
     const data = await response.json();

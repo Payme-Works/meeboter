@@ -1,5 +1,5 @@
 {
-  "name": "@meeting-bot/bots-meet",
+  "name": "@live-boost/bots-meet",
   "version": "1.0.0",
   "private": true,
   "scripts": {
@@ -23,7 +23,9 @@
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "puppeteer-stream": "3.0.9",
-    "superjson": "^2.2.1"
+    "superjson": "^2.2.1",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2"
   },
   "devDependencies": {
     "@playwright/test": "1.52.0"

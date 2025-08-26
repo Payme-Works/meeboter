@@ -10,7 +10,7 @@ import {
   speakerTimeframeSchema,
 } from "../../db/schema";
 import { eq, sql, and, notInArray } from "drizzle-orm";
-import { deployBot, shouldDeployImmediately } from "../services/botDeployment";
+import { deployBot, shouldDeployImmediately } from "../services/bot-deployment";
 import { extractCount } from "@/server/utils/database";
 import { generateSignedUrl } from "@/server/utils/s3";
 
@@ -74,7 +74,7 @@ export const botsRouter = createTRPCRouter({
         // Extract database fields from input
 
         const dbInput = {
-          botDisplayName: input.botDisplayName ?? "Meeting Bot",
+          botDisplayName: input.botDisplayName ?? "Live Boost",
           botImage: input.botImage,
           userId: ctx.session.user.id,
           meetingTitle: input.meetingTitle ?? "Meeting",

@@ -1,17 +1,21 @@
 #!/bin/bash
 
-# Meeting Bot Deployment Script
-# This script deploys the Meeting Bot infrastructure and applications
+# Live Boost Deployment Script
+# This script deploys the Live Boost infrastructure and applications
 # It applies Terraform, builds Docker images, and pushes them to AWS ECR
 
 set -euo pipefail
 
 # Configuration
-AWS_PROFILE=${AWS_PROFILE:-"meeting-bot"}
-PROJECT_NAME="meeting-bot"
+PROJECT_NAME="live-boost"
+
+AWS_PROFILE=${AWS_PROFILE:-"live-boost"}
 AWS_REGION=${AWS_REGION:-"us-east-2"}
+
 TERRAFORM_WORKSPACE=${TERRAFORM_WORKSPACE:-"development"}  # Default to development
+
 TAG=${TAG:-"sha-$(git rev-parse --short HEAD)"}
+
 SKIP_RESTART=${SKIP_RESTART:-false}
 SKIP_TERRAFORM=${SKIP_TERRAFORM:-false}
 
@@ -99,10 +103,7 @@ check_prerequisites() {
     done
     
     # Check AWS credentials
-    if ! aws sts get-caller-identity --profile "$AWS_PROFILE" --no-cli-pager &> /dev/null; then
-        log_error "AWS credentials not configured or invalid for profile: $AWS_PROFILE"
-        exit 1
-    fi
+    check_aws_credentials
     
     # Check git status
     if [[ -n $(git status --porcelain) ]]; then
@@ -110,6 +111,32 @@ check_prerequisites() {
     fi
     
     log_success "All prerequisites met"
+}
+
+# Check AWS credentials and handle SSO login
+check_aws_credentials() {
+    log_info "Checking AWS credentials for profile: $AWS_PROFILE"
+    
+    if ! aws sts get-caller-identity --profile "$AWS_PROFILE" --no-cli-pager &> /dev/null; then
+        log_warning "AWS credentials not configured or invalid for profile: $AWS_PROFILE"
+        log_info "Attempting to login via AWS SSO..."
+        
+        if aws sso login --profile "$AWS_PROFILE"; then
+            log_success "AWS SSO login successful"
+            
+            # Verify credentials after login
+            if ! aws sts get-caller-identity --profile "$AWS_PROFILE" --no-cli-pager &> /dev/null; then
+                log_error "AWS credentials still invalid after SSO login"
+                exit 1
+            fi
+        else
+            log_error "AWS SSO login failed"
+            log_error "Please ensure your AWS SSO configuration is correct and try again"
+            exit 1
+        fi
+    else
+        log_success "AWS credentials are valid"
+    fi
 }
 
 # Get AWS account ID
@@ -120,7 +147,7 @@ get_aws_account_id() {
 
 # Create S3 bucket for Terraform state if it doesn't exist
 create_s3_bucket() {
-    local bucket_name="tf-state-meeting-bot"
+    local bucket_name="tf-state-live-boost"
     
     log_info "Checking if S3 bucket '$bucket_name' exists..."
     
@@ -422,31 +449,50 @@ restart_services() {
 apply_terraform() {
     log_info "Applying Terraform changes for workspace: $TERRAFORM_WORKSPACE"
     
-    # Navigate to terraform directory
-    local current_dir=$(pwd)
-    cd terraform
-    
-    # Select the workspace
-    log_info "Selecting Terraform workspace: $TERRAFORM_WORKSPACE"
-    if terraform workspace list | grep -q "\\s$TERRAFORM_WORKSPACE$"; then
-        terraform workspace select "$TERRAFORM_WORKSPACE"
+    # Use the dedicated apply script
+    if [[ -f "terraform/apply.sh" ]]; then
+        log_info "Using terraform/apply.sh for deployment..."
+        if bash terraform/apply.sh "$TERRAFORM_WORKSPACE"; then
+            log_success "Terraform apply completed successfully"
+        else
+            log_error "Terraform apply failed"
+            exit 1
+        fi
     else
-        log_info "Creating new workspace: $TERRAFORM_WORKSPACE"
-        terraform workspace new "$TERRAFORM_WORKSPACE"
-    fi
-    
-    # Apply terraform changes
-    log_info "Applying Terraform configuration..."
-    if terraform apply -auto-approve; then
-        log_success "Terraform apply completed successfully"
-    else
-        log_error "Terraform apply failed"
+        log_warning "terraform/apply.sh not found, falling back to direct terraform commands"
+        
+        # Navigate to terraform directory
+        local current_dir=$(pwd)
+        cd terraform
+        
+        # Initialize if needed
+        if [[ ! -d ".terraform" ]]; then
+            log_info "Initializing Terraform..."
+            ./init.sh
+        fi
+        
+        # Select the workspace
+        log_info "Selecting Terraform workspace: $TERRAFORM_WORKSPACE"
+        if terraform workspace list | grep -q "\\s$TERRAFORM_WORKSPACE$"; then
+            terraform workspace select "$TERRAFORM_WORKSPACE"
+        else
+            log_info "Creating new workspace: $TERRAFORM_WORKSPACE"
+            terraform workspace new "$TERRAFORM_WORKSPACE"
+        fi
+        
+        # Apply terraform changes
+        log_info "Applying Terraform configuration..."
+        if terraform apply -auto-approve; then
+            log_success "Terraform apply completed successfully"
+        else
+            log_error "Terraform apply failed"
+            cd "$current_dir"
+            exit 1
+        fi
+        
+        # Return to original directory
         cd "$current_dir"
-        exit 1
     fi
-    
-    # Return to original directory
-    cd "$current_dir"
 }
 
 # Clean up Docker images locally
@@ -468,7 +514,7 @@ cleanup() {
 
 # Main execution
 main() {
-    log_info "Starting Meeting Bot deployment process..."
+    log_info "Starting Live Boost deployment process..."
     
     # Always prompt for environment selection to ensure user is aware of target environment
     # But allow TERRAFORM_WORKSPACE env var to skip the prompt for automation
@@ -543,7 +589,7 @@ cleanup_on_interrupt() {
 # Show help
 if [[ "${1:-}" == "--help" ]] || [[ "${1:-}" == "-h" ]]; then
     cat <<EOF
-Meeting Bot Deployment Script
+Live Boost Deployment Script
 
 Usage: $0 [OPTIONS]
 

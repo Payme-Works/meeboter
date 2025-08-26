@@ -11,20 +11,20 @@
 
 ## AWS Configuration
 
-- **Default Profile**: `meeting-bot`
+- **Default Profile**: `live-boost`
 - **Default Region**: `us-east-2`
-- Always use the meeting-bot profile for AWS operations
-- S3 bucket for Terraform state: `tf-state-meeting-bot`
+- Always use the live-boost profile for AWS operations
+- S3 bucket for Terraform state: `tf-state-live-boost`
 
 ### AWS CLI Commands
 Always include the profile and region when running AWS CLI commands:
 ```bash
-aws <service> <command> --profile meeting-bot --region us-east-2
+aws <service> <command> --profile live-boost --region us-east-2
 ```
 
 ## Terraform Guidelines
 
-- **State Backend**: Store Terraform state in S3 bucket `tf-state-meeting-bot`
+- **State Backend**: Store Terraform state in S3 bucket `tf-state-live-boost`
 - **Region**: All resources should be deployed to `us-east-2` unless specified otherwise
 - Use proper Terraform formatting with `terraform fmt`
 - Always run `terraform plan` before `terraform apply`
@@ -35,10 +35,10 @@ aws <service> <command> --profile meeting-bot --region us-east-2
 ```hcl
 terraform {
   backend "s3" {
-    bucket  = "tf-state-meeting-bot"
+    bucket  = "tf-state-live-boost"
     key     = "terraform.tfstate"
     region  = "us-east-2"
-    profile = "meeting-bot"
+    profile = "live-boost"
   }
 }
 ```
@@ -47,7 +47,7 @@ terraform {
 ```hcl
 provider "aws" {
   region  = "us-east-2"
-  profile = "meeting-bot"
+  profile = "live-boost"
 }
 ```
 

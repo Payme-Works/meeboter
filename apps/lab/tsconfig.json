@@ -1,5 +1,5 @@
 {
-  "extends": "@meeting-bot/typescript-config/base.json",
+  "extends": "@live-boost/typescript-config/base.json",
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {

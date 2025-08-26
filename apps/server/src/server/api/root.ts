@@ -1,7 +1,7 @@
 import { createCallerFactory, createTRPCRouter } from "@/server/api/trpc";
 import { botsRouter } from "./routers/bots";
 import { eventsRouter } from "./routers/events";
-import { apiKeysRouter } from "./routers/apiKeys";
+import { apiKeysRouter } from "./routers/api-keys";
 import { usageRouter } from "./routers/usage";
 import { communityRouter } from "./routers/community";
 

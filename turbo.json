@@ -3,116 +3,28 @@
   "globalDependencies": ["**/.env.*local"],
   "tasks": {
     "build": {
-      "dependsOn": ["^build"],
-      "inputs": [
-        "src/**/*.ts",
-        "src/**/*.tsx",
-        "src/**/*.js", 
-        "src/**/*.jsx",
-        "public/**/*",
-        "next.config.*",
-        "package.json",
-        "tsconfig.json",
-        "tailwind.config.*",
-        "postcss.config.*",
-        "drizzle.config.*",
-        "components.json"
-      ],
-      "outputs": [
-        ".next/**",
-        "!.next/cache/**",
-        "dist/**",
-        "build/**"
-      ]
+      "dependsOn": ["^build"]
     },
     "dev": {
-      "cache": false,
-      "persistent": true
+      "dependsOn": ["^build"]
     },
     "typecheck": {
-      "dependsOn": ["^build"],
-      "inputs": [
-        "src/**/*.ts",
-        "src/**/*.tsx",
-        "tsconfig.json",
-        "package.json"
-      ],
-      "outputs": []
+      "dependsOn": ["^build"]
     },
     "lint": {
-      "dependsOn": ["^build"],
-      "inputs": [
-        "src/**/*.ts",
-        "src/**/*.tsx",
-        "src/**/*.js",
-        "src/**/*.jsx", 
-        "eslint.config.*",
-        ".eslintrc.*",
-        "package.json"
-      ]
+      "dependsOn": ["^build"]
     },
     "test": {
-      "dependsOn": ["build"],
-      "inputs": [
-        "src/**/*.ts",
-        "src/**/*.tsx",
-        "tests/**/*.ts",
-        "tests/**/*.tsx", 
-        "__tests__/**/*.ts",
-        "__tests__/**/*.tsx",
-        "jest.config.*",
-        "jest.setup.*",
-        "package.json"
-      ],
-      "outputs": [
-        "coverage/**"
-      ]
+      "dependsOn": ["^build"]
     },
     "test:coverage": {
-      "dependsOn": ["build"],
-      "inputs": [
-        "src/**/*.ts",
-        "src/**/*.tsx",
-        "tests/**/*.ts",
-        "tests/**/*.tsx",
-        "__tests__/**/*.ts", 
-        "__tests__/**/*.tsx",
-        "jest.config.*",
-        "jest.setup.*",
-        "package.json"
-      ],
-      "outputs": [
-        "coverage/**"
-      ]
+      "dependsOn": ["^build"]      
     },
     "test:e2e": {
-      "dependsOn": ["build"],
-      "inputs": [
-        "src/**/*.ts",
-        "src/**/*.tsx",
-        "tests-e2e/**/*.ts",
-        "playwright.config.*",
-        "package.json"
-      ],
-      "outputs": [
-        "playwright-report/**",
-        "test-results/**"
-      ]
+      "dependsOn": ["^build"]
     },
     "test:e2e:coverage": {
-      "dependsOn": ["build"],
-      "inputs": [
-        "src/**/*.ts",
-        "src/**/*.tsx",
-        "tests-e2e/**/*.ts",
-        "playwright.config.*",
-        "package.json"
-      ],
-      "outputs": [
-        "playwright-report/**",
-        "test-results/**",
-        "coverage/**"
-      ]
+      "dependsOn": ["^build"]
     }
   }
 }

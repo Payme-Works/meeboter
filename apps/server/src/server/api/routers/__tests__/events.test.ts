@@ -1,6 +1,6 @@
 // Move this to the top of the file - before any imports
-jest.mock('~/server/api/services/botDeployment');
-jest.mock('~/server/utils/s3');
+jest.mock('@/server/api/services/botDeployment');
+jest.mock('@/server/utils/s3');
 
 import { initTRPC } from "@trpc/server";
 import type { OpenApiMeta } from "trpc-to-openapi";

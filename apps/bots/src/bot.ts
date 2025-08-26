@@ -123,31 +123,25 @@ export const createBot = async (botData: BotConfig): Promise<Bot> => {
     throw new Error(`Docker image name ${dockerImageName} does not match platform ${platform}`);
   }
 
-  // Change
   switch (botData.meetingInfo.platform) {
-
-    // Google
     case "google":
-      const { MeetsBot } = await import("../meet/src/bot");
+      const { MeetsBot } = await import("../providers/meet/src/bot");
       return new MeetsBot(botData, async (eventType: EventCode, data: any) => {
         await reportEvent(botId, eventType, data);
       });
 
-    // Teams
     case "teams":
-      const { TeamsBot } = await import("../teams/src/bot");
+      const { TeamsBot } = await import("../providers/teams/src/bot");
       return new TeamsBot(botData, async (eventType: EventCode, data: any) => {
         await reportEvent(botId, eventType, data);
       });
 
-    // Zoom
     case "zoom":
-      const { ZoomBot } = await import("../zoom/src/bot");
+      const { ZoomBot } = await import("../providers/zoom/src/bot");
       return new ZoomBot(botData, async (eventType: EventCode, data: any) => {
         await reportEvent(botId, eventType, data);
       });
 
-    // Edge Case
     default:
       throw new Error(`Unsupported platform: ${botData.meetingInfo.platform}`);
   }

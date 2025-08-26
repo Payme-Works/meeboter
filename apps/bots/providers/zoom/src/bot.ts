@@ -172,7 +172,7 @@ export class ZoomBot extends Bot {
 
       // Waits for the input field and types the name from the config
       await frame.waitForSelector("#input-for-name");
-      await frame.type("#input-for-name", this.settings?.botDisplayName ?? "Meeting Bot");
+      await frame.type("#input-for-name", this.settings?.botDisplayName ?? "Live Boost");
       console.log("Typed name");
 
       // Clicks the join button

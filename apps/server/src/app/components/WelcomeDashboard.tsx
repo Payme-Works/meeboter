@@ -12,7 +12,7 @@ export default function WelcomeDashboard() {
     <>
       <div className="mt-5 mb-5">
         <h1 className="text-3xl font-bold">
-          Welcome to Meeting Bot
+          Welcome to Live Boost
           {session?.user?.name ? `, ${session.user.name}` : ""}
         </h1>
         <p className="mt-2 text-gray-600">

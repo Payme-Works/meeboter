@@ -1,5 +1,5 @@
 {
-  "name": "@meeting-bot/eslint-config",
+  "name": "@live-boost/eslint-config",
   "version": "0.0.0",
   "private": true,
   "main": "library.js",

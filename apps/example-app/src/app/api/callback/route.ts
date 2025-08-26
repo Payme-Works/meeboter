@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server';
 let recordingLink = '';
 
 // Get Key
-const BOT_API_KEY = process.env.BOT_API_KEY;
+const LIVE_BOOST_API_KEY = process.env.LIVE_BOOST_API_KEY;
 const MEETINGBOT_END_POINT = process.env.MEETINGBOT_END_POINT;
 
 export async function GET() {
@@ -15,7 +15,7 @@ export async function GET() {
 // Validate Bot is finished and exists
 const validateBot = async (botId: number) => {
   // Validate
-  if (!BOT_API_KEY) return NextResponse.json({ error: 'Missing required environment variable: BOT_API_KEY' }, { status: 500 });
+  if (!LIVE_BOOST_API_KEY) return NextResponse.json({ error: 'Missing required environment variable: LIVE_BOOST_API_KEY' }, { status: 500 });
   if (!MEETINGBOT_END_POINT) return NextResponse.json({ error: 'Missing required environment variable: MEETINGBOT_END_POINT' }, { status: 500 });
 
   // Ensure bot actually exists and is really done
@@ -23,7 +23,7 @@ const validateBot = async (botId: number) => {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': BOT_API_KEY,
+      'x-api-key': LIVE_BOOST_API_KEY,
     }
   });
 
@@ -41,7 +41,7 @@ const validateBot = async (botId: number) => {
 export async function POST(req: Request) {
   try {
     // Validate
-    if (!BOT_API_KEY) return NextResponse.json({ error: 'Missing required environment variable: BOT_API_KEY' }, { status: 500 });
+    if (!LIVE_BOOST_API_KEY) return NextResponse.json({ error: 'Missing required environment variable: LIVE_BOOST_API_KEY' }, { status: 500 });
     if (!MEETINGBOT_END_POINT) return NextResponse.json({ error: 'Missing required environment variable: MEETINGBOT_END_POINT' }, { status: 500 });
 
     // Get bot id from request body telling it it's done
@@ -54,12 +54,12 @@ export async function POST(req: Request) {
     if (!validationResult)
       return NextResponse.json('Bot Validation Failed', { status: 403 });
 
-    // Send request to Meeting Bot API to get the signed Recording URL from S3
+    // Send request to Live Boost API to get the signed Recording URL from S3
     const recordingResponse = await fetch(`${MEETINGBOT_END_POINT}/api/bots/${botId}/recording`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': BOT_API_KEY,
+        'x-api-key': LIVE_BOOST_API_KEY,
       }
     });
 

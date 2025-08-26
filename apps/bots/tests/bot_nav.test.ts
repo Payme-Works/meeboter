@@ -19,8 +19,8 @@ import { jest, it, expect, describe, afterEach, beforeEach, afterAll, beforeAll,
 // Ensure puppeteer-stream is not mocked
 jest.unmock('puppeteer-stream');
 
-// Load the test.env file (overrides variables from .env if they overlap)
-dotenv.config({ path: 'test.env' });
+// Load the .env.test file (overrides variables from .env if they overlap)
+dotenv.config({ path: '.env.test' });
 if (!process.env.MEET_TEST_MEETING_INFO) throw new Error("Environment variable MEET_TEST_MEETING_INFO is not defined");
 if (!process.env.ZOOM_TEST_MEETING_INFO) throw new Error("Environment variable ZOOM_TEST_MEETING_INFO is not defined");
 if (!process.env.TEAMS_TEST_MEETING_INFO) throw new Error("Environment variable TEAMS_TEST_MEETING_INFO is not defined");

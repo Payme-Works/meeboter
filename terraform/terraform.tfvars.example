@@ -1,6 +1,6 @@
-aws_profile = "meeting-bot"
+aws_profile = "live-boost"
 aws_region  = "us-east-2"
-domain_name = "app.meeting-bot.tech"
+domain_name = "app.live-boost.tech"
 auth_github_id = "GITHUB_ID"
 auth_github_secret = "GITHUB_SECRET"
 github_token = "ghp_xxxxxx"

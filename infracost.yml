@@ -6,6 +6,5 @@ projects:
     skip_autodetect: true
     dependency_paths:
       - terraform/**
-      - terraform/backend.tfvars
       - terraform/terraform.tfvars
     usage_file: terraform/infracost-usage.yml

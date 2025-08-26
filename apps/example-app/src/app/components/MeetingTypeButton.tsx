@@ -1,5 +1,5 @@
 'use client';
-import { MeetingType } from '~/types/MeetingType';
+import { MeetingType } from '@/types/MeetingType';
 import { Button } from './button';
 
 export default function MeetingTypeButton({type, onPress, active}: {type: MeetingType, onPress: (type: MeetingType) => void, active: MeetingType}) {
