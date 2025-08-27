@@ -11,7 +11,7 @@ const ENV: 'production' | 'development' = 'production';
 const API_BASE_URL = ENV === 'production' ? PRODUCTION_API_BASE_URL : DEVELOPMENT_API_BASE_URL;
 const API_KEY = ENV === 'production' ? PRODUCTION_API_KEY : DEVELOPMENT_API_KEY;
 
-const GOOGLE_MEET_URL = 'https://meet.google.com/ziq-xaoe-hhd';
+const GOOGLE_MEET_URL = 'https://meet.google.com/ius-zoyy-iih';
 
 // Configuration for multiple bots
 const BOT_CONFIG = {
