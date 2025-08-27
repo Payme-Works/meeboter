@@ -17,7 +17,9 @@
 - S3 bucket for Terraform state: `tf-state-live-boost`
 
 ### AWS CLI Commands
+
 Always include the profile and region when running AWS CLI commands:
+
 ```bash
 aws <service> <command> --profile live-boost --region us-east-2
 ```
@@ -32,6 +34,7 @@ aws <service> <command> --profile live-boost --region us-east-2
 - Tag all resources appropriately for cost tracking and organization
 
 ### Terraform Backend Configuration
+
 ```hcl
 terraform {
   backend "s3" {
@@ -44,6 +47,7 @@ terraform {
 ```
 
 ### Terraform Provider Configuration
+
 ```hcl
 provider "aws" {
   region  = "us-east-2"

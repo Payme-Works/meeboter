@@ -1,11 +1,16 @@
 import { chromium } from "playwright-extra";
 import { Browser, Page } from "playwright";
-import {  PageVideoCapture } from "playwright-video";
+import { PageVideoCapture } from "playwright-video";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import { setTimeout } from "timers/promises";
-import { BotConfig, EventCode, SpeakerTimeframe, WaitingRoomTimeoutError } from "../../../src/types";
+import {
+  BotConfig,
+  EventCode,
+  SpeakerTimeframe,
+  WaitingRoomTimeoutError,
+} from "../../../src/types";
 import { Bot } from "../../../src/bot";
-import * as fs from 'fs';
+import * as fs from "fs";
 import path from "path";
 import { ChildProcessWithoutNullStreams, spawn } from "child_process";
 
@@ -26,7 +31,8 @@ const joinNowButton = '//button[.//span[text()="Join now"]]';
 const gotKickedDetector = '//button[.//span[text()="Return to home screen"]]';
 const leaveButton = `//button[@aria-label="Leave call"]`;
 const peopleButton = `//button[@aria-label="People"]`;
-const onePersonRemainingField = '//span[.//div[text()="Contributors"]]//div[text()="1"]';
+const onePersonRemainingField =
+  '//span[.//div[text()="Contributors"]]//div[text()="1"]';
 const muteButton = `[aria-label*="Turn off microphone"]`; // *= -> conatins
 const cameraOffButton = `[aria-label*="Turn off camera"]`;
 
@@ -50,7 +56,7 @@ const randomDelay = (amount: number) =>
   (2 * Math.random() - 1) * (amount / 10) + amount;
 
 /**
- * Ensure Typescript doesn't complain about the global exposed 
+ * Ensure Typescript doesn't complain about the global exposed
  * functions that will be setup in the bot.
  */
 declare global {
@@ -75,10 +81,10 @@ declare global {
  * Represents a bot that can join and interact with Google Meet meetings.
  * The bot is capable of joining meetings, performing actions, recording the meeting,
  * monitoring participants, and leaving the meeting based on specific conditions.
- * 
+ *
  * @class MeetsBot
  * @extends Bot
- * 
+ *
  * @property {string[]} browserArgs - Arguments passed to the browser instance.
  * @property {string} meetingURL - The URL of the Google Meet meeting to join.
  * @property {Browser} browser - The Playwright browser instance used by the bot.
@@ -90,35 +96,35 @@ declare global {
  * @property {boolean} startedRecording - Indicates if the recording has started.
  * @property {number} timeAloneStarted - The timestamp when the bot was the only participant in the meeting.
  * @property {ChildProcessWithoutNullStreams | null} ffmpegProcess - The ffmpeg process used for recording.
- * 
+ *
  * @constructor
  * @param {BotConfig} botSettings - Configuration settings for the bot, including meeting information.
  * @param {(eventType: EventCode, data?: any) => Promise<void>} onEvent - Callback function to handle events.
- * 
+ *
  * @method run - Runs the bot to join the meeting and perform actions.
  * @returns {Promise<void>}
- * 
+ *
  * @method getRecordingPath - Retrieves the file path of the recording.
  * @returns {string} The path to the recording file.
- * 
+ *
  * @method getSpeakerTimeframes - Retrieves the timeframes of speakers in the meeting.
  * @returns {Array} An array of objects containing speaker names and their respective start and end times.
- * 
+ *
  * @method getContentType - Retrieves the content type of the recording file.
  * @returns {string} The content type of the recording file.
- * 
+ *
  * @method joinMeeting - Joins the Google Meet meeting and performs necessary setup.
  * @returns {Promise<number>} Returns 0 if the bot successfully joins the meeting, or throws an error if it fails.
- * 
+ *
  * @method startRecording - Starts recording the meeting using ffmpeg.
  * @returns {Promise<void>}
- * 
+ *
  * @method stopRecording - Stops the ongoing recording if it has been started.
  * @returns {Promise<number>} Returns 0 if the recording was successfully stopped.
- * 
+ *
  * @method meetingActions - Performs actions during the meeting, including monitoring participants and recording.
  * @returns {Promise<number>} Returns 0 when the bot finishes its meeting actions.
- * 
+ *
  * @method leaveMeeting - Stops the recording and leaves the meeting.
  * @returns {Promise<number>} Returns 0 if the bot successfully leaves the meeting.
  */
@@ -144,13 +150,13 @@ export class MeetsBot extends Bot {
   private ffmpegProcess: ChildProcessWithoutNullStreams | null;
 
   /**
-   * 
+   *
    * @param botSettings Bot Settings as Passed in the API call.
    * @param onEvent Connection to Backend
    */
   constructor(
     botSettings: BotConfig,
-    onEvent: (eventType: EventCode, data?: any) => Promise<void>
+    onEvent: (eventType: EventCode, data?: any) => Promise<void>,
   ) {
     super(botSettings, onEvent);
     this.recordingPath = path.resolve(__dirname, "recording.mp4");
@@ -163,10 +169,10 @@ export class MeetsBot extends Bot {
       "--disable-infobars",
       "--disable-gpu", //disable gpu rendering
 
-      "--use-fake-ui-for-media-stream",// automatically grants screen sharing permissions without a selection dialog.
+      "--use-fake-ui-for-media-stream", // automatically grants screen sharing permissions without a selection dialog.
       "--use-file-for-fake-video-capture=/dev/null",
       "--use-file-for-fake-audio-capture=/dev/null",
-      '--auto-select-desktop-capture-source="Chrome"' // record the first tab automatically
+      '--auto-select-desktop-capture-source="Chrome"', // record the first tab automatically
     ];
     // Fetch
     this.meetingURL = botSettings.meetingInfo.meetingUrl!;
@@ -189,7 +195,6 @@ export class MeetsBot extends Bot {
    * @returns {string} - Returns the path to the recording file.
    */
   getRecordingPath(): string {
-
     // Ensure the directory exists
     const dir = path.dirname(this.recordingPath);
     if (!fs.existsSync(dir)) {
@@ -214,7 +219,7 @@ export class MeetsBot extends Bot {
     // If time between chunks is less than this, we consider it the same utterance.
     const utteranceThresholdMs = 3000;
     for (const [speakerName, timeframesArray] of Object.entries(
-      this.registeredActivityTimestamps
+      this.registeredActivityTimestamps,
     )) {
       let start = timeframesArray[0];
       let end = timeframesArray[0];
@@ -250,7 +255,6 @@ export class MeetsBot extends Bot {
    * Launches the browser and opens a blank page.
    */
   async launchBrowser(headless: boolean = false) {
-
     // Launch Browser
     this.browser = await chromium.launch({
       headless,
@@ -264,20 +268,18 @@ export class MeetsBot extends Bot {
     const context = await this.browser.newContext({
       permissions: ["camera", "microphone"],
       userAgent: userAgent,
-      viewport: vp
+      viewport: vp,
     });
 
     // Create Page, Go to
     this.page = await context.newPage();
   }
 
-
   /**
    * Calls Launch Browser, then navigates to join the meeting.
    * @returns 0 on success, or throws an error if it fails to join the meeting.
    */
   async joinMeeting() {
-
     // Launch
     await this.launchBrowser();
 
@@ -286,7 +288,6 @@ export class MeetsBot extends Bot {
 
     // Inject anti-detection code using addInitScript
     await this.page.addInitScript(() => {
-
       // Disable navigator.webdriver to avoid detection
       Object.defineProperty(navigator, "webdriver", { get: () => undefined });
 
@@ -307,9 +308,13 @@ export class MeetsBot extends Bot {
       Object.defineProperty(navigator, "hardwareConcurrency", { get: () => 4 }); // Fake number of CPU cores
       Object.defineProperty(navigator, "deviceMemory", { get: () => 8 }); // Fake memory size
       Object.defineProperty(window, "innerWidth", { get: () => SCREEN_WIDTH }); // Fake screen resolution
-      Object.defineProperty(window, "innerHeight", { get: () => SCREEN_HEIGHT });
+      Object.defineProperty(window, "innerHeight", {
+        get: () => SCREEN_HEIGHT,
+      });
       Object.defineProperty(window, "outerWidth", { get: () => SCREEN_WIDTH });
-      Object.defineProperty(window, "outerHeight", { get: () => SCREEN_HEIGHT });
+      Object.defineProperty(window, "outerHeight", {
+        get: () => SCREEN_HEIGHT,
+      });
     });
 
     //Define Bot Name
@@ -336,27 +341,31 @@ export class MeetsBot extends Bot {
     console.log("Filling the input field with the name...");
     await this.page.fill(enterNameField, name);
 
-    console.log('Turning Off Camera and Microphone ...');
+    console.log("Turning Off Camera and Microphone ...");
     try {
       await this.page.waitForTimeout(randomDelay(500));
       await this.page.click(muteButton, { timeout: 200 });
       await this.page.waitForTimeout(200);
-
     } catch (e) {
-      console.log('Could not turn off Microphone, probably already off.');
+      console.log("Could not turn off Microphone, probably already off.");
     }
     try {
       await this.page.click(cameraOffButton, { timeout: 200 });
       await this.page.waitForTimeout(200);
-
     } catch (e) {
-      console.log('Could not turn off Camera -- probably already off.');
+      console.log("Could not turn off Camera -- probably already off.");
     }
 
-    console.log('Waiting for either the "Join now" or "Ask to join" button to appear...');
+    console.log(
+      'Waiting for either the "Join now" or "Ask to join" button to appear...',
+    );
     const entryButton = await Promise.race([
-      this.page.waitForSelector(joinNowButton, { timeout: 60000 }).then(() => joinNowButton),
-      this.page.waitForSelector(askToJoinButton, { timeout: 60000 }).then(() => askToJoinButton),
+      this.page
+        .waitForSelector(joinNowButton, { timeout: 60000 })
+        .then(() => joinNowButton),
+      this.page
+        .waitForSelector(askToJoinButton, { timeout: 60000 })
+        .then(() => askToJoinButton),
     ]);
 
     await this.page.click(entryButton);
@@ -384,27 +393,32 @@ export class MeetsBot extends Bot {
   }
 
   /**
-   * 
+   *
    */
   getFFmpegParams() {
-
     // For Testing (pnpm test) -- no docker x11 server running.
-    if (!fs.existsSync('/tmp/.X11-unix')) {
-      console.log('Using test ffmpeg params')
+    if (!fs.existsSync("/tmp/.X11-unix")) {
+      console.log("Using test ffmpeg params");
       return [
-        '-y',
-        '-f', 'lavfi',
-        '-i', 'color=c=blue:s=1280x720:r=30',
-        '-video_size', '1280x720',
-        '-preset', 'ultrafast',
-        '-c:a', 'aac',
-        '-c:v', 'libx264',
-        this.getRecordingPath()
-      ]
+        "-y",
+        "-f",
+        "lavfi",
+        "-i",
+        "color=c=blue:s=1280x720:r=30",
+        "-video_size",
+        "1280x720",
+        "-preset",
+        "ultrafast",
+        "-c:a",
+        "aac",
+        "-c:v",
+        "libx264",
+        this.getRecordingPath(),
+      ];
     }
 
     // Creait to @martinezpl for these ffmpeg params.
-    console.log('Loading Dockerized FFMPEG Params ...')
+    console.log("Loading Dockerized FFMPEG Params ...");
 
     const videoInputFormat = "x11grab";
     const audioInputFormat = "pulse";
@@ -414,51 +428,71 @@ export class MeetsBot extends Bot {
     const fps = "25";
 
     return [
-      '-v', 'verbose', // Verbose logging for debugging
-      "-thread_queue_size", "512", // Increase thread queue size to handle input buffering
-      "-video_size", `${SCREEN_WIDTH}x${SCREEN_HEIGHT}`, //full screen resolution
-      "-framerate", fps, // Lower frame rate to reduce CPU usage
-      "-f", videoInputFormat,
-      "-i", videoSource,
-      "-thread_queue_size", "512",
-      "-f", audioInputFormat,
-      "-i", audioSource,
-      "-c:v", "libx264", // H.264 codec for browser compatibility
-      "-pix_fmt", "yuv420p", // Ensures compatibility with most browsers
-      "-preset", "veryfast", // Use a faster preset to reduce CPU usage
-      "-crf", "28", // Increase CRF for reduced CPU usage
-      "-c:a", "aac", // AAC codec for audio compatibility
-      "-b:a", audioBitrate, // Lower audio bitrate for reduced CPU usage
-      "-vsync", "2", // Synchronize video and audio
-      "-vf", "scale=1280:720", // Ensure the video is scaled to 720p
-      "-y", this.getRecordingPath(), // Output file path
+      "-v",
+      "verbose", // Verbose logging for debugging
+      "-thread_queue_size",
+      "512", // Increase thread queue size to handle input buffering
+      "-video_size",
+      `${SCREEN_WIDTH}x${SCREEN_HEIGHT}`, //full screen resolution
+      "-framerate",
+      fps, // Lower frame rate to reduce CPU usage
+      "-f",
+      videoInputFormat,
+      "-i",
+      videoSource,
+      "-thread_queue_size",
+      "512",
+      "-f",
+      audioInputFormat,
+      "-i",
+      audioSource,
+      "-c:v",
+      "libx264", // H.264 codec for browser compatibility
+      "-pix_fmt",
+      "yuv420p", // Ensures compatibility with most browsers
+      "-preset",
+      "veryfast", // Use a faster preset to reduce CPU usage
+      "-crf",
+      "28", // Increase CRF for reduced CPU usage
+      "-c:a",
+      "aac", // AAC codec for audio compatibility
+      "-b:a",
+      audioBitrate, // Lower audio bitrate for reduced CPU usage
+      "-vsync",
+      "2", // Synchronize video and audio
+      "-vf",
+      "scale=1280:720", // Ensure the video is scaled to 720p
+      "-y",
+      this.getRecordingPath(), // Output file path
     ];
   }
 
   /**
    * Starts the recording of the call using ffmpeg.
-   * 
+   *
    * This function initializes an ffmpeg process to capture the screen and audio of the meeting.
    * It ensures that only one recording process is active at a time and logs the status of the recording.
-   * 
+   *
    * @returns {void}
    */
   async startRecording() {
+    console.log(
+      "Attempting to start the recording ... @",
+      this.getRecordingPath(),
+    );
+    if (this.ffmpegProcess) return console.log("Recording already started.");
 
-    console.log('Attempting to start the recording ... @', this.getRecordingPath());
-    if (this.ffmpegProcess) return console.log('Recording already started.');
+    this.ffmpegProcess = spawn("ffmpeg", this.getFFmpegParams());
 
-    this.ffmpegProcess = spawn('ffmpeg', this.getFFmpegParams());
-
-    console.log('Spawned a subprocess to record: pid=', this.ffmpegProcess.pid);
+    console.log("Spawned a subprocess to record: pid=", this.ffmpegProcess.pid);
 
     // Report any data / errors (DEBUG, since it also prints that data is available).
-    this.ffmpegProcess.stderr.on('data', (data) => {
+    this.ffmpegProcess.stderr.on("data", (data) => {
       // console.error(`ffmpeg: ${data}`);
 
       // Log that we got data, and the recording started.
       if (!this.startedRecording) {
-        console.log('Recording Started.');
+        console.log("Recording Started.");
         this.startedRecording = true;
       }
     });
@@ -466,66 +500,66 @@ export class MeetsBot extends Bot {
     // Log Output of stderr
     // Log to console if the env var is set
     // Turn it on if ffmpeg gives a weird error code.
-    const logFfmpeg = process.env.MEET_FFMPEG_STDERR_ECHO === 'true'
+    const logFfmpeg = process.env.MEET_FFMPEG_STDERR_ECHO === "true";
     if (logFfmpeg ?? false) {
-      this.ffmpegProcess.stderr.on('data', (data) => {
+      this.ffmpegProcess.stderr.on("data", (data) => {
         const text = data.toString();
         console.error(`ffmpeg stderr: ${text}`);
       });
     }
 
     // Report when the process exits
-    this.ffmpegProcess.on('exit', (code) => {
+    this.ffmpegProcess.on("exit", (code) => {
       console.log(`ffmpeg exited with code ${code}`);
       this.ffmpegProcess = null;
     });
 
-    console.log('Started FFMPEG Process.')
+    console.log("Started FFMPEG Process.");
   }
 
   /**
    * Stops the ongoing recording if it has been started.
-   * 
+   *
    * This function ensures that the recording process is terminated. It checks if the `ffmpegProcess`
    * exists and, if so, sends a termination signal to stop the recording. If no recording process
    * is active, it logs a message indicating that no recording was in progress.
-   * 
+   *
    * @returns {Promise<number>} - Returns 0 if the recording was successfully stopped.
    */
   async stopRecording() {
-
-    console.log('Attempting to stop the recording ...');
+    console.log("Attempting to stop the recording ...");
 
     // Await encoding result
     const promiseResult = await new Promise((resolve) => {
-
       // No recording
       if (!this.ffmpegProcess) {
-        console.log('No recording in progress, cannot end recording.');
+        console.log("No recording in progress, cannot end recording.");
         resolve(1);
         return; // exit early
       }
 
       // Graceful stop
-      console.log('Killing ffmpeg process gracefully ...');
-      this.ffmpegProcess.kill('SIGINT'); 
-      console.log('Waiting for ffmpeg to finish encoding ...');
+      console.log("Killing ffmpeg process gracefully ...");
+      this.ffmpegProcess.kill("SIGINT");
+      console.log("Waiting for ffmpeg to finish encoding ...");
 
       // Modify the exit handler to resolve the promise.
       // This will be called when the video is done encoding
-      this.ffmpegProcess.on('exit', (code, signal) => {
+      this.ffmpegProcess.on("exit", (code, signal) => {
         if (code === 0) {
-          console.log('Recording stopped and file finalized.');
+          console.log("Recording stopped and file finalized.");
           resolve(0);
         } else {
-          console.error(`FFmpeg exited with code ${code}${signal ? ` and signal ${signal}` : ''}`);
+          console.error(
+            `FFmpeg exited with code ${code}${signal ? ` and signal ${signal}` : ""}`,
+          );
           resolve(1);
         }
       });
-  
+
       // Modify the error handler to resolve the promise.
-      this.ffmpegProcess.on('error', (err) => {
-        console.error('Error while stopping ffmpeg:', err);
+      this.ffmpegProcess.on("error", (err) => {
+        console.error("Error while stopping ffmpeg:", err);
         resolve(1);
       });
     });
@@ -534,7 +568,7 @@ export class MeetsBot extends Bot {
     return promiseResult;
   }
 
-  async screenshot(fName: string = 'screenshot.png') {
+  async screenshot(fName: string = "screenshot.png") {
     try {
       if (!this.page) throw new Error("Page not initialized");
       if (!this.browser) throw new Error("Browser not initialized");
@@ -542,36 +576,50 @@ export class MeetsBot extends Bot {
       const screenshot = await this.page.screenshot({
         type: "png",
       });
-      
+
       // Save the screenshot to a file
       const screenshotPath = path.resolve(`/tmp/${fName}`);
       fs.writeFileSync(screenshotPath, screenshot);
       console.log(`Screenshot saved to ${screenshotPath}`);
     } catch (error) {
-      console.log('Error taking screenshot:', error);
+      console.log("Error taking screenshot:", error);
     }
   }
 
   /**
    * Check if we got kicked from the meeting.
-   * 
+   *
    */
   async checkKicked() {
-
     // Check if "Return to Home Page" button exists (Kick Condition 1)
-    if (await this.page.locator(gotKickedDetector).count().catch(() => 0) > 0) {
+    if (
+      (await this.page
+        .locator(gotKickedDetector)
+        .count()
+        .catch(() => 0)) > 0
+    ) {
       return true;
     }
 
     // console.log('Checking for hidden leave button ...')
     // Hidden Leave Button (Kick Condition 2)
-    if (await this.page.locator(leaveButton).isHidden({ timeout: 500 }).catch(() => true)) {
+    if (
+      await this.page
+        .locator(leaveButton)
+        .isHidden({ timeout: 500 })
+        .catch(() => true)
+    ) {
       return true;
     }
 
     // console.log('Checking for removed from meeting text ...')
     // Removed from Meeting Text (Kick Condition 3)
-    if (await this.page.locator('text="You\'ve been removed from the meeting"').isVisible({ timeout: 500 }).catch(() => false)) {
+    if (
+      await this.page
+        .locator('text="You\'ve been removed from the meeting"')
+        .isVisible({ timeout: 500 })
+        .catch(() => false)
+    ) {
       return true;
     }
 
@@ -593,20 +641,19 @@ export class MeetsBot extends Bot {
   }
 
   /**
-   * 
+   *
    * Meeting actions of the bot.
-   * 
+   *
    * This function performs the actions that the bot is supposed to do in the meeting.
    * It first waits for the people button to be visible, then clicks on it to open the people panel.
    * It then starts recording the meeting and sets up participant monitoring.
-   *  
+   *
    * Afterwards, It enters a simple loop that checks for end meeting conditions every X seconds.
    * Once detected it's done, it stops the recording and exits.
-   * 
+   *
    * @returns 0
    */
   async meetingActions() {
-
     // Start Recording only if enabled
     if (this.settings.recordingEnabled) {
       console.log("Starting Recording");
@@ -622,7 +669,7 @@ export class MeetsBot extends Bot {
       // UI patch: Find new people icon and click parent button
       const hasPeopleIcon = await this.page.evaluate(() => {
         const peopleButtonChild = Array.from(
-          document.querySelectorAll("i")
+          document.querySelectorAll("i"),
         ).find((el) => el.textContent?.trim() === "people");
         if (peopleButtonChild) {
           const newPeopleButton = peopleButtonChild.closest("button");
@@ -647,7 +694,7 @@ export class MeetsBot extends Bot {
       });
     } catch (error) {
       console.warn("Could not click People button. Continuing anyways.");
-      }
+    }
 
     await this.page.exposeFunction("getParticipants", () => {
       return this.participants;
@@ -658,7 +705,7 @@ export class MeetsBot extends Bot {
       async (participant: Participant) => {
         this.participants.push(participant);
         await this.onEvent(EventCode.PARTICIPANT_JOIN, participant);
-      }
+      },
     );
 
     await this.page.exposeFunction(
@@ -666,11 +713,11 @@ export class MeetsBot extends Bot {
       async (participant: Participant) => {
         await this.onEvent(EventCode.PARTICIPANT_LEAVE, participant);
         this.participants = this.participants.filter(
-          (p) => p.id !== participant.id
+          (p) => p.id !== participant.id,
         );
         this.timeAloneStarted =
           this.participants.length === 1 ? Date.now() : Infinity;
-      }
+      },
     );
 
     await this.page.exposeFunction(
@@ -679,15 +726,19 @@ export class MeetsBot extends Bot {
         this.lastActivity = Date.now();
         const relativeTimestamp = Date.now() - this.recordingStartedAt;
         console.log(
-          `Participant ${participant.name} is speaking at ${relativeTimestamp}ms`
+          `Participant ${participant.name} is speaking at ${relativeTimestamp}ms`,
         );
 
         if (!this.registeredActivityTimestamps[participant.name]) {
-          this.registeredActivityTimestamps[participant.name] = [relativeTimestamp];
+          this.registeredActivityTimestamps[participant.name] = [
+            relativeTimestamp,
+          ];
         } else {
-          this.registeredActivityTimestamps[participant.name]!.push(relativeTimestamp);
+          this.registeredActivityTimestamps[participant.name]!.push(
+            relativeTimestamp,
+          );
         }
-      }
+      },
     );
 
     // Add mutation observer for participant list
@@ -700,7 +751,7 @@ export class MeetsBot extends Bot {
       }
 
       const initialParticipants = Array.from(peopleList.childNodes).filter(
-        (node) => node.nodeType === Node.ELEMENT_NODE
+        (node) => node.nodeType === Node.ELEMENT_NODE,
       );
       window.participantArray = [];
       window.mergedAudioParticipantArray = [];
@@ -723,11 +774,11 @@ export class MeetsBot extends Bot {
 
       window.handleMergedAudio = () => {
         const mergedAudioNode = document.querySelector(
-          '[aria-label="Merged audio"]'
+          '[aria-label="Merged audio"]',
         );
         if (mergedAudioNode) {
           const detectedParticipants: Participant[] = [];
-          
+
           // Gather all participants in the merged audio node
           mergedAudioNode.parentNode!.childNodes.forEach((childNode: any) => {
             const participantId = childNode.getAttribute("data-participant-id");
@@ -749,12 +800,12 @@ export class MeetsBot extends Bot {
             const filteredParticipants = detectedParticipants.filter(
               (participant: Participant) =>
                 !window.mergedAudioParticipantArray.find(
-                  (p: Participant) => p.id === participant.id
-                )
+                  (p: Participant) => p.id === participant.id,
+                ),
             );
             filteredParticipants.forEach((participant: Participant) => {
               const vidBlock = document.querySelector(
-                `[data-requested-participant-id="${participant.id}"]`
+                `[data-requested-participant-id="${participant.id}"]`,
               );
               window.mergedAudioParticipantArray.push(participant);
               window.onParticipantJoin(participant);
@@ -770,25 +821,25 @@ export class MeetsBot extends Bot {
               window.mergedAudioParticipantArray.filter(
                 (participant: Participant) =>
                   !detectedParticipants.find(
-                    (p: Participant) => p.id === participant.id
-                  )
+                    (p: Participant) => p.id === participant.id,
+                  ),
               );
             filteredParticipants.forEach((participant: Participant) => {
               const videoRectangle = document.querySelector(
-                `[data-requested-participant-id="${participant.id}"]`
+                `[data-requested-participant-id="${participant.id}"]`,
               );
               if (!videoRectangle) {
                 // they've left the meeting
                 window.onParticipantLeave(participant);
                 window.participantArray = window.participantArray.filter(
-                  (p: Participant) => p.id !== participant.id
+                  (p: Participant) => p.id !== participant.id,
                 );
               }
 
               // update participants under merged audio
               window.mergedAudioParticipantArray =
                 window.mergedAudioParticipantArray.filter(
-                  (p: Participant) => p.id !== participant.id
+                  (p: Participant) => p.id !== participant.id,
                 );
             });
           }
@@ -821,12 +872,12 @@ export class MeetsBot extends Bot {
                 node.getAttribute("data-participant-id") &&
                 window.participantArray.find(
                   (p: Participant) =>
-                    p.id === node.getAttribute("data-participant-id")
+                    p.id === node.getAttribute("data-participant-id"),
                 )
               ) {
                 console.log(
                   "Participant left:",
-                  node.getAttribute("aria-label")
+                  node.getAttribute("aria-label"),
                 );
                 window.onParticipantLeave({
                   id: node.getAttribute("data-participant-id"),
@@ -834,7 +885,7 @@ export class MeetsBot extends Bot {
                 });
                 window.participantArray = window.participantArray.filter(
                   (p: Participant) =>
-                    p.id !== node.getAttribute("data-participant-id")
+                    p.id !== node.getAttribute("data-participant-id"),
                 );
               } else if (
                 document.querySelector('[aria-label="Merged audio"]')
@@ -846,28 +897,28 @@ export class MeetsBot extends Bot {
           mutation.addedNodes.forEach((node: any) => {
             console.log("Added Node", node);
             if (
-                node.getAttribute &&
+              node.getAttribute &&
               node.getAttribute("data-participant-id") &&
               !window.participantArray.find(
                 (p: Participant) =>
-                  p.id === node.getAttribute("data-participant-id")
+                  p.id === node.getAttribute("data-participant-id"),
               )
-              ) {
-                console.log(
+            ) {
+              console.log(
                 "Participant joined:",
-                  node.getAttribute("aria-label")
-                );
-                    const participant = {
-                      id: node.getAttribute("data-participant-id"),
-                      name: node.getAttribute("aria-label"),
-                    };
+                node.getAttribute("aria-label"),
+              );
+              const participant = {
+                id: node.getAttribute("data-participant-id"),
+                name: node.getAttribute("aria-label"),
+              };
               window.onParticipantJoin(participant);
               window.observeSpeech(node, participant);
               window.participantArray.push(participant);
             } else if (document.querySelector('[aria-label="Merged audio"]')) {
               window.handleMergedAudio();
-              }
-            });
+            }
+          });
         });
       });
 
@@ -877,16 +928,19 @@ export class MeetsBot extends Bot {
     // Loop -- check for end meeting conditions every second
     console.log("Waiting until a leave condition is fulfilled..");
     while (true) {
-
       // Check if it's only me in the meeting
       if (this.participants.length === 1) {
-
-        const leaveMs = this.settings?.automaticLeave?.everyoneLeftTimeout ?? 30000; // Default to 30 seconds if not set
+        const leaveMs =
+          this.settings?.automaticLeave?.everyoneLeftTimeout ?? 30000; // Default to 30 seconds if not set
         const msDiff = Date.now() - this.timeAloneStarted;
-        console.log(`Only me left in the meeting. Waiting for timeout time to have allocated (${msDiff / 1000} / ${leaveMs / 1000}s) ...`);
+        console.log(
+          `Only me left in the meeting. Waiting for timeout time to have allocated (${msDiff / 1000} / ${leaveMs / 1000}s) ...`,
+        );
 
         if (msDiff > leaveMs) {
-          console.log('Only one participant remaining for more than alocated time, leaving the meeting.');
+          console.log(
+            "Only one participant remaining for more than alocated time, leaving the meeting.",
+          );
           break;
         }
       }
@@ -894,18 +948,17 @@ export class MeetsBot extends Bot {
       // Got kicked -- no longer in the meeting
       // Check each of the potentials conditions
       if (await this.checkKicked()) {
-
-        console.log('Detected that we were kicked from the meeting.');
+        console.log("Detected that we were kicked from the meeting.");
         this.kicked = true; //store
         break; //exit loop
-
       }
 
       // Check if there has been no activity, case for when only bots stay in the meeting
       if (
         this.participants.length > 1 &&
         this.lastActivity &&
-        Date.now() - this.lastActivity > this.settings.automaticLeave.inactivityTimeout
+        Date.now() - this.lastActivity >
+          this.settings.automaticLeave.inactivityTimeout
       ) {
         console.log("No Activity for 5 minutes");
         break;
@@ -914,7 +967,7 @@ export class MeetsBot extends Bot {
       await this.handleInfoPopup(1000);
 
       // Reset Loop
-      console.log('Waiting 5 seconds.')
+      console.log("Waiting 5 seconds.");
       await setTimeout(5000); //5 second loop
     }
 
@@ -931,18 +984,18 @@ export class MeetsBot extends Bot {
     }
   }
 
-  /** 
+  /**
    * Clean up the meeting
    */
   async endLife() {
     // Ensure Recording is done
     if (this.settings.recordingEnabled) {
-      console.log('Stopping Recording ...')
-      
+      console.log("Stopping Recording ...");
+
       await this.stopRecording();
     }
-    
-    console.log('Done.')
+
+    console.log("Done.");
 
     // Close my browser
     if (this.browser) {
@@ -952,23 +1005,24 @@ export class MeetsBot extends Bot {
   }
 
   /**
-   * 
+   *
    * Attempts to leave the meeting -- then cleans up.
-   * 
+   *
    * @returns {Promise<number>} - Returns 0 if the bot successfully leaves the meeting, or 1 if it fails to leave the meeting.
    */
   async leaveMeeting() {
-
     // Try and Find the leave button, press. Otherwise, just delete the browser.
-    console.log("Trying to leave the call ...")
+    console.log("Trying to leave the call ...");
     try {
       await this.page.click(leaveButton, { timeout: 1000 }); //Short Attempt
-      console.log('Left Call.');
+      console.log("Left Call.");
     } catch (e) {
-      console.log('Attempted to Leave Call - couldn\'t (probably aleready left).')
+      console.log(
+        "Attempted to Leave Call - couldn't (probably aleready left).",
+      );
     }
 
-    console.log('Ending Life ...');
+    console.log("Ending Life ...");
     await this.endLife();
     return 0;
   }

@@ -6,7 +6,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { DataTable } from "@/components/custom/DataTable";
+import { DataTable } from "@/components/custom/data-table";
 import { api } from "@/trpc/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import dayjs from "dayjs";
@@ -37,7 +37,7 @@ export function ViewLogsDialog({
 
   const logs = logsData?.logs ?? [];
 
-  type Log = typeof logs[number];
+  type Log = (typeof logs)[number];
 
   const logColumns: ColumnDef<Log>[] = [
     {
@@ -87,7 +87,10 @@ export function ViewLogsDialog({
   ];
 
   return (
-    <Dialog open={selectedViewLogsKeyId !== null} onOpenChange={(open) => setSelectedViewLogsKeyId(null)}>
+    <Dialog
+      open={selectedViewLogsKeyId !== null}
+      onOpenChange={(open) => setSelectedViewLogsKeyId(null)}
+    >
       <DialogContent className="max-w-4xl" aria-description="API Key Logs">
         <DialogHeader>
           <DialogTitle>API Key Logs</DialogTitle>

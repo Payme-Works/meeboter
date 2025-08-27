@@ -22,10 +22,9 @@ export default function SessionButton() {
       .join("");
   };
 
-
   if (!session?.user) {
     return (
-      <Link href="/api/auth/signin?provider=github" >
+      <Link href="/api/auth/signin?provider=github">
         <Button variant="outline" className="gap-2">
           Sign In
         </Button>
@@ -49,7 +48,7 @@ export default function SessionButton() {
       <DropdownMenuContent>
         <DropdownMenuLabel>My Account</DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <Link href="/api/auth/signout" className="cursor-pointer" >
+        <Link href="/api/auth/signout" className="cursor-pointer">
           <DropdownMenuItem>Logout</DropdownMenuItem>
         </Link>
       </DropdownMenuContent>

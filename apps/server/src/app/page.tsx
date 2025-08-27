@@ -1,10 +1,10 @@
 "use client";
 import { Skeleton } from "@/components/ui/skeleton";
-import Dashboard from "./components/Dashboard";
-import WelcomeDashboard from "./components/WelcomeDashboard";
+import Dashboard from "./components/dashboard";
+import WelcomeDashboard from "./components/welcome-dashboard";
 import { useSession } from "next-auth/react";
 import { api } from "@/trpc/react";
-import ErrorAlert from "@/components/custom/ErrorAlert";
+import ErrorAlert from "@/components/custom/error-alert";
 
 export default function Home() {
   const { data: session, status } = useSession();

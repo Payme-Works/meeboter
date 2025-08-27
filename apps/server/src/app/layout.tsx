@@ -3,7 +3,7 @@ import "./globals.css";
 import { type Metadata } from "next";
 
 import { TRPCReactProvider } from "@/trpc/react";
-import NavigationBar from "./components/NavigationBar";
+import NavigationBar from "./components/navigation-bar";
 import { SessionProvider } from "next-auth/react";
 
 export const metadata: Metadata = {

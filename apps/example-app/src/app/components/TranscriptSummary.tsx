@@ -12,18 +12,20 @@ interface TranscriptData {
   summary: string;
 }
 
-export default function TranscriptSummary({ recordingUrl }: TranscriptSummaryProps) {
+export default function TranscriptSummary({
+  recordingUrl,
+}: TranscriptSummaryProps) {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<TranscriptData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const generateTranscriptAndSummary = async () => {
     if (!recordingUrl) return;
-    
+
     try {
       setLoading(true);
       setError(null);
-      
+
       const response = await fetch("/api/transcribe", {
         method: "POST",
         headers: {
@@ -31,12 +33,12 @@ export default function TranscriptSummary({ recordingUrl }: TranscriptSummaryPro
         },
         body: JSON.stringify({ recordingUrl }),
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || "Failed to transcribe recording");
       }
-      
+
       const result = await response.json();
       setData(result);
     } catch (err) {
@@ -67,7 +69,11 @@ export default function TranscriptSummary({ recordingUrl }: TranscriptSummaryPro
       ) : error ? (
         <div className="text-destructive p-4 rounded-md border border-destructive">
           <p>Error: {error}</p>
-          <Button variant="outline" onClick={generateTranscriptAndSummary} className="mt-2">
+          <Button
+            variant="outline"
+            onClick={generateTranscriptAndSummary}
+            className="mt-2"
+          >
             Try Again
           </Button>
         </div>
@@ -79,7 +85,7 @@ export default function TranscriptSummary({ recordingUrl }: TranscriptSummaryPro
               {data.summary}
             </div>
           </div>
-          
+
           <div>
             <h3 className="text-lg font-semibold mb-2">Transcript</h3>
             <div className="bg-secondary/50 p-3 rounded-md max-h-60 overflow-y-auto whitespace-pre-wrap">
@@ -90,4 +96,4 @@ export default function TranscriptSummary({ recordingUrl }: TranscriptSummaryPro
       ) : null}
     </div>
   );
-} 
+}

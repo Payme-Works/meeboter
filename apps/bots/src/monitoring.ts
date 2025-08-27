@@ -4,22 +4,21 @@ import { setTimeout } from "timers/promises";
 import dotenv from "dotenv";
 
 // Load the .env.test file (overrides variables from .env if they overlap)
-dotenv.config({ path: '.env.test' });
+dotenv.config({ path: ".env.test" });
 
 // Start heartbeat loop in the background
 export const startHeartbeat = async (
   botId: number,
   abortSignal: AbortSignal,
-  intervalMs: number = 5000
+  intervalMs: number = 5000,
 ) => {
   while (!abortSignal.aborted) {
     try {
       await trpc.bots.heartbeat.mutate({ id: botId });
       console.log(`[${new Date().toISOString()}] Heartbeat sent`);
     } catch (error) {
-
       // Do not log the entire heartbeat error if, in local, the user has set HEARTBEAT_DEBUG to false.
-      if ((process.env?.HEARTBEAT_DEBUG ?? 'true') !== 'false')
+      if ((process.env?.HEARTBEAT_DEBUG ?? "true") !== "false")
         console.error("Failed to send heartbeat:", error);
     }
     await setTimeout(intervalMs); // Send heartbeat every 5 seconds
@@ -30,7 +29,7 @@ export const startHeartbeat = async (
 export const reportEvent = async (
   botId: number,
   eventType: EventCode,
-  eventData: any = null
+  eventData: any = null,
 ) => {
   // do not report events in development
   if (process.env.NODE_ENV === "development") {

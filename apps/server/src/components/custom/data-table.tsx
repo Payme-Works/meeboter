@@ -18,8 +18,8 @@ import {
 } from "@/components/ui/table";
 
 import { Button } from "@/components/ui/button";
-import TableSkeleton from "./TableSkeleton";
-import ErrorAlert from "@/components/custom/ErrorAlert";
+import TableSkeleton from "./table-skeleton";
+import ErrorAlert from "@/components/custom/error-alert";
 
 type DataTableProps<TData, TValue> = {
   isLoading?: boolean;

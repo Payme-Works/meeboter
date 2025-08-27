@@ -11,10 +11,10 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { Button } from "@/components/ui/button"; // Assuming you're using shadcn/ui
-import { UsageTooltip } from "./UsageTooltip";
+import { UsageTooltip } from "./usage-tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/trpc/react";
-import ErrorAlert from "@/components/custom/ErrorAlert";
+import ErrorAlert from "@/components/custom/error-alert";
 
 // Define a proper type for the usage data
 interface UsageData {

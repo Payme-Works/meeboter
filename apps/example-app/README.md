@@ -15,20 +15,25 @@ Ensure the backend and frontend are both running before you start the example ap
 Alternativley, you can modify your example application to point to a hosted backend.
 
 ### Install dependencies
+
 ```bash
 cd apps/example-app
 pnpm install
 ```
 
 ### Setup environment variables
+
 Copy the environment variables from the example file.
+
 ```bash
 cd apps/example-app
 cp .env.example .env
 ```
+
 Fill in the necessary values.
 
 ### Run the development server:
+
 ```bash
 cd apps/example-app
 pnpm run dev
@@ -37,7 +42,7 @@ pnpm run dev
 It will run on port 3002.
 
 Important: if using an external backend, make sure you host and forward port 3002 using an application like ngrok.
-This will allow the Live Boost application to communicate with this application. 
+This will allow the Live Boost application to communicate with this application.
 
 ```bash
 ngrok http 3002

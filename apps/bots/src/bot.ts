@@ -21,7 +21,7 @@ export class Bot implements BotInterface {
 
   constructor(
     settings: BotConfig,
-    onEvent: (eventType: EventCode, data?: any) => Promise<void>
+    onEvent: (eventType: EventCode, data?: any) => Promise<void>,
   ) {
     this.settings = settings;
     this.onEvent = onEvent;
@@ -33,7 +33,6 @@ export class Bot implements BotInterface {
   async joinMeeting(): Promise<any> {
     throw new Error("Method not implemented.");
   }
-
 
   /**
    * Takes a screenshot of the current page and saves it to a file. Useful for debugging..
@@ -47,7 +46,7 @@ export class Bot implements BotInterface {
    *  Clean Resources, close the browser.
    * This is used differently by each bot, but it should be called
    * at the end of the bot's lifecycle at some point.
-   * 
+   *
    * Helpful in testing, where a bot might not be able to close the browser
    * due to a different lifecycle, or the test ending.
    * @returns {Promise<void>}
@@ -97,20 +96,22 @@ export class Bot implements BotInterface {
  * Validates if the given platform matches the expected Docker image name.
  * This ensures that the bot is running on the correct platform as defined
  * in the Docker environment or configuration.
- * 
+ *
  * @param platform - The platform name as described in the BotConfig (e.g., "google", "teams", "zoom").
  * @param imageName - The Docker image name as outlined in the Dockerfile or environment variable.
  * @returns {boolean} - Returns true if the platform matches the image name, or if the platform is "google" and the image name is "meet".
  */
-const validPlatformForImage = (platform: string, imageName: string): boolean => {
+const validPlatformForImage = (
+  platform: string,
+  imageName: string,
+): boolean => {
   if (platform === imageName) return true;
   if (platform === "google" && imageName === "meet") return true; //ignore any mismatch between platform and bot name
 
   return false;
-}
+};
 
 export const createBot = async (botData: BotConfig): Promise<Bot> => {
-
   const botId = botData.id;
   const platform = botData.meetingInfo.platform;
 
@@ -119,8 +120,13 @@ export const createBot = async (botData: BotConfig): Promise<Bot> => {
 
   // Ensure the Docker image name matches the platform -- saftey
   // If local development (implies DOCKER_MEETING_PLATFORM is not set), we don't need this check.
-  if (dockerImageName && !validPlatformForImage(platform ?? '', dockerImageName)) {
-    throw new Error(`Docker image name ${dockerImageName} does not match platform ${platform}`);
+  if (
+    dockerImageName &&
+    !validPlatformForImage(platform ?? "", dockerImageName)
+  ) {
+    throw new Error(
+      `Docker image name ${dockerImageName} does not match platform ${platform}`,
+    );
   }
 
   switch (botData.meetingInfo.platform) {
@@ -145,4 +151,4 @@ export const createBot = async (botData: BotConfig): Promise<Bot> => {
     default:
       throw new Error(`Unsupported platform: ${botData.meetingInfo.platform}`);
   }
-}
+};

@@ -1,9 +1,9 @@
 "use client";
-import DashboardCard from "./DashboardCard";
+import DashboardCard from "./dashboard-card";
 import { File, Plus, LogIn, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import CommunityCard from "./CommunityCard";
+import CommunityCard from "./community-card";
 import { useSession } from "next-auth/react";
 
 export default function WelcomeDashboard() {
@@ -34,13 +34,13 @@ export default function WelcomeDashboard() {
                   }
                   content={
                     session?.user ? (
-                      <Link href="/keys" >
+                      <Link href="/keys">
                         <Button>
                           Create API Key <Plus />
                         </Button>
                       </Link>
                     ) : (
-                      <Link href={`/api/auth/signin?provider=github`} >
+                      <Link href={`/api/auth/signin?provider=github`}>
                         <Button>
                           Sign In <LogIn />
                         </Button>

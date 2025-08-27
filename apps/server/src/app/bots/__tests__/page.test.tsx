@@ -1,12 +1,12 @@
 import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import { createTrpcApiMock, mockUseQuery } from "@/lib/testUtils";
+import { createTrpcApiMock, mockUseQuery } from "@/lib/test-utils";
 
 jest.mock("next-auth/react");
 jest.mock("@/trpc/react", () => createTrpcApiMock());
 
 // Mock sub components~ We are only concerned with the bot table
-jest.mock("../components/BotDetailsDialog", () => ({
+jest.mock("../components/bot-details-dialog", () => ({
   __esModule: true,
   BotDetailsDialog: () => (
     <div data-testid="bot-details-dialog">Bot Details Dialog Component</div>

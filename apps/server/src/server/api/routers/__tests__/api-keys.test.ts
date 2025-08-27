@@ -1,27 +1,29 @@
 import { initTRPC } from "@trpc/server";
 import type { OpenApiMeta } from "trpc-to-openapi";
 import { setupTestDb, cleanupTestDb, getTestDb } from "@/server/test/setup";
-import * as schema from "@/server/db/schema";
+import * as schema from "@/server/database/schema";
 
 // Polyfill for setImmediate in Jest environment
-if (typeof globalThis.setImmediate === 'undefined') {
+if (typeof globalThis.setImmediate === "undefined") {
   // Polyfill setImmediate in test environment
-  Object.defineProperty(globalThis, 'setImmediate', {
-    value: (callback: (...args: unknown[]) => void, ...args: unknown[]) => setTimeout(callback, 0, ...args),
+  Object.defineProperty(globalThis, "setImmediate", {
+    value: (callback: (...args: unknown[]) => void, ...args: unknown[]) =>
+      setTimeout(callback, 0, ...args),
     configurable: true,
     enumerable: true,
-    writable: true
+    writable: true,
   });
 }
 
 // Polyfill for clearImmediate in Jest environment
-if (typeof globalThis.clearImmediate === 'undefined') {
+if (typeof globalThis.clearImmediate === "undefined") {
   // Polyfill clearImmediate in test environment
-  Object.defineProperty(globalThis, 'clearImmediate', {
-    value: (immediateId: ReturnType<typeof setTimeout>) => clearTimeout(immediateId),
+  Object.defineProperty(globalThis, "clearImmediate", {
+    value: (immediateId: ReturnType<typeof setTimeout>) =>
+      clearTimeout(immediateId),
     configurable: true,
     enumerable: true,
-    writable: true
+    writable: true,
   });
 }
 
@@ -35,12 +37,15 @@ beforeAll(async () => {
   testDb = setup.db;
 
   // Insert the test user with the same UUID used in the mock
-  await testDb.insert(schema.users).values({
-    id: "00000000-0000-4000-a000-000000000000",
-    name: "Test User",
-    email: "test@example.com",
-    createdAt: new Date()
-  }).onConflictDoNothing();
+  await testDb
+    .insert(schema.users)
+    .values({
+      id: "00000000-0000-4000-a000-000000000000",
+      name: "Test User",
+      email: "test@example.com",
+      createdAt: new Date(),
+    })
+    .onConflictDoNothing();
 }, 60000); // Increase timeout for container startup
 
 // Cleanup after all tests

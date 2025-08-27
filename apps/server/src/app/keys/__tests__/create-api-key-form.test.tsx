@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import { createTrpcApiMock, mockUseMutation } from "@/lib/testUtils";
+import { createTrpcApiMock, mockUseMutation } from "@/lib/test-utils";
 
 jest.mock("next-auth/react");
 jest.mock("@/trpc/react", () => createTrpcApiMock());

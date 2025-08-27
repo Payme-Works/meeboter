@@ -6,7 +6,7 @@ import {
   selectEventSchema,
   EVENT_DESCRIPTIONS,
   bots,
-} from "@/server/db/schema";
+} from "@/server/database/schema";
 import { eq } from "drizzle-orm";
 
 export const eventsRouter = createTRPCRouter({

@@ -41,11 +41,13 @@ terraform/
 ### Prerequisites
 
 1. **AWS CLI configured** with the `live-boost` profile:
+
    ```bash
    aws configure --profile live-boost
    ```
 
 2. **Terraform installed** (>= 1.0):
+
    ```bash
    terraform version
    ```
@@ -88,13 +90,15 @@ cd ..
 ## 🏗️ Architecture Overview
 
 ### Shared Resources (Single Instance)
+
 - **Route53 Hosted Zone**: `live-boost.andredezzy.com`
 - **ACM Certificate**: Wildcard `*.live-boost.andredezzy.com`
 - **GitHub OIDC Provider**: For GitHub Actions authentication
 
 ### Environment-Specific Resources
+
 - **VPC**: Isolated network per environment
-- **ALB**: Load balancer with HTTPS termination  
+- **ALB**: Load balancer with HTTPS termination
 - **ECS Cluster**: Container orchestration
 - **RDS**: PostgreSQL database
 - **ECR**: Container image repositories
@@ -104,19 +108,22 @@ cd ..
 ## 🌍 Environment Management
 
 ### Available Environments
+
 - **development**: `development.live-boost.andredezzy.com`
-- **staging**: `staging.live-boost.andredezzy.com` 
+- **staging**: `staging.live-boost.andredezzy.com`
 - **production**: `live-boost.andredezzy.com`
 
 ### Workspace Usage
 
 **Shared Resources**: Always use `default` workspace
+
 ```bash
 cd shared/
 terraform workspace show  # Always shows 'default'
 ```
 
 **Environment Resources**: Use environment-specific workspaces
+
 ```bash
 terraform workspace list
 terraform workspace select development
@@ -128,17 +135,17 @@ terraform workspace select production
 
 ### Initialization Scripts
 
-| Script | Purpose | Usage |
-|--------|---------|-------|
-| `./init.sh` | Initialize everything | `./init.sh [upgrade\|reconfigure]` |
-| `./shared/scripts/init.sh` | Initialize shared only | Run from terraform/ or shared/ |
+| Script                     | Purpose                | Usage                              |
+| -------------------------- | ---------------------- | ---------------------------------- |
+| `./init.sh`                | Initialize everything  | `./init.sh [upgrade\|reconfigure]` |
+| `./shared/scripts/init.sh` | Initialize shared only | Run from terraform/ or shared/     |
 
 ### Deployment Scripts
 
-| Script | Purpose | Usage |
-|--------|---------|-------|
-| `./apply.sh` | Deploy everything | `./apply.sh [development\|staging\|production]` |
-| `./shared/scripts/apply.sh` | Deploy shared only | Run from terraform/ or shared/ |
+| Script                      | Purpose            | Usage                                           |
+| --------------------------- | ------------------ | ----------------------------------------------- |
+| `./apply.sh`                | Deploy everything  | `./apply.sh [development\|staging\|production]` |
+| `./shared/scripts/apply.sh` | Deploy shared only | Run from terraform/ or shared/                  |
 
 ### Common Commands
 
@@ -146,12 +153,12 @@ terraform workspace select production
 # Initialize with provider upgrades
 ./init.sh upgrade
 
-# Initialize with backend reconfiguration  
+# Initialize with backend reconfiguration
 ./init.sh reconfigure
 
 # Deploy to specific environment
 ./apply.sh development
-./apply.sh staging  
+./apply.sh staging
 ./apply.sh production
 
 # Manual terraform operations
@@ -177,7 +184,7 @@ Create `terraform.tfvars` with:
 # Domain configuration
 domain_name = "live-boost.andredezzy.com"
 
-# Database configuration  
+# Database configuration
 db_instance_class = "db.t3.micro"  # or db.t3.small for production
 
 # GitHub repository (for OIDC)
@@ -204,7 +211,7 @@ cd shared/
 # Initialize shared resources
 ./scripts/init.sh
 
-# Deploy shared resources  
+# Deploy shared resources
 ./scripts/apply.sh
 
 # Check shared outputs
@@ -242,28 +249,37 @@ terraform workspace new staging
 ### Common Issues
 
 **1. GitHub OIDC Provider Already Exists**
+
 ```
 Error: EntityAlreadyExists: Provider with url https://token.actions.githubusercontent.com already exists.
 ```
-*Solution*: The provider is now managed in shared resources. No manual import needed.
+
+_Solution_: The provider is now managed in shared resources. No manual import needed.
 
 **2. Certificate Validation Timeout**
+
 ```
 Error: timeout while waiting for state to become 'ISSUED'
 ```
-*Solution*: Check that your domain's nameservers are set to AWS Route53 nameservers.
+
+_Solution_: Check that your domain's nameservers are set to AWS Route53 nameservers.
 
 **3. Workspace Confusion**
+
 ```
 Error: Workspaces not supported
 ```
-*Solution*: Ensure you're in the right directory. Shared resources always use default workspace.
+
+_Solution_: Ensure you're in the right directory. Shared resources always use default workspace.
 
 **4. State Lock Issues**
+
 ```
 Error: Error acquiring the state lock
 ```
-*Solution*: Wait for concurrent operations to finish, or force unlock if needed:
+
+_Solution_: Wait for concurrent operations to finish, or force unlock if needed:
+
 ```bash
 terraform force-unlock LOCK-ID
 ```
@@ -319,7 +335,7 @@ terraform output
 ## 🔒 Security Best Practices
 
 1. **State File Security**: Terraform state is stored in encrypted S3 bucket
-2. **IAM Least Privilege**: Each service has minimal required permissions  
+2. **IAM Least Privilege**: Each service has minimal required permissions
 3. **HTTPS Enforcement**: All traffic redirected from HTTP to HTTPS
 4. **Database Security**: RDS in private subnets with security groups
 5. **Container Security**: ECR repositories with lifecycle policies

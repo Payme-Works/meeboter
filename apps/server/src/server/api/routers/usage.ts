@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
-import { bots, dailyUsageSchema } from "@/server/db/schema";
+import { bots, dailyUsageSchema } from "@/server/database/schema";
 import { eq, and, isNotNull, gte } from "drizzle-orm";
 
 // Interface matching dailyUsageSchema exactly

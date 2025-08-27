@@ -11,23 +11,27 @@ This guide provides instructions for building and running meeting bot Docker ima
 ## Available Bot Images
 
 ### Google Meet Bot
+
 - **Base Image**: Microsoft Playwright (Ubuntu-based)
 - **Size**: ~4GB
 - **Features**: Full Playwright browser automation, screen recording, audio processing
 
-### Microsoft Teams Bot  
+### Microsoft Teams Bot
+
 - **Base Image**: Node.js 20 Alpine
 - **Size**: ~1.7GB
 - **Features**: Puppeteer automation, lightweight Alpine-based
 
 ### Zoom Bot
-- **Base Image**: Node.js 20 Alpine  
+
+- **Base Image**: Node.js 20 Alpine
 - **Size**: ~1.7GB
 - **Features**: Puppeteer automation, lightweight Alpine-based
 
 ## Building Images
 
 ### Build All Bots
+
 ```bash
 # From the apps/bots directory
 cd apps/bots
@@ -43,6 +47,7 @@ docker build -f providers/zoom/Dockerfile -t live-boost-zoom .
 ```
 
 ### Multi-Platform Builds
+
 All Dockerfiles are configured for automatic platform detection and will build native images for your architecture (ARM64 or AMD64).
 
 ## Running Bots
@@ -130,6 +135,7 @@ The `BOT_DATA` environment variable must be a JSON string with the following str
 ### Platform-Specific meetingInfo
 
 #### Google Meet
+
 ```json
 "meetingInfo": {
   "platform": "google",
@@ -138,6 +144,7 @@ The `BOT_DATA` environment variable must be a JSON string with the following str
 ```
 
 #### Microsoft Teams
+
 ```json
 "meetingInfo": {
   "platform": "teams",
@@ -149,6 +156,7 @@ The `BOT_DATA` environment variable must be a JSON string with the following str
 ```
 
 #### Zoom
+
 ```json
 "meetingInfo": {
   "platform": "zoom",
@@ -185,6 +193,7 @@ docker run --rm -e NODE_ENV=development -e BOT_DATA='{"id":1,"userId":"test","me
 ### Build Logs
 
 To see detailed build logs:
+
 ```bash
 docker build -f providers/meet/Dockerfile -t live-boost-meet . --progress=plain
 ```
@@ -192,6 +201,7 @@ docker build -f providers/meet/Dockerfile -t live-boost-meet . --progress=plain
 ### Container Debugging
 
 To debug a running container:
+
 ```bash
 # Get container ID
 docker ps
@@ -206,6 +216,7 @@ docker logs <container-id>
 ## Architecture Support
 
 All Docker images support both AMD64 and ARM64 architectures:
+
 - ✅ **AMD64**: Intel/AMD processors, AWS ECS, most cloud providers
 - ✅ **ARM64**: Apple Silicon (M1/M2), AWS Graviton, ARM-based servers
 

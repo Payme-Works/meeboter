@@ -36,6 +36,7 @@ If you’re looking for a hosted meeting bot API, consider checking out [Recall.
 https://github.com/user-attachments/assets/0e2f2673-a59f-4473-a5ed-e2a5e1cd1cac
 
 ## Table of Contents
+
 <!-- TABLE OF CONTENTS -->
 <details>
   <summary>Table of Contents</summary>
@@ -136,6 +137,7 @@ See more information in the [Terraform README](terraform/README.md).
     ```
 
 3.  **Initialize Terraform**
+
     ```sh
     cp terraform.tfvars.example terraform.tfvars
     ```

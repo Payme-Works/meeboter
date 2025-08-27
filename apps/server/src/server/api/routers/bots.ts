@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure, publicProcedure } from "@/server/api/trpc";
+import {
+  createTRPCRouter,
+  protectedProcedure,
+  publicProcedure,
+} from "@/server/api/trpc";
 import {
   bots,
   events,
@@ -83,17 +87,31 @@ export const botsRouter = createTRPCRouter({
           endTime: input.endTime ?? new Date(),
           recordingEnabled: input.recordingEnabled ?? false,
           heartbeatInterval: input.heartbeatInterval ?? 5000,
-          automaticLeave: input.automaticLeave ? {
-            waitingRoomTimeout: Math.max(input.automaticLeave.waitingRoomTimeout ?? 300000, 60000), // minimum 60 seconds
-            noOneJoinedTimeout: Math.max(input.automaticLeave.noOneJoinedTimeout ?? 300000, 60000), // minimum 60 seconds
-            everyoneLeftTimeout: Math.max(input.automaticLeave.everyoneLeftTimeout ?? 300000, 60000), // minimum 60 seconds
-            inactivityTimeout: Math.max(input.automaticLeave.inactivityTimeout ?? 300000, 60000), // minimum 60 seconds
-          } : {
-            waitingRoomTimeout: 300000, // 5 minutes (default)
-            noOneJoinedTimeout: 300000, // 5 minutes (default)
-            everyoneLeftTimeout: 300000, // 5 minutes (default)
-            inactivityTimeout: 300000, // 5 minutes (default)
-          },
+          automaticLeave: input.automaticLeave
+            ? {
+                waitingRoomTimeout: Math.max(
+                  input.automaticLeave.waitingRoomTimeout ?? 300000,
+                  60000,
+                ), // minimum 60 seconds
+                noOneJoinedTimeout: Math.max(
+                  input.automaticLeave.noOneJoinedTimeout ?? 300000,
+                  60000,
+                ), // minimum 60 seconds
+                everyoneLeftTimeout: Math.max(
+                  input.automaticLeave.everyoneLeftTimeout ?? 300000,
+                  60000,
+                ), // minimum 60 seconds
+                inactivityTimeout: Math.max(
+                  input.automaticLeave.inactivityTimeout ?? 300000,
+                  60000,
+                ), // minimum 60 seconds
+              }
+            : {
+                waitingRoomTimeout: 300000, // 5 minutes (default)
+                noOneJoinedTimeout: 300000, // 5 minutes (default)
+                everyoneLeftTimeout: 300000, // 5 minutes (default)
+                inactivityTimeout: 300000, // 5 minutes (default)
+              },
           callbackUrl: input.callbackUrl, // Credit to @martinezpl for this line -- cannot merge at time of writing due to capstone requirements
         };
 
@@ -167,8 +185,8 @@ export const botsRouter = createTRPCRouter({
         id: z.number(),
         status: status,
         recording: z.string().optional(),
-        speakerTimeframes: z.array(speakerTimeframeSchema).optional()
-      })
+        speakerTimeframes: z.array(speakerTimeframeSchema).optional(),
+      }),
     )
     .output(selectBotSchema)
     .mutation(async ({ input, ctx }) => {
@@ -184,8 +202,14 @@ export const botsRouter = createTRPCRouter({
       }
 
       // Validate recording requirement only if recording is enabled
-      if (input.status === "DONE" && botRecord[0].recordingEnabled && !input.recording) {
-        throw new Error("Recording is required when status is DONE and recording is enabled");
+      if (
+        input.status === "DONE" &&
+        botRecord[0].recordingEnabled &&
+        !input.recording
+      ) {
+        throw new Error(
+          "Recording is required when status is DONE and recording is enabled",
+        );
       }
 
       const result = await ctx.db
@@ -216,21 +240,24 @@ export const botsRouter = createTRPCRouter({
         // add the recording to the bot
         await ctx.db
           .update(bots)
-          .set({ recording: input.recording, speakerTimeframes: input.speakerTimeframes })
+          .set({
+            recording: input.recording,
+            speakerTimeframes: input.speakerTimeframes,
+          })
           .where(eq(bots.id, bot.id));
 
         if (bot.callbackUrl) {
           // call the callback url
           try {
             await fetch(bot.callbackUrl, {
-              method: 'POST',
+              method: "POST",
               body: JSON.stringify({
                 botId: bot.id,
                 status: input.status,
               }),
-            })
+            });
           } catch (error) {
-            console.error('Error calling callback URL:', error)
+            console.error("Error calling callback URL:", error);
           }
         }
       }

@@ -14,7 +14,10 @@ if (!process.env.CI) {
   try {
     dotenv.config({ path: ".test.env" });
   } catch (error: unknown) {
-    console.error("Error loading .test.env:", error instanceof Error ? error.message : String(error));
+    console.error(
+      "Error loading .test.env:",
+      error instanceof Error ? error.message : String(error),
+    );
   }
 }
 
@@ -27,20 +30,24 @@ export async function setupTestDb() {
   if (!process.env.TEST_DATABASE_URL) {
     throw new Error("TEST_DATABASE_URL is not set in .test.env file");
   }
-  
+
   // Validate database URL format
-  if (!process.env.TEST_DATABASE_URL.startsWith('postgresql://') && 
-      !process.env.TEST_DATABASE_URL.startsWith('postgres://')) {
-    throw new Error(`Invalid TEST_DATABASE_URL format. Must start with postgresql:// or postgres://`);
+  if (
+    !process.env.TEST_DATABASE_URL.startsWith("postgresql://") &&
+    !process.env.TEST_DATABASE_URL.startsWith("postgres://")
+  ) {
+    throw new Error(
+      `Invalid TEST_DATABASE_URL format. Must start with postgresql:// or postgres://`,
+    );
   }
-  
+
   // Log sanitized connection string (hide password)
   const sanitizedUrl = process.env.TEST_DATABASE_URL.replace(
     /(postgresql|postgres):\/\/([^:]+):([^@]+)@/,
-    '$1://$2:****@'
+    "$1://$2:****@",
   );
   console.log(`Connecting to test database: ${sanitizedUrl}`);
-  
+
   // Get the connection string
   try {
     // Add a timeout to the connection to prevent hanging
@@ -52,7 +59,7 @@ export async function setupTestDb() {
       timeout: 10, // Connection timeout in seconds
       debug: true, // Enable debug logging
     });
-    
+
     console.log("Successfully created postgres client");
   } catch (connectionError) {
     console.error("Failed to create database connection:", connectionError);
@@ -63,22 +70,28 @@ export async function setupTestDb() {
   try {
     db = drizzle(conn, { schema });
     console.log("Successfully created drizzle instance");
-    
+
     // Test the connection with a simple query
     const result = await db.execute(sql`SELECT 1 as test`);
     console.log("Database connection test successful:", result);
   } catch (drizzleError) {
-    console.error("Failed to initialize Drizzle or connect to database:", drizzleError);
-    
+    console.error(
+      "Failed to initialize Drizzle or connect to database:",
+      drizzleError,
+    );
+
     // Clean up connection if Drizzle initialization failed
     if (conn) {
       try {
         await conn.end();
       } catch (endError) {
-        console.error("Error closing connection after Drizzle initialization failure:", endError);
+        console.error(
+          "Error closing connection after Drizzle initialization failure:",
+          endError,
+        );
       }
     }
-    
+
     throw new Error(`Drizzle initialization failed: ${String(drizzleError)}`);
   }
 
@@ -88,9 +101,9 @@ export async function setupTestDb() {
     path.join(process.cwd(), "src", "server", "drizzle"),
     path.join(process.cwd(), "..", "drizzle"),
     // Add the exact path we found earlier
-    path.join(process.cwd(), "src", "drizzle"), 
+    path.join(process.cwd(), "src", "drizzle"),
     // Try with absolute path
-    path.join(process.cwd(), "../..", "src", "server", "drizzle")
+    path.join(process.cwd(), "../..", "src", "server", "drizzle"),
   ];
 
   let migrationsFolder: string | null = null;
@@ -106,9 +119,11 @@ export async function setupTestDb() {
       } else {
         // Log what's in the directory to help debugging
         if (fs.existsSync(path.join(p, "meta"))) {
-          console.log(`Meta directory exists but journal not found. Contents: ${fs.readdirSync(path.join(p, "meta")).join(', ')}`);
+          console.log(
+            `Meta directory exists but journal not found. Contents: ${fs.readdirSync(path.join(p, "meta")).join(", ")}`,
+          );
         } else {
-          console.log(`Contents of ${p}: ${fs.readdirSync(p).join(', ')}`);
+          console.log(`Contents of ${p}: ${fs.readdirSync(p).join(", ")}`);
         }
       }
     }
@@ -116,10 +131,14 @@ export async function setupTestDb() {
 
   if (!migrationsFolder) {
     console.error("Migrations folder not found. Check the folder structure.");
-    throw new Error("Migrations folder not found. Test database schema cannot be guaranteed.");
+    throw new Error(
+      "Migrations folder not found. Test database schema cannot be guaranteed.",
+    );
   } else {
     try {
-      console.log(`Applying migrations from ${migrationsFolder} to test database`);
+      console.log(
+        `Applying migrations from ${migrationsFolder} to test database`,
+      );
       await migrate(db, { migrationsFolder });
       console.log("Test database migrations applied successfully");
     } catch (error) {
@@ -152,8 +171,10 @@ export async function cleanupTestDb() {
 
     if (tables && Array.isArray(tables)) {
       for (const table of tables) {
-        if (table && typeof table.table_name === 'string') {
-          const truncateQuery = sql.raw(`TRUNCATE TABLE "${table.table_name}" CASCADE;`);
+        if (table && typeof table.table_name === "string") {
+          const truncateQuery = sql.raw(
+            `TRUNCATE TABLE "${table.table_name}" CASCADE;`,
+          );
           await db.execute(truncateQuery); // Truncate (clear all the data) the table
         }
       }

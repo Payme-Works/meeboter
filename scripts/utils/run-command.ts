@@ -1,4 +1,4 @@
-import { spawn } from 'child_process';
+import { spawn } from "child_process";
 
 /**
  * Runs a command and returns a promise.
@@ -16,7 +16,7 @@ export async function runCommand(
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
-      stdio: 'inherit',
+      stdio: "inherit",
       env: {
         ...process.env,
         ...options.env,
@@ -25,18 +25,18 @@ export async function runCommand(
       shell: true,
     });
 
-    child.on('close', code => {
+    child.on("close", (code) => {
       if (code === 0) {
         resolve();
       } else {
         reject(
           new Error(
-            `Command "${command} ${args.join(' ')}" exited with code ${code}`,
+            `Command "${command} ${args.join(" ")}" exited with code ${code}`,
           ),
         );
       }
     });
 
-    child.on('error', reject);
+    child.on("error", reject);
   });
 }

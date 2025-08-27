@@ -1,10 +1,10 @@
 "use client";
 
-import { columns } from "./components/ApiKeyColumns";
-import { DataTable } from "@/components/custom/DataTable";
+import { columns } from "./components/api-key-columns";
+import { DataTable } from "@/components/custom/data-table";
 import { api } from "@/trpc/react";
-import { CreateApiKeyDialog } from "./components/CreateApiKeyDialog";
-import { ViewLogsDialog } from "./components/ViewLogsDialog";
+import { CreateApiKeyDialog } from "./components/create-api-key-dialog";
+import { ViewLogsDialog } from "./components/view-logs-dialog";
 import { useState } from "react";
 
 export default function Keys() {

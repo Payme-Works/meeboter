@@ -1,12 +1,12 @@
 "use client";
 
-import DashboardCard from "./DashboardCard";
-import CommunityCard from "./CommunityCard";
+import DashboardCard from "./dashboard-card";
+import CommunityCard from "./community-card";
 import { Bot, File, Key } from "lucide-react";
-import { UsageChart } from "../usage/components/UsageChart";
+import { UsageChart } from "../usage/components/usage-chart";
 import { api } from "@/trpc/react";
 import { Skeleton } from "@/components/ui/skeleton";
-import ErrorAlert from "@/components/custom/ErrorAlert";
+import ErrorAlert from "@/components/custom/error-alert";
 import { useSession } from "next-auth/react";
 
 export default function Dashboard() {

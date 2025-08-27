@@ -43,6 +43,7 @@ src/bots/
 ```
 
 ## Environment
+
 Refer to the `.env.example` file for the required environment variables. Duplicate this file and rename it to `.env`. This `.env` file will be utilized by the application during execution.
 
 ### Using `env-bot-data-example.ts`
@@ -66,6 +67,7 @@ See `.env.example` for an understanding of the file structure. Look at `env-bot-
 The `meeting_info` object in the `.env` file is used to store the meeting information for the bot to join the meeting. However, this information is platform dependant- Each platform requires the use of different keys in the `meeting_info` object.
 
 ### Zoom
+
 ```json
 {
   "meeting_info": {
@@ -77,6 +79,7 @@ The `meeting_info` object in the `.env` file is used to store the meeting inform
 ```
 
 ### Google Meet
+
 ```json
 {
   "meeting_info": {
@@ -85,9 +88,11 @@ The `meeting_info` object in the `.env` file is used to store the meeting inform
   }
 }
 ```
+
 Where Meeting Link is the full URL to the meeting.
 
 ### Microsoft Teams
+
 ```json
 {
   "meeting_info": {
@@ -98,7 +103,6 @@ Where Meeting Link is the full URL to the meeting.
   }
 }
 ```
-
 
 ## Local Testing
 
@@ -112,9 +116,9 @@ pnpm run dev
 
 ## Building
 
-This section provides instructions for building the Docker images required for the Live Boost application. 
-The code below outlines the necessary steps and configurations to create containerized environments 
-for deploying the bot services. 
+This section provides instructions for building the Docker images required for the Live Boost application.
+The code below outlines the necessary steps and configurations to create containerized environments
+for deploying the bot services.
 
 Ensure that [Docker](https://www.docker.com/) is installed and properly configured on your system before proceeding with the build process.
 
@@ -139,7 +143,9 @@ docker run --env-file .env <PLATFORM>
 Where `<PLATFORM>` is one of either `meet | teams | zoom`.
 
 ### Build Issues
+
 If you get an strange erorr while running (eg. Browser not found at file specified), upgrade puppeteer to the latest version in the specific platform's `node_modules` folder.
+
 ```bash
 cd zoom
 pnpm install puppeteer@latest

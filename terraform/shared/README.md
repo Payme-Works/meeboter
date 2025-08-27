@@ -34,18 +34,21 @@ shared/
 ## Usage
 
 ### Initialize Shared Resources
+
 ```bash
 cd terraform/shared
 ./scripts/init.sh
 ```
 
 ### Deploy Shared Resources
+
 ```bash
 cd terraform/shared
 ./scripts/apply.sh
 ```
 
 ### From Main Terraform
+
 The main `terraform/apply.sh` script automatically handles shared resources deployment.
 
 ## Environment Integration

@@ -1,17 +1,20 @@
-import { getMultipleBrazilianNames } from './constants/bot-display-names';
+import { getMultipleBrazilianNames } from "./constants/bot-display-names";
 
-const PRODUCTION_API_KEY = '00e137cd5b97f23ca34f170b780f4c9d368c784b0ec40c06d92160a9c293aaa2';
-const DEVELOPMENT_API_KEY = '175113ee117feaae481c6115f3f67e4cc1b4c862a66a9b3f61a4c14b9035aca9';
+const PRODUCTION_API_KEY =
+  "00e137cd5b97f23ca34f170b780f4c9d368c784b0ec40c06d92160a9c293aaa2";
+const DEVELOPMENT_API_KEY =
+  "175113ee117feaae481c6115f3f67e4cc1b4c862a66a9b3f61a4c14b9035aca9";
 
+const PRODUCTION_API_BASE_URL = "https://live-boost.andredezzy.com/api";
+const DEVELOPMENT_API_BASE_URL =
+  "https://development.live-boost.andredezzy.com/api";
 
-const PRODUCTION_API_BASE_URL = 'https://live-boost.andredezzy.com/api';
-const DEVELOPMENT_API_BASE_URL = 'https://development.live-boost.andredezzy.com/api';
+const ENV: "production" | "development" = "production";
+const API_BASE_URL =
+  ENV === "production" ? PRODUCTION_API_BASE_URL : DEVELOPMENT_API_BASE_URL;
+const API_KEY = ENV === "production" ? PRODUCTION_API_KEY : DEVELOPMENT_API_KEY;
 
-const ENV: 'production' | 'development' = 'production';
-const API_BASE_URL = ENV === 'production' ? PRODUCTION_API_BASE_URL : DEVELOPMENT_API_BASE_URL;
-const API_KEY = ENV === 'production' ? PRODUCTION_API_KEY : DEVELOPMENT_API_KEY;
-
-const GOOGLE_MEET_URL = 'https://meet.google.com/ius-zoyy-iih';
+const GOOGLE_MEET_URL = "https://meet.google.com/ius-zoyy-iih";
 
 // Configuration for multiple bots
 const BOT_CONFIG = {
@@ -32,7 +35,7 @@ interface CreateBotRequest {
     tenantId?: string;
     messageId?: string;
     threadId?: string;
-    platform: 'google' | 'zoom';
+    platform: "google" | "zoom";
   };
   startTime: string;
   endTime: string;
@@ -62,14 +65,14 @@ function extractMeetingIdFromUrl(url: string): string {
   // Format: https://meet.google.com/xxx-xxxx-xxx
   const match = url.match(/meet\.google\.com\/([a-z0-9-]+)/i);
 
-  return match ? match[1] : 'unknown-meeting-id';
+  return match ? match[1] : "unknown-meeting-id";
 }
 
 async function createBot(
   botDisplayName: string,
   botIndex?: number,
 ): Promise<Bot> {
-  const botLabel = botIndex !== undefined ? `Bot ${botIndex + 1}` : 'Bot';
+  const botLabel = botIndex !== undefined ? `Bot ${botIndex + 1}` : "Bot";
   console.log(`🤖 Creating ${botLabel} (${botDisplayName})...`);
 
   const now = new Date();
@@ -82,11 +85,11 @@ async function createBot(
 
   const botRequest: CreateBotRequest = {
     botDisplayName,
-    meetingTitle: 'Google Meet Session',
+    meetingTitle: "Google Meet Session",
     meetingInfo: {
       meetingId: meetingId,
       meetingUrl: GOOGLE_MEET_URL,
-      platform: 'google',
+      platform: "google",
     },
     startTime: now.toISOString(),
     endTime: endTime.toISOString(),
@@ -100,10 +103,10 @@ async function createBot(
   };
 
   const response = await fetch(`${API_BASE_URL}/bots`, {
-    method: 'POST',
+    method: "POST",
     headers: {
-      'x-api-key': API_KEY,
-      'Content-Type': 'application/json',
+      "x-api-key": API_KEY,
+      "Content-Type": "application/json",
     },
     body: JSON.stringify(botRequest),
   });
@@ -123,7 +126,7 @@ async function createBot(
 async function checkBotStatus(botId: number): Promise<Bot> {
   const response = await fetch(`${API_BASE_URL}/bots/${botId}`, {
     headers: {
-      'x-api-key': API_KEY,
+      "x-api-key": API_KEY,
     },
   });
 
@@ -141,7 +144,7 @@ async function monitorBot(
   botName: string,
   botIndex?: number,
 ): Promise<void> {
-  const botLabel = botIndex !== undefined ? `Bot ${botIndex + 1}` : 'Bot';
+  const botLabel = botIndex !== undefined ? `Bot ${botIndex + 1}` : "Bot";
   console.log(`👀 Monitoring ${botLabel} (${botName}) status...`);
 
   const maxAttempts = 10;
@@ -152,15 +155,15 @@ async function monitorBot(
       const bot = await checkBotStatus(botId);
       console.log(`📊 ${botLabel} Status (${attempt}/10): ${bot.status}`);
 
-      if (bot.status === 'IN_CALL') {
+      if (bot.status === "IN_CALL") {
         console.log(`🎉 ${botLabel} successfully joined the meeting!`);
 
         break;
-      } else if (bot.status === 'FATAL') {
+      } else if (bot.status === "FATAL") {
         console.error(`💥 ${botLabel} deployment failed`);
 
         break;
-      } else if (bot.status === 'DONE') {
+      } else if (bot.status === "DONE") {
         console.log(`✅ ${botLabel} session completed`);
 
         break;
@@ -168,7 +171,7 @@ async function monitorBot(
 
       if (attempt < maxAttempts) {
         console.log(`⏳ ${botLabel} waiting ${pollInterval / 1000}s...`);
-        await new Promise(resolve => setTimeout(resolve, pollInterval));
+        await new Promise((resolve) => setTimeout(resolve, pollInterval));
       }
     } catch (error) {
       console.error(`❌ Error checking ${botLabel} status: ${error}`);
@@ -177,20 +180,20 @@ async function monitorBot(
         throw error;
       }
 
-      await new Promise(resolve => setTimeout(resolve, pollInterval));
+      await new Promise((resolve) => setTimeout(resolve, pollInterval));
     }
   }
 }
 
 async function testApiConnection(): Promise<void> {
-  console.log('🔍 Testing API connection...');
+  console.log("🔍 Testing API connection...");
 
   try {
     // Test with a simple GET request first
     const response = await fetch(`${API_BASE_URL}/bots`, {
-      method: 'GET',
+      method: "GET",
       headers: {
-        'x-api-key': API_KEY,
+        "x-api-key": API_KEY,
       },
     });
 
@@ -214,7 +217,7 @@ async function testApiConnection(): Promise<void> {
     const data = await response.json();
     console.log(`✅ API Connection successful! Response:`, data);
   } catch (error) {
-    console.error('❌ API Connection test failed:', error);
+    console.error("❌ API Connection test failed:", error);
 
     throw error;
   }
@@ -228,7 +231,7 @@ async function deployBot(botName: string, botIndex: number): Promise<Bot> {
         `⏳ Waiting ${BOT_CONFIG.staggerDelay / 1000}s before deploying Bot ${botIndex + 1}...`,
       );
 
-      await new Promise(resolve =>
+      await new Promise((resolve) =>
         setTimeout(resolve, BOT_CONFIG.staggerDelay),
       );
     }
@@ -252,7 +255,7 @@ async function deployBot(botName: string, botIndex: number): Promise<Bot> {
 
 async function deployMultipleBots(): Promise<Bot[]> {
   console.log(`🚀 Deploying ${BOT_CONFIG.numberOfBots} bots...`);
-  console.log('');
+  console.log("");
 
   // Get unique Brazilian names for all bots
   const botNames = getMultipleBrazilianNames(BOT_CONFIG.numberOfBots);
@@ -264,10 +267,10 @@ async function deployMultipleBots(): Promise<Bot[]> {
     const botName = botNames[i];
 
     const deploymentPromise = deployBot(botName, i)
-      .then(bot => {
+      .then((bot) => {
         deployedBots.push(bot);
       })
-      .catch(error => {
+      .catch((error) => {
         console.error(`❌ Bot ${i + 1} deployment failed:`, error);
         // Continue with other bots even if one fails
       });
@@ -278,7 +281,7 @@ async function deployMultipleBots(): Promise<Bot[]> {
   // Wait for all bot deployments to complete
   await Promise.allSettled(deploymentPromises);
 
-  console.log('');
+  console.log("");
 
   console.log(
     `📊 Deployment Summary: ${deployedBots.length}/${BOT_CONFIG.numberOfBots} bots deployed successfully`,
@@ -288,8 +291,8 @@ async function deployMultipleBots(): Promise<Bot[]> {
 }
 
 async function main(): Promise<void> {
-  console.log('🚀 Live Boost - Google Meet Multiple Bot Deployment');
-  console.log('==================================================');
+  console.log("🚀 Live Boost - Google Meet Multiple Bot Deployment");
+  console.log("==================================================");
   console.log(`🎯 Target meeting: ${GOOGLE_MEET_URL}`);
   console.log(`🤖 Number of bots to deploy: ${BOT_CONFIG.numberOfBots}`);
 
@@ -301,23 +304,23 @@ async function main(): Promise<void> {
     `🕐 Stagger delay: ${BOT_CONFIG.staggerDelay / 1000}s between deployments`,
   );
 
-  console.log('');
+  console.log("");
 
   try {
     // Step 0: Test API connection first
     await testApiConnection();
-    console.log('');
+    console.log("");
 
     // Step 1: Deploy multiple bots
     const deployedBots = await deployMultipleBots();
 
-    console.log('');
-    console.log('🎉 Bot deployment process completed!');
-    console.log('==================================================');
+    console.log("");
+    console.log("🎉 Bot deployment process completed!");
+    console.log("==================================================");
 
     if (deployedBots.length > 0) {
       console.log(`📊 Successfully deployed ${deployedBots.length} bot(s):`);
-      console.log('');
+      console.log("");
 
       deployedBots.forEach((bot, index) => {
         console.log(`Bot ${index + 1}:`);
@@ -325,36 +328,36 @@ async function main(): Promise<void> {
         console.log(`  - Name: ${bot.botDisplayName}`);
         console.log(`  - Status: ${bot.status}`);
         console.log(`  - Created: ${new Date(bot.createdAt).toLocaleString()}`);
-        console.log('');
+        console.log("");
       });
 
       console.log(`Meeting: ${deployedBots[0].meetingInfo.meetingUrl}`);
       console.log(`Platform: ${deployedBots[0].meetingInfo.platform}`);
-      console.log('');
+      console.log("");
 
       console.log(
-        '💡 The bots should now be joining your Google Meet session!',
+        "💡 The bots should now be joining your Google Meet session!",
       );
     } else {
-      console.log('⚠️  No bots were successfully deployed.');
+      console.log("⚠️  No bots were successfully deployed.");
     }
   } catch (error) {
-    console.error('');
-    console.error('❌ Bot deployment failed:');
-    console.error('========================');
+    console.error("");
+    console.error("❌ Bot deployment failed:");
+    console.error("========================");
 
     if (error instanceof Error) {
       console.error(`Error: ${error.message}`);
 
       if (
-        error.message.includes('401') ||
-        error.message.includes('Authorization')
+        error.message.includes("401") ||
+        error.message.includes("Authorization")
       ) {
-        console.error('💡 Check your API key - it may be invalid or expired');
-      } else if (error.message.includes('404')) {
-        console.error('💡 Check the API endpoint URL');
-      } else if (error.message.includes('timeout')) {
-        console.error('💡 Check your internet connection');
+        console.error("💡 Check your API key - it may be invalid or expired");
+      } else if (error.message.includes("404")) {
+        console.error("💡 Check the API endpoint URL");
+      } else if (error.message.includes("timeout")) {
+        console.error("💡 Check your internet connection");
       }
     }
 
@@ -363,7 +366,7 @@ async function main(): Promise<void> {
 }
 
 // Run the application
-main().catch(error => {
-  console.error('💥 Fatal error:', error);
+main().catch((error) => {
+  console.error("💥 Fatal error:", error);
   process.exit(1);
 });

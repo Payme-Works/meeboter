@@ -12,7 +12,7 @@ import superjson from "superjson";
 import { ZodError } from "zod";
 
 import { auth } from "@/server/auth";
-import { db } from "@/server/db";
+import { db } from "@/server/database/db";
 
 import type { OpenApiMeta } from "trpc-to-openapi";
 import { eq, and, gt } from "drizzle-orm";

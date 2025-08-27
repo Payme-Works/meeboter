@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
-import { CreateApiKeyForm } from "./CreateApiKeyForm";
+import { CreateApiKeyForm } from "./create-api-key-form";
 import { useState } from "react";
 
 export function CreateApiKeyDialog() {

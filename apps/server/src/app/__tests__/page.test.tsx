@@ -4,7 +4,7 @@ import {
   createTrpcApiMock,
   mockUseQuery,
   mockUseSession,
-} from "@/lib/testUtils";
+} from "@/lib/test-utils";
 
 jest.mock("next-auth/react");
 jest.mock("@/trpc/react", () => createTrpcApiMock());

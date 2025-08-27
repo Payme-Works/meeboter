@@ -1,7 +1,7 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import { createTrpcApiMock, mockUseQuery } from "@/lib/testUtils";
-import { type DailyUsageType } from "@/server/db/schema";
+import { createTrpcApiMock, mockUseQuery } from "@/lib/test-utils";
+import { type DailyUsageType } from "@/server/database/schema";
 
 // Fake data that will be used to test the component
 const fakeWeeklyUsageData: DailyUsageType[] = Array.from(

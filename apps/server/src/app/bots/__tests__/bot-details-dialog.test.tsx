@@ -1,14 +1,17 @@
 import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import { createTrpcApiMock, mockUseQuery } from "@/lib/testUtils";
-import { type SelectBotType, type SelectEventType } from "@/server/db/schema";
+import { createTrpcApiMock, mockUseQuery } from "@/lib/test-utils";
+import {
+  type SelectBotType,
+  type SelectEventType,
+} from "@/server/database/schema";
 
 jest.mock("next-auth/react");
 jest.mock("@/trpc/react", () => createTrpcApiMock());
 
 // Explicitly import the components *after* the mocks
 const { BotDetailsDialog } =
-  require("../components/BotDetailsDialog") as typeof import("../components/BotDetailsDialog");
+  require("../components/bot-details-dialog") as typeof import("../components/bot-details-dialog");
 const { api } = require("@/trpc/react") as typeof import("@/trpc/react");
 
 // Fake data that will be used to test the component

@@ -3,7 +3,7 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import dayjs from "dayjs";
-import ActionCell from "./ActionCell";
+import ActionCell from "./action-cell";
 
 // Define the ApiKey type inline
 type ApiKey = {

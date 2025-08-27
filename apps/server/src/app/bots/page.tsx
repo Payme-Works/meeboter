@@ -1,13 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { DataTable } from "@/components/custom/DataTable";
+import { DataTable } from "@/components/custom/data-table";
 import { type ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import { formatDistanceToNow } from "date-fns";
 import { api } from "@/trpc/react";
 import Image from "next/image";
-import { BotDetailsDialog } from "@/app/bots/components/BotDetailsDialog";
+import { BotDetailsDialog } from "@/app/bots/components/bot-details-dialog";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { ExternalLinkIcon } from "lucide-react";
@@ -46,7 +46,7 @@ export default function BotsPage() {
       cell: ({ row }) => {
         const recording = row.original.recording;
         return recording ? (
-          <Link href={recording} target="_blank" >
+          <Link href={recording} target="_blank">
             {recording} <ExternalLinkIcon className="h-4 w-4" />
           </Link>
         ) : (

@@ -7,12 +7,12 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { DataTable } from "@/components/custom/DataTable";
+import { DataTable } from "@/components/custom/data-table";
 import { type ColumnDef } from "@tanstack/react-table";
 import { api } from "@/trpc/react";
 import { format } from "date-fns";
 import Image from "next/image";
-import ErrorAlert from "@/components/custom/ErrorAlert";
+import ErrorAlert from "@/components/custom/error-alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
@@ -148,7 +148,7 @@ export function BotDetailsDialog({ botId, onClose }: BotDetailsDialogProps) {
                     <p>
                       <span className="font-medium">Recording:</span>{" "}
                       {bot?.recording ? (
-                        <Link href={bot.recording} target="_blank" >
+                        <Link href={bot.recording} target="_blank">
                           {bot.recording}{" "}
                           <ExternalLinkIcon className="h-4 w-4" />
                         </Link>

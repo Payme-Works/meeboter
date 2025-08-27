@@ -1,7 +1,7 @@
-import { type BotConfig, bots } from "@/server/db/schema";
+import { type BotConfig, bots } from "@/server/database/schema";
 import { eq } from "drizzle-orm";
 import { type PostgresJsDatabase } from "drizzle-orm/postgres-js";
-import type * as schema from "@/server/db/schema";
+import type * as schema from "@/server/database/schema";
 import { spawn } from "child_process";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -149,7 +149,7 @@ export async function deployBot({
       };
 
       const command = new RunTaskCommand(input);
-      
+
       await client.send(command);
     }
 

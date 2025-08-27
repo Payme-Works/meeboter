@@ -1,27 +1,28 @@
 # Live Boost Next.JS Server
 
-The `server` folder contains the backend implementation of the Live Boost application. 
-It is built using **Next.js** and includes APIs, database configurations, authentication, and other server-side utilities. 
+The `server` folder contains the backend implementation of the Live Boost application.
+It is built using **Next.js** and includes APIs, database configurations, authentication, and other server-side utilities.
 
 This document provides an overview of the folder structure and how the components work together.
 
-
-
-
 ## **Getting Started**
+
 To run the server locally, follow these steps:
 
 Copy the `.env.example` file to `.env` and set the environment variables.
+
 ```bash
 cp .env.example .env
 ```
 
 Install dependencies:
+
 ```bash
 pnpm install
 ```
 
 Run the development server:
+
 ```bash
 pnpm dev
 ```
@@ -31,18 +32,23 @@ pnpm dev
 ## **Folder Structure**
 
 ### **public**
-Provides assets and static files for the front-end application. 
+
+Provides assets and static files for the front-end application.
 This includes images, fonts, and other resources that are publicly accessible.
 
 ---
 
 ### **drizzle**
+
 Contains database migration files and schema definitions for the application.
+
 - **Migrations**: SQL files for creating and updating database tables.
 - **Schema Definitions**: Defines the structure of tables and relationships using Drizzle ORM.
+
 ---
 
 ### **tests-e2e**
+
 Contains end-to-end tests for the frontend and backend application -- ensuring the application works as expected from a user's perspective.
 It also includes Frontend component tests to ensure our visual components are working as expected.
 
@@ -69,7 +75,7 @@ src/server
 │ ├── app                  # The Actual Endpoint Routes
 │ │ ├── tests
 │ │ ├── api                 # Backend API routes for the application.
-│ │ │ ├── auth              
+│ │ │ ├── auth
 │ │ │ │ └── route.ts
 │ │ │ ├── trpc
 │ │ │ │ └── [trpc]
@@ -81,25 +87,25 @@ src/server
 │ │ ├── components          # Reusable components for the application.
 │ │ ├── docs                # (Page) Documentation page for the application.
 │ │ ├── keys                # (Page) Key management page for managing API keys.
-│ │ ├── usage               # (Page) Usage page for displaying usage statistics.  
+│ │ ├── usage               # (Page) Usage page for displaying usage statistics.
 │ │ ├── page.tsx            # (Page) Main page of the frontend application.
 │ │ └── __tests__           # tests for frontend
-│ |           
-│ ├── components            
-│ ├── lib              
-│ ├── styles                # Global Styles     
+│ |
+│ ├── components
+│ ├── lib
+│ ├── styles                # Global Styles
 | ├── trpc                  # tRPC access
 | |
-| ├── server                  # Configuration files for the server-side application 
+| ├── server                  # Configuration files for the server-side application
 │ │ ├── api
-│ │ │ ├── routers             # tRPC endPoints -- the actual backend APIS 
+│ │ │ ├── routers             # tRPC endPoints -- the actual backend APIS
 │ │ │ │ ├── apiKeys.ts           # API keys management APIs
 │ │ │ │ ├── bots.ts              # Bots management APIs
 │ │ │ │ ├── community.ts         # Community APIs
 │ │ │ │ ├── events.ts            # Event APIs
 │ │ │ │ └── usage.ts             # Usage Rate APIs
 │ │ │ ├── services            # Service functions for backend to use
-│ │ │ │ └── botDeployment.ts    # Deploying Bot functionality 
+│ │ │ │ └── botDeployment.ts    # Deploying Bot functionality
 │ │ │ ├── root.ts             # Main Router
 │ │ │ └── trpc.ts
 │ │ |
@@ -109,35 +115,39 @@ src/server
 │ │ ├── db                 # Database configuration and schema definitions.
 │ │ │ ├── index.ts
 │ │ │ └── schema.ts
-│ │ ├── utils              # Utility functions and helpers for the server-side application.  
-│ │ │ └── s3.ts       
-│ │ └── botDeployment.ts   # File for deploying bots to the server.    
+│ │ ├── utils              # Utility functions and helpers for the server-side application.
+│ │ │ └── s3.ts
+│ │ └── botDeployment.ts   # File for deploying bots to the server.
 ```
 
 In essense:
+
 - `src/server/src/app` contains the frontend application code, pages, and components.
 - `src/server/src/server` contains the backend application code, including API routes, authentication, database configuration, and utility functions.
 - `src/server/src/app/api` gives access to the backend API routes.
-
 
 ---
 
 ## **Key Components**
 
 ### **tRPC API**
+
 - The tRPC API is initialized in `api/trpc.ts`.
 - Provides a type-safe way to define and consume APIs.
 - Includes middleware for authentication and request timing.
 
 ### **Authentication**
+
 - Authentication is handled using NextAuth in `auth`.
 - Supports session-based authentication and API key-based authentication.
 
 ### **Database**
+
 - The database is configured using Drizzle ORM in `db`.
 - Schema definitions include tables for users, API keys, and request logs.
 
 ### **Styling**
+
 - Global styles are defined in `/globals.css`.
 - Uses TailwindCSS for utility-first styling.
 

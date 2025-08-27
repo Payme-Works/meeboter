@@ -1,7 +1,12 @@
 import fs from "fs";
 import puppeteer, { Browser, Page } from "puppeteer";
 import { launch, getStream, wss } from "puppeteer-stream";
-import { BotConfig, EventCode, SpeakerTimeframe, WaitingRoomTimeoutError } from "../../../src/types";
+import {
+  BotConfig,
+  EventCode,
+  SpeakerTimeframe,
+  WaitingRoomTimeoutError,
+} from "../../../src/types";
 import { Bot } from "../../../src/bot";
 import path from "path";
 import { Transform } from "stream";
@@ -22,14 +27,14 @@ export class TeamsBot extends Bot {
 
   constructor(
     botSettings: BotConfig,
-    onEvent: (eventType: EventCode, data?: any) => Promise<void>
+    onEvent: (eventType: EventCode, data?: any) => Promise<void>,
   ) {
     super(botSettings, onEvent);
     this.recordingPath = "./recording.webm";
     this.contentType = "video/webm";
     this.url = `https://teams.microsoft.com/v2/?meetingjoin=true#/l/meetup-join/19:meeting_${this.settings.meetingInfo.meetingId}@thread.v2/0?context=%7b%22Tid%22%3a%22${this.settings.meetingInfo.tenantId}%22%2c%22Oid%22%3a%22${this.settings.meetingInfo.organizerId}%22%7d&anon=true`;
     this.participants = [];
-    this.participantsIntervalId = setInterval(() => { }, 0);
+    this.participantsIntervalId = setInterval(() => {}, 0);
   }
 
   getRecordingPath(): string {
@@ -38,7 +43,7 @@ export class TeamsBot extends Bot {
 
   getSpeakerTimeframes(): SpeakerTimeframe[] {
     // TODO: Implement this
-    return []
+    return [];
   }
 
   getContentType(): string {
@@ -60,21 +65,19 @@ export class TeamsBot extends Bot {
       fs.writeFileSync(screenshotPath, screenshot);
       console.log(`Screenshot saved to ${screenshotPath}`);
     } catch (e) {
-      console.log('Error taking screenshot:', e);
+      console.log("Error taking screenshot:", e);
     }
   }
 
-
   async launchBrowser() {
-
     // Launch the browser and open a new blank page
-    this.browser = await launch({
+    this.browser = (await launch({
       executablePath: puppeteer.executablePath(),
       headless: "new",
       // args: ["--use-fake-ui-for-media-stream"],
       args: ["--no-sandbox"],
       protocolTimeout: 0,
-    }) as unknown as Browser;
+    })) as unknown as Browser;
 
     // Parse the URL
     console.log("Parsing URL:", this.url);
@@ -87,12 +90,10 @@ export class TeamsBot extends Bot {
 
     // Open a new page
     this.page = await this.browser.newPage();
-    console.log('Opened Page');
+    console.log("Opened Page");
   }
 
-
   async joinMeeting() {
-
     await this.launchBrowser();
 
     // Navigate the page to a URL
@@ -104,15 +105,15 @@ export class TeamsBot extends Bot {
     await this.page
       .locator(`[data-tid="prejoin-display-name-input"]`)
       .fill(this.settings.botDisplayName ?? "Live Boost");
-    console.log('Entered Display Name');
+    console.log("Entered Display Name");
 
     // Mute microphone before joining
     await this.page.locator(`[data-tid="toggle-mute"]`).click();
-    console.log('Muted Microphone');
+    console.log("Muted Microphone");
 
     // Join the meeting
     await this.page.locator(`[data-tid="prejoin-join-button"]`).click();
-    console.log('Found & Clicked the Join Button');
+    console.log("Found & Clicked the Join Button");
 
     // Wait until join button is disabled or disappears
     await this.page.waitForFunction(
@@ -121,7 +122,7 @@ export class TeamsBot extends Bot {
         return !joinButton || joinButton.hasAttribute("disabled");
       },
       {},
-      '[data-tid="prejoin-join-button"]'
+      '[data-tid="prejoin-join-button"]',
     );
 
     // Check if we're in a waiting room by checking if the join button exists and is disabled
@@ -133,12 +134,15 @@ export class TeamsBot extends Bot {
     let timeout = 30000; // if not in the waiting room, wait 30 seconds to join the meeting
     if (isWaitingRoom) {
       console.log(
-        `Joined waiting room, will wait for ${this.settings.automaticLeave.waitingRoomTimeout > 60 * 1000
-          ? `${this.settings.automaticLeave.waitingRoomTimeout / 60 / 1000
-          } minute(s)`
-          : `${this.settings.automaticLeave.waitingRoomTimeout / 1000
-          } second(s)`
-        }`
+        `Joined waiting room, will wait for ${
+          this.settings.automaticLeave.waitingRoomTimeout > 60 * 1000
+            ? `${
+                this.settings.automaticLeave.waitingRoomTimeout / 60 / 1000
+              } minute(s)`
+            : `${
+                this.settings.automaticLeave.waitingRoomTimeout / 1000
+              } second(s)`
+        }`,
       );
 
       // if in the waiting room, wait for the waiting room timeout
@@ -146,7 +150,11 @@ export class TeamsBot extends Bot {
     }
 
     // wait for the leave button to appear (meaning we've joined the meeting)
-    console.log('Waiting for the ability to leave the meeting (when I\'m in the meeting...)', timeout, 'ms')
+    console.log(
+      "Waiting for the ability to leave the meeting (when I'm in the meeting...)",
+      timeout,
+      "ms",
+    );
     try {
       await this.page.waitForSelector(leaveButtonSelector, {
         timeout: timeout,
@@ -160,7 +168,6 @@ export class TeamsBot extends Bot {
     console.log("Successfully joined meeting");
   }
 
-
   // Ensure we're not kicked from the meeting
   async checkKicked() {
     // TOOD: Implement this
@@ -168,7 +175,6 @@ export class TeamsBot extends Bot {
   }
 
   async startRecording() {
-
     if (!this.page) throw new Error("Page not initialized");
 
     // Get the stream
@@ -176,7 +182,6 @@ export class TeamsBot extends Bot {
       this.page as any, //puppeteer type issue
       { audio: true, video: true },
     );
-
 
     // Create a file
     this.file = fs.createWriteStream(this.getRecordingPath());
@@ -194,10 +199,7 @@ export class TeamsBot extends Bot {
     }
   }
 
-
-
   async run() {
-
     // Start Join
     await this.joinMeeting();
 
@@ -224,8 +226,8 @@ export class TeamsBot extends Bot {
 
           const currentElements = Array.from(
             participantsList.querySelectorAll(
-              '[data-tid^="participantsInCall-"]'
-            )
+              '[data-tid^="participantsInCall-"]',
+            ),
           );
 
           return currentElements
@@ -252,7 +254,7 @@ export class TeamsBot extends Bot {
     // Then check for participants every heartbeatInterval milliseconds
     this.participantsIntervalId = setInterval(
       updateParticipants,
-      this.settings.heartbeatInterval
+      this.settings.heartbeatInterval,
     );
 
     // Start Recording only if enabled
@@ -267,7 +269,7 @@ export class TeamsBot extends Bot {
     await this.page.waitForFunction(
       (selector) => !document.querySelector(selector),
       { timeout: 0 }, // wait indefinitely
-      leaveButtonSelector
+      leaveButtonSelector,
     );
     console.log("Meeting ended");
 
@@ -282,7 +284,6 @@ export class TeamsBot extends Bot {
    * Ensure the filestream is closed as well.
    */
   async endLife() {
-
     // Close File if it exists
     if (this.file) {
       this.file.close();

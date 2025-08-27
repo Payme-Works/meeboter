@@ -4,7 +4,8 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Live Boost Example Application",
-  description: "A user-friendly interface for scheduling meetings effortlessly.",
+  description:
+    "A user-friendly interface for scheduling meetings effortlessly.",
   icons: [{ rel: "icon", url: "/logo.svg" }],
 };
 
@@ -15,9 +16,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${GeistSans.variable}`}>
-      <body className={`antialiased`}>
-          {children}
-      </body>
+      <body className={`antialiased`}>{children}</body>
     </html>
   );
 }

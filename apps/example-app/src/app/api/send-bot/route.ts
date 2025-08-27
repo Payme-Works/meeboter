@@ -1,5 +1,5 @@
 // app/api/bots/route.ts
-import { NextResponse } from 'next/server';
+import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
   try {
@@ -7,25 +7,31 @@ export async function POST(req: Request) {
 
     // Get Key
     const key = process.env.LIVE_BOOST_API_KEY;
-    if (!key) throw new Error(`Missing required environment variable: LIVE_BOOST_API_KEY`);
-    
+    if (!key)
+      throw new Error(
+        `Missing required environment variable: LIVE_BOOST_API_KEY`,
+      );
+
     const endpoint = process.env.MEETINGBOT_END_POINT;
-    if (!endpoint) throw new Error(`Missing required environment variable: MEETINGBOT_END_POINT`);
+    if (!endpoint)
+      throw new Error(
+        `Missing required environment variable: MEETINGBOT_END_POINT`,
+      );
 
     //
     // Send request to Live Boost API to start and send a bot to a meeting
     //
     const eurl = `${endpoint}/api/bots`;
-    console.log('Sending Request to', eurl ,'with body', body);
+    console.log("Sending Request to", eurl, "with body", body);
 
     //Send
     const response = await fetch(eurl, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': key,
+        "Content-Type": "application/json",
+        "x-api-key": key,
       },
-      body: JSON.stringify(body),   
+      body: JSON.stringify(body),
     });
 
     //
@@ -33,11 +39,16 @@ export async function POST(req: Request) {
     //
 
     const data = await response.json();
-    console.log('RECEIVED', data);
+    console.log("RECEIVED", data);
     return NextResponse.json(data, { status: response.status });
   } catch (error) {
-    console.error('Error:', error);
-    return NextResponse.json({ error: error instanceof Error ? error.message : 'An unknown error occurred' }, { status: 500 });
-
+    console.error("Error:", error);
+    return NextResponse.json(
+      {
+        error:
+          error instanceof Error ? error.message : "An unknown error occurred",
+      },
+      { status: 500 },
+    );
   }
 }

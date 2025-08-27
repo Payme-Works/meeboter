@@ -1,8 +1,8 @@
 // app/api/bots/route.ts
 
-import { NextResponse } from 'next/server';
+import { NextResponse } from "next/server";
 
-let recordingLink = '';
+let recordingLink = "";
 
 // Get Key
 const LIVE_BOOST_API_KEY = process.env.LIVE_BOOST_API_KEY;
@@ -15,16 +15,24 @@ export async function GET() {
 // Validate Bot is finished and exists
 const validateBot = async (botId: number) => {
   // Validate
-  if (!LIVE_BOOST_API_KEY) return NextResponse.json({ error: 'Missing required environment variable: LIVE_BOOST_API_KEY' }, { status: 500 });
-  if (!MEETINGBOT_END_POINT) return NextResponse.json({ error: 'Missing required environment variable: MEETINGBOT_END_POINT' }, { status: 500 });
+  if (!LIVE_BOOST_API_KEY)
+    return NextResponse.json(
+      { error: "Missing required environment variable: LIVE_BOOST_API_KEY" },
+      { status: 500 },
+    );
+  if (!MEETINGBOT_END_POINT)
+    return NextResponse.json(
+      { error: "Missing required environment variable: MEETINGBOT_END_POINT" },
+      { status: 500 },
+    );
 
   // Ensure bot actually exists and is really done
   const response = await fetch(`${MEETINGBOT_END_POINT}/api/bots/${botId}`, {
-    method: 'GET',
+    method: "GET",
     headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': LIVE_BOOST_API_KEY,
-    }
+      "Content-Type": "application/json",
+      "x-api-key": LIVE_BOOST_API_KEY,
+    },
   });
 
   // Bot Validation Failed
@@ -32,49 +40,63 @@ const validateBot = async (botId: number) => {
 
   //Check if status is done
   const fetchedBot = await response.json();
-  if (fetchedBot.status !== 'DONE') return false;
+  if (fetchedBot.status !== "DONE") return false;
 
   // Bot Validation Passed
   return true;
-}
+};
 
 export async function POST(req: Request) {
   try {
     // Validate
-    if (!LIVE_BOOST_API_KEY) return NextResponse.json({ error: 'Missing required environment variable: LIVE_BOOST_API_KEY' }, { status: 500 });
-    if (!MEETINGBOT_END_POINT) return NextResponse.json({ error: 'Missing required environment variable: MEETINGBOT_END_POINT' }, { status: 500 });
+    if (!LIVE_BOOST_API_KEY)
+      return NextResponse.json(
+        { error: "Missing required environment variable: LIVE_BOOST_API_KEY" },
+        { status: 500 },
+      );
+    if (!MEETINGBOT_END_POINT)
+      return NextResponse.json(
+        {
+          error: "Missing required environment variable: MEETINGBOT_END_POINT",
+        },
+        { status: 500 },
+      );
 
     // Get bot id from request body telling it it's done
     const { botId } = await req.json();
     if (botId === null)
-      return NextResponse.json('Malfored Body - botId is not defined', { status: 400 });
+      return NextResponse.json("Malfored Body - botId is not defined", {
+        status: 400,
+      });
 
     // We will just validate that the bot is finished.
     const validationResult = validateBot(botId);
     if (!validationResult)
-      return NextResponse.json('Bot Validation Failed', { status: 403 });
+      return NextResponse.json("Bot Validation Failed", { status: 403 });
 
     // Send request to Live Boost API to get the signed Recording URL from S3
-    const recordingResponse = await fetch(`${MEETINGBOT_END_POINT}/api/bots/${botId}/recording`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': LIVE_BOOST_API_KEY,
-      }
-    });
+    const recordingResponse = await fetch(
+      `${MEETINGBOT_END_POINT}/api/bots/${botId}/recording`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": LIVE_BOOST_API_KEY,
+        },
+      },
+    );
 
     //Get The Bot Recording URL
     const { recordingUrl } = await recordingResponse.json();
 
     //Save
     recordingLink = recordingUrl;
-    console.log('Set Recording link to:', recordingLink);
+    console.log("Set Recording link to:", recordingLink);
 
     // Passback
-    return NextResponse.json({ message: 'OK' }, { status: 200 });
-
+    return NextResponse.json({ message: "OK" }, { status: 200 });
   } catch (error) {
-    console.error('Error in POST:', error);
-    return NextResponse.json({ error: 'Internal Error' }, { status: 500 });
+    console.error("Error in POST:", error);
+    return NextResponse.json({ error: "Internal Error" }, { status: 500 });
   }
 }

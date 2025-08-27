@@ -11,7 +11,7 @@ import {
   NavigationMenuList,
   navigationMenuTriggerStyle,
 } from "@/components/ui/navigation-menu";
-import SessionButton from "./SessionButton";
+import SessionButton from "./session-button";
 import { ExternalLink } from "lucide-react";
 
 const components: {
@@ -62,7 +62,7 @@ export default function NavigationBar() {
           <NavigationMenuList>
             {components.map((component, index) => (
               <NavigationMenuItem key={index}>
-                <Link href={component.href} passHref >
+                <Link href={component.href} passHref>
                   <NavigationMenuLink
                     className={navigationMenuTriggerStyle()}
                     target={component.target}
