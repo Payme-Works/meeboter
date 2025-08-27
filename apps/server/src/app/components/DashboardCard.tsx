@@ -53,7 +53,6 @@ export default function DashboardCard({
             ))}
         </CardHeader>
       )}
-
       {!!content && (
         <CardContent className="min-h-0 flex-1">{content}</CardContent>
       )}
@@ -62,7 +61,7 @@ export default function DashboardCard({
           {link.type == "CUSTOM" ? (
             link.component
           ) : (
-            <Link href={link.url} className="flex items-center">
+            <Link href={link.url} className="flex items-center" >
               {link.text}
               {link.type === "EXTERNAL" ? (
                 <ExternalLink className="ml-2 h-4 w-4" />

@@ -148,7 +148,7 @@ export function BotDetailsDialog({ botId, onClose }: BotDetailsDialogProps) {
                     <p>
                       <span className="font-medium">Recording:</span>{" "}
                       {bot?.recording ? (
-                        <Link href={bot.recording} target="_blank">
+                        <Link href={bot.recording} target="_blank" >
                           {bot.recording}{" "}
                           <ExternalLinkIcon className="h-4 w-4" />
                         </Link>

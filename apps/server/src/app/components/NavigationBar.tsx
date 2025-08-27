@@ -62,7 +62,7 @@ export default function NavigationBar() {
           <NavigationMenuList>
             {components.map((component, index) => (
               <NavigationMenuItem key={index}>
-                <Link href={component.href} legacyBehavior passHref>
+                <Link href={component.href} passHref >
                   <NavigationMenuLink
                     className={navigationMenuTriggerStyle()}
                     target={component.target}

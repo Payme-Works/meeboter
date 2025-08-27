@@ -31,14 +31,14 @@ export default function CommunityCard({ className }: CommunityUpdate) {
             <Link
               href="https://discord.gg/hPdjJW9xzT"
               className="flex items-center"
-            >
+              >
               Join Our Community
               <ExternalLink className="ml-2 h-4 w-4" />
             </Link>
             <Link
               href="https://github.com/live-boost/live-boost"
               className="flex items-center"
-            >
+              >
               Contribute
               <ExternalLink className="ml-2 h-4 w-4" />
             </Link>
@@ -77,7 +77,7 @@ export default function CommunityCard({ className }: CommunityUpdate) {
                       </Avatar>
                       <h3 className="text-lg font-semibold">{update.title}</h3>
                       {update.link && (
-                        <Link href={update.link} className="flex items-center">
+                        <Link href={update.link} className="flex items-center" >
                           <Button
                             variant="ghost"
                             size="icon"

@@ -34,13 +34,13 @@ export default function WelcomeDashboard() {
                   }
                   content={
                     session?.user ? (
-                      <Link href="/keys">
+                      <Link href="/keys" >
                         <Button>
                           Create API Key <Plus />
                         </Button>
                       </Link>
                     ) : (
-                      <Link href={`/api/auth/signin?provider=github`}>
+                      <Link href={`/api/auth/signin?provider=github`} >
                         <Button>
                           Sign In <LogIn />
                         </Button>

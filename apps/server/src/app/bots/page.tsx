@@ -46,7 +46,7 @@ export default function BotsPage() {
       cell: ({ row }) => {
         const recording = row.original.recording;
         return recording ? (
-          <Link href={recording} target="_blank">
+          <Link href={recording} target="_blank" >
             {recording} <ExternalLinkIcon className="h-4 w-4" />
           </Link>
         ) : (

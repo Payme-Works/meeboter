@@ -138,7 +138,7 @@ In essense:
 - Schema definitions include tables for users, API keys, and request logs.
 
 ### **Styling**
-- Global styles are defined in `styles/globals.css`.
+- Global styles are defined in `/globals.css`.
 - Uses TailwindCSS for utility-first styling.
 
 ---
