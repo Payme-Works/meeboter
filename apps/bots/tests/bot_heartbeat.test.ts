@@ -67,7 +67,7 @@ jest.mock("../src/s3", () => ({
 
 		return {};
 	}),
-	uploadRecordingToS3: jest.fn((s3, bot) => {
+	uploadRecordingToS3: jest.fn((_s3, _bot) => {
 		console.log("Mock uploadRecordingToS3 called");
 
 		return new Promise((resolve) => {

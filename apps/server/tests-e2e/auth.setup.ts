@@ -1,7 +1,7 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { test as setup } from "@playwright/test";
-import path from "path";
 import { TOTP } from "totp-generator";
-import { fileURLToPath } from "url";
 
 // In ES modules, use this instead of __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -11,7 +11,7 @@ const authFile = path.join(__dirname, "../playwright/.auth/user.json");
 
 setup("authenticate", async ({ page }) => {
 	// Ensure auth directory exists
-	const fs = await import("fs/promises");
+	const fs = await import("node:fs/promises");
 	const authDir = path.dirname(authFile);
 	await fs.mkdir(authDir, { recursive: true }).catch(() => null);
 

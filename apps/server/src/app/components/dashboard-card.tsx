@@ -58,7 +58,7 @@ export default function DashboardCard({
 			)}
 			{!!link && (
 				<CardFooter className="mt-auto">
-					{link.type == "CUSTOM" ? (
+					{link.type === "CUSTOM" ? (
 						link.component
 					) : (
 						<Link href={link.url} className="flex items-center">

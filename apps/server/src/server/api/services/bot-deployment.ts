@@ -1,14 +1,14 @@
+import { spawn } from "node:child_process";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
 	ECSClient,
 	type ECSClientConfig,
 	RunTaskCommand,
 	type RunTaskRequest,
 } from "@aws-sdk/client-ecs";
-import { spawn } from "child_process";
 import { eq } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
-import path from "path";
-import { fileURLToPath } from "url";
 import { env } from "@/env";
 import type * as schema from "@/server/database/schema";
 import { type BotConfig, bots } from "@/server/database/schema";

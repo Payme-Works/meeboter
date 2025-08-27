@@ -545,7 +545,6 @@ export function getBrazilianNameByGender(
 					Math.floor(Math.random() * BRAZILIAN_FEMALE_NAMES.length)
 				];
 			}
-		case "mixed":
 		default:
 			return getRandomBrazilianName();
 	}
@@ -594,7 +593,6 @@ export function getNamesByWordCount(
 			names = [...TWO_WORD_NAMES];
 
 			break;
-		case "mixed":
 		default:
 			names = [...SINGLE_WORD_NAMES, ...TWO_WORD_NAMES];
 

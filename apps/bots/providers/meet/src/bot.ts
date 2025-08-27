@@ -1,11 +1,11 @@
-import { type ChildProcessWithoutNullStreams, spawn } from "child_process";
-import * as fs from "fs";
-import path from "path";
+import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
+import * as fs from "node:fs";
+import path from "node:path";
+import { setTimeout } from "node:timers/promises";
 import type { Browser, Page } from "playwright";
 import { chromium } from "playwright-extra";
 import type { PageVideoCapture } from "playwright-video";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
-import { setTimeout } from "timers/promises";
 import { Bot } from "../../../src/bot";
 import {
 	type BotConfig,
@@ -32,7 +32,7 @@ const gotKickedDetector = '//button[.//span[text()="Return to home screen"]]';
 const leaveButton = `//button[@aria-label="Leave call"]`;
 const peopleButton = `//button[@aria-label="People"]`;
 
-const onePersonRemainingField =
+const _onePersonRemainingField =
 	'//span[.//div[text()="Contributors"]]//div[text()="1"]';
 
 const muteButton = `[aria-label*="Turn off microphone"]`; // *= -> conatins
@@ -356,14 +356,14 @@ export class MeetsBot extends Bot {
 			await this.page.waitForTimeout(randomDelay(500));
 			await this.page.click(muteButton, { timeout: 200 });
 			await this.page.waitForTimeout(200);
-		} catch (e) {
+		} catch (_e) {
 			console.log("Could not turn off Microphone, probably already off.");
 		}
 
 		try {
 			await this.page.click(cameraOffButton, { timeout: 200 });
 			await this.page.waitForTimeout(200);
-		} catch (e) {
+		} catch (_e) {
 			console.log("Could not turn off Camera -- probably already off.");
 		}
 
@@ -391,7 +391,7 @@ export class MeetsBot extends Bot {
 			await this.page.waitForSelector(leaveButton, {
 				timeout: timeout,
 			});
-		} catch (e) {
+		} catch (_e) {
 			// Timeout Error: Will get caught by bot/index.ts
 			throw new WaitingRoomTimeoutError();
 		}
@@ -501,7 +501,7 @@ export class MeetsBot extends Bot {
 		console.log("Spawned a subprocess to record: pid=", this.ffmpegProcess.pid);
 
 		// Report any data / errors (DEBUG, since it also prints that data is available).
-		this.ffmpegProcess.stderr.on("data", (data) => {
+		this.ffmpegProcess.stderr.on("data", (_data) => {
 			// console.error(`ffmpeg: ${data}`);
 
 			// Log that we got data, and the recording started.
@@ -651,7 +651,7 @@ export class MeetsBot extends Bot {
 	async handleInfoPopup(timeout = 5000) {
 		try {
 			await this.page.waitForSelector(infoPopupClick, { timeout });
-		} catch (e) {
+		} catch (_e) {
 			return;
 		}
 
@@ -715,7 +715,7 @@ export class MeetsBot extends Bot {
 			await this.page.waitForSelector('[aria-label="Participants"]', {
 				state: "visible",
 			});
-		} catch (error) {
+		} catch (_error) {
 			console.warn("Could not click People button. Continuing anyways.");
 		}
 
@@ -760,7 +760,7 @@ export class MeetsBot extends Bot {
 						relativeTimestamp,
 					];
 				} else {
-					this.registeredActivityTimestamps[participant.name]!.push(
+					this.registeredActivityTimestamps[participant.name]?.push(
 						relativeTimestamp,
 					);
 				}
@@ -813,7 +813,7 @@ export class MeetsBot extends Bot {
 					const detectedParticipants: Participant[] = [];
 
 					// Gather all participants in the merged audio node
-					mergedAudioNode.parentNode!.childNodes.forEach((childNode: any) => {
+					mergedAudioNode.parentNode?.childNodes.forEach((childNode: any) => {
 						const participantId = childNode.getAttribute("data-participant-id");
 
 						if (!participantId) {
@@ -946,8 +946,7 @@ export class MeetsBot extends Bot {
 						console.log("Added Node", node);
 
 						if (
-							node.getAttribute &&
-							node.getAttribute("data-participant-id") &&
+							node.getAttribute?.("data-participant-id") &&
 							!window.participantArray.find(
 								(p: Participant) =>
 									p.id === node.getAttribute("data-participant-id"),
@@ -1035,7 +1034,7 @@ export class MeetsBot extends Bot {
 			await this.leaveMeeting();
 
 			return 0;
-		} catch (e) {
+		} catch (_e) {
 			await this.endLife();
 
 			return 1;
@@ -1075,7 +1074,7 @@ export class MeetsBot extends Bot {
 		try {
 			await this.page.click(leaveButton, { timeout: 1000 }); //Short Attempt
 			console.log("Left Call.");
-		} catch (e) {
+		} catch (_e) {
 			console.log(
 				"Attempted to Leave Call - couldn't (probably aleready left).",
 			);

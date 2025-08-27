@@ -1,8 +1,8 @@
-import fs from "fs";
-import path from "path";
+import fs from "node:fs";
+import path from "node:path";
+import type { Transform } from "node:stream";
 import puppeteer, { type Browser, type Page } from "puppeteer";
 import { getStream, launch, wss } from "puppeteer-stream";
-import type { Transform } from "stream";
 import { Bot } from "../../../src/bot";
 import {
 	type BotConfig,
@@ -165,7 +165,7 @@ export class TeamsBot extends Bot {
 			await this.page.waitForSelector(leaveButtonSelector, {
 				timeout: timeout,
 			});
-		} catch (error) {
+		} catch (_error) {
 			// Distinct error from regular timeout
 			throw new WaitingRoomTimeoutError();
 		}
@@ -218,7 +218,7 @@ export class TeamsBot extends Bot {
 
 		// Wait for the attendees tree to appear
 		console.log("Waiting for the attendees tree to appear");
-		const tree = await this.page.waitForSelector('[role="tree"]');
+		const _tree = await this.page.waitForSelector('[role="tree"]');
 		console.log("Attendees tree found");
 
 		const updateParticipants = async () => {

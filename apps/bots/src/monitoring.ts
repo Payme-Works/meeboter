@@ -1,5 +1,5 @@
+import { setTimeout } from "node:timers/promises";
 import dotenv from "dotenv";
-import { setTimeout } from "timers/promises";
 import { trpc } from "./trpc";
 import { EventCode, Status } from "./types";
 

@@ -5,8 +5,6 @@ import {
 	protectedProcedure,
 	publicProcedure,
 } from "@/server/api/trpc";
-import { extractCount } from "@/server/utils/database";
-import { generateSignedUrl } from "@/server/utils/s3";
 import {
 	bots,
 	events,
@@ -15,7 +13,9 @@ import {
 	selectBotSchema,
 	speakerTimeframeSchema,
 	status,
-} from "../../db/schema";
+} from "@/server/database/schema";
+import { extractCount } from "@/server/utils/database";
+import { generateSignedUrl } from "@/server/utils/s3";
 import { deployBot, shouldDeployImmediately } from "../services/bot-deployment";
 
 export const botsRouter = createTRPCRouter({

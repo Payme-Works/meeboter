@@ -3,7 +3,7 @@
  * for Docker builds.
  */
 import "./src/env.js";
-import path from "path";
+import path from "node:path";
 
 /** @type {import("next").NextConfig} */
 const config = {

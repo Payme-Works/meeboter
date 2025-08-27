@@ -1,15 +1,15 @@
-import { randomBytes } from "crypto";
+import { randomBytes } from "node:crypto";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
-import { extractCount } from "@/server/utils/database";
 import {
 	apiKeys,
 	apiRequestLogs,
 	insertApiKeySchema,
 	selectApiKeySchema,
 	selectApiRequestLogSchema,
-} from "../../db/schema";
+} from "@/server/database/schema";
+import { extractCount } from "@/server/utils/database";
 
 export const apiKeysRouter = createTRPCRouter({
 	createApiKey: protectedProcedure

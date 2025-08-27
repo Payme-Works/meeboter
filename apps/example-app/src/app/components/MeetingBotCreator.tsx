@@ -103,11 +103,11 @@ export default function MeetingBotCreator() {
 		if (type === "meet") {
 			// Ensure we get a meeting URL
 			if (!link.startsWith("https://meet.google.com/")) {
-				link = "https://meet.google.com/" + link;
+				link = `https://meet.google.com/${link}`;
 			}
 
 			if (!link.startsWith("https://")) {
-				link = "https://" + link;
+				link = `https://${link}`;
 			}
 
 			return {
@@ -180,7 +180,7 @@ export default function MeetingBotCreator() {
 		// Create Bot Data
 		const botData = {
 			userId: ruuid,
-			meetingTitle: `Test ${inputType && inputType[0]?.toUpperCase() + inputType?.slice(1) + " "}Bot`,
+			meetingTitle: `Test ${inputType && `${inputType[0]?.toUpperCase() + inputType?.slice(1)} `}Bot`,
 			meetingInfo,
 			callbackUrl,
 			recordingEnabled,

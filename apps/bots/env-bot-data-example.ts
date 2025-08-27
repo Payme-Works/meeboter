@@ -1,7 +1,7 @@
 // @ts-expect-error
-import fs from "fs";
+import fs from "node:fs";
 // @ts-expect-error
-import path from "path";
+import path from "node:path";
 import type { BotConfig } from "./src/types";
 
 /* THIS SCRIPT IS USED TO CREATE THE BOT_DATA ENV VARIABLE FOR THE TEAMS BOT WHEN TESTING LOCALLY */
@@ -97,7 +97,7 @@ function parseTeamsMeetingLink(url: string) {
 		}
 
 		return { meetingId, tenantId, organizationId };
-	} catch (error) {
+	} catch (_error) {
 		// console.error("Error parsing Teams meeting link:", error); //uncomment to see and expand functionality if they change the URL format
 		return null;
 	}
@@ -157,9 +157,9 @@ const defineMeetingInfo = (link: string) => {
 	if (type === "meet") {
 		// Ensure we get a meeting URL
 		if (!link.startsWith("https://meet.google.com/"))
-			link = "https://meet.google.com/" + link;
+			link = `https://meet.google.com/${link}`;
 
-		if (!link.startsWith("https://")) link = "https://" + link;
+		if (!link.startsWith("https://")) link = `https://${link}`;
 
 		return {
 			meetingUrl: link,

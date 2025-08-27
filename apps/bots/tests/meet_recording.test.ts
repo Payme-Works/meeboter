@@ -10,8 +10,8 @@ import * as dotenv from "dotenv";
 import { MeetsBot } from "../meet/src/bot";
 import type { BotConfig } from "../src/types";
 
-const fs = require("fs");
-const { execSync } = require("child_process");
+const fs = require("node:fs");
+const { execSync } = require("node:child_process");
 
 //
 // Bot Recording Tests as described in Section 2.1.2.4
@@ -45,7 +45,7 @@ describe("Meet Bot Record Tests", () => {
 	try {
 		execSync("ffmpeg -version", { stdio: "ignore" });
 		ffmpegExists = true;
-	} catch (error) {
+	} catch (_error) {
 		console.warn("Skipping tests: ffmpeg is not available.");
 	}
 
@@ -54,7 +54,7 @@ describe("Meet Bot Record Tests", () => {
 		// Create Bot
 		bot = new MeetsBot(
 			mockMeetConfig,
-			async (eventType: string, data: any) => {},
+			async (_eventType: string, _data: any) => {},
 		);
 
 		recordingPath = null;

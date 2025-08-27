@@ -39,7 +39,7 @@ describe("Meet Event Tests", () => {
 		// Create Bot
 		bot = new MeetsBot(
 			mockMeetConfig,
-			async (eventType: string, data: any) => {},
+			async (_eventType: string, _data: any) => {},
 		);
 
 		// Mock Bot Recording -- never actually record
@@ -202,8 +202,8 @@ describe("Meet Event Tests", () => {
 
 describe("Zoom Event Tests", () => {
 	let bot: ZoomBot;
-	let addParticipant: () => Promise<void>;
-	let removeParticipant: () => Promise<void>;
+	let _addParticipant: () => Promise<void>;
+	let _removeParticipant: () => Promise<void>;
 
 	// Create the bot for each
 	beforeEach(async () => {
@@ -216,14 +216,14 @@ describe("Zoom Event Tests", () => {
 					// automaticLeave: null, //Not included to see what happens on a bad config
 				},
 			} as BotConfig,
-			async (eventType: string, data: any) => {},
+			async (_eventType: string, _data: any) => {},
 		);
 
 		// Mock
 
 		// Functions
-		addParticipant = async () => {};
-		removeParticipant = async () => {};
+		_addParticipant = async () => {};
+		_removeParticipant = async () => {};
 	});
 
 	afterEach(async () => {
@@ -258,8 +258,8 @@ describe("Zoom Event Tests", () => {
 
 describe("Teams Event Tests", () => {
 	let bot: TeamsBot;
-	let addParticipant: () => Promise<void>;
-	let removeParticipant: () => Promise<void>;
+	let _addParticipant: () => Promise<void>;
+	let _removeParticipant: () => Promise<void>;
 
 	// Create the bot for each
 	beforeEach(async () => {
@@ -272,14 +272,14 @@ describe("Teams Event Tests", () => {
 					// automaticLeave: null, //Not included to see what happens on a bad config
 				},
 			} as BotConfig,
-			async (eventType: string, data: any) => {},
+			async (_eventType: string, _data: any) => {},
 		);
 
 		// Mock
 
 		// Functions
-		addParticipant = async () => {};
-		removeParticipant = async () => {};
+		_addParticipant = async () => {};
+		_removeParticipant = async () => {};
 	});
 
 	afterEach(async () => {

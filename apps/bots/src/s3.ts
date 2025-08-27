@@ -1,6 +1,6 @@
+import { randomUUID } from "node:crypto";
+import { promises as fsPromises, readFileSync } from "node:fs";
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { randomUUID } from "crypto";
-import { promises as fsPromises, readFileSync } from "fs";
 import type { Bot } from "./bot";
 
 /**
@@ -34,7 +34,7 @@ export function createS3Client(
 				region,
 			});
 		}
-	} catch (error) {
+	} catch (_error) {
 		return null;
 	}
 }

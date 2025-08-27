@@ -27,32 +27,30 @@ export default function Home() {
 		<main>
 			{isLoading ? (
 				<div>
-					<>
-						<div className="mb-5 mt-5">
-							<h1 className="text-3xl font-bold">
-								Welcome to Live Boost
-								<Skeleton className="ml-2 inline-block h-8 w-80" />
-							</h1>
-							<p className="mt-2 text-gray-600">
-								Easily create automated applications that leverage recordings
-								across popular video meeting platforms.
-							</p>
+					<div className="mb-5 mt-5">
+						<h1 className="text-3xl font-bold">
+							Welcome to Live Boost
+							<Skeleton className="ml-2 inline-block h-8 w-80" />
+						</h1>
+						<p className="mt-2 text-gray-600">
+							Easily create automated applications that leverage recordings
+							across popular video meeting platforms.
+						</p>
+					</div>
+					<div className="grid gap-6 lg:grid-cols-3">
+						<div className="min-h-0">
+							<Skeleton className="h-60 w-full" />
 						</div>
-						<div className="grid gap-6 lg:grid-cols-3">
-							<div className="min-h-0">
-								<Skeleton className="h-60 w-full" />
-							</div>
-							<div className="min-h-0">
-								<Skeleton className="h-60 w-full" />
-							</div>
-							<div className="min-h-0">
-								<Skeleton className="h-60 w-full" />
-							</div>
-							<div className="h-full min-h-0 lg:col-span-3">
-								<Skeleton className="h-80 w-full" />
-							</div>
+						<div className="min-h-0">
+							<Skeleton className="h-60 w-full" />
 						</div>
-					</>
+						<div className="min-h-0">
+							<Skeleton className="h-60 w-full" />
+						</div>
+						<div className="h-full min-h-0 lg:col-span-3">
+							<Skeleton className="h-80 w-full" />
+						</div>
+					</div>
 				</div>
 			) : apiKeyCountError ? (
 				<ErrorAlert errorMessage={apiKeyCountError.message} />

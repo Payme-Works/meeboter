@@ -3,8 +3,8 @@ import * as dotenv from "dotenv";
 import type { BotConfig } from "../src/types";
 import { ZoomBot } from "../zoom/src/bot";
 
-const fs = require("fs");
-const { execSync } = require("child_process");
+const fs = require("node:fs");
+const { execSync } = require("node:child_process");
 
 // Ensure puppeteer-stream is not mocked
 jest.unmock("puppeteer-stream");
@@ -38,7 +38,7 @@ describe("Zoom Bot Recording Test", () => {
 	try {
 		execSync("ffmpeg -version", { stdio: "ignore" });
 		ffmpegExists = true;
-	} catch (error) {
+	} catch (_error) {
 		console.warn("Skipping test: ffmpeg is not available.");
 	}
 
@@ -54,7 +54,7 @@ describe("Zoom Bot Recording Test", () => {
 		async () => {
 			const bot = new ZoomBot(
 				mockZoomConfig,
-				async (eventType: string, data: any) => {},
+				async (_eventType: string, _data: any) => {},
 			);
 
 			let recordingPath: string | null = null;

@@ -107,7 +107,7 @@ describe("Bot Join a Meeting Tests", () => {
 			const passes = await test_bot_join(
 				new MeetsBot(
 					mockMeetConfig,
-					async (eventType: string, data: any) => {},
+					async (_eventType: string, _data: any) => {},
 				),
 			);
 
@@ -126,7 +126,10 @@ describe("Bot Join a Meeting Tests", () => {
 		async () => {
 			// Create Bot
 			const passes = await test_bot_join(
-				new ZoomBot(mockZoomConfig, async (eventType: string, data: any) => {}),
+				new ZoomBot(
+					mockZoomConfig,
+					async (_eventType: string, _data: any) => {},
+				),
 			);
 
 			expect(passes).toBe(true);
@@ -146,7 +149,7 @@ describe("Bot Join a Meeting Tests", () => {
 			const passes = await test_bot_join(
 				new TeamsBot(
 					mockTeamsConfig,
-					async (eventType: string, data: any) => {},
+					async (_eventType: string, _data: any) => {},
 				),
 			);
 
@@ -180,7 +183,7 @@ describe("Bot fail join due to invalid URL", () => {
 					meetingUrl: "https://meet.google.com/invalid-url",
 				},
 			} as BotConfig,
-			async (eventType: string, data: any) => {},
+			async (_eventType: string, _data: any) => {},
 		);
 
 		// Mock bot.joinMeeting to simulate the page setup and override waitForSelector
@@ -212,7 +215,7 @@ describe("Bot fail join due to invalid URL", () => {
 					meetingId: "",
 				},
 			} as BotConfig,
-			async (eventType: string, data: any) => {},
+			async (_eventType: string, _data: any) => {},
 		);
 
 		// Mock bot.joinMeeting to simulate the page setup and override waitForSelector
@@ -245,7 +248,7 @@ describe("Bot fail join due to invalid URL", () => {
 					organizerId: "",
 				},
 			} as BotConfig,
-			async (eventType: string, data: any) => {},
+			async (_eventType: string, _data: any) => {},
 		);
 
 		// Mock bot.joinMeeting to simulate the page setup and override waitForSelector

@@ -36,41 +36,39 @@ export default function ActionCell({
 	});
 
 	return (
-		<>
-			<DropdownMenu>
-				<DropdownMenuTrigger asChild>
-					<Button variant="ghost" className="h-8 w-8 p-0">
-						<span className="sr-only">Open menu</span>
-						<MoreHorizontal className="h-4 w-4" />
-					</Button>
-				</DropdownMenuTrigger>
-				<DropdownMenuContent align="end">
-					<DropdownMenuLabel>Actions</DropdownMenuLabel>
+		<DropdownMenu>
+			<DropdownMenuTrigger asChild>
+				<Button variant="ghost" className="h-8 w-8 p-0">
+					<span className="sr-only">Open menu</span>
+					<MoreHorizontal className="h-4 w-4" />
+				</Button>
+			</DropdownMenuTrigger>
+			<DropdownMenuContent align="end">
+				<DropdownMenuLabel>Actions</DropdownMenuLabel>
+				<DropdownMenuItem
+					onClick={() => {
+						toast.promise(navigator.clipboard.writeText(apiKey), {
+							loading: "Copying key...",
+							success: "Key copied",
+							error: "Failed to copy key",
+						});
+					}}
+				>
+					<Copy className="mr-2 h-4 w-4" />
+					Copy Key
+				</DropdownMenuItem>
+				<DropdownMenuItem onClick={() => setSelectedKeyId(id)}>
+					View Logs
+				</DropdownMenuItem>
+				{!isRevoked && (
 					<DropdownMenuItem
-						onClick={() => {
-							toast.promise(navigator.clipboard.writeText(apiKey), {
-								loading: "Copying key...",
-								success: "Key copied",
-								error: "Failed to copy key",
-							});
-						}}
+						className="text-red-600"
+						onClick={async () => await revokeKey.mutateAsync({ id })}
 					>
-						<Copy className="mr-2 h-4 w-4" />
-						Copy Key
+						Revoke Key
 					</DropdownMenuItem>
-					<DropdownMenuItem onClick={() => setSelectedKeyId(id)}>
-						View Logs
-					</DropdownMenuItem>
-					{!isRevoked && (
-						<DropdownMenuItem
-							className="text-red-600"
-							onClick={async () => await revokeKey.mutateAsync({ id })}
-						>
-							Revoke Key
-						</DropdownMenuItem>
-					)}
-				</DropdownMenuContent>
-			</DropdownMenu>
-		</>
+				)}
+			</DropdownMenuContent>
+		</DropdownMenu>
 	);
 }

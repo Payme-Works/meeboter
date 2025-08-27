@@ -53,7 +53,7 @@ describe("Meet Bot Exit Tests", () => {
 		// Create Bot
 		bot = new MeetsBot(
 			mockMeetConfig,
-			async (eventType: string, data: any) => {},
+			async (_eventType: string, _data: any) => {},
 		);
 
 		// Override Page functionality (ignore navigation)
@@ -187,7 +187,7 @@ describe("Zoom Bot Exit Tests", () => {
 		// Create Bot
 		bot = new ZoomBot(
 			mockZoomConfig,
-			async (eventType: string, data: any) => {},
+			async (_eventType: string, _data: any) => {},
 		);
 
 		// mock items
@@ -276,7 +276,7 @@ describe("Teams Bot Exit Tests", () => {
 		// Create Bot
 		bot = new TeamsBot(
 			mockTeamsConfig,
-			async (eventType: string, data: any) => {},
+			async (_eventType: string, _data: any) => {},
 		);
 
 		// mock items

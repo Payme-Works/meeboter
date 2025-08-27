@@ -71,7 +71,7 @@ describe("S3Client Upload Tests", () => {
 			},
 		} as unknown as BotConfig;
 
-		const mockOnEvent = async (eventType: string, data?: any) => {
+		const mockOnEvent = async (_eventType: string, _data?: any) => {
 			/* mock event handler */
 		};
 

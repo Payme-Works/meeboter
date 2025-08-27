@@ -1,8 +1,8 @@
-import fs from "fs";
-import path from "path";
+import fs from "node:fs";
+import path from "node:path";
+import type { Transform } from "node:stream";
 import puppeteer, { type Browser, type Page } from "puppeteer";
 import { getStream, launch, wss } from "puppeteer-stream";
-import type { Transform } from "stream";
 import { Bot } from "../../../src/bot";
 import {
 	type BotConfig,
@@ -139,7 +139,7 @@ export class ZoomBot extends Bot {
 
 				frame.click(acceptCookiesButton);
 				console.log("Cookies Accepted");
-			} catch (error) {
+			} catch (_error) {
 				// It's OK
 				console.warn("Cookies modal not found");
 			}
@@ -155,7 +155,7 @@ export class ZoomBot extends Bot {
 
 				await frame.click(acceptTermsButton);
 				console.log("TOS Accepted");
-			} catch (error) {
+			} catch (_error) {
 				// It's OK
 				console.warn("TOS modal not found");
 			}
@@ -194,7 +194,7 @@ export class ZoomBot extends Bot {
 				await frame.waitForSelector(leaveButton, {
 					timeout: this.settings.automaticLeave.waitingRoomTimeout,
 				});
-			} catch (error) {
+			} catch (_error) {
 				// Distinct error from regular timeout
 				throw new WaitingRoomTimeoutError();
 			}

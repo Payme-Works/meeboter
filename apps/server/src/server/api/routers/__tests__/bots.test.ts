@@ -2,8 +2,8 @@
 jest.mock("@/server/api/services/botDeployment");
 jest.mock("@/server/utils/s3");
 
+import { fail } from "node:assert";
 import { initTRPC } from "@trpc/server";
-import { fail } from "assert";
 import { eq, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import type { OpenApiMeta } from "trpc-to-openapi";

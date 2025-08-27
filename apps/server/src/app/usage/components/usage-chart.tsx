@@ -91,11 +91,11 @@ export function UsageChart() {
 		}
 
 		const shortMonth = new Date(
-			parseInt(year),
-			parseInt(month) - 1,
+			parseInt(year, 10),
+			parseInt(month, 10) - 1,
 		).toLocaleString("default", { month: "short" });
 
-		const out = `${shortMonth}. ${parseInt(day)}`;
+		const out = `${shortMonth}. ${parseInt(day, 10)}`;
 
 		console.log(out, date);
 

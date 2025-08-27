@@ -20,7 +20,7 @@ export const extractCount = (
 
 	const count = Number(result);
 
-	if (isNaN(count)) {
+	if (Number.isNaN(count)) {
 		throw new Error(`Invalid count value: ${JSON.stringify(result)}`);
 	}
 

@@ -28,9 +28,7 @@ import { cn } from "@/lib/utils";
 import { api } from "@/trpc/react";
 
 const getSixMonthsFromNowAtEndOfDay = () => {
-	const sixMonthsFromNow = new Date(
-		new Date().getTime() + 6 * 30 * 24 * 60 * 60 * 1000,
-	);
+	const sixMonthsFromNow = new Date(Date.now() + 6 * 30 * 24 * 60 * 60 * 1000);
 
 	sixMonthsFromNow.setHours(23, 59, 59, 999);
 

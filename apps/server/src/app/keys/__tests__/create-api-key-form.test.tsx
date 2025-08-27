@@ -63,7 +63,7 @@ describe("CreateApiKeyForm", () => {
 		// ASSERT
 		// 6 months from now at the end of the day
 		const sixMonthsFromNow = new Date(
-			new Date().getTime() + 6 * 30 * 24 * 60 * 60 * 1000,
+			Date.now() + 6 * 30 * 24 * 60 * 60 * 1000,
 		);
 
 		sixMonthsFromNow.setHours(23, 59, 59, 999);
