@@ -15,6 +15,7 @@ import { api } from "@/trpc/react";
 export default function BotsPage() {
 	const [selectedBot, setSelectedBot] = useState<number | null>(null);
 	const { data: bots = [], isLoading, error } = api.bots.getBots.useQuery({});
+
 	type Bot = (typeof bots)[number];
 
 	const columns: ColumnDef<Bot>[] = [
@@ -23,6 +24,7 @@ export default function BotsPage() {
 			header: "Platform",
 			cell: ({ row }) => {
 				const platform = row.original.meetingInfo.platform;
+
 				return (
 					<div className="flex items-center gap-2">
 						{typeof platform === "string" && (
@@ -45,6 +47,7 @@ export default function BotsPage() {
 			header: "Recording Length",
 			cell: ({ row }) => {
 				const recording = row.original.recording;
+
 				return recording ? (
 					<Link href={recording} target="_blank">
 						{recording} <ExternalLinkIcon className="h-4 w-4" />
@@ -59,6 +62,7 @@ export default function BotsPage() {
 			header: "Status",
 			cell: ({ row }) => {
 				const status = row.original.status;
+
 				return (
 					<Badge variant="outline" className="bg-gray-100 text-gray-800">
 						{status}
@@ -71,11 +75,13 @@ export default function BotsPage() {
 			header: "Created At",
 			cell: ({ row }) => {
 				const createdAt = row.original.createdAt;
+
 				const timeAgo = createdAt
 					? formatDistanceToNow(new Date(createdAt), {
 							addSuffix: true,
 						})
 					: "No date available";
+
 				return `${timeAgo}`;
 			},
 		},

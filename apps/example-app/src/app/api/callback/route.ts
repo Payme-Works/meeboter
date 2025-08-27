@@ -21,6 +21,7 @@ const validateBot = async (botId: number) => {
 			{ status: 500 },
 		);
 	}
+
 	if (!MEETINGBOT_END_POINT) {
 		return NextResponse.json(
 			{ error: "Missing required environment variable: MEETINGBOT_END_POINT" },
@@ -44,6 +45,7 @@ const validateBot = async (botId: number) => {
 
 	//Check if status is done
 	const fetchedBot = await response.json();
+
 	if (fetchedBot.status !== "DONE") {
 		return false;
 	}
@@ -61,6 +63,7 @@ export async function POST(req: Request) {
 				{ status: 500 },
 			);
 		}
+
 		if (!MEETINGBOT_END_POINT) {
 			return NextResponse.json(
 				{
@@ -72,6 +75,7 @@ export async function POST(req: Request) {
 
 		// Get bot id from request body telling it it's done
 		const { botId } = await req.json();
+
 		if (botId === null) {
 			return NextResponse.json("Malfored Body - botId is not defined", {
 				status: 400,
@@ -80,6 +84,7 @@ export async function POST(req: Request) {
 
 		// We will just validate that the bot is finished.
 		const validationResult = validateBot(botId);
+
 		if (!validationResult) {
 			return NextResponse.json("Bot Validation Failed", { status: 403 });
 		}
@@ -107,6 +112,7 @@ export async function POST(req: Request) {
 		return NextResponse.json({ message: "OK" }, { status: 200 });
 	} catch (error) {
 		console.error("Error in POST:", error);
+
 		return NextResponse.json({ error: "Internal Error" }, { status: 500 });
 	}
 }

@@ -79,6 +79,7 @@ export const communityRouter = createTRPCRouter({
 			const octokit = new Octokit({
 				auth: env.GITHUB_TOKEN,
 			});
+
 			const events = await octokit.request("GET /repos/{owner}/{repo}/events", {
 				owner: "live-boost",
 				repo: "live-boost",
@@ -87,6 +88,7 @@ export const communityRouter = createTRPCRouter({
 
 			// Transform events (PR merges, comments, etc)
 			const eventUpdates: CommunityUpdate[] = [];
+
 			events.data.forEach((event) => {
 				try {
 					switch (event.type) {
@@ -94,6 +96,7 @@ export const communityRouter = createTRPCRouter({
 							const result = githubEventPayloads.PullRequestEvent.safeParse(
 								event.payload,
 							);
+
 							if (!result.success) {
 								return;
 							}
@@ -112,6 +115,7 @@ export const communityRouter = createTRPCRouter({
 									: undefined,
 								link: pull_request.html_url,
 							});
+
 							break;
 						}
 
@@ -119,11 +123,13 @@ export const communityRouter = createTRPCRouter({
 							const result = githubEventPayloads.IssuesEvent.safeParse(
 								event.payload,
 							);
+
 							if (!result.success) {
 								return;
 							}
 
 							const { action, issue } = result.data;
+
 							eventUpdates.push({
 								source: "github",
 								imageUrl: event.actor.avatar_url,
@@ -134,6 +140,7 @@ export const communityRouter = createTRPCRouter({
 									: undefined,
 								link: issue.html_url,
 							});
+
 							break;
 						}
 
@@ -141,11 +148,13 @@ export const communityRouter = createTRPCRouter({
 							const result = githubEventPayloads.ReleaseEvent.safeParse(
 								event.payload,
 							);
+
 							if (!result.success) {
 								return;
 							}
 
 							const { release } = result.data;
+
 							eventUpdates.push({
 								source: "github",
 								imageUrl: event.actor.avatar_url,
@@ -156,6 +165,7 @@ export const communityRouter = createTRPCRouter({
 									: undefined,
 								link: release.html_url,
 							});
+
 							break;
 						}
 
@@ -163,11 +173,13 @@ export const communityRouter = createTRPCRouter({
 							const result = githubEventPayloads.ForkEvent.safeParse(
 								event.payload,
 							);
+
 							if (!result.success) {
 								return;
 							}
 
 							const { forkee } = result.data;
+
 							eventUpdates.push({
 								source: "github",
 								imageUrl: event.actor.avatar_url,
@@ -178,6 +190,7 @@ export const communityRouter = createTRPCRouter({
 									: undefined,
 								link: forkee.html_url,
 							});
+
 							break;
 						}
 
@@ -185,6 +198,7 @@ export const communityRouter = createTRPCRouter({
 							const result = githubEventPayloads.WatchEvent.safeParse(
 								event.payload,
 							);
+
 							if (!result.success) {
 								return;
 							}
@@ -199,6 +213,7 @@ export const communityRouter = createTRPCRouter({
 									: undefined,
 								link: `https://github.com/${event.repo.name}`,
 							});
+
 							break;
 						}
 
@@ -207,11 +222,13 @@ export const communityRouter = createTRPCRouter({
 							const result = githubEventPayloads.IssueCommentEvent.safeParse(
 								event.payload,
 							);
+
 							if (!result.success) {
 								return;
 							}
 
 							const { comment } = result.data;
+
 							eventUpdates.push({
 								source: "github",
 								imageUrl: event.actor.avatar_url,
@@ -222,6 +239,7 @@ export const communityRouter = createTRPCRouter({
 									: undefined,
 								link: comment.html_url,
 							});
+
 							break;
 						}
 
@@ -229,12 +247,14 @@ export const communityRouter = createTRPCRouter({
 							const result = githubEventPayloads.PushEvent.safeParse(
 								event.payload,
 							);
+
 							if (!result.success) {
 								return;
 							}
 
 							const { size, ref } = result.data;
 							const branchName = ref.replace("refs/heads/", "");
+
 							eventUpdates.push({
 								source: "github",
 								imageUrl: event.actor.avatar_url,
@@ -245,6 +265,7 @@ export const communityRouter = createTRPCRouter({
 									: undefined,
 								link: `https://github.com/${event.repo.name}/commits/${branchName}`,
 							});
+
 							break;
 						}
 					}

@@ -21,6 +21,7 @@ export const startHeartbeat = async (
 			if ((process.env?.HEARTBEAT_DEBUG ?? "true") !== "false")
 				console.error("Failed to send heartbeat:", error);
 		}
+
 		await setTimeout(intervalMs); // Send heartbeat every 5 seconds
 	}
 };

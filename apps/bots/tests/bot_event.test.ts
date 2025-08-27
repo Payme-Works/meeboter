@@ -46,12 +46,16 @@ describe("Meet Event Tests", () => {
 		jest.spyOn(bot, "startRecording").mockImplementation(async () => {
 			console.log("Mock startRecording called");
 		});
+
 		jest.spyOn(bot, "stopRecording").mockImplementation(async () => {
 			console.log("Mock stopRecording called");
+
 			return 0;
 		});
+
 		jest.spyOn(bot, "leaveMeeting").mockImplementation(async () => {
 			console.log("Mock leaveMeeting called");
+
 			return 0; // don't actually leave any meeting
 		});
 
@@ -61,6 +65,7 @@ describe("Meet Event Tests", () => {
 		// Kicked right away.
 		jest.spyOn(bot, "checkKicked").mockImplementation(async () => {
 			console.log("Mock checkKicked called");
+
 			return true;
 		});
 
@@ -72,8 +77,10 @@ describe("Meet Event Tests", () => {
 			.spyOn(bot.page, "waitForSelector")
 			.mockImplementation(async (selector: string) => {
 				console.log(`Mock waitForSelector called with selector: ${selector}`);
+
 				return Promise.resolve({} as any); // Mock the resolved value
 			});
+
 		jest.spyOn(bot.page, "click").mockImplementation(async () => {
 			return Promise.resolve({} as any); // Mock the resolved value
 		});
@@ -90,17 +97,22 @@ describe("Meet Event Tests", () => {
 				const peopleList = document.querySelector(
 					'[aria-label="Participants"]',
 				);
+
 				const participant = document.createElement("div");
+
 				participant.setAttribute(
 					"data-participant-id",
 					`participant-${peopleList?.childNodes.length ?? 0}`,
 				);
+
 				participant.setAttribute(
 					"aria-label",
 					`name-${peopleList?.childNodes.length ?? 0}`,
 				);
+
 				peopleList?.appendChild(participant);
 			});
+
 			await bot.page.waitForTimeout(30);
 		};
 
@@ -110,11 +122,14 @@ describe("Meet Event Tests", () => {
 				const peopleList = document.querySelector(
 					'[aria-label="Participants"]',
 				);
+
 				const participant = peopleList?.querySelector(
 					`[data-participant-id="participant-${(peopleList?.childNodes.length ?? 1) - 1}"]`,
 				);
+
 				participant?.remove();
 			});
+
 			await bot.page.waitForTimeout(30);
 		};
 	});

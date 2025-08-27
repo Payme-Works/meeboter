@@ -24,14 +24,18 @@ function parseTeamsMeetingLink(url: string) {
 
 		// Extract meetingId (after "19:meeting_")
 		let meetingId = null;
+
 		const meetingSegment = pathSegments.find((segment) =>
 			segment.startsWith("19%3ameeting_"),
 		);
+
 		if (meetingSegment) {
 			const s = meetingSegment.split("19%3ameeting_")[1];
+
 			if (!s) {
 				return null;
 			}
+
 			meetingId = meetingSegment ? decodeURIComponent(s).split("@")[0] : null;
 		}
 
@@ -41,6 +45,7 @@ function parseTeamsMeetingLink(url: string) {
 
 		let tenantId = null;
 		let organizationId = null;
+
 		if (context) {
 			const contextObj = JSON.parse(decodeURIComponent(context));
 			tenantId = contextObj.Tid || null;
@@ -54,6 +59,7 @@ function parseTeamsMeetingLink(url: string) {
 		return { meetingId, tenantId, organizationId };
 	} catch (error) {
 		console.error("Error parsing Teams meeting link:", error);
+
 		return null;
 	}
 }
@@ -81,6 +87,7 @@ function parseZoomMeetingLink(url: string) {
 		};
 	} catch (error) {
 		console.error("Error parsing Zoom meeting link:", error);
+
 		return null;
 	}
 }
@@ -98,6 +105,7 @@ export default function MeetingBotCreator() {
 			if (!link.startsWith("https://meet.google.com/")) {
 				link = "https://meet.google.com/" + link;
 			}
+
 			if (!link.startsWith("https://")) {
 				link = "https://" + link;
 			}
@@ -107,9 +115,11 @@ export default function MeetingBotCreator() {
 				platform: "google",
 			};
 		}
+
 		// Zoom
 		if (type === "zoom") {
 			const parsed = parseZoomMeetingLink(link);
+
 			if (!parsed) {
 				return undefined;
 			}
@@ -120,10 +130,12 @@ export default function MeetingBotCreator() {
 				meetingPassword: parsed.meetingPassword,
 			};
 		}
+
 		// Teams
 		if (type === "teams") {
 			// Fetch
 			const parsed = parseTeamsMeetingLink(link);
+
 			if (!parsed) {
 				return undefined;
 			}
@@ -147,17 +159,20 @@ export default function MeetingBotCreator() {
 	const createBot = async () => {
 		// Find the type again
 		const inputType = parseMeetingLink();
+
 		if (inputType === undefined) {
 			setResponse("Invalid Meeting Link. Must be of form meet/teams/zoom");
 		}
 
 		// Define Here
 		const ruuid = "50e8400-e29b-41d4-a716-446655440000";
+
 		const callbackUrl =
 			process.env.NEXT_PUBLIC_CALLBACK_URL ||
 			"https://localhost:3002/api/callback";
 
 		const meetingInfo = defineMeetingInfo(link, inputType);
+
 		if (!meetingInfo) {
 			setResponse("Could not generate meeting info body. Bad URL.");
 		}
@@ -172,6 +187,7 @@ export default function MeetingBotCreator() {
 		};
 
 		setWaitingForResponse(true);
+
 		try {
 			const res = await fetch("/api/send-bot", {
 				method: "POST",
@@ -188,6 +204,7 @@ export default function MeetingBotCreator() {
 			setResponse(
 				`Failed to create bot: ${error instanceof Error ? error.message : "Unknown error"}`,
 			);
+
 			setWaitingForResponse(false);
 		}
 	};
@@ -210,6 +227,7 @@ export default function MeetingBotCreator() {
 	};
 
 	const detectedBot: MeetingType | undefined = parseMeetingLink();
+
 	const platformString = detectedBot
 		? detectedBot[0]?.toUpperCase() + detectedBot.slice(1)
 		: undefined;

@@ -45,6 +45,7 @@ export class ZoomBot extends Bot {
 	async screenshot(fName: string = "screenshot.png") {
 		try {
 			if (!this.page) throw new Error("Page not initialized");
+
 			if (!this.browser) throw new Error("Browser not initialized");
 
 			const screenshot = await this.page.screenshot({
@@ -135,6 +136,7 @@ export class ZoomBot extends Bot {
 				await frame.waitForSelector(acceptCookiesButton, {
 					timeout: 700,
 				});
+
 				frame.click(acceptCookiesButton);
 				console.log("Cookies Accepted");
 			} catch (error) {
@@ -150,6 +152,7 @@ export class ZoomBot extends Bot {
 				await frame.waitForSelector(acceptTermsButton, {
 					timeout: 700,
 				});
+
 				await frame.click(acceptTermsButton);
 				console.log("TOS Accepted");
 			} catch (error) {
@@ -171,10 +174,12 @@ export class ZoomBot extends Bot {
 
 			// Waits for the input field and types the name from the config
 			await frame.waitForSelector("#input-for-name");
+
 			await frame.type(
 				"#input-for-name",
 				this.settings?.botDisplayName ?? "Live Boost",
 			);
+
 			console.log("Typed name");
 
 			// Clicks the join button
@@ -184,6 +189,7 @@ export class ZoomBot extends Bot {
 
 			// wait for the leave button to appear (meaning we've joined the meeting)
 			await new Promise((resolve) => setTimeout(resolve, 1400)); // Needed to wait for the aria-label to be properly attached
+
 			try {
 				await frame.waitForSelector(leaveButton, {
 					timeout: this.settings.automaticLeave.waitingRoomTimeout,
@@ -273,6 +279,7 @@ export class ZoomBot extends Bot {
 							this.endLife();
 
 							resolve();
+
 							return;
 						}
 

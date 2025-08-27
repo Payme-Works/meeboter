@@ -21,6 +21,7 @@ const client =
 		},
 		max: 1,
 	});
+
 if (env.NODE_ENV !== "production") {
 	globalForDb.client = client;
 }

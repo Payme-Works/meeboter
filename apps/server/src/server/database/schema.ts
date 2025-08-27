@@ -13,6 +13,7 @@ import {
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import type { AdapterAccount } from "next-auth/adapters";
 import { z } from "zod";
+
 /**
  * This is an example of how to use the multi-project schema feature of Drizzle ORM. Use the same
  * database instance for multiple projects.
@@ -173,6 +174,7 @@ const automaticLeaveSchema = z.object({
 	everyoneLeftTimeout: z.number(), // the milliseconds before the bot leaves the meeting if everyone has left
 	inactivityTimeout: z.number(), // the milliseconds before the bot leaves the meeting if there has been no activity
 });
+
 export type AutomaticLeave = z.infer<typeof automaticLeaveSchema>;
 export const meetingInfoSchema = z.object({
 	meetingId: z.string().optional().describe("Meeting ID"),
@@ -322,12 +324,15 @@ export const deployBotInputSchema = z.object({
 const participantJoinData = z.object({
 	participantId: z.string(),
 });
+
 const participantLeaveData = z.object({
 	participantId: z.string(),
 });
+
 const logData = z.object({
 	message: z.string(),
 });
+
 const statusData = z.object({
 	sub_code: z.string().optional(),
 	description: z.string().optional(),

@@ -23,6 +23,7 @@ setup("authenticate", async ({ page }) => {
 	await page
 		.getByLabel("Username or email address")
 		.fill(process.env.TEST_EMAIL ?? "");
+
 	await page.getByLabel("Password").fill(process.env.TEST_PASSWORD ?? "");
 	await page.getByRole("button", { name: "Sign in", exact: true }).click();
 
@@ -36,6 +37,7 @@ setup("authenticate", async ({ page }) => {
 	const authorizeButton = page.getByRole("button", {
 		name: "Authorize",
 	});
+
 	if (await authorizeButton.isVisible()) {
 		await authorizeButton.click();
 	}

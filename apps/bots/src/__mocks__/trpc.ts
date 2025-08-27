@@ -15,6 +15,7 @@ export const trpc = {
 		heartbeat: {
 			mutate: jest.fn(() => {
 				console.log("Mock heartbeat mutate called");
+
 				return new Promise((resolve) => {
 					resolve({});
 				});
@@ -23,6 +24,7 @@ export const trpc = {
 		reportEvent: {
 			mutate: jest.fn(() => {
 				console.log("Mock reportEvent mutate called");
+
 				return new Promise((resolve) => {
 					resolve({});
 				});
@@ -31,6 +33,7 @@ export const trpc = {
 		updateBotStatus: {
 			mutate: jest.fn(() => {
 				console.log("Mock reportEvent mutate called");
+
 				return new Promise((resolve) => {
 					resolve({});
 				});

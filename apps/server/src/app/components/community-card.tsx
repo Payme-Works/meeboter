@@ -19,6 +19,7 @@ export default function CommunityCard({ className }: CommunityUpdate) {
 		isLoading,
 		error,
 	} = api.community.getCommunityUpdates.useQuery({});
+
 	return (
 		<DashboardCard
 			title="Community Updates"

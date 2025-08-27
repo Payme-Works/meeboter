@@ -24,8 +24,10 @@ jest.mock("../components/WelcomeDashboard", () => ({
 
 // Explicitly import the components *after* the mocks
 const { default: Home } = require("../page") as typeof import("../page");
+
 const { useSession } =
 	require("next-auth/react") as typeof import("next-auth/react");
+
 const { api } = require("@/trpc/react") as typeof import("@/trpc/react");
 
 // Clear mock data before each test

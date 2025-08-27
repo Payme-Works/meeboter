@@ -52,12 +52,14 @@ export const usageRouter = createTRPCRouter({
 
 			// Collect the Bot Id's.
 			const botIds = userBots.map((bot) => bot.id);
+
 			if (botIds.length === 0) {
 				return [];
 			}
 
 			// Ensure botId is defined before using it in the query
 			const botId = botIds[0];
+
 			if (botId === undefined) {
 				throw new Error("Bot not found");
 			}
@@ -113,6 +115,7 @@ export const usageRouter = createTRPCRouter({
 
 			// Passback List of values
 			console.log(outputObject);
+
 			return outputObject;
 		}),
 
@@ -130,6 +133,7 @@ export const usageRouter = createTRPCRouter({
 		.query(async ({ ctx }) => {
 			// Calculate start of this week
 			const today = new Date();
+
 			const startOfWeek = new Date(
 				today.setDate(today.getDate() - today.getDay()),
 			);
@@ -192,6 +196,7 @@ export const usageRouter = createTRPCRouter({
 					eventsByDate[startDate].count += 1;
 					// Convert to string when saving
 					const currentCost = parseFloat(eventsByDate[startDate].estimatedCost);
+
 					eventsByDate[startDate].estimatedCost = (
 						currentCost +
 						botElapsed / 36000000
@@ -280,6 +285,7 @@ export const usageRouter = createTRPCRouter({
 					eventsByDate[startDate].count += 1;
 					// Convert to string when saving
 					const currentCost = parseFloat(eventsByDate[startDate].estimatedCost);
+
 					eventsByDate[startDate].estimatedCost = (
 						currentCost +
 						botElapsed / 36000000

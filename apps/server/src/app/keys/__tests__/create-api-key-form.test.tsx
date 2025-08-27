@@ -15,9 +15,12 @@ jest.mock("sonner", () => ({
 
 const { CreateApiKeyForm } =
 	require("../components/CreateApiKeyForm") as typeof import("../components/CreateApiKeyForm");
+
 const { api } = require("@/trpc/react") as typeof import("@/trpc/react");
+
 const { Dialog, DialogContent, DialogTitle, DialogDescription } =
 	require("@/components/ui/dialog") as typeof import("@/components/ui/dialog");
+
 const { toast } = require("sonner") as typeof import("sonner");
 
 // Clear mock data before each test
@@ -62,6 +65,7 @@ describe("CreateApiKeyForm", () => {
 		const sixMonthsFromNow = new Date(
 			new Date().getTime() + 6 * 30 * 24 * 60 * 60 * 1000,
 		);
+
 		sixMonthsFromNow.setHours(23, 59, 59, 999);
 
 		// Assert that the mutation was called with the correct arguments

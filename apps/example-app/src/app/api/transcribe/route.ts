@@ -51,6 +51,7 @@ export async function POST(req: Request) {
 		return NextResponse.json({ transcription, summary }, { status: 200 });
 	} catch (error) {
 		console.error("Error in transcription or summarization:", error);
+
 		return NextResponse.json(
 			{
 				error:

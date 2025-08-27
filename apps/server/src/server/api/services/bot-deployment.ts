@@ -67,9 +67,11 @@ export async function deployBot({
 	db: PostgresJsDatabase<typeof schema>;
 }) {
 	const botResult = await db.select().from(bots).where(eq(bots.id, botId));
+
 	if (!botResult[0]) {
 		throw new Error("Bot not found");
 	}
+
 	const bot = botResult[0];
 	const dev = env.NODE_ENV === "development";
 
@@ -192,5 +194,6 @@ export async function shouldDeployImmediately(
 
 	const now = new Date();
 	const deploymentBuffer = 5 * 60 * 1000; // 5 minutes in milliseconds
+
 	return startTime.getTime() - now.getTime() <= deploymentBuffer;
 }

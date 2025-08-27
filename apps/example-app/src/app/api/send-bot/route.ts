@@ -7,6 +7,7 @@ export async function POST(req: Request) {
 
 		// Get Key
 		const key = process.env.LIVE_BOOST_API_KEY;
+
 		if (!key) {
 			throw new Error(
 				`Missing required environment variable: LIVE_BOOST_API_KEY`,
@@ -14,6 +15,7 @@ export async function POST(req: Request) {
 		}
 
 		const endpoint = process.env.MEETINGBOT_END_POINT;
+
 		if (!endpoint) {
 			throw new Error(
 				`Missing required environment variable: MEETINGBOT_END_POINT`,
@@ -42,9 +44,11 @@ export async function POST(req: Request) {
 
 		const data = await response.json();
 		console.log("RECEIVED", data);
+
 		return NextResponse.json(data, { status: response.status });
 	} catch (error) {
 		console.error("Error:", error);
+
 		return NextResponse.json(
 			{
 				error:

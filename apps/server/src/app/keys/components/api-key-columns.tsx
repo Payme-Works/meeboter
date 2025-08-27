@@ -27,6 +27,7 @@ export const columns = (
 		header: "Created At",
 		cell: ({ row }) => {
 			const date = row.getValue<Date>("createdAt");
+
 			return date ? dayjs(date).format("MMMM D, YYYY") : "-";
 		},
 	},
@@ -35,6 +36,7 @@ export const columns = (
 		header: "Status",
 		cell: ({ row }) => {
 			const isRevoked = row.getValue("isRevoked");
+
 			return (
 				<Badge variant={isRevoked ? "destructive" : "default"}>
 					{isRevoked ? "Revoked" : "Active"}
@@ -46,6 +48,7 @@ export const columns = (
 		id: "actions",
 		cell: ({ row }) => {
 			const apiKey = row.original;
+
 			return (
 				<ActionCell
 					apiKey={apiKey.key}

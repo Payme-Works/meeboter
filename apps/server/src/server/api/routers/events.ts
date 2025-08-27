@@ -32,12 +32,14 @@ export const eventsRouter = createTRPCRouter({
 				.where(eq(bots.userId, ctx.session.user.id));
 
 			const botIds = userBots.map((bot) => bot.id);
+
 			if (botIds.length === 0) {
 				return [];
 			}
 
 			// Ensure botId is defined before using it in the query
 			const botId = botIds[0];
+
 			if (botId === undefined) {
 				throw new Error("Bot not found");
 			}
@@ -100,6 +102,7 @@ export const eventsRouter = createTRPCRouter({
 			if (!result[0]?.bot || result[0].bot.userId !== ctx.session.user.id) {
 				throw new Error("Event not found");
 			}
+
 			return result[0].event;
 		}),
 
@@ -125,9 +128,11 @@ export const eventsRouter = createTRPCRouter({
 			}
 
 			const result = await ctx.db.insert(events).values(input).returning();
+
 			if (!result[0]) {
 				throw new Error("Failed to create event");
 			}
+
 			return result[0];
 		}),
 
@@ -170,6 +175,7 @@ export const eventsRouter = createTRPCRouter({
 			if (!result[0]) {
 				throw new Error("Event not found");
 			}
+
 			return result[0];
 		}),
 
@@ -206,6 +212,7 @@ export const eventsRouter = createTRPCRouter({
 			if (!result[0]) {
 				throw new Error("Event not found");
 			}
+
 			return { message: "Event deleted successfully" };
 		}),
 });

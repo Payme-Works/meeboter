@@ -31,8 +31,10 @@ const joinNowButton = '//button[.//span[text()="Join now"]]';
 const gotKickedDetector = '//button[.//span[text()="Return to home screen"]]';
 const leaveButton = `//button[@aria-label="Leave call"]`;
 const peopleButton = `//button[@aria-label="People"]`;
+
 const onePersonRemainingField =
 	'//span[.//div[text()="Contributors"]]//div[text()="1"]';
+
 const muteButton = `[aria-label*="Turn off microphone"]`; // *= -> conatins
 const cameraOffButton = `[aria-label*="Turn off camera"]`;
 
@@ -174,6 +176,7 @@ export class MeetsBot extends Bot {
 			"--use-file-for-fake-audio-capture=/dev/null",
 			'--auto-select-desktop-capture-source="Chrome"', // record the first tab automatically
 		];
+
 		// Fetch
 		this.meetingURL = botSettings.meetingInfo.meetingUrl!;
 		this.kicked = false; // Flag for if the bot was kicked from the meeting, no need to click exit button.
@@ -197,6 +200,7 @@ export class MeetsBot extends Bot {
 	getRecordingPath(): string {
 		// Ensure the directory exists
 		const dir = path.dirname(this.recordingPath);
+
 		if (!fs.existsSync(dir)) {
 			fs.mkdirSync(dir, { recursive: true });
 		}
@@ -226,12 +230,14 @@ export class MeetsBot extends Bot {
 
 			for (let i = 1; i < timeframesArray.length; i++) {
 				const currentTimeframe = timeframesArray[i]!;
+
 				if (currentTimeframe - end < utteranceThresholdMs) {
 					end = currentTimeframe;
 				} else {
 					if (end - start > 500) {
 						processedTimeframes.push({ speakerName, start, end });
 					}
+
 					start = currentTimeframe;
 					end = currentTimeframe;
 				}
@@ -308,10 +314,13 @@ export class MeetsBot extends Bot {
 			Object.defineProperty(navigator, "hardwareConcurrency", { get: () => 4 }); // Fake number of CPU cores
 			Object.defineProperty(navigator, "deviceMemory", { get: () => 8 }); // Fake memory size
 			Object.defineProperty(window, "innerWidth", { get: () => SCREEN_WIDTH }); // Fake screen resolution
+
 			Object.defineProperty(window, "innerHeight", {
 				get: () => SCREEN_HEIGHT,
 			});
+
 			Object.defineProperty(window, "outerWidth", { get: () => SCREEN_WIDTH });
+
 			Object.defineProperty(window, "outerHeight", {
 				get: () => SCREEN_HEIGHT,
 			});
@@ -342,6 +351,7 @@ export class MeetsBot extends Bot {
 		await this.page.fill(enterNameField, name);
 
 		console.log("Turning Off Camera and Microphone ...");
+
 		try {
 			await this.page.waitForTimeout(randomDelay(500));
 			await this.page.click(muteButton, { timeout: 200 });
@@ -349,6 +359,7 @@ export class MeetsBot extends Bot {
 		} catch (e) {
 			console.log("Could not turn off Microphone, probably already off.");
 		}
+
 		try {
 			await this.page.click(cameraOffButton, { timeout: 200 });
 			await this.page.waitForTimeout(200);
@@ -359,6 +370,7 @@ export class MeetsBot extends Bot {
 		console.log(
 			'Waiting for either the "Join now" or "Ask to join" button to appear...',
 		);
+
 		const entryButton = await Promise.race([
 			this.page
 				.waitForSelector(joinNowButton, { timeout: 60000 })
@@ -399,6 +411,7 @@ export class MeetsBot extends Bot {
 		// For Testing (pnpm test) -- no docker x11 server running.
 		if (!fs.existsSync("/tmp/.X11-unix")) {
 			console.log("Using test ffmpeg params");
+
 			return [
 				"-y",
 				"-f",
@@ -480,6 +493,7 @@ export class MeetsBot extends Bot {
 			"Attempting to start the recording ... @",
 			this.getRecordingPath(),
 		);
+
 		if (this.ffmpegProcess) return console.log("Recording already started.");
 
 		this.ffmpegProcess = spawn("ffmpeg", this.getFFmpegParams());
@@ -501,6 +515,7 @@ export class MeetsBot extends Bot {
 		// Log to console if the env var is set
 		// Turn it on if ffmpeg gives a weird error code.
 		const logFfmpeg = process.env.MEET_FFMPEG_STDERR_ECHO === "true";
+
 		if (logFfmpeg ?? false) {
 			this.ffmpegProcess.stderr.on("data", (data) => {
 				const text = data.toString();
@@ -535,6 +550,7 @@ export class MeetsBot extends Bot {
 			if (!this.ffmpegProcess) {
 				console.log("No recording in progress, cannot end recording.");
 				resolve(1);
+
 				return; // exit early
 			}
 
@@ -553,6 +569,7 @@ export class MeetsBot extends Bot {
 					console.error(
 						`FFmpeg exited with code ${code}${signal ? ` and signal ${signal}` : ""}`,
 					);
+
 					resolve(1);
 				}
 			});
@@ -571,6 +588,7 @@ export class MeetsBot extends Bot {
 	async screenshot(fName: string = "screenshot.png") {
 		try {
 			if (!this.page) throw new Error("Page not initialized");
+
 			if (!this.browser) throw new Error("Browser not initialized");
 
 			const screenshot = await this.page.screenshot({
@@ -636,6 +654,7 @@ export class MeetsBot extends Bot {
 		} catch (e) {
 			return;
 		}
+
 		console.log("Clicking the popup...");
 		await this.page.click(infoPopupClick);
 	}
@@ -671,13 +690,17 @@ export class MeetsBot extends Bot {
 				const peopleButtonChild = Array.from(
 					document.querySelectorAll("i"),
 				).find((el) => el.textContent?.trim() === "people");
+
 				if (peopleButtonChild) {
 					const newPeopleButton = peopleButtonChild.closest("button");
+
 					if (newPeopleButton) {
 						newPeopleButton.click();
+
 						return true;
 					}
 				}
+
 				return false;
 			});
 
@@ -712,9 +735,11 @@ export class MeetsBot extends Bot {
 			"onParticipantLeave",
 			async (participant: Participant) => {
 				await this.onEvent(EventCode.PARTICIPANT_LEAVE, participant);
+
 				this.participants = this.participants.filter(
 					(p) => p.id !== participant.id,
 				);
+
 				this.timeAloneStarted =
 					this.participants.length === 1 ? Date.now() : Infinity;
 			},
@@ -725,6 +750,7 @@ export class MeetsBot extends Bot {
 			(participant: Participant) => {
 				this.lastActivity = Date.now();
 				const relativeTimestamp = Date.now() - this.recordingStartedAt;
+
 				console.log(
 					`Participant ${participant.name} is speaking at ${relativeTimestamp}ms`,
 				);
@@ -745,30 +771,36 @@ export class MeetsBot extends Bot {
 		// Use in the browser context to monitor for participants joining and leaving
 		await this.page.evaluate(() => {
 			const peopleList = document.querySelector('[aria-label="Participants"]');
+
 			if (!peopleList) {
 				console.error("Could not find participants list element");
+
 				return;
 			}
 
 			const initialParticipants = Array.from(peopleList.childNodes).filter(
 				(node) => node.nodeType === Node.ELEMENT_NODE,
 			);
+
 			window.participantArray = [];
 			window.mergedAudioParticipantArray = [];
 
 			window.observeSpeech = (node, participant) => {
 				console.debug("Observing speech for participant:", participant.name);
+
 				const activityObserver = new MutationObserver((mutations) => {
 					mutations.forEach(() => {
 						window.registerParticipantSpeaking(participant);
 					});
 				});
+
 				activityObserver.observe(node, {
 					attributes: true,
 					subtree: true,
 					childList: true,
 					attributeFilter: ["class"],
 				});
+
 				participant.observer = activityObserver;
 			};
 
@@ -776,15 +808,18 @@ export class MeetsBot extends Bot {
 				const mergedAudioNode = document.querySelector(
 					'[aria-label="Merged audio"]',
 				);
+
 				if (mergedAudioNode) {
 					const detectedParticipants: Participant[] = [];
 
 					// Gather all participants in the merged audio node
 					mergedAudioNode.parentNode!.childNodes.forEach((childNode: any) => {
 						const participantId = childNode.getAttribute("data-participant-id");
+
 						if (!participantId) {
 							return;
 						}
+
 						detectedParticipants.push({
 							id: participantId,
 							name: childNode.getAttribute("aria-label"),
@@ -803,10 +838,12 @@ export class MeetsBot extends Bot {
 									(p: Participant) => p.id === participant.id,
 								),
 						);
+
 						filteredParticipants.forEach((participant: Participant) => {
 							const vidBlock = document.querySelector(
 								`[data-requested-participant-id="${participant.id}"]`,
 							);
+
 							window.mergedAudioParticipantArray.push(participant);
 							window.onParticipantJoin(participant);
 							window.observeSpeech(vidBlock, participant);
@@ -824,13 +861,16 @@ export class MeetsBot extends Bot {
 										(p: Participant) => p.id === participant.id,
 									),
 							);
+
 						filteredParticipants.forEach((participant: Participant) => {
 							const videoRectangle = document.querySelector(
 								`[data-requested-participant-id="${participant.id}"]`,
 							);
+
 							if (!videoRectangle) {
 								// they've left the meeting
 								window.onParticipantLeave(participant);
+
 								window.participantArray = window.participantArray.filter(
 									(p: Participant) => p.id !== participant.id,
 								);
@@ -851,21 +891,26 @@ export class MeetsBot extends Bot {
 					id: node.getAttribute("data-participant-id"),
 					name: node.getAttribute("aria-label"),
 				};
+
 				if (!participant.id) {
 					window.handleMergedAudio();
+
 					return;
 				}
+
 				window.onParticipantJoin(participant);
 				window.observeSpeech(node, participant);
 				window.participantArray.push(participant);
 			});
 
 			console.log("Setting up mutation observer on participants list");
+
 			const peopleObserver = new MutationObserver((mutations) => {
 				mutations.forEach((mutation) => {
 					if (mutation.type === "childList") {
 						mutation.removedNodes.forEach((node: any) => {
 							console.log("Removed Node", node);
+
 							if (
 								node.nodeType === Node.ELEMENT_NODE &&
 								node.getAttribute &&
@@ -879,10 +924,12 @@ export class MeetsBot extends Bot {
 									"Participant left:",
 									node.getAttribute("aria-label"),
 								);
+
 								window.onParticipantLeave({
 									id: node.getAttribute("data-participant-id"),
 									name: node.getAttribute("aria-label"),
 								});
+
 								window.participantArray = window.participantArray.filter(
 									(p: Participant) =>
 										p.id !== node.getAttribute("data-participant-id"),
@@ -894,8 +941,10 @@ export class MeetsBot extends Bot {
 							}
 						});
 					}
+
 					mutation.addedNodes.forEach((node: any) => {
 						console.log("Added Node", node);
+
 						if (
 							node.getAttribute &&
 							node.getAttribute("data-participant-id") &&
@@ -908,10 +957,12 @@ export class MeetsBot extends Bot {
 								"Participant joined:",
 								node.getAttribute("aria-label"),
 							);
+
 							const participant = {
 								id: node.getAttribute("data-participant-id"),
 								name: node.getAttribute("aria-label"),
 							};
+
 							window.onParticipantJoin(participant);
 							window.observeSpeech(node, participant);
 							window.participantArray.push(participant);
@@ -932,7 +983,9 @@ export class MeetsBot extends Bot {
 			if (this.participants.length === 1) {
 				const leaveMs =
 					this.settings?.automaticLeave?.everyoneLeftTimeout ?? 30000; // Default to 30 seconds if not set
+
 				const msDiff = Date.now() - this.timeAloneStarted;
+
 				console.log(
 					`Only me left in the meeting. Waiting for timeout time to have allocated (${msDiff / 1000} / ${leaveMs / 1000}s) ...`,
 				);
@@ -941,6 +994,7 @@ export class MeetsBot extends Bot {
 					console.log(
 						"Only one participant remaining for more than alocated time, leaving the meeting.",
 					);
+
 					break;
 				}
 			}
@@ -950,6 +1004,7 @@ export class MeetsBot extends Bot {
 			if (await this.checkKicked()) {
 				console.log("Detected that we were kicked from the meeting.");
 				this.kicked = true; //store
+
 				break; //exit loop
 			}
 
@@ -961,6 +1016,7 @@ export class MeetsBot extends Bot {
 					this.settings.automaticLeave.inactivityTimeout
 			) {
 				console.log("No Activity for 5 minutes");
+
 				break;
 			}
 
@@ -977,9 +1033,11 @@ export class MeetsBot extends Bot {
 
 		try {
 			await this.leaveMeeting();
+
 			return 0;
 		} catch (e) {
 			await this.endLife();
+
 			return 1;
 		}
 	}
@@ -1013,6 +1071,7 @@ export class MeetsBot extends Bot {
 	async leaveMeeting() {
 		// Try and Find the leave button, press. Otherwise, just delete the browser.
 		console.log("Trying to leave the call ...");
+
 		try {
 			await this.page.click(leaveButton, { timeout: 1000 }); //Short Attempt
 			console.log("Left Call.");
@@ -1024,6 +1083,7 @@ export class MeetsBot extends Bot {
 
 		console.log("Ending Life ...");
 		await this.endLife();
+
 		return 0;
 	}
 }

@@ -7,6 +7,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
+
 export default function TableSkeleton() {
 	return (
 		<div>

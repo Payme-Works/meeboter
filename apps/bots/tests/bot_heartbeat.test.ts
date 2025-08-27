@@ -26,22 +26,26 @@ import { trpc } from "../src/trpc";
 const mockBot = {
 	run: jest.fn(() => {
 		console.log("Mock bot run called");
+
 		return new Promise((resolve) => {
 			resolve({});
 		});
 	}),
 	getSpeakerTimeframes: jest.fn(() => {
 		console.log("Mock bot getSpeakerTimeframes called");
+
 		return [];
 	}),
 	endLife: jest.fn(() => {
 		console.log("Mock bot endLife called");
+
 		return new Promise((resolve) => {
 			resolve({});
 		});
 	}),
 	screenshot: jest.fn(() => {
 		console.log("Mock bot screenshot called");
+
 		return new Promise((resolve) => {
 			resolve({});
 		});
@@ -52,6 +56,7 @@ const mockBot = {
 jest.mock("../src/bot", () => ({
 	createBot: jest.fn(() => {
 		console.log("Mock createBot called, passing back mock object");
+
 		return mockBot;
 	}),
 }));
@@ -59,10 +64,12 @@ jest.mock("../src/bot", () => ({
 jest.mock("../src/s3", () => ({
 	createS3Client: jest.fn(() => {
 		console.log("Mock createS3Client called");
+
 		return {};
 	}),
 	uploadRecordingToS3: jest.fn((s3, bot) => {
 		console.log("Mock uploadRecordingToS3 called");
+
 		return new Promise((resolve) => {
 			resolve({});
 		});
@@ -126,6 +133,7 @@ describe("Main function tests", () => {
 			platform: "mock-platform",
 			heartbeatInterval: 200,
 		});
+
 		process.env.AWS_BUCKET_NAME = "mock-bucket";
 		process.env.AWS_REGION = "mock-region";
 		process.env.AWS_ACCESS_KEY_ID = "mock-access-key";
@@ -145,6 +153,7 @@ describe("Main function tests", () => {
 			console.log("Setting exitCode", code);
 			exitCode = code;
 			console.log(`Mock process.exit called with code "${code}"`);
+
 			return undefined as never; // You need as never so the test can complete -- otherwise jest short circuts.
 		});
 

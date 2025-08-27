@@ -14,6 +14,7 @@ export default function RecordingPlayer() {
 			setLoading(true);
 			const response = await fetch("/api/callback");
 			const data = await response.json();
+
 			if (data.link) {
 				setRecordingLink(data.link);
 			}

@@ -49,6 +49,7 @@ describe("Teams Bot Recording Test", () => {
 	}
 
 	const conditionalTest = ffmpegExists ? it : it.skip;
+
 	conditionalTest(
 		"Recording Dimension Test",
 		async () => {
@@ -56,6 +57,7 @@ describe("Teams Bot Recording Test", () => {
 				mockTeamsConfig,
 				async (eventType: string, data: any) => {},
 			);
+
 			let recordingPath: string | null = null;
 
 			// Launch a broser
@@ -87,6 +89,7 @@ describe("Teams Bot Recording Test", () => {
 			const ffprobeOutput = execSync(
 				`ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of json "${recordingPath}"`,
 			);
+
 			const dimensions = JSON.parse(ffprobeOutput);
 
 			// Delete the temp file once we have read in dimensions

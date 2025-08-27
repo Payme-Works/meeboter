@@ -46,6 +46,7 @@ export async function setupTestDb() {
 		/(postgresql|postgres):\/\/([^:]+):([^@]+)@/,
 		"$1://$2:****@",
 	);
+
 	console.log(`Connecting to test database: ${sanitizedUrl}`);
 
 	// Get the connection string
@@ -63,6 +64,7 @@ export async function setupTestDb() {
 		console.log("Successfully created postgres client");
 	} catch (connectionError) {
 		console.error("Failed to create database connection:", connectionError);
+
 		throw new Error(`Database connection failed: ${String(connectionError)}`);
 	}
 
@@ -109,12 +111,15 @@ export async function setupTestDb() {
 	let migrationsFolder: string | null = null;
 	for (const p of possiblePaths) {
 		console.log(`Checking migration path: ${p}`);
+
 		if (fs.existsSync(p)) {
 			console.log(`Directory exists: ${p}`);
 			const metaJournalPath = path.join(p, "meta", "_journal.json");
+
 			if (fs.existsSync(metaJournalPath)) {
 				migrationsFolder = p;
 				console.log(`Found migrations folder at: ${migrationsFolder}`);
+
 				break;
 			} else {
 				// Log what's in the directory to help debugging
@@ -131,6 +136,7 @@ export async function setupTestDb() {
 
 	if (!migrationsFolder) {
 		console.error("Migrations folder not found. Check the folder structure.");
+
 		throw new Error(
 			"Migrations folder not found. Test database schema cannot be guaranteed.",
 		);
@@ -139,10 +145,12 @@ export async function setupTestDb() {
 			console.log(
 				`Applying migrations from ${migrationsFolder} to test database`,
 			);
+
 			await migrate(db, { migrationsFolder });
 			console.log("Test database migrations applied successfully");
 		} catch (error) {
 			console.error("Error applying migrations to test database:", error);
+
 			throw new Error(`Failed to apply migrations: ${String(error)}`);
 		}
 	}
@@ -155,6 +163,7 @@ export async function setupTestDb() {
 export async function cleanupTestDb() {
 	if (!db) {
 		console.log("No database to clean up");
+
 		return;
 	}
 
@@ -175,6 +184,7 @@ export async function cleanupTestDb() {
 					const truncateQuery = sql.raw(
 						`TRUNCATE TABLE "${table.table_name}" CASCADE;`,
 					);
+
 					await db.execute(truncateQuery); // Truncate (clear all the data) the table
 				}
 			}
@@ -199,5 +209,6 @@ export function getTestDb() {
 	if (!db) {
 		throw new Error("Database not initialized. Call setupTestDb() first.");
 	}
+
 	return db;
 }

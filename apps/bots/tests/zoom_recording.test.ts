@@ -34,6 +34,7 @@ const mockZoomConfig = {
 
 describe("Zoom Bot Recording Test", () => {
 	let ffmpegExists = false;
+
 	try {
 		execSync("ffmpeg -version", { stdio: "ignore" });
 		ffmpegExists = true;
@@ -47,6 +48,7 @@ describe("Zoom Bot Recording Test", () => {
 	});
 
 	const conditionalTest = ffmpegExists ? it : it.skip;
+
 	conditionalTest(
 		"Recording Dimension Test",
 		async () => {
@@ -54,6 +56,7 @@ describe("Zoom Bot Recording Test", () => {
 				mockZoomConfig,
 				async (eventType: string, data: any) => {},
 			);
+
 			let recordingPath: string | null = null;
 
 			// Launch a broser
@@ -85,6 +88,7 @@ describe("Zoom Bot Recording Test", () => {
 			const ffprobeOutput = execSync(
 				`ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of json "${recordingPath}"`,
 			);
+
 			const dimensions = JSON.parse(ffprobeOutput);
 
 			// Delete the temp file once we have read in dimensions

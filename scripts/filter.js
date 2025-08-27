@@ -28,6 +28,7 @@ newArgs.push(
 		if (arg.startsWith("@") || arg.includes(" ")) {
 			return `"${arg}"`;
 		}
+
 		return arg;
 	}),
 );

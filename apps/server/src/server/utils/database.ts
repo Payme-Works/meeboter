@@ -13,11 +13,13 @@ export const extractCount = (
 	countResult: { count: unknown }[] | undefined,
 ): number => {
 	const result = countResult?.[0]?.count;
+
 	if (!result || typeof result === "undefined") {
 		throw new Error("Database count result is missing or malformed");
 	}
 
 	const count = Number(result);
+
 	if (isNaN(count)) {
 		throw new Error(`Invalid count value: ${JSON.stringify(result)}`);
 	}

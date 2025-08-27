@@ -9,11 +9,13 @@ jest.mock("@/trpc/react", () => createTrpcApiMock());
 // Explicitly import the components *after* the mocks
 const { BotDetailsDialog } =
 	require("../components/bot-details-dialog") as typeof import("../components/bot-details-dialog");
+
 const { api } = require("@/trpc/react") as typeof import("@/trpc/react");
 
 // Fake data that will be used to test the component
 const startTimeString = "Mar 10, 2025, 11:30 AM";
 const endTimeString = "Mar 10, 2025, 12:00 PM";
+
 const fakeBotData: SelectBotType = {
 	status: "JOINING_CALL",
 	id: 1,

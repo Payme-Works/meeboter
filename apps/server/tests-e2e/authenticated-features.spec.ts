@@ -35,6 +35,7 @@ test.describe("Authenticated Features", () => {
 			await page.getByRole("link", { name: "Bots", exact: true }).click();
 			await expect(page.locator("thead")).toContainText("Platform");
 		});
+
 		test("created bot should be visible", async ({ page: _page }) => {
 			// get an API key
 			// create a meeting using the REST API

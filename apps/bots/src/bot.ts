@@ -104,6 +104,7 @@ const validPlatformForImage = (
 	imageName: string,
 ): boolean => {
 	if (platform === imageName) return true;
+
 	if (platform === "google" && imageName === "meet") return true; //ignore any mismatch between platform and bot name
 
 	return false;
@@ -130,6 +131,7 @@ export const createBot = async (botData: BotConfig): Promise<Bot> => {
 	switch (botData.meetingInfo.platform) {
 		case "google": {
 			const { MeetsBot } = await import("../providers/meet/src/bot");
+
 			return new MeetsBot(
 				botData,
 				async (eventType: EventCode, data: unknown) => {
@@ -140,6 +142,7 @@ export const createBot = async (botData: BotConfig): Promise<Bot> => {
 
 		case "teams": {
 			const { TeamsBot } = await import("../providers/teams/src/bot");
+
 			return new TeamsBot(
 				botData,
 				async (eventType: EventCode, data: unknown) => {
@@ -150,6 +153,7 @@ export const createBot = async (botData: BotConfig): Promise<Bot> => {
 
 		case "zoom": {
 			const { ZoomBot } = await import("../providers/zoom/src/bot");
+
 			return new ZoomBot(
 				botData,
 				async (eventType: EventCode, data: unknown) => {

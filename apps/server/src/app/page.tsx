@@ -8,6 +8,7 @@ import WelcomeDashboard from "./components/welcome-dashboard";
 
 export default function Home() {
 	const { data: session, status } = useSession();
+
 	const {
 		data: apiKeyCount,
 		isLoading: apiKeyCountIsLoading,

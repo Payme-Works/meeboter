@@ -24,13 +24,16 @@ export const UsageTooltip = ({
 	if (!active || !payload?.length) {
 		return null;
 	}
+
 	const objData = payload[0]?.payload;
+
 	if (!objData) {
 		return null;
 	}
 
 	// Render
 	const activeMutation = "font-semibold text-lg";
+
 	const checkActive = (check: string) =>
 		metric === check ? activeMutation : "";
 
@@ -41,6 +44,7 @@ export const UsageTooltip = ({
 		}
 
 		const seconds = ms / 1000;
+
 		if (seconds < 60) {
 			return `${seconds.toFixed(1)} seconds`;
 		}
@@ -54,6 +58,7 @@ export const UsageTooltip = ({
 
 		const hours = Math.floor(minutes / 60);
 		const remainingMinutes = minutes % 60;
+
 		return `${hours} hours ${remainingMinutes} minutes`;
 	};
 
@@ -64,14 +69,17 @@ export const UsageTooltip = ({
 		}
 
 		const date = new Date(dateString);
+
 		const options: Intl.DateTimeFormatOptions = {
 			year: "numeric",
 			month: "long",
 			day: "numeric",
 		};
+
 		const formattedDate = date.toLocaleDateString(undefined, options);
 
 		const day = date.getDate() + 1;
+
 		const suffix =
 			day % 10 === 1 && day !== 11
 				? "st"

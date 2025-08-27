@@ -53,6 +53,7 @@ export class TeamsBot extends Bot {
 	async screenshot(fName: string = "screenshot.png") {
 		try {
 			if (!this.page) throw new Error("Page not initialized");
+
 			if (!this.browser) throw new Error("Browser not initialized");
 
 			const screenshot = await this.page.screenshot({
@@ -105,6 +106,7 @@ export class TeamsBot extends Bot {
 		await this.page
 			.locator(`[data-tid="prejoin-display-name-input"]`)
 			.fill(this.settings.botDisplayName ?? "Live Boost");
+
 		console.log("Entered Display Name");
 
 		// Mute microphone before joining
@@ -119,6 +121,7 @@ export class TeamsBot extends Bot {
 		await this.page.waitForFunction(
 			(selector) => {
 				const joinButton = document.querySelector(selector);
+
 				return !joinButton || joinButton.hasAttribute("disabled");
 			},
 			{},
@@ -127,11 +130,13 @@ export class TeamsBot extends Bot {
 
 		// Check if we're in a waiting room by checking if the join button exists and is disabled
 		const joinButton = await this.page.$('[data-tid="prejoin-join-button"]');
+
 		const isWaitingRoom =
 			joinButton &&
 			(await joinButton.evaluate((button) => button.hasAttribute("disabled")));
 
 		let timeout = 30000; // if not in the waiting room, wait 30 seconds to join the meeting
+
 		if (isWaitingRoom) {
 			console.log(
 				`Joined waiting room, will wait for ${
@@ -155,6 +160,7 @@ export class TeamsBot extends Bot {
 			timeout,
 			"ms",
 		);
+
 		try {
 			await this.page.waitForSelector(leaveButtonSelector, {
 				timeout: timeout,
@@ -219,8 +225,10 @@ export class TeamsBot extends Bot {
 			try {
 				const currentParticipants = await this.page.evaluate(() => {
 					const participantsList = document.querySelector('[role="tree"]');
+
 					if (!participantsList) {
 						console.log("No participants list found");
+
 						return [];
 					}
 
@@ -233,6 +241,7 @@ export class TeamsBot extends Bot {
 					return currentElements
 						.map((el) => {
 							const nameSpan = el.querySelector("span[title]");
+
 							return (
 								nameSpan?.getAttribute("title") ||
 								nameSpan?.textContent?.trim() ||
@@ -271,6 +280,7 @@ export class TeamsBot extends Bot {
 			{ timeout: 0 }, // wait indefinitely
 			leaveButtonSelector,
 		);
+
 		console.log("Meeting ended");
 
 		// Clear the participants checking interval

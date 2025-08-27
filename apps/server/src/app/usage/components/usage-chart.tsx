@@ -34,9 +34,11 @@ export function UsageChart() {
 	const [metric, setMetric] = React.useState<
 		"count" | "msEllapsed" | "estimatedCost"
 	>("estimatedCost");
+
 	const [timeframe, setTimeframe] = React.useState<"week" | "month" | "year">(
 		"week",
 	);
+
 	const [isMobile, setIsMobile] = useState(false);
 
 	// Initialize window-dependent states safely
@@ -48,6 +50,7 @@ export function UsageChart() {
 		};
 
 		window.addEventListener("resize", handleResize);
+
 		return () => window.removeEventListener("resize", handleResize);
 	}, []);
 
@@ -65,9 +68,11 @@ export function UsageChart() {
 				if (typeof d[metric] === "number") {
 					return d[metric];
 				}
+
 				return Math.ceil(parseFloat(d[metric]));
 			}),
 		);
+
 	const ydomain = data && [0, max ?? 0];
 
 	const dateTickFormatter = (date: string) => {
@@ -75,10 +80,12 @@ export function UsageChart() {
 			const dayOfWeek = new Date(date).toLocaleString("default", {
 				weekday: "short",
 			});
+
 			return dayOfWeek;
 		}
 
 		const [year, month, day] = date.split("-");
+
 		if (!year || !month || !day) {
 			return date;
 		}
@@ -87,6 +94,7 @@ export function UsageChart() {
 			parseInt(year),
 			parseInt(month) - 1,
 		).toLocaleString("default", { month: "short" });
+
 		const out = `${shortMonth}. ${parseInt(day)}`;
 
 		console.log(out, date);

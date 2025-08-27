@@ -11,10 +11,12 @@ test.describe("Integration Tests", () => {
 				await page.getByRole("button", { name: "Generate API Key" }).click();
 				await page.getByRole("textbox", { name: "Name" }).fill("testing2");
 				await page.getByRole("button", { name: "Create API Key" }).click();
+
 				await page
 					.getByRole("row", { name: "testing2 April 4, 2025 Active" })
 					.getByRole("button")
 					.click();
+
 				await page.getByRole("menuitem", { name: "Copy Key" }).click();
 				// get key from clipboard
 				const key = await page.evaluate(() => navigator.clipboard.readText());
@@ -28,16 +30,20 @@ test.describe("Integration Tests", () => {
 					.getByRole("link", { name: "Sign into Google Meet" })
 					.nth(1)
 					.click();
+
 				await page1.getByRole("textbox", { name: "Email or phone" }).click();
+
 				await page1
 					.getByRole("textbox", { name: "Email or phone" })
 					.fill("meetingbotcapstone");
+
 				await page1
 					.getByRole("textbox", { name: "Email or phone" })
 					.press("Enter");
 			},
 		);
 	});
+
 	test.describe("Teams Bot", () => {
 		test.fixme(
 			"should successfully join a Teams meeting and log events",
@@ -48,6 +54,7 @@ test.describe("Integration Tests", () => {
 			},
 		);
 	});
+
 	test.describe("Zoom Bot", () => {
 		test.fixme(
 			"should successfully join a Zoom meeting and log events",

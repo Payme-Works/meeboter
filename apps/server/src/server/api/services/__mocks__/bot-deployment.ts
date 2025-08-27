@@ -17,6 +17,7 @@ export const deployBot = jest
 				.select()
 				.from(schema.bots)
 				.where(eq(schema.bots.id, botId));
+
 			if (!botResult[0]) {
 				throw new Error("Bot not found");
 			}

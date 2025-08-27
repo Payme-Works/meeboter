@@ -6,7 +6,7 @@ import { defineConfig } from "eslint/config";
 
 export default defineConfig([
 	{
-		files: ["src/**/*.{ts,tsx,js,jsx}"],
+		files: ["**/*.{ts,tsx,js,jsx}"],
 
 		languageOptions: {
 			parser: tsParser,

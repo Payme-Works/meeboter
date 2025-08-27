@@ -8,6 +8,7 @@ import DashboardCard from "./dashboard-card";
 
 export default function WelcomeDashboard() {
 	const { data: session } = useSession();
+
 	return (
 		<>
 			<div className="mb-5 mt-5">

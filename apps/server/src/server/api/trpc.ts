@@ -157,6 +157,7 @@ export const protectedProcedure = t.procedure
 		// try to authenticate using nextauth
 		if (ctx.session?.user) {
 			console.log("authenticated using nextauth");
+
 			return next({
 				ctx: {
 					// infers the `session` as non-nullable
@@ -167,6 +168,7 @@ export const protectedProcedure = t.procedure
 
 		// try to authenticate using api key
 		const apiKey = ctx.headers.get("x-api-key");
+
 		if (apiKey) {
 			console.log("authenticated using api key ", apiKey);
 			let error = null;
@@ -222,6 +224,7 @@ export const protectedProcedure = t.procedure
 				} catch (e) {
 					error = e instanceof Error ? e.message : "Unknown error";
 					statusCode = getStatusCode(e);
+
 					throw e;
 				} finally {
 					if (apiKey) {

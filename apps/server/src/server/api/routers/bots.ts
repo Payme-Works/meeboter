@@ -52,9 +52,11 @@ export const botsRouter = createTRPCRouter({
 				.select()
 				.from(bots)
 				.where(eq(bots.id, input.id));
+
 			if (!result[0] || result[0].userId !== ctx.session.user.id) {
 				throw new Error("Bot not found");
 			}
+
 			return result[0];
 		}),
 
@@ -70,6 +72,7 @@ export const botsRouter = createTRPCRouter({
 		.output(selectBotSchema)
 		.mutation(async ({ input, ctx }) => {
 			console.log("Starting bot creation...");
+
 			try {
 				// Test database connection
 				await ctx.db.execute(sql`SELECT 1`);
@@ -124,6 +127,7 @@ export const botsRouter = createTRPCRouter({
 				// Check if we should deploy immediately
 				if (await shouldDeployImmediately(input.startTime)) {
 					console.log("Deploying bot immediately...");
+
 					return await deployBot({
 						botId: result[0].id,
 						db: ctx.db,
@@ -133,6 +137,7 @@ export const botsRouter = createTRPCRouter({
 				return result[0];
 			} catch (error) {
 				console.error("Error creating bot:", error);
+
 				throw error;
 			}
 		}),
@@ -169,6 +174,7 @@ export const botsRouter = createTRPCRouter({
 			if (!result[0]) {
 				throw new Error("Bot not found");
 			}
+
 			return result[0];
 		}),
 
@@ -232,6 +238,7 @@ export const botsRouter = createTRPCRouter({
 					.from(bots)
 					.where(eq(bots.id, input.id))
 			)[0];
+
 			if (!bot) {
 				throw new Error("Bot not found");
 			}
@@ -261,6 +268,7 @@ export const botsRouter = createTRPCRouter({
 					}
 				}
 			}
+
 			return result[0];
 		}),
 
@@ -290,6 +298,7 @@ export const botsRouter = createTRPCRouter({
 			if (!result[0]) {
 				throw new Error("Bot not found");
 			}
+
 			return { message: "Bot deleted successfully" };
 		}),
 
@@ -319,6 +328,7 @@ export const botsRouter = createTRPCRouter({
 			}
 
 			const signedUrl = await generateSignedUrl(result[0].recording);
+
 			return { recordingUrl: signedUrl };
 		}),
 
@@ -335,6 +345,7 @@ export const botsRouter = createTRPCRouter({
 		.output(z.object({ success: z.boolean() }))
 		.mutation(async ({ input, ctx }) => {
 			console.log("Heartbeat received for bot", input.id);
+
 			// Update bot's last heartbeat
 			const botUpdate = await ctx.db
 				.update(bots)

@@ -474,9 +474,11 @@ export function getRandomBrazilianName(): string {
 
 	if (useSingleWord) {
 		const randomIndex = Math.floor(Math.random() * SINGLE_WORD_NAMES.length);
+
 		return SINGLE_WORD_NAMES[randomIndex];
 	} else {
 		const randomIndex = Math.floor(Math.random() * TWO_WORD_NAMES.length);
+
 		return TWO_WORD_NAMES[randomIndex];
 	}
 }
@@ -498,6 +500,7 @@ export function getMultipleBrazilianNames(count: number): string[] {
 	}
 
 	const shuffled = [...allNames].sort(() => Math.random() - 0.5);
+
 	return shuffled.slice(0, count);
 }
 
@@ -517,6 +520,7 @@ export function getBrazilianNameByGender(
 				const maleSingleNames = SINGLE_WORD_NAMES.filter((name) =>
 					BRAZILIAN_MALE_NAMES.some((maleName) => maleName.startsWith(name)),
 				);
+
 				return maleSingleNames[
 					Math.floor(Math.random() * maleSingleNames.length)
 				];
@@ -532,6 +536,7 @@ export function getBrazilianNameByGender(
 						femaleName.startsWith(name),
 					),
 				);
+
 				return femaleSingleNames[
 					Math.floor(Math.random() * femaleSingleNames.length)
 				];
@@ -551,6 +556,7 @@ export function getBrazilianNameByGender(
  */
 export function getRandomSingleWordName(): string {
 	const randomIndex = Math.floor(Math.random() * SINGLE_WORD_NAMES.length);
+
 	return SINGLE_WORD_NAMES[randomIndex];
 }
 
@@ -559,6 +565,7 @@ export function getRandomSingleWordName(): string {
  */
 export function getRandomTwoWordName(): string {
 	const randomIndex = Math.floor(Math.random() * TWO_WORD_NAMES.length);
+
 	return TWO_WORD_NAMES[randomIndex];
 }
 
@@ -581,13 +588,16 @@ export function getNamesByWordCount(
 	switch (wordCount) {
 		case "single":
 			names = [...SINGLE_WORD_NAMES];
+
 			break;
 		case "two":
 			names = [...TWO_WORD_NAMES];
+
 			break;
 		case "mixed":
 		default:
 			names = [...SINGLE_WORD_NAMES, ...TWO_WORD_NAMES];
+
 			break;
 	}
 
@@ -596,5 +606,6 @@ export function getNamesByWordCount(
 	}
 
 	const shuffled = [...names].sort(() => Math.random() - 0.5);
+
 	return shuffled.slice(0, count);
 }

@@ -45,6 +45,7 @@ export function ViewLogsDialog({
 			header: "Method",
 			cell: ({ row }) => {
 				const method = row.getValue<string>("method");
+
 				return <span className="font-mono">{method}</span>;
 			},
 		},
@@ -53,6 +54,7 @@ export function ViewLogsDialog({
 			header: "Path",
 			cell: ({ row }) => {
 				const path = row.getValue<string>("path");
+
 				return <span className="font-mono">{path}</span>;
 			},
 		},
@@ -61,6 +63,7 @@ export function ViewLogsDialog({
 			header: "Status",
 			cell: ({ row }) => {
 				const status = row.getValue<number>("statusCode");
+
 				return (
 					<span
 						className={`font-mono ${
@@ -81,6 +84,7 @@ export function ViewLogsDialog({
 			header: "Time",
 			cell: ({ row }) => {
 				const date = row.getValue<Date | null>("createdAt");
+
 				return date ? dayjs(date).format("MMM D, YYYY HH:mm:ss") : "-";
 			},
 		},

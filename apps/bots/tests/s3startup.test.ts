@@ -57,6 +57,7 @@ describe("S3Client Upload Tests", () => {
 		const mockBody = "mock-body";
 
 		const s3Client = new S3Client({});
+
 		const putObjectCommand = new PutObjectCommand({
 			Bucket: mockBucketName,
 			Key: mockKey,
@@ -69,6 +70,7 @@ describe("S3Client Upload Tests", () => {
 				platform: "mock-platform",
 			},
 		} as unknown as BotConfig;
+
 		const mockOnEvent = async (eventType: string, data?: any) => {
 			/* mock event handler */
 		};
@@ -89,6 +91,7 @@ describe("S3Client Upload Tests", () => {
 			Key: mockKey,
 			Body: mockBody,
 		});
+
 		expect(s3Client.send).toHaveBeenCalledWith(putObjectCommand);
 	});
 });

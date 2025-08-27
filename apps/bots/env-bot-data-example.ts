@@ -62,14 +62,18 @@ function parseTeamsMeetingLink(url: string) {
 
 		// Extract meetingId (after "19:meeting_")
 		let meetingId: string | null = null;
+
 		const meetingSegment = pathSegments.find(
 			(segment) =>
 				segment.startsWith("19%3ameeting_") ||
 				segment.startsWith("19:meeting_"),
 		);
+
 		if (meetingSegment) {
 			const s = meetingSegment.split("meeting_")[1];
+
 			if (!s) return null;
+
 			meetingId = meetingSegment ? decodeURIComponent(s).split("@")[0] : null;
 		}
 
@@ -79,6 +83,7 @@ function parseTeamsMeetingLink(url: string) {
 
 		let tenantId = null;
 		let organizationId = null;
+
 		if (context) {
 			const contextObj = JSON.parse(decodeURIComponent(context));
 			tenantId = contextObj.Tid || null;
@@ -121,11 +126,13 @@ function parseZoomMeetingLink(url: string) {
 		};
 	} catch (error) {
 		console.error("Error parsing Zoom meeting link:", error);
+
 		return null;
 	}
 }
 
 type MeetingType = "meet" | "zoom" | "teams";
+
 const defineMeetingInfo = (link: string) => {
 	console.log("Splitting Meeting Link");
 
@@ -151,6 +158,7 @@ const defineMeetingInfo = (link: string) => {
 		// Ensure we get a meeting URL
 		if (!link.startsWith("https://meet.google.com/"))
 			link = "https://meet.google.com/" + link;
+
 		if (!link.startsWith("https://")) link = "https://" + link;
 
 		return {
@@ -158,9 +166,11 @@ const defineMeetingInfo = (link: string) => {
 			platform: "google",
 		};
 	}
+
 	// Zoom
 	if (type === "zoom") {
 		const parsed = parseZoomMeetingLink(link);
+
 		if (!parsed) return undefined;
 
 		return {
@@ -169,10 +179,12 @@ const defineMeetingInfo = (link: string) => {
 			meetingPassword: parsed.meetingPassword,
 		};
 	}
+
 	// Teams
 	if (type === "teams") {
 		// Fetch
 		const parsed = parseTeamsMeetingLink(link);
+
 		if (!parsed) return undefined;
 
 		const { meetingId, organizationId, tenantId } = parsed;

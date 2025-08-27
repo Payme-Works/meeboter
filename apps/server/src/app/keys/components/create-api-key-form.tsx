@@ -31,7 +31,9 @@ const getSixMonthsFromNowAtEndOfDay = () => {
 	const sixMonthsFromNow = new Date(
 		new Date().getTime() + 6 * 30 * 24 * 60 * 60 * 1000,
 	);
+
 	sixMonthsFromNow.setHours(23, 59, 59, 999);
+
 	return sixMonthsFromNow;
 };
 
@@ -48,12 +50,15 @@ type CreateApiKeyFormProps = {
 
 export function CreateApiKeyForm({ onSuccess }: CreateApiKeyFormProps) {
 	const utils = api.useUtils();
+
 	const createApiKey = api.apiKeys.createApiKey.useMutation({
 		onSuccess: async () => {
 			await utils.apiKeys.listApiKeys.invalidate();
+
 			toast.success("API Key created", {
 				description: "Your new API key has been created successfully.",
 			});
+
 			onSuccess?.();
 		},
 		onError: (error) => {
@@ -75,6 +80,7 @@ export function CreateApiKeyForm({ onSuccess }: CreateApiKeyFormProps) {
 		// Set time to end of day (23:59:59.999) in local time
 		const expiresAt = new Date(values.expiresAt);
 		expiresAt.setHours(23, 59, 59, 999);
+
 		await createApiKey.mutateAsync({
 			...values,
 			expiresAt,

@@ -56,12 +56,14 @@ describe("Meet Bot Record Tests", () => {
 			mockMeetConfig,
 			async (eventType: string, data: any) => {},
 		);
+
 		recordingPath = null;
 	});
 
 	// Cleanup
 	afterEach(() => {
 		jest.clearAllMocks();
+
 		if (recordingPath && fs.existsSync(recordingPath)) {
 			fs.unlinkSync(recordingPath);
 		}
@@ -72,6 +74,7 @@ describe("Meet Bot Record Tests", () => {
 	 * This lets you check if the bot can join a meeting and if it can handle the waiting room -- good to know if the UI changed
 	 */
 	const conditionalTest = ffmpegExists ? it : it.skip;
+
 	conditionalTest(
 		"Recording file Exists",
 		async () => {
@@ -97,6 +100,7 @@ describe("Meet Bot Record Tests", () => {
 			await bot.page.goto("https://www.google.com", {
 				waitUntil: "networkidle",
 			});
+
 			await bot.page.waitForTimeout(100);
 
 			// Start Recording
@@ -122,6 +126,7 @@ describe("Meet Bot Record Tests", () => {
 			const ffprobeOutput = execSync(
 				`ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of json "${recordingPath}"`,
 			);
+
 			const dimensions = JSON.parse(ffprobeOutput);
 
 			// Delete the temp file once we have read in dimensions

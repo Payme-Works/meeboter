@@ -50,6 +50,7 @@ export function BotDetailsDialog({ botId, onClose }: BotDetailsDialogProps) {
 			header: "Event Type",
 			cell: ({ row }) => {
 				const eventType = row.original.eventType;
+
 				return (
 					<Badge variant="outline" className="bg-gray-100 text-gray-800">
 						{eventType}

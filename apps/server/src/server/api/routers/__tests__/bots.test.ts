@@ -54,6 +54,7 @@ beforeAll(async () => {
 		const connectionTest = await testDb.execute(
 			sql`SELECT 1 as connection_test`,
 		);
+
 		console.log("Database connection test:", connectionTest);
 
 		// Debug: List all tables in the database to verify schema
@@ -62,6 +63,7 @@ beforeAll(async () => {
       FROM information_schema.tables 
       WHERE table_schema = 'public'
     `);
+
 		console.log("Tables in database:", tables);
 
 		// Reset sequences to avoid ID conflicts
@@ -92,6 +94,7 @@ beforeAll(async () => {
 		const userCheck = await testDb.execute(sql`
       SELECT * FROM "user" WHERE id = '00000000-0000-4000-a000-000000000000'
     `);
+
 		console.log("User verification check:", userCheck);
 
 		// Also verify the test user by using the schema objects
@@ -100,12 +103,14 @@ beforeAll(async () => {
 
 		if (!userSchemaCheck || userSchemaCheck.length === 0) {
 			console.error("Failed to create test user - user table may be empty");
+
 			throw new Error("Failed to create test user - schema check failed");
 		}
 
 		console.log("Test user verified successfully");
 	} catch (error) {
 		console.error("Error during test setup:", error);
+
 		throw error;
 	}
 }, 60000); // Increase timeout for container startup
@@ -156,6 +161,7 @@ jest.mock("@/server/api/trpc", () => {
 });
 
 const { botsRouter } = require("../bots") as typeof import("../bots");
+
 const { createTRPCContext } =
 	require("@/server/api/trpc") as typeof import("@/server/api/trpc");
 
@@ -304,6 +310,7 @@ describe("botsRouter", () => {
 		});
 
 		expect(result).toBeDefined();
+
 		expect(result.recordingUrl).toBe(
 			"https://mock-signed-url.com/recording.mp4",
 		);

@@ -28,6 +28,7 @@ const mockMeetConfig = {
 		// automaticLeave: null, //Not included to see what happens on a bad config
 	},
 } as BotConfig;
+
 const mockZoomConfig = {
 	id: 0,
 	meetingInfo: JSON.parse(process.env.ZOOM_TEST_MEETING_INFO || "{}"),
@@ -35,6 +36,7 @@ const mockZoomConfig = {
 		// automaticLeave: null, //Not included to see what happens on a bad config
 	},
 } as BotConfig;
+
 const mockTeamsConfig = {
 	id: 0,
 	meetingInfo: JSON.parse(process.env.TEAMS_TEST_MEETING_INFO || "{}"),
@@ -74,8 +76,10 @@ describe("Meet Bot Exit Tests", () => {
 		jest.spyOn(bot, "startRecording").mockImplementation(async () => {
 			console.log("Mock startRecording called");
 		});
+
 		jest.spyOn(bot, "stopRecording").mockImplementation(async () => {
 			console.log("Mock stopRecording called");
+
 			return 0;
 		});
 
@@ -122,6 +126,7 @@ describe("Meet Bot Exit Tests", () => {
 
 		// Break private value setter and set the timeAloneStarted to a value that is a long time ago
 		(bot as any).timeAloneStarted = Date.now() - 1000000;
+
 		(bot as any).participants = [
 			{ id: "123", name: "Test User" },
 			{ id: "456", name: "Another User" },
@@ -129,6 +134,7 @@ describe("Meet Bot Exit Tests", () => {
 			{ id: "101", name: "Fourth User" },
 			{ id: "102", name: "Fifth User" },
 		]; //simulate there being a lot of people in the meeting
+
 		await bot.meetingActions();
 
 		// Ensure endLife would have been called
@@ -144,6 +150,7 @@ describe("Meet Bot Exit Tests", () => {
 		// Error on Leave Meeting (cannot click the button somehow)
 		jest.spyOn(bot, "leaveMeeting").mockImplementation(async () => {
 			console.log("Mock leaveMeeting called");
+
 			throw new Error("Unable to leave meeting"); // Simulate an error when trying to leave the meeting
 		});
 
@@ -167,6 +174,7 @@ describe("Zoom Bot Exit Tests", () => {
 		// Mock WebSocket connection for Puppeteer
 		jest.mock("puppeteer", () => {
 			const originalModule: any = jest.requireActual("puppeteer");
+
 			return {
 				...originalModule,
 				wss: jest.fn(async () => ({
@@ -255,6 +263,7 @@ describe("Teams Bot Exit Tests", () => {
 		// Mock WebSocket connection for Puppeteer
 		jest.mock("puppeteer", () => {
 			const originalModule: any = jest.requireActual("puppeteer");
+
 			return {
 				...originalModule,
 				wss: jest.fn(async () => ({

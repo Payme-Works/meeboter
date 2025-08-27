@@ -25,10 +25,13 @@ jest.unmock("puppeteer-stream");
 
 // Load the .env.test file (overrides variables from .env if they overlap)
 dotenv.config({ path: ".env.test" });
+
 if (!process.env.MEET_TEST_MEETING_INFO)
 	throw new Error("Environment variable MEET_TEST_MEETING_INFO is not defined");
+
 if (!process.env.ZOOM_TEST_MEETING_INFO)
 	throw new Error("Environment variable ZOOM_TEST_MEETING_INFO is not defined");
+
 if (!process.env.TEAMS_TEST_MEETING_INFO)
 	throw new Error(
 		"Environment variable TEAMS_TEST_MEETING_INFO is not defined",
@@ -62,6 +65,7 @@ const mockTeamsConfig = {
 const test_bot_join = async (bot: any) => {
 	// See if passes
 	let passes = false;
+
 	try {
 		//Await
 		await bot.joinMeeting();
@@ -72,6 +76,7 @@ const test_bot_join = async (bot: any) => {
 		passes =
 			error instanceof WaitingRoomTimeoutError ||
 			error instanceof MeetingJoinError;
+
 		if (!passes) {
 			console.error(error);
 		}
@@ -79,6 +84,7 @@ const test_bot_join = async (bot: any) => {
 
 	// Close Meeting Regardless of anything
 	await bot.endLife();
+
 	return passes;
 };
 
@@ -93,6 +99,7 @@ describe("Bot Join a Meeting Tests", () => {
 	 */
 
 	const conditionalTest = process.env.CI ? it.skip : it; // Skip test if running in CI/CD pipeline
+
 	conditionalTest(
 		"Meet : Join a Meeting",
 		async () => {
@@ -103,6 +110,7 @@ describe("Bot Join a Meeting Tests", () => {
 					async (eventType: string, data: any) => {},
 				),
 			);
+
 			expect(passes).toBe(true);
 		},
 		60000,
@@ -120,6 +128,7 @@ describe("Bot Join a Meeting Tests", () => {
 			const passes = await test_bot_join(
 				new ZoomBot(mockZoomConfig, async (eventType: string, data: any) => {}),
 			);
+
 			expect(passes).toBe(true);
 			// Set max timeout to 60 seconds
 		},
@@ -140,6 +149,7 @@ describe("Bot Join a Meeting Tests", () => {
 					async (eventType: string, data: any) => {},
 				),
 			);
+
 			expect(passes).toBe(true);
 
 			// Set max timeout to 60 seconds
@@ -172,6 +182,7 @@ describe("Bot fail join due to invalid URL", () => {
 			} as BotConfig,
 			async (eventType: string, data: any) => {},
 		);
+
 		// Mock bot.joinMeeting to simulate the page setup and override waitForSelector
 		jest.spyOn(bot, "joinMeeting").mockImplementationOnce(async () => {
 			bot.page = {
@@ -179,6 +190,7 @@ describe("Bot fail join due to invalid URL", () => {
 					throw new Error("Navigation failed: could not find specific element");
 				}),
 			} as any; // Mock the page object
+
 			throw new MeetingJoinError("Simulated joinMeeting failure");
 		});
 
@@ -202,6 +214,7 @@ describe("Bot fail join due to invalid URL", () => {
 			} as BotConfig,
 			async (eventType: string, data: any) => {},
 		);
+
 		// Mock bot.joinMeeting to simulate the page setup and override waitForSelector
 		jest.spyOn(bot, "joinMeeting").mockImplementationOnce(async () => {
 			bot.page = {
@@ -209,6 +222,7 @@ describe("Bot fail join due to invalid URL", () => {
 					throw new Error("Navigation failed: could not find specific element");
 				}),
 			} as any; // Mock the page object
+
 			throw new MeetingJoinError("Simulated joinMeeting failure");
 		});
 
@@ -233,6 +247,7 @@ describe("Bot fail join due to invalid URL", () => {
 			} as BotConfig,
 			async (eventType: string, data: any) => {},
 		);
+
 		// Mock bot.joinMeeting to simulate the page setup and override waitForSelector
 		jest.spyOn(bot, "joinMeeting").mockImplementationOnce(async () => {
 			bot.page = {
@@ -240,6 +255,7 @@ describe("Bot fail join due to invalid URL", () => {
 					throw new Error("Navigation failed: could not find specific element");
 				}),
 			} as any; // Mock the page object
+
 			throw new MeetingJoinError("Simulated joinMeeting failure");
 		});
 

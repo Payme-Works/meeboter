@@ -57,6 +57,7 @@ export async function uploadRecordingToS3(
 		try {
 			fileContent = readFileSync(filePath);
 			console.log("Successfully read recording file");
+
 			break; // Exit loop if readFileSync is successful
 		} catch (error) {
 			const err = error as NodeJS.ErrnoException;
@@ -86,6 +87,7 @@ export async function uploadRecordingToS3(
 	// Create UUID and initialize key
 	const uuid = randomUUID();
 	const contentType = bot.getContentType();
+
 	const key = `recordings/${uuid}-${
 		bot.settings.meetingInfo.platform
 	}-recording.${contentType.split("/")[1]}`;
