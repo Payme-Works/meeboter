@@ -1,54 +1,56 @@
 // app/api/bots/route.ts
-import { NextResponse } from 'next/server';
+import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
-  try {
-    const body = await req.json();
+	try {
+		const body = await req.json();
 
-    // Get Key
-    const key = process.env.LIVE_BOOST_API_KEY;
-    if (!key)
-      throw new Error(
-        `Missing required environment variable: LIVE_BOOST_API_KEY`,
-      );
+		// Get Key
+		const key = process.env.LIVE_BOOST_API_KEY;
+		if (!key) {
+			throw new Error(
+				`Missing required environment variable: LIVE_BOOST_API_KEY`,
+			);
+		}
 
-    const endpoint = process.env.MEETINGBOT_END_POINT;
-    if (!endpoint)
-      throw new Error(
-        `Missing required environment variable: MEETINGBOT_END_POINT`,
-      );
+		const endpoint = process.env.MEETINGBOT_END_POINT;
+		if (!endpoint) {
+			throw new Error(
+				`Missing required environment variable: MEETINGBOT_END_POINT`,
+			);
+		}
 
-    //
-    // Send request to Live Boost API to start and send a bot to a meeting
-    //
-    const eurl = `${endpoint}/api/bots`;
-    console.log('Sending Request to', eurl, 'with body', body);
+		//
+		// Send request to Live Boost API to start and send a bot to a meeting
+		//
+		const eurl = `${endpoint}/api/bots`;
+		console.log("Sending Request to", eurl, "with body", body);
 
-    //Send
-    const response = await fetch(eurl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': key,
-      },
-      body: JSON.stringify(body),
-    });
+		//Send
+		const response = await fetch(eurl, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				"x-api-key": key,
+			},
+			body: JSON.stringify(body),
+		});
 
-    //
-    // Return the response from the Live Boost API
-    //
+		//
+		// Return the response from the Live Boost API
+		//
 
-    const data = await response.json();
-    console.log('RECEIVED', data);
-    return NextResponse.json(data, { status: response.status });
-  } catch (error) {
-    console.error('Error:', error);
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error ? error.message : 'An unknown error occurred',
-      },
-      { status: 500 },
-    );
-  }
+		const data = await response.json();
+		console.log("RECEIVED", data);
+		return NextResponse.json(data, { status: response.status });
+	} catch (error) {
+		console.error("Error:", error);
+		return NextResponse.json(
+			{
+				error:
+					error instanceof Error ? error.message : "An unknown error occurred",
+			},
+			{ status: 500 },
+		);
+	}
 }

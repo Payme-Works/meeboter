@@ -1,112 +1,103 @@
-import { createBot, Bot } from '../src/bot';
-import { MeetsBot } from '../meet/src/bot';
-import { BotConfig } from '../src/types';
-import { ZoomBot } from '../zoom/src/bot';
-import { TeamsBot } from '../teams/src/bot';
-import {
-  jest,
-  it,
-  expect,
-  describe,
-  afterEach,
-  beforeEach,
-  afterAll,
-  beforeAll,
-} from '@jest/globals';
+import { describe, expect, it } from "@jest/globals";
+import { MeetsBot } from "../meet/src/bot";
+import { type Bot, createBot } from "../src/bot";
+import type { BotConfig } from "../src/types";
+import { TeamsBot } from "../teams/src/bot";
+import { ZoomBot } from "../zoom/src/bot";
 
 //
 // Bot Creation Tests as described in Section 2.1.2.1
 // Of our System Verification and Validation Document.
 //
 
-describe('Bot Creation from given data', () => {
-  /**
-   * Create a meets bot
-   */
-  it('Create Meets Bot', () => {
-    const mockBotData = {
-      id: 0,
-      meetingInfo: {
-        platform: 'google',
-      },
-    } as BotConfig;
+describe("Bot Creation from given data", () => {
+	/**
+	 * Create a meets bot
+	 */
+	it("Create Meets Bot", () => {
+		const mockBotData = {
+			id: 0,
+			meetingInfo: {
+				platform: "google",
+			},
+		} as BotConfig;
 
-    createBot(mockBotData).then((bot: Bot) => {
-      expect(bot).toBeInstanceOf(MeetsBot);
-    });
-  });
+		createBot(mockBotData).then((bot: Bot) => {
+			expect(bot).toBeInstanceOf(MeetsBot);
+		});
+	});
 
-  /**
-   * Creates a Zoom Bot
-   */
-  it('Create Zoom Bot', () => {
-    const mockBotData = {
-      id: 0,
-      meetingInfo: {
-        platform: 'zoom',
-      },
-    } as BotConfig;
+	/**
+	 * Creates a Zoom Bot
+	 */
+	it("Create Zoom Bot", () => {
+		const mockBotData = {
+			id: 0,
+			meetingInfo: {
+				platform: "zoom",
+			},
+		} as BotConfig;
 
-    createBot(mockBotData).then((bot: Bot) => {
-      expect(bot).toBeInstanceOf(ZoomBot);
-    });
-  });
+		createBot(mockBotData).then((bot: Bot) => {
+			expect(bot).toBeInstanceOf(ZoomBot);
+		});
+	});
 
-  /**
-   * Creates a teams bot
-   */
-  it('Create Teams Bot', () => {
-    const mockBotData = {
-      id: 0,
-      meetingInfo: {
-        platform: 'teams',
-      },
-    } as BotConfig;
+	/**
+	 * Creates a teams bot
+	 */
+	it("Create Teams Bot", () => {
+		const mockBotData = {
+			id: 0,
+			meetingInfo: {
+				platform: "teams",
+			},
+		} as BotConfig;
 
-    createBot(mockBotData).then((bot: Bot) => {
-      expect(bot).toBeInstanceOf(TeamsBot);
-    });
-  });
+		createBot(mockBotData).then((bot: Bot) => {
+			expect(bot).toBeInstanceOf(TeamsBot);
+		});
+	});
 });
 
-describe('Bot fails creation from invalid data', () => {
-  /**
-   * Create a bot with invalid data
-   */
-  it('Create Bot with invalid data (empty meetingInfo)', async () => {
-    const mockBotData = {
-      id: 0,
-      meetingInfo: {},
-    } as BotConfig;
+describe("Bot fails creation from invalid data", () => {
+	/**
+	 * Create a bot with invalid data
+	 */
+	it("Create Bot with invalid data (empty meetingInfo)", async () => {
+		const mockBotData = {
+			id: 0,
+			meetingInfo: {},
+		} as BotConfig;
 
-    await expect(async () => {
-      await createBot(mockBotData);
-    }).rejects.toThrow();
-  });
+		await expect(async () => {
+			await createBot(mockBotData);
+		}).rejects.toThrow();
+	});
 
-  it('Create Bot with invalid data (missing meetingInfo)', async () => {
-    const mockBotData = {
-      id: 0,
-    } as BotConfig;
+	it("Create Bot with invalid data (missing meetingInfo)", async () => {
+		const mockBotData = {
+			id: 0,
+		} as BotConfig;
 
-    await expect(async () => {
-      await createBot(mockBotData);
-    }).rejects.toThrow();
-  });
+		await expect(async () => {
+			await createBot(mockBotData);
+		}).rejects.toThrow();
+	});
 
-  /**
-   * Create a bot with invalid data
-   */
-  it('Create Bot with invalid data (no platform, but some other data)', async () => {
-    const mockBotData = {
-      id: 0,
-      meetingInfo: {
-        meetingUrl: 'https://example.com',
-      },
-    } as BotConfig;
+	/**
+	 * Create a bot with invalid data
+	 */
+	it("Create Bot with invalid data (no platform, but some other data)", async () => {
+		const mockBotData = {
+			id: 0,
+			meetingInfo: {
+				meetingUrl: "https://example.com",
+			},
+		} as BotConfig;
 
-    await expect(async () => {
-      await createBot(mockBotData);
-    }).rejects.toThrow();
-  });
+		await expect(async () => {
+			await createBot(mockBotData);
+		}).rejects.toThrow();
+	});
 });

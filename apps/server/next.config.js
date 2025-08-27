@@ -7,8 +7,8 @@ import path from "path";
 
 /** @type {import("next").NextConfig} */
 const config = {
-  output: "standalone",
-  outputFileTracingRoot: path.join(process.cwd(), "../../"),
+	output: "standalone",
+	outputFileTracingRoot: path.join(process.cwd(), "../../"),
 };
 
 export default config;

@@ -1,15 +1,15 @@
-import {
-  type TRPC_ERROR_CODE_KEY,
-  type TRPC_ERROR_CODE_NUMBER,
-} from "@trpc/server/rpc";
-import {
-  type UseTRPCMutationResult,
-  type UseTRPCQueryResult,
-} from "@trpc/react-query/shared";
-import { type TRPCClientErrorLike } from "@trpc/client";
-import type { typeToFlattenedError } from "zod";
 import type { UseMutateAsyncFunction } from "@tanstack/react-query";
+import type { TRPCClientErrorLike } from "@trpc/client";
+import type {
+	UseTRPCMutationResult,
+	UseTRPCQueryResult,
+} from "@trpc/react-query/shared";
+import type {
+	TRPC_ERROR_CODE_KEY,
+	TRPC_ERROR_CODE_NUMBER,
+} from "@trpc/server/rpc";
 import type { SessionContextValue } from "next-auth/react";
+import type { typeToFlattenedError } from "zod";
 
 /**
  * This is a utility function to create a mock for React Query.
@@ -19,27 +19,27 @@ import type { SessionContextValue } from "next-auth/react";
  */
 
 interface TrpcApiMock {
-  [key: string]: jest.Mock | TrpcApiMock;
+	[key: string]: jest.Mock | TrpcApiMock;
 }
 
 const createTrpcApiMock = (): TrpcApiMock => {
-  return new Proxy({} as TrpcApiMock, {
-    get: (target, prop: string) => {
-      if (!(prop in target)) {
-        if (
-          prop === "useQuery" ||
-          prop === "useMutation" ||
-          prop === "useUtils"
-        ) {
-          target[prop] = jest.fn();
-        } else {
-          target[prop] = createTrpcApiMock();
-        }
-      }
+	return new Proxy({} as TrpcApiMock, {
+		get: (target, prop: string) => {
+			if (!(prop in target)) {
+				if (
+					prop === "useQuery" ||
+					prop === "useMutation" ||
+					prop === "useUtils"
+				) {
+					target[prop] = jest.fn();
+				} else {
+					target[prop] = createTrpcApiMock();
+				}
+			}
 
-      return target[prop];
-    },
-  });
+			return target[prop];
+		},
+	});
 };
 
 /**
@@ -47,46 +47,45 @@ const createTrpcApiMock = (): TrpcApiMock => {
  */
 
 type useQueryMockInput<OutputType> = {
-  data?: OutputType;
-  error?: {
-    message: string;
-  };
-  isLoading?: boolean;
+	data?: OutputType;
+	error?: {
+		message: string;
+	};
+	isLoading?: boolean;
 };
 
 type clientError<InputType, OutputType> = TRPCClientErrorLike<{
-  input: InputType;
-  output: OutputType;
-  transformer: true;
-  errorShape: {
-    data: {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      zodError: typeToFlattenedError<any, string> | null;
-      code: TRPC_ERROR_CODE_KEY;
-      httpStatus: number;
-      path?: string;
-      stack?: string;
-    };
-    message: string;
-    code: TRPC_ERROR_CODE_NUMBER;
-  };
+	input: InputType;
+	output: OutputType;
+	transformer: true;
+	errorShape: {
+		data: {
+			zodError: typeToFlattenedError<unknown, string> | null;
+			code: TRPC_ERROR_CODE_KEY;
+			httpStatus: number;
+			path?: string;
+			stack?: string;
+		};
+		message: string;
+		code: TRPC_ERROR_CODE_NUMBER;
+	};
 }>;
 
 type useQueryResults<InputType, OutputType> = UseTRPCQueryResult<
-  InputType,
-  clientError<InputType, OutputType>
+	InputType,
+	clientError<InputType, OutputType>
 >;
 
 const mockUseQuery = <InputType, OutputType>({
-  data,
-  error,
-  isLoading,
+	data,
+	error,
+	isLoading,
 }: useQueryMockInput<OutputType>): useQueryResults<InputType, OutputType> => {
-  return {
-    data,
-    error: error ? { message: error.message } : null,
-    isLoading: error ? false : (isLoading ?? false),
-  } as useQueryResults<InputType, OutputType>;
+	return {
+		data,
+		error: error ? { message: error.message } : null,
+		isLoading: error ? false : (isLoading ?? false),
+	} as useQueryResults<InputType, OutputType>;
 };
 
 /**
@@ -94,30 +93,30 @@ const mockUseQuery = <InputType, OutputType>({
  */
 
 type useMutationMockInput = {
-  isPending?: boolean;
-  mutateAsync?: jest.Mock;
+	isPending?: boolean;
+	mutateAsync?: jest.Mock;
 };
 
 type useMutationResults<InputType, OutputType> = UseTRPCMutationResult<
-  OutputType,
-  clientError<InputType, OutputType>,
-  InputType,
-  unknown
+	OutputType,
+	clientError<InputType, OutputType>,
+	InputType,
+	unknown
 >;
 
 const mockUseMutation = <InputType, OutputType>({
-  isPending,
-  mutateAsync,
+	isPending,
+	mutateAsync,
 }: useMutationMockInput): useMutationResults<InputType, OutputType> => {
-  return {
-    isPending: isPending ?? false,
-    mutateAsync: (mutateAsync ?? jest.fn()) as UseMutateAsyncFunction<
-      OutputType,
-      clientError<InputType, OutputType>,
-      InputType,
-      unknown
-    >,
-  } as unknown as useMutationResults<InputType, OutputType>;
+	return {
+		isPending: isPending ?? false,
+		mutateAsync: (mutateAsync ?? jest.fn()) as UseMutateAsyncFunction<
+			OutputType,
+			clientError<InputType, OutputType>,
+			InputType,
+			unknown
+		>,
+	} as unknown as useMutationResults<InputType, OutputType>;
 };
 
 /**
@@ -125,36 +124,36 @@ const mockUseMutation = <InputType, OutputType>({
  */
 
 type useSessionInput = {
-  status: "authenticated" | "unauthenticated" | "loading";
+	status: "authenticated" | "unauthenticated" | "loading";
 };
 
 const mockUseSession = ({
-  status,
+	status,
 }: useSessionInput): SessionContextValue<false> => {
-  const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
-  switch (status) {
-    case "authenticated":
-      return {
-        data: {
-          user: { id: "fake_user_id" },
-          expires: tomorrow.toISOString(),
-        },
-        status: "authenticated",
-        update: jest.fn(),
-      };
-    case "unauthenticated":
-      return {
-        data: null,
-        status: "unauthenticated",
-        update: jest.fn(),
-      };
-    case "loading":
-      return {
-        data: null,
-        status: "loading",
-        update: jest.fn(),
-      };
-  }
+	const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
+	switch (status) {
+		case "authenticated":
+			return {
+				data: {
+					user: { id: "fake_user_id" },
+					expires: tomorrow.toISOString(),
+				},
+				status: "authenticated",
+				update: jest.fn(),
+			};
+		case "unauthenticated":
+			return {
+				data: null,
+				status: "unauthenticated",
+				update: jest.fn(),
+			};
+		case "loading":
+			return {
+				data: null,
+				status: "loading",
+				update: jest.fn(),
+			};
+	}
 };
 
 export { createTrpcApiMock, mockUseQuery, mockUseMutation, mockUseSession };

@@ -1,126 +1,115 @@
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
 
-const isProduction = process.env.VERCEL_ENV === "production" || process.env.NODE_ENV === "production";
+const isProduction =
+	process.env.VERCEL_ENV === "production" ||
+	process.env.NODE_ENV === "production";
 
 export const env = createEnv({
-  /**
-   * Specify your server-side environment variables schema here. This way you can ensure the app
-   * isn't built with invalid env vars.
-   */
-  server: {
-    NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+	/**
+	 * Specify your server-side environment variables schema here. This way you can ensure the app
+	 * isn't built with invalid env vars.
+	 */
+	server: {
+		NODE_ENV: z
+			.enum(["development", "test", "production"])
+			.default("development"),
 
-    AUTH_SECRET:
-      isProduction
-        ? z.string()
-        : z.string().optional(),
-    AUTH_GITHUB_ID:
-      !isProduction
-        ? z.preprocess(() => "fake_github_id", z.string())
-        : z.string(),
-    AUTH_GITHUB_SECRET:
-      !isProduction
-        ? z.preprocess(() => "fake_github_secret", z.string())
-        : z.string(),
+		AUTH_SECRET: isProduction ? z.string() : z.string().optional(),
+		AUTH_GITHUB_ID: !isProduction
+			? z.preprocess(() => "fake_github_id", z.string())
+			: z.string(),
+		AUTH_GITHUB_SECRET: !isProduction
+			? z.preprocess(() => "fake_github_secret", z.string())
+			: z.string(),
 
-    DATABASE_URL:
-      !isProduction
-        ? z.preprocess(
-            () => "postgresql://fake_user:fake_password@localhost:5432/fake_db",
-            z.string(),
-          )
-        : z.string().url().startsWith("postgresql://"),
+		DATABASE_URL: !isProduction
+			? z.preprocess(
+					() => "postgresql://fake_user:fake_password@localhost:5432/fake_db",
+					z.string(),
+				)
+			: z.string().url().startsWith("postgresql://"),
 
-    GITHUB_TOKEN:
-      !isProduction
-        ? z.preprocess(() => "fake_github_token", z.string())
-        : z.string(),
+		GITHUB_TOKEN: !isProduction
+			? z.preprocess(() => "fake_github_token", z.string())
+			: z.string(),
 
-    AWS_ACCESS_KEY_ID: z.string().optional(),
-    AWS_SECRET_ACCESS_KEY: z.string().optional(),
-    AWS_BUCKET_NAME:
-      !isProduction
-        ? z.preprocess(() => "fake_aws_bucket_name", z.string())
-        : z.string(),
-    AWS_REGION:
-      !isProduction
-        ? z.preprocess(() => "fake_aws_region", z.string())
-        : z.string(),
+		AWS_ACCESS_KEY_ID: z.string().optional(),
+		AWS_SECRET_ACCESS_KEY: z.string().optional(),
+		AWS_BUCKET_NAME: !isProduction
+			? z.preprocess(() => "fake_aws_bucket_name", z.string())
+			: z.string(),
+		AWS_REGION: !isProduction
+			? z.preprocess(() => "fake_aws_region", z.string())
+			: z.string(),
 
-    ECS_TASK_DEFINITION_MEET:
-      !isProduction
-        ? z.preprocess(() => "fake_task_definition_meet", z.string())
-        : z.string(),
-    ECS_TASK_DEFINITION_TEAMS:
-      !isProduction
-        ? z.preprocess(() => "fake_task_definition_teams", z.string())
-        : z.string(),
-    ECS_TASK_DEFINITION_ZOOM:
-      !isProduction
-        ? z.preprocess(() => "fake_task_definition_zoom", z.string())
-        : z.string(),
-    ECS_CLUSTER_NAME:
-      !isProduction
-        ? z.preprocess(() => "fake_cluster_name", z.string())
-        : z.string(),
-    ECS_SUBNETS:
-      isProduction
-        ? z.preprocess(
-            (val) => (typeof val === "string" ? val.split(",") : []),
-            z.array(z.string()),
-          )
-        : z.array(z.string()).default([]),
-    ECS_SECURITY_GROUPS:
-      isProduction
-        ? z.preprocess(
-            (val) => (typeof val === "string" ? val.split(",") : []),
-            z.array(z.string()),
-          )
-        : z.array(z.string()).default([]),
-  },
+		ECS_TASK_DEFINITION_MEET: !isProduction
+			? z.preprocess(() => "fake_task_definition_meet", z.string())
+			: z.string(),
+		ECS_TASK_DEFINITION_TEAMS: !isProduction
+			? z.preprocess(() => "fake_task_definition_teams", z.string())
+			: z.string(),
+		ECS_TASK_DEFINITION_ZOOM: !isProduction
+			? z.preprocess(() => "fake_task_definition_zoom", z.string())
+			: z.string(),
+		ECS_CLUSTER_NAME: !isProduction
+			? z.preprocess(() => "fake_cluster_name", z.string())
+			: z.string(),
+		ECS_SUBNETS: isProduction
+			? z.preprocess(
+					(val) => (typeof val === "string" ? val.split(",") : []),
+					z.array(z.string()),
+				)
+			: z.array(z.string()).default([]),
+		ECS_SECURITY_GROUPS: isProduction
+			? z.preprocess(
+					(val) => (typeof val === "string" ? val.split(",") : []),
+					z.array(z.string()),
+				)
+			: z.array(z.string()).default([]),
+	},
 
-  /**
-   * Specify your client-side environment variables schema here. This way you can ensure the app
-   * isn't built with invalid env vars. To expose them to the client, prefix them with
-   * `NEXT_PUBLIC_`.
-   */
-  client: {
-    // NEXT_PUBLIC_CLIENTVAR: z.string(),
-  },
+	/**
+	 * Specify your client-side environment variables schema here. This way you can ensure the app
+	 * isn't built with invalid env vars. To expose them to the client, prefix them with
+	 * `NEXT_PUBLIC_`.
+	 */
+	client: {
+		// NEXT_PUBLIC_CLIENTVAR: z.string(),
+	},
 
-  /**
-   * You can't destruct `process.env` as a regular object in the Next.js edge runtimes (e.g.
-   * middlewares) or client-side so we need to destruct manually.
-   */
-  runtimeEnv: {
-    AUTH_SECRET: process.env.AUTH_SECRET,
-    AUTH_GITHUB_ID: process.env.AUTH_GITHUB_ID,
-    AUTH_GITHUB_SECRET: process.env.AUTH_GITHUB_SECRET,
-    DATABASE_URL: process.env.DATABASE_URL,
-    NODE_ENV: process.env.NODE_ENV,
-    GITHUB_TOKEN: process.env.GITHUB_TOKEN,
-    AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID,
-    AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY,
-    AWS_BUCKET_NAME: process.env.AWS_BUCKET_NAME,
-    AWS_REGION: process.env.AWS_REGION,
-    ECS_TASK_DEFINITION_MEET: process.env.ECS_TASK_DEFINITION_MEET,
-    ECS_TASK_DEFINITION_TEAMS: process.env.ECS_TASK_DEFINITION_TEAMS,
-    ECS_TASK_DEFINITION_ZOOM: process.env.ECS_TASK_DEFINITION_ZOOM,
-    ECS_CLUSTER_NAME: process.env.ECS_CLUSTER_NAME,
-    ECS_SUBNETS: process.env.ECS_SUBNETS,
-    ECS_SECURITY_GROUPS: process.env.ECS_SECURITY_GROUPS,
-  },
+	/**
+	 * You can't destruct `process.env` as a regular object in the Next.js edge runtimes (e.g.
+	 * middlewares) or client-side so we need to destruct manually.
+	 */
+	runtimeEnv: {
+		AUTH_SECRET: process.env.AUTH_SECRET,
+		AUTH_GITHUB_ID: process.env.AUTH_GITHUB_ID,
+		AUTH_GITHUB_SECRET: process.env.AUTH_GITHUB_SECRET,
+		DATABASE_URL: process.env.DATABASE_URL,
+		NODE_ENV: process.env.NODE_ENV,
+		GITHUB_TOKEN: process.env.GITHUB_TOKEN,
+		AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID,
+		AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY,
+		AWS_BUCKET_NAME: process.env.AWS_BUCKET_NAME,
+		AWS_REGION: process.env.AWS_REGION,
+		ECS_TASK_DEFINITION_MEET: process.env.ECS_TASK_DEFINITION_MEET,
+		ECS_TASK_DEFINITION_TEAMS: process.env.ECS_TASK_DEFINITION_TEAMS,
+		ECS_TASK_DEFINITION_ZOOM: process.env.ECS_TASK_DEFINITION_ZOOM,
+		ECS_CLUSTER_NAME: process.env.ECS_CLUSTER_NAME,
+		ECS_SUBNETS: process.env.ECS_SUBNETS,
+		ECS_SECURITY_GROUPS: process.env.ECS_SECURITY_GROUPS,
+	},
 
-  /**
-   * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially
-   * useful for Docker builds.
-   */
-  skipValidation: !!process.env.SKIP_ENV_VALIDATION,
+	/**
+	 * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially
+	 * useful for Docker builds.
+	 */
+	skipValidation: !!process.env.SKIP_ENV_VALIDATION,
 
-  /**
-   * Makes it so that empty strings are treated as undefined. `SOME_VAR: z.string()` and
-   * `SOME_VAR=''` will throw an error.
-   */
-  emptyStringAsUndefined: true,
+	/**
+	 * Makes it so that empty strings are treated as undefined. `SOME_VAR: z.string()` and
+	 * `SOME_VAR=''` will throw an error.
+	 */
+	emptyStringAsUndefined: true,
 });

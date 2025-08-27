@@ -1,11 +1,11 @@
 {
-  "extends": "@live-boost/typescript-config/base.json",
-  "compilerOptions": {
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["./src/*"]
-    }
-  },
-  "include": ["**/*.ts", "**/*.tsx", ".eslintrc.js"],
-  "exclude": ["node_modules", "dist"]
+	"extends": "@live-boost/typescript-config/base.json",
+	"compilerOptions": {
+		"baseUrl": ".",
+		"paths": {
+			"@/*": ["./src/*"]
+		}
+	},
+	"include": ["**/*.ts", "**/*.tsx"],
+	"exclude": ["node_modules", "dist"]
 }

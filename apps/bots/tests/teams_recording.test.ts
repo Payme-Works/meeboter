@@ -1,25 +1,13 @@
-import { MeetsBot } from '../meet/src/bot';
-import * as dotenv from 'dotenv';
-import { BotConfig } from '../src/types';
-import { TeamsBot } from '../teams/src/bot';
-import { ZoomBot } from '../zoom/src/bot';
-import {
-  beforeAll,
-  beforeEach,
-  afterEach,
-  afterAll,
-  jest,
-  describe,
-  expect,
-  it,
-  test,
-} from '@jest/globals';
-import exp from 'constants';
-const fs = require('fs');
-const { execSync } = require('child_process');
+import { afterEach, describe, expect, it, jest } from "@jest/globals";
+import * as dotenv from "dotenv";
+import type { BotConfig } from "../src/types";
+import { TeamsBot } from "../teams/src/bot";
+
+const fs = require("fs");
+const { execSync } = require("child_process");
 
 // Ensure puppeteer-stream is not mocked
-jest.unmock('puppeteer-stream');
+jest.unmock("puppeteer-stream");
 
 //
 // Bot Recording Tests as described in Section 2.1.2.4
@@ -33,84 +21,84 @@ jest.unmock('puppeteer-stream');
 //
 
 // Load the .env.test file (overrides variables from .env if they overlap)
-dotenv.config({ path: '.env.test' });
+dotenv.config({ path: ".env.test" });
 
 // Create Mock Configs
 const mockTeamsConfig = {
-  id: 0,
-  meetingInfo: JSON.parse(process.env.TEAMS_TEST_MEETING_INFO || '{}'),
-  automaticLeave: {
-    // automaticLeave: null, //Not included to see what happens on a bad config
-  },
+	id: 0,
+	meetingInfo: JSON.parse(process.env.TEAMS_TEST_MEETING_INFO || "{}"),
+	automaticLeave: {
+		// automaticLeave: null, //Not included to see what happens on a bad config
+	},
 } as BotConfig;
 
-describe('Teams Bot Recording Test', () => {
-  let ffmpegExists = false;
+describe("Teams Bot Recording Test", () => {
+	let ffmpegExists = false;
 
-  // Cleanup
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
+	// Cleanup
+	afterEach(() => {
+		jest.clearAllMocks();
+	});
 
-  try {
-    console.log('Checking if ffmpeg exists');
-    execSync('ffmpeg -version', { stdio: 'ignore' });
-    ffmpegExists = true;
-  } catch (error) {
-    console.warn('Skipping test: ffmpeg is not available.');
-  }
+	try {
+		console.log("Checking if ffmpeg exists");
+		execSync("ffmpeg -version", { stdio: "ignore" });
+		ffmpegExists = true;
+	} catch (error) {
+		console.warn("Skipping test: ffmpeg is not available.");
+	}
 
-  const conditionalTest = ffmpegExists ? it : it.skip;
-  conditionalTest(
-    'Recording Dimension Test',
-    async function () {
-      const bot = new TeamsBot(
-        mockTeamsConfig,
-        async (eventType: string, data: any) => {},
-      );
-      let recordingPath: string | null = null;
+	const conditionalTest = ffmpegExists ? it : it.skip;
+	conditionalTest(
+		"Recording Dimension Test",
+		async () => {
+			const bot = new TeamsBot(
+				mockTeamsConfig,
+				async (eventType: string, data: any) => {},
+			);
+			let recordingPath: string | null = null;
 
-      // Launch a broser
-      await bot.launchBrowser();
-      await new Promise(resolve => setTimeout(resolve, 400));
+			// Launch a broser
+			await bot.launchBrowser();
+			await new Promise((resolve) => setTimeout(resolve, 400));
 
-      // Start Recording
-      await bot.startRecording();
-      console.log('Started Recording');
-      await new Promise(resolve => setTimeout(resolve, 10000));
-      console.log('Done holding.');
+			// Start Recording
+			await bot.startRecording();
+			console.log("Started Recording");
+			await new Promise((resolve) => setTimeout(resolve, 10000));
+			console.log("Done holding.");
 
-      // Stop Recording
-      await bot.stopRecording();
-      await new Promise(resolve => setTimeout(resolve, 1000));
+			// Stop Recording
+			await bot.stopRecording();
+			await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      // Stop Recording
-      recordingPath = bot.getRecordingPath();
+			// Stop Recording
+			recordingPath = bot.getRecordingPath();
 
-      //End
-      await bot.endLife();
+			//End
+			await bot.endLife();
 
-      // Assertions
-      expect(recordingPath).toBeDefined();
-      const fileExists = fs.existsSync(recordingPath);
-      expect(fileExists).toBe(true); // Ensure file exists
+			// Assertions
+			expect(recordingPath).toBeDefined();
+			const fileExists = fs.existsSync(recordingPath);
+			expect(fileExists).toBe(true); // Ensure file exists
 
-      // Check dimensions using ffprobe
-      const ffprobeOutput = execSync(
-        `ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of json "${recordingPath}"`,
-      );
-      const dimensions = JSON.parse(ffprobeOutput);
+			// Check dimensions using ffprobe
+			const ffprobeOutput = execSync(
+				`ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of json "${recordingPath}"`,
+			);
+			const dimensions = JSON.parse(ffprobeOutput);
 
-      // Delete the temp file once we have read in dimensions
-      if (recordingPath && fs.existsSync(recordingPath)) {
-        fs.unlinkSync(recordingPath);
-      }
+			// Delete the temp file once we have read in dimensions
+			if (recordingPath && fs.existsSync(recordingPath)) {
+				fs.unlinkSync(recordingPath);
+			}
 
-      // TODO: Use an input to determine the expected dimension, pass that to the bot when recording start.
-      // No implementation for that yet.
-      expect(dimensions.streams[0].width).toBeGreaterThan(0);
-      expect(dimensions.streams[0].height).toBeGreaterThan(0);
-    },
-    60000,
-  ); // Set max timeout to 60 seconds
+			// TODO: Use an input to determine the expected dimension, pass that to the bot when recording start.
+			// No implementation for that yet.
+			expect(dimensions.streams[0].width).toBeGreaterThan(0);
+			expect(dimensions.streams[0].height).toBeGreaterThan(0);
+		},
+		60000,
+	); // Set max timeout to 60 seconds
 });

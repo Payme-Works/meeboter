@@ -1,9 +1,9 @@
 import { createCallerFactory, createTRPCRouter } from "@/server/api/trpc";
-import { botsRouter } from "./routers/bots";
-import { eventsRouter } from "./routers/events";
 import { apiKeysRouter } from "./routers/api-keys";
-import { usageRouter } from "./routers/usage";
+import { botsRouter } from "./routers/bots";
 import { communityRouter } from "./routers/community";
+import { eventsRouter } from "./routers/events";
+import { usageRouter } from "./routers/usage";
 
 /**
  * This is the primary router for your server.
@@ -11,11 +11,11 @@ import { communityRouter } from "./routers/community";
  * All routers added in /api/routers should be manually added here.
  */
 export const appRouter = createTRPCRouter({
-  bots: botsRouter,
-  events: eventsRouter,
-  apiKeys: apiKeysRouter,
-  usage: usageRouter,
-  community: communityRouter,
+	bots: botsRouter,
+	events: eventsRouter,
+	apiKeys: apiKeysRouter,
+	usage: usageRouter,
+	community: communityRouter,
 });
 
 // export type definition of API

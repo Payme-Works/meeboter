@@ -1,45 +1,41 @@
 {
-  "name": "live-boost",
-  "private": true,
-  "prettier": "@live-boost/prettier-config",
-  "packageManager": "pnpm@10.15.0",
-  "prisma": {
-    "schema": "packages/database/prisma/schema.prisma",
-    "seed": "tsx packages/database/seeds/production.ts"
-  },
-  "engines": {
-    "node": ">=18",
-    "pnpm": ">=8"
-  },
-  "scripts": {
-    "build": "turbo run build",
-    "dev": "turbo run dev",
-    "typecheck": "turbo run typecheck",
-    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
-    "lint": "turbo run lint",
-    "test": "turbo run test",
-    "test:coverage": "turbo run test:coverage",
-    "test:e2e": "turbo run test:e2e",
-    "test:e2e:coverage": "turbo run test:e2e:coverage",
-    "turbos": "node scripts/turbos.js",
-    "filter": "node scripts/filter.js"
-  },
-  "devDependencies": {
-    "@live-boost/prettier-config": "workspace:*",
-    "@types/node": "^24.3.0",
-    "@typescript-eslint/eslint-plugin": "^8.41.0",
-    "@typescript-eslint/parser": "^8.41.0",
-    "eslint": "^9.34.0",
-    "eslint-plugin-import-helpers": "^2.0.1",
-    "eslint-plugin-prettier": "^5.5.4",
-    "eslint-plugin-unused-imports": "^4.2.0",
-    "tsx": "^4.20.5",
-    "turbo": "^2.5.6",
-    "typescript": "^5"
-  },
-  "pnpm": {
-    "overrides": {
-      "@types/react": "^18.3.3"
-    }
-  }
+	"name": "live-boost",
+	"private": true,
+	"type": "module",
+	"packageManager": "pnpm@10.15.0",
+	"engines": {
+		"node": ">=18",
+		"pnpm": ">=8"
+	},
+	"prisma": {
+		"schema": "packages/database/prisma/schema.prisma",
+		"seed": "tsx packages/database/seeds/production.ts"
+	},
+	"scripts": {
+		"build": "turbo run build",
+		"dev": "turbo run dev",
+		"typecheck": "turbo run typecheck",
+		"lint": "biome check . --write --max-diagnostics 1000",
+		"test": "turbo run test",
+		"test:coverage": "turbo run test:coverage",
+		"test:e2e": "turbo run test:e2e",
+		"test:e2e:coverage": "turbo run test:e2e:coverage",
+		"turbos": "node scripts/turbos.js",
+		"filter": "node scripts/filter.js"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.2.2",
+		"@types/node": "^24.3.0",
+		"tsx": "^4.20.5",
+		"turbo": "^2.5.6",
+		"@stylistic/eslint-plugin": "^5.2.0",
+		"@typescript-eslint/parser": "^8.37.0",
+		"eslint": "^9.31.0",
+		"typescript": "^5"
+	},
+	"pnpm": {
+		"overrides": {
+			"@types/react": "^18.3.3"
+		}
+	}
 }

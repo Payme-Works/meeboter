@@ -1,15 +1,15 @@
 {
-  "permissions": {
-    "allow": [
-      "Bash(*)",
-      "Bash(*:*)",
-      "Bash(**:*)",
-      "Edit(*)",
-      "Read(*)",
-      "Write(*)",
-      "WebFetch(*)",
-      "WebSearch(*)"
-    ],
-    "deny": []
-  }
+	"permissions": {
+		"allow": [
+			"Bash(*)",
+			"Bash(*:*)",
+			"Bash(**:*)",
+			"Edit(*)",
+			"Read(*)",
+			"Write(*)",
+			"WebFetch(*)",
+			"WebSearch(*)"
+		],
+		"deny": []
+	}
 }

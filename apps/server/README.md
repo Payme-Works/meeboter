@@ -57,7 +57,6 @@ It also includes Frontend component tests to ensure our visual components are wo
 ```
 src/server
 ├── README.md
-├── eslint.config.js
 ├── jest.setup.js
 ├── next.config.js
 ├── playwright.config.ts
