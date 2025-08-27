@@ -31,10 +31,13 @@ declare module "next-auth" {
  */
 export const authConfig = {
   providers: [GitHub],
+  
   session: {
     strategy: "database",
   },
+
   adapter: DrizzleAdapter(db),
+
   callbacks: {
     session: ({ session, user }) => ({
       ...session,
