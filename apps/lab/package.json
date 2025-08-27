@@ -4,7 +4,8 @@
 	"version": "0.0.0",
 	"type": "module",
 	"scripts": {
-		"dev": "tsx src/index.ts"
+		"dev": "tsx src/index.ts",
+		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
 		"playwright": "^1.49.1",

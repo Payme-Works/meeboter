@@ -15,7 +15,11 @@ import type { OpenApiMeta } from "trpc-to-openapi";
 import { ZodError } from "zod";
 import { auth } from "@/server/auth";
 import { db } from "@/server/database/db";
-import { apiKeys, apiRequestLogs, users } from "@/server/database/schema";
+import {
+	apiKeysTable,
+	apiRequestLogsTable,
+	usersTable,
+} from "@/server/database/schema";
 
 /**
  * 1. CONTEXT
@@ -177,12 +181,12 @@ export const protectedProcedure = t.procedure
 
 			const apiKeyResult = await ctx.db
 				.select()
-				.from(apiKeys)
+				.from(apiKeysTable)
 				.where(
 					and(
-						eq(apiKeys.key, apiKey),
-						eq(apiKeys.isRevoked, false),
-						gt(apiKeys.expiresAt, new Date()),
+						eq(apiKeysTable.key, apiKey),
+						eq(apiKeysTable.isRevoked, false),
+						gt(apiKeysTable.expiresAt, new Date()),
 					),
 				);
 
@@ -191,14 +195,14 @@ export const protectedProcedure = t.procedure
 
 				try {
 					await ctx.db
-						.update(apiKeys)
+						.update(apiKeysTable)
 						.set({ lastUsedAt: new Date() })
-						.where(eq(apiKeys.id, apiKey.id));
+						.where(eq(apiKeysTable.id, apiKey.id));
 
 					const dbUser = await ctx.db
 						.select()
-						.from(users)
-						.where(eq(users.id, apiKey.userId));
+						.from(usersTable)
+						.where(eq(usersTable.id, apiKey.userId));
 
 					if (!dbUser[0]) {
 						throw new TRPCError({ code: "UNAUTHORIZED" });
@@ -230,7 +234,7 @@ export const protectedProcedure = t.procedure
 					if (apiKey) {
 						const duration = Date.now() - startTime;
 
-						await ctx.db.insert(apiRequestLogs).values({
+						await ctx.db.insert(apiRequestLogsTable).values({
 							apiKeyId: apiKey.id,
 							userId: apiKey.userId,
 							method: type,

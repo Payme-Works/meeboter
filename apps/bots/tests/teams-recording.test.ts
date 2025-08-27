@@ -55,7 +55,7 @@ describe("Teams Bot Recording Test", () => {
 		async () => {
 			const bot = new TeamsBot(
 				mockTeamsConfig,
-				async (_eventType: string, _data: any) => {},
+				async (_eventType: string, _data: unknown) => {},
 			);
 
 			let recordingPath: string | null = null;

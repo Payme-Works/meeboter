@@ -5,7 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 // Dynamically import the chart component with SSR disabled
 const UsageChart = dynamic(
-	() => import("./components/UsageChart").then((mod) => mod.UsageChart),
+	() => import("./components/usage-chart").then((mod) => mod.UsageChart),
 	{
 		ssr: false,
 		loading: () => <Skeleton className="h-[400px] w-full" />,

@@ -30,7 +30,7 @@ export const startHeartbeat = async (
 export const reportEvent = async (
 	botId: number,
 	eventType: EventCode,
-	eventData: any = null,
+	eventData: unknown = null,
 ) => {
 	// do not report events in development
 	if (process.env.NODE_ENV === "development") {

@@ -34,7 +34,7 @@ export class ZoomBot extends Bot {
 
 	constructor(
 		botSettings: BotConfig,
-		onEvent: (eventType: EventCode, data?: any) => Promise<void>,
+		onEvent: (eventType: EventCode, data?: unknown) => Promise<void>,
 	) {
 		super(botSettings, onEvent);
 		this.recordingPath = path.resolve(__dirname, "recording.mp4");
@@ -216,10 +216,13 @@ export class ZoomBot extends Bot {
 		if (!this.page) throw new Error("Page not initialized");
 
 		// Create the Stream
-		this.stream = await getStream(this.page as any, {
-			audio: true,
-			video: true,
-		});
+		this.stream = await getStream(
+			this.page as unknown as Parameters<typeof getStream>[0],
+			{
+				audio: true,
+				video: true,
+			},
+		);
 
 		// Create and Write the recording to a file, pipe the stream to a fileWriteStream
 		this.file = fs.createWriteStream(this.recordingPath);
@@ -372,7 +375,7 @@ export class ZoomBot extends Bot {
 		// Close File if it exists
 		if (this.file) {
 			this.file.close();
-			this.file = null as any;
+			this.file = null;
 		}
 
 		// Close Browser

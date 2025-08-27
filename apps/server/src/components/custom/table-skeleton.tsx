@@ -30,8 +30,8 @@ export default function TableSkeleton() {
 						</TableRow>
 					</TableHeader>
 					<TableBody>
-						{Array.from({ length: 5 }).map((_, i) => (
-							<TableRow key={i}>
+						{Array.from({ length: 5 }, (_, i) => i).map((i) => (
+							<TableRow key={`skeleton-row-${i}`}>
 								<TableCell>
 									<Skeleton className="h-4 w-32" />
 								</TableCell>

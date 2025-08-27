@@ -28,14 +28,14 @@ export function BotDetailsDialog({ botId, onClose }: BotDetailsDialogProps) {
 		data: bot,
 		isLoading: botLoading,
 		error: botError,
-	} = api.bots.getBot.useQuery({ id: botId! }, { enabled: !!botId });
+	} = api.bots.getBot.useQuery({ id: botId as number }, { enabled: !!botId });
 
 	const {
 		data: events = [],
 		isLoading: eventsLoading,
 		error: eventsError,
 	} = api.events.getEventsForBot.useQuery(
-		{ botId: botId! },
+		{ botId: botId as number },
 		{ enabled: !!botId },
 	);
 

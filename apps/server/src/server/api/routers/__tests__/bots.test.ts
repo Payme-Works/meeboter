@@ -81,7 +81,7 @@ beforeAll(async () => {
 
 		// Try inserting user with Drizzle ORM
 		await testDb
-			.insert(schema.users)
+			.insert(schema.usersTable)
 			.values({
 				id: "00000000-0000-4000-a000-000000000000",
 				name: "Test User",
@@ -98,7 +98,7 @@ beforeAll(async () => {
 		console.log("User verification check:", userCheck);
 
 		// Also verify the test user by using the schema objects
-		const userSchemaCheck = await testDb.select().from(schema.users);
+		const userSchemaCheck = await testDb.select().from(schema.usersTable);
 		console.log("User schema check:", userSchemaCheck);
 
 		if (!userSchemaCheck || userSchemaCheck.length === 0) {
@@ -301,9 +301,9 @@ describe("botsRouter", () => {
 
 		// First update the bot to have a recording
 		await testDb
-			.update(schema.bots)
+			.update(schema.botsTable)
 			.set({ recording: "test-recording.mp4" })
-			.where(eq(schema.bots.id, testBotId));
+			.where(eq(schema.botsTable.id, testBotId));
 
 		const result = await caller.getSignedRecordingUrl({
 			id: testBotId,

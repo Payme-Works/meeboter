@@ -42,7 +42,7 @@ beforeAll(async () => {
 
 	// Insert the test user with the same UUID used in the mock
 	await testDb
-		.insert(schema.users)
+		.insert(schema.usersTable)
 		.values({
 			id: "00000000-0000-4000-a000-000000000000",
 			name: "Test User",

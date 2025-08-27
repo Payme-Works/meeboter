@@ -6,7 +6,7 @@ import {
 	publicProcedure,
 } from "@/server/api/trpc";
 import {
-	bots,
+	botsTable,
 	events,
 	insertBotSchema,
 	insertEventSchema,
@@ -32,9 +32,9 @@ export const botsRouter = createTRPCRouter({
 		.query(async ({ ctx }) => {
 			return await ctx.db
 				.select()
-				.from(bots)
-				.where(eq(bots.userId, ctx.session.user.id))
-				.orderBy(bots.createdAt);
+				.from(botsTable)
+				.where(eq(botsTable.userId, ctx.session.user.id))
+				.orderBy(botsTable.createdAt);
 		}),
 
 	getBot: protectedProcedure
@@ -50,8 +50,8 @@ export const botsRouter = createTRPCRouter({
 		.query(async ({ input, ctx }) => {
 			const result = await ctx.db
 				.select()
-				.from(bots)
-				.where(eq(bots.id, input.id));
+				.from(botsTable)
+				.where(eq(botsTable.id, input.id));
 
 			if (!result[0] || result[0].userId !== ctx.session.user.id) {
 				throw new Error("Bot not found");
@@ -118,7 +118,10 @@ export const botsRouter = createTRPCRouter({
 					callbackUrl: input.callbackUrl, // Credit to @martinezpl for this line -- cannot merge at time of writing due to capstone requirements
 				};
 
-				const result = await ctx.db.insert(bots).values(dbInput).returning();
+				const result = await ctx.db
+					.insert(botsTable)
+					.values(dbInput)
+					.returning();
 
 				if (!result[0]) {
 					throw new Error("Bot creation failed - no result returned");
@@ -159,16 +162,19 @@ export const botsRouter = createTRPCRouter({
 		.output(selectBotSchema)
 		.mutation(async ({ input, ctx }) => {
 			// Check if the bot belongs to the user
-			const bot = await ctx.db.select().from(bots).where(eq(bots.id, input.id));
+			const bot = await ctx.db
+				.select()
+				.from(botsTable)
+				.where(eq(botsTable.id, input.id));
 
 			if (!bot[0] || bot[0].userId !== ctx.session.user.id) {
 				throw new Error("Bot not found");
 			}
 
 			const result = await ctx.db
-				.update(bots)
+				.update(botsTable)
 				.set(input.data)
-				.where(eq(bots.id, input.id))
+				.where(eq(botsTable.id, input.id))
 				.returning();
 
 			if (!result[0]) {
@@ -198,9 +204,9 @@ export const botsRouter = createTRPCRouter({
 		.mutation(async ({ input, ctx }) => {
 			// First get the bot to check if recording is enabled
 			const botRecord = await ctx.db
-				.select({ recordingEnabled: bots.recordingEnabled })
-				.from(bots)
-				.where(eq(bots.id, input.id))
+				.select({ recordingEnabled: botsTable.recordingEnabled })
+				.from(botsTable)
+				.where(eq(botsTable.id, input.id))
 				.limit(1);
 
 			if (!botRecord[0]) {
@@ -219,9 +225,9 @@ export const botsRouter = createTRPCRouter({
 			}
 
 			const result = await ctx.db
-				.update(bots)
+				.update(botsTable)
 				.set({ status: input.status })
-				.where(eq(bots.id, input.id))
+				.where(eq(botsTable.id, input.id))
 				.returning();
 
 			if (!result[0]) {
@@ -232,11 +238,11 @@ export const botsRouter = createTRPCRouter({
 			const bot = (
 				await ctx.db
 					.select({
-						callbackUrl: bots.callbackUrl,
-						id: bots.id,
+						callbackUrl: botsTable.callbackUrl,
+						id: botsTable.id,
 					})
-					.from(bots)
-					.where(eq(bots.id, input.id))
+					.from(botsTable)
+					.where(eq(botsTable.id, input.id))
 			)[0];
 
 			if (!bot) {
@@ -246,12 +252,12 @@ export const botsRouter = createTRPCRouter({
 			if (input.status === "DONE") {
 				// add the recording to the bot
 				await ctx.db
-					.update(bots)
+					.update(botsTable)
 					.set({
 						recording: input.recording,
 						speakerTimeframes: input.speakerTimeframes,
 					})
-					.where(eq(bots.id, bot.id));
+					.where(eq(botsTable.id, bot.id));
 
 				if (bot.callbackUrl) {
 					// call the callback url
@@ -284,15 +290,18 @@ export const botsRouter = createTRPCRouter({
 		.output(z.object({ message: z.string() }))
 		.mutation(async ({ input, ctx }) => {
 			// Check if the bot belongs to the user
-			const bot = await ctx.db.select().from(bots).where(eq(bots.id, input.id));
+			const bot = await ctx.db
+				.select()
+				.from(botsTable)
+				.where(eq(botsTable.id, input.id));
 
 			if (!bot[0] || bot[0].userId !== ctx.session.user.id) {
 				throw new Error("Bot not found");
 			}
 
 			const result = await ctx.db
-				.delete(bots)
-				.where(eq(bots.id, input.id))
+				.delete(botsTable)
+				.where(eq(botsTable.id, input.id))
 				.returning();
 
 			if (!result[0]) {
@@ -315,9 +324,9 @@ export const botsRouter = createTRPCRouter({
 		.output(z.object({ recordingUrl: z.string().nullable() }))
 		.query(async ({ input, ctx }) => {
 			const result = await ctx.db
-				.select({ recording: bots.recording })
-				.from(bots)
-				.where(eq(bots.id, input.id));
+				.select({ recording: botsTable.recording })
+				.from(botsTable)
+				.where(eq(botsTable.id, input.id));
 
 			if (!result[0]) {
 				throw new Error("Bot not found");
@@ -348,9 +357,9 @@ export const botsRouter = createTRPCRouter({
 
 			// Update bot's last heartbeat
 			const botUpdate = await ctx.db
-				.update(bots)
+				.update(botsTable)
 				.set({ lastHeartbeat: new Date() })
-				.where(eq(bots.id, input.id))
+				.where(eq(botsTable.id, input.id))
 				.returning();
 
 			if (!botUpdate[0]) {
@@ -399,7 +408,10 @@ export const botsRouter = createTRPCRouter({
 		.output(selectBotSchema)
 		.mutation(async ({ input, ctx }) => {
 			// Check if the bot belongs to the user
-			const bot = await ctx.db.select().from(bots).where(eq(bots.id, input.id));
+			const bot = await ctx.db
+				.select()
+				.from(botsTable)
+				.where(eq(botsTable.id, input.id));
 
 			if (!bot[0] || bot[0].userId !== ctx.session.user.id) {
 				throw new Error("Bot not found");
@@ -425,11 +437,11 @@ export const botsRouter = createTRPCRouter({
 		.query(async ({ ctx }) => {
 			const result = await ctx.db
 				.select({ count: sql<number>`count(*)` })
-				.from(bots)
+				.from(botsTable)
 				.where(
 					and(
-						eq(bots.userId, ctx.session.user.id),
-						notInArray(bots.status, ["DONE", "FATAL"] as const),
+						eq(botsTable.userId, ctx.session.user.id),
+						notInArray(botsTable.status, ["DONE", "FATAL"] as const),
 					),
 				);
 

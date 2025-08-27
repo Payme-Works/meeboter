@@ -22,6 +22,7 @@ export default function RootLayout({
 					<SessionProvider>
 						<div className="flex h-full w-full flex-col items-center justify-center">
 							<NavigationBar />
+
 							<div className="container h-full">{children}</div>
 						</div>
 					</SessionProvider>

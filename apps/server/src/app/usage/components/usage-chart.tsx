@@ -55,10 +55,18 @@ export function UsageChart() {
 	}, []);
 
 	// Load the Data
+	const weekData = api.usage.getWeekDailyUsage.useQuery(
+		{},
+		{ enabled: timeframe === "week" },
+	);
+
+	const monthData = api.usage.getMonthDailyUsage.useQuery(
+		{},
+		{ enabled: timeframe === "month" },
+	);
+
 	const { data, isLoading, error } =
-		timeframe === "week"
-			? api.usage.getWeekDailyUsage.useQuery({})
-			: api.usage.getMonthDailyUsage.useQuery({});
+		timeframe === "week" ? weekData : monthData;
 
 	// Decide scale
 	const max =

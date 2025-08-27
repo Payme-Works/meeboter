@@ -25,7 +25,10 @@ export const main = async () => {
 	}
 
 	// Parse bot data
-	const botData: BotConfig = JSON.parse(process.env.BOT_DATA!);
+	if (!process.env.BOT_DATA)
+		throw new Error("BOT_DATA environment variable is required");
+
+	const botData: BotConfig = JSON.parse(process.env.BOT_DATA);
 
 	console.log("Received bot data:", botData);
 
@@ -36,7 +39,7 @@ export const main = async () => {
 
 	// Initialize S3 client
 	const s3Client = createS3Client(
-		process.env.AWS_REGION!,
+		process.env.AWS_REGION ?? "us-east-2",
 		process.env.AWS_ACCESS_KEY_ID,
 		process.env.AWS_SECRET_ACCESS_KEY,
 	);

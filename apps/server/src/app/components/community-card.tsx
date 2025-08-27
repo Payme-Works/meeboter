@@ -50,8 +50,8 @@ export default function CommunityCard({ className }: CommunityUpdate) {
 				<div className="h-full min-h-0 flex-1">
 					<div className="h-full overflow-y-auto">
 						{isLoading ? (
-							Array.from({ length: 3 }).map((_, index) => (
-								<div key={index} className="flex flex-col gap-2">
+							Array.from({ length: 3 }, (_, i) => i).map((index) => (
+								<div key={`loading-${index}`} className="flex flex-col gap-2">
 									<h3 className="text-lg font-semibold">
 										<Skeleton className="h-4 w-20" />
 									</h3>
@@ -68,7 +68,10 @@ export default function CommunityCard({ className }: CommunityUpdate) {
 						) : (
 							<div className="flex flex-col gap-4">
 								{communityUpdates?.map((update, index) => (
-									<div key={index} className="flex flex-col gap-2">
+									<div
+										key={update.title || `update-${index}`}
+										className="flex flex-col gap-2"
+									>
 										<div className="flex items-center gap-2">
 											<Avatar className="h-6 w-6">
 												<AvatarImage src={update.imageUrl} />

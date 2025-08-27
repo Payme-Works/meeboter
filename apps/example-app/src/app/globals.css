@@ -1,5 +1,8 @@
+/* biome-ignore lint/suspicious/noUnknownAtRules: Tailwind CSS directive */
 @tailwind base;
+/* biome-ignore lint/suspicious/noUnknownAtRules: Tailwind CSS directive */
 @tailwind components;
+/* biome-ignore lint/suspicious/noUnknownAtRules: Tailwind CSS directive */
 @tailwind utilities;
 @layer base {
 	:root {
@@ -58,18 +61,22 @@
 }
 @layer base {
 	* {
+		/* biome-ignore lint/suspicious/noUnknownAtRules: Tailwind CSS apply directive */
 		@apply border-border;
 	}
 	body {
+		/* biome-ignore lint/suspicious/noUnknownAtRules: Tailwind CSS apply directive */
 		@apply bg-background text-foreground;
 	}
 }
 
 @layer base {
 	* {
+		/* biome-ignore lint/suspicious/noUnknownAtRules: Tailwind CSS apply directive */
 		@apply border-border outline-ring/50;
 	}
 	body {
+		/* biome-ignore lint/suspicious/noUnknownAtRules: Tailwind CSS apply directive */
 		@apply bg-background text-foreground;
 	}
 }

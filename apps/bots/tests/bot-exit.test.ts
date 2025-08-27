@@ -53,7 +53,7 @@ describe("Meet Bot Exit Tests", () => {
 		// Create Bot
 		bot = new MeetsBot(
 			mockMeetConfig,
-			async (_eventType: string, _data: any) => {},
+			async (_eventType: string, _data: unknown) => {},
 		);
 
 		// Override Page functionality (ignore navigation)
@@ -70,7 +70,7 @@ describe("Meet Bot Exit Tests", () => {
 			evaluate: jest.fn(async () => {
 				return 0;
 			}), // Simulate successful evaluation
-		} as any; // Mock the page object
+		} as typeof bot.page; // Mock the page object
 
 		// Mock Bot Recording -- never actually record
 		jest.spyOn(bot, "startRecording").mockImplementation(async () => {
@@ -108,8 +108,13 @@ describe("Meet Bot Exit Tests", () => {
 		// Run Meeting info without setting up the browser
 
 		// Break private value setter and set the timeAloneStarted to a value that is a long time ago
-		(bot as any).timeAloneStarted = Date.now() - 1000000;
-		(bot as any).participants = [{ id: "123", name: "Test User" }]; //simulate it being only me in the meeting
+		(bot as { timeAloneStarted: number }).timeAloneStarted =
+			Date.now() - 1000000;
+
+		(bot as { participants: unknown[] }).participants = [
+			{ id: "123", name: "Test User" },
+		]; //simulate it being only me in the meeting
+
 		await bot.meetingActions();
 
 		expect(bot.endLife).toHaveBeenCalled(); //includes stopRecording()
@@ -125,9 +130,10 @@ describe("Meet Bot Exit Tests", () => {
 		// Run Meeting info without setting up the browser
 
 		// Break private value setter and set the timeAloneStarted to a value that is a long time ago
-		(bot as any).timeAloneStarted = Date.now() - 1000000;
+		(bot as { timeAloneStarted: number }).timeAloneStarted =
+			Date.now() - 1000000;
 
-		(bot as any).participants = [
+		(bot as { participants: unknown[] }).participants = [
 			{ id: "123", name: "Test User" },
 			{ id: "456", name: "Another User" },
 			{ id: "789", name: "Third User" },
@@ -173,7 +179,7 @@ describe("Zoom Bot Exit Tests", () => {
 	beforeEach(() => {
 		// Mock WebSocket connection for Puppeteer
 		jest.mock("puppeteer", () => {
-			const originalModule: any = jest.requireActual("puppeteer");
+			const originalModule = jest.requireActual("puppeteer");
 
 			return {
 				...originalModule,
@@ -187,7 +193,7 @@ describe("Zoom Bot Exit Tests", () => {
 		// Create Bot
 		bot = new ZoomBot(
 			mockZoomConfig,
-			async (_eventType: string, _data: any) => {},
+			async (_eventType: string, _data: unknown) => {},
 		);
 
 		// mock items
@@ -204,9 +210,9 @@ describe("Zoom Bot Exit Tests", () => {
 			evaluate: jest.fn(async () => {
 				return 0;
 			}), // Simulate successful evaluation
-		} as any; // Mock the page object
+		} as typeof bot.page; // Mock the page object
 
-		bot.browser = {} as any;
+		bot.browser = {} as typeof bot.browser;
 
 		// Ensure bot would have ended it's life
 		jest.spyOn(bot, "endLife").mockImplementation(async () => {
@@ -262,7 +268,7 @@ describe("Teams Bot Exit Tests", () => {
 	beforeEach(() => {
 		// Mock WebSocket connection for Puppeteer
 		jest.mock("puppeteer", () => {
-			const originalModule: any = jest.requireActual("puppeteer");
+			const originalModule = jest.requireActual("puppeteer");
 
 			return {
 				...originalModule,
@@ -276,7 +282,7 @@ describe("Teams Bot Exit Tests", () => {
 		// Create Bot
 		bot = new TeamsBot(
 			mockTeamsConfig,
-			async (_eventType: string, _data: any) => {},
+			async (_eventType: string, _data: unknown) => {},
 		);
 
 		// mock items
@@ -293,10 +299,10 @@ describe("Teams Bot Exit Tests", () => {
 			evaluate: jest.fn(async () => {
 				return 0;
 			}), // Simulate successful evaluation
-		} as any; // Mock the page object
+		} as typeof bot.page; // Mock the page object
 
 		// Override
-		bot.browser = {} as any;
+		bot.browser = {} as typeof bot.browser;
 
 		// Add mock to ensure bot would have ended it's life
 		jest.spyOn(bot, "endLife").mockImplementation(async () => {

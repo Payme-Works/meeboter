@@ -70,7 +70,7 @@ declare global {
 		onParticipantJoin: (participant: Participant) => void;
 		onParticipantLeave: (participant: Participant) => void;
 		registerParticipantSpeaking: (participant: Participant) => void;
-		observeSpeech: (node: any, participant: Participant) => void;
+		observeSpeech: (node: Element, participant: Participant) => void;
 		handleMergedAudio: () => void;
 
 		participantArray: Participant[];
@@ -158,7 +158,7 @@ export class MeetsBot extends Bot {
 	 */
 	constructor(
 		botSettings: BotConfig,
-		onEvent: (eventType: EventCode, data?: any) => Promise<void>,
+		onEvent: (eventType: EventCode, data?: unknown) => Promise<void>,
 	) {
 		super(botSettings, onEvent);
 		this.recordingPath = path.resolve(__dirname, "recording.mp4");
@@ -178,7 +178,7 @@ export class MeetsBot extends Bot {
 		];
 
 		// Fetch
-		this.meetingURL = botSettings.meetingInfo.meetingUrl!;
+		this.meetingURL = botSettings.meetingInfo.meetingUrl ?? "";
 		this.kicked = false; // Flag for if the bot was kicked from the meeting, no need to click exit button.
 		this.startedRecording = false; //Flag to not duplicate recording start
 
@@ -229,7 +229,7 @@ export class MeetsBot extends Bot {
 			let end = timeframesArray[0];
 
 			for (let i = 1; i < timeframesArray.length; i++) {
-				const currentTimeframe = timeframesArray[i]!;
+				const currentTimeframe = timeframesArray[i] as number;
 
 				if (currentTimeframe - end < utteranceThresholdMs) {
 					end = currentTimeframe;
@@ -813,7 +813,7 @@ export class MeetsBot extends Bot {
 					const detectedParticipants: Participant[] = [];
 
 					// Gather all participants in the merged audio node
-					mergedAudioNode.parentNode?.childNodes.forEach((childNode: any) => {
+					mergedAudioNode.parentNode?.childNodes.forEach((childNode) => {
 						const participantId = childNode.getAttribute("data-participant-id");
 
 						if (!participantId) {
@@ -886,7 +886,7 @@ export class MeetsBot extends Bot {
 				}
 			};
 
-			initialParticipants.forEach((node: any) => {
+			initialParticipants.forEach((node) => {
 				const participant = {
 					id: node.getAttribute("data-participant-id"),
 					name: node.getAttribute("aria-label"),
@@ -908,7 +908,7 @@ export class MeetsBot extends Bot {
 			const peopleObserver = new MutationObserver((mutations) => {
 				mutations.forEach((mutation) => {
 					if (mutation.type === "childList") {
-						mutation.removedNodes.forEach((node: any) => {
+						mutation.removedNodes.forEach((node) => {
 							console.log("Removed Node", node);
 
 							if (
@@ -942,7 +942,7 @@ export class MeetsBot extends Bot {
 						});
 					}
 
-					mutation.addedNodes.forEach((node: any) => {
+					mutation.addedNodes.forEach((node) => {
 						console.log("Added Node", node);
 
 						if (

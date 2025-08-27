@@ -3,8 +3,8 @@ import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import {
-	apiKeys,
-	apiRequestLogs,
+	apiKeysTable,
+	apiRequestLogsTable,
 	insertApiKeySchema,
 	selectApiKeySchema,
 	selectApiRequestLogSchema,
@@ -38,7 +38,7 @@ export const apiKeysRouter = createTRPCRouter({
 			const key = randomBytes(32).toString("hex");
 
 			const result = await ctx.db
-				.insert(apiKeys)
+				.insert(apiKeysTable)
 				.values({
 					userId: ctx.session.user.id,
 					expiresAt: input.expiresAt,
@@ -67,8 +67,8 @@ export const apiKeysRouter = createTRPCRouter({
 		.query(async ({ ctx }) => {
 			return await ctx.db
 				.select()
-				.from(apiKeys)
-				.where(eq(apiKeys.userId, ctx.session.user.id));
+				.from(apiKeysTable)
+				.where(eq(apiKeysTable.userId, ctx.session.user.id));
 		}),
 
 	revokeApiKey: protectedProcedure
@@ -85,11 +85,11 @@ export const apiKeysRouter = createTRPCRouter({
 			// Check if the API key belongs to the user
 			const apiKey = await ctx.db
 				.select()
-				.from(apiKeys)
+				.from(apiKeysTable)
 				.where(
 					and(
-						eq(apiKeys.id, input.id),
-						eq(apiKeys.userId, ctx.session.user.id),
+						eq(apiKeysTable.id, input.id),
+						eq(apiKeysTable.userId, ctx.session.user.id),
 					),
 				);
 
@@ -98,12 +98,12 @@ export const apiKeysRouter = createTRPCRouter({
 			}
 
 			const result = await ctx.db
-				.update(apiKeys)
+				.update(apiKeysTable)
 				.set({ isRevoked: true })
 				.where(
 					and(
-						eq(apiKeys.id, input.id),
-						eq(apiKeys.userId, ctx.session.user.id),
+						eq(apiKeysTable.id, input.id),
+						eq(apiKeysTable.userId, ctx.session.user.id),
 					),
 				)
 				.returning();
@@ -140,11 +140,11 @@ export const apiKeysRouter = createTRPCRouter({
 			// Check if the API key belongs to the user
 			const apiKey = await ctx.db
 				.select()
-				.from(apiKeys)
+				.from(apiKeysTable)
 				.where(
 					and(
-						eq(apiKeys.id, input.id),
-						eq(apiKeys.userId, ctx.session.user.id),
+						eq(apiKeysTable.id, input.id),
+						eq(apiKeysTable.userId, ctx.session.user.id),
 					),
 				);
 
@@ -155,25 +155,25 @@ export const apiKeysRouter = createTRPCRouter({
 			// Get logs with pagination
 			const logs = await ctx.db
 				.select()
-				.from(apiRequestLogs)
+				.from(apiRequestLogsTable)
 				.where(
 					and(
-						eq(apiRequestLogs.apiKeyId, input.id),
-						eq(apiRequestLogs.userId, ctx.session.user.id),
+						eq(apiRequestLogsTable.apiKeyId, input.id),
+						eq(apiRequestLogsTable.userId, ctx.session.user.id),
 					),
 				)
-				.orderBy(desc(apiRequestLogs.createdAt))
+				.orderBy(desc(apiRequestLogsTable.createdAt))
 				.limit(input.limit)
 				.offset(input.offset);
 
 			// Get total count
 			const countResult = await ctx.db
 				.select({ count: sql<number>`count(*)` })
-				.from(apiRequestLogs)
+				.from(apiRequestLogsTable)
 				.where(
 					and(
-						eq(apiRequestLogs.apiKeyId, input.id),
-						eq(apiRequestLogs.userId, ctx.session.user.id),
+						eq(apiRequestLogsTable.apiKeyId, input.id),
+						eq(apiRequestLogsTable.userId, ctx.session.user.id),
 					),
 				);
 
@@ -207,8 +207,8 @@ export const apiKeysRouter = createTRPCRouter({
 			// Get all API key IDs for the user
 			const userApiKeys = await ctx.db
 				.select()
-				.from(apiKeys)
-				.where(eq(apiKeys.userId, ctx.session.user.id));
+				.from(apiKeysTable)
+				.where(eq(apiKeysTable.userId, ctx.session.user.id));
 
 			const apiKeyIds = userApiKeys.map((key) => key.id);
 
@@ -222,25 +222,25 @@ export const apiKeysRouter = createTRPCRouter({
 			// Get logs with pagination
 			const logs = await ctx.db
 				.select()
-				.from(apiRequestLogs)
+				.from(apiRequestLogsTable)
 				.where(
 					and(
-						inArray(apiRequestLogs.apiKeyId, apiKeyIds),
-						eq(apiRequestLogs.userId, ctx.session.user.id),
+						inArray(apiRequestLogsTable.apiKeyId, apiKeyIds),
+						eq(apiRequestLogsTable.userId, ctx.session.user.id),
 					),
 				)
-				.orderBy(desc(apiRequestLogs.createdAt))
+				.orderBy(desc(apiRequestLogsTable.createdAt))
 				.limit(input.limit)
 				.offset(input.offset);
 
 			// Get total count
 			const countResult = await ctx.db
 				.select({ count: sql<number>`count(*)` })
-				.from(apiRequestLogs)
+				.from(apiRequestLogsTable)
 				.where(
 					and(
-						inArray(apiRequestLogs.apiKeyId, apiKeyIds),
-						eq(apiRequestLogs.userId, ctx.session.user.id),
+						inArray(apiRequestLogsTable.apiKeyId, apiKeyIds),
+						eq(apiRequestLogsTable.userId, ctx.session.user.id),
 					),
 				);
 
@@ -264,11 +264,11 @@ export const apiKeysRouter = createTRPCRouter({
 		.query(async ({ ctx }) => {
 			const countResult = await ctx.db
 				.select({ count: sql<number>`count(*)` })
-				.from(apiKeys)
+				.from(apiKeysTable)
 				.where(
 					and(
-						eq(apiKeys.userId, ctx.session.user.id),
-						sql`${apiKeys.expiresAt} > NOW()`,
+						eq(apiKeysTable.userId, ctx.session.user.id),
+						sql`${apiKeysTable.expiresAt} > NOW()`,
 					),
 				);
 

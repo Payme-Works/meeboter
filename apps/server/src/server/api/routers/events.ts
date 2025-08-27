@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import {
-	bots,
+	botsTable,
 	EVENT_DESCRIPTIONS,
 	events,
 	insertEventSchema,
@@ -27,9 +27,9 @@ export const eventsRouter = createTRPCRouter({
 		.query(async ({ ctx }) => {
 			// Get all events for bots owned by the user
 			const userBots = await ctx.db
-				.select({ id: bots.id })
-				.from(bots)
-				.where(eq(bots.userId, ctx.session.user.id));
+				.select({ id: botsTable.id })
+				.from(botsTable)
+				.where(eq(botsTable.userId, ctx.session.user.id));
 
 			const botIds = userBots.map((bot) => bot.id);
 
@@ -65,8 +65,8 @@ export const eventsRouter = createTRPCRouter({
 			// Check if the bot belongs to the user
 			const bot = await ctx.db
 				.select()
-				.from(bots)
-				.where(eq(bots.id, input.botId));
+				.from(botsTable)
+				.where(eq(botsTable.id, input.botId));
 
 			if (!bot[0] || bot[0].userId !== ctx.session.user.id) {
 				throw new Error("Bot not found");
@@ -93,10 +93,10 @@ export const eventsRouter = createTRPCRouter({
 			const result = await ctx.db
 				.select({
 					event: events,
-					bot: bots,
+					bot: botsTable,
 				})
 				.from(events)
-				.leftJoin(bots, eq(events.botId, bots.id))
+				.leftJoin(botsTable, eq(events.botId, botsTable.id))
 				.where(eq(events.id, input.id));
 
 			if (!result[0]?.bot || result[0].bot.userId !== ctx.session.user.id) {
@@ -120,8 +120,8 @@ export const eventsRouter = createTRPCRouter({
 			// Check if the bot belongs to the user
 			const bot = await ctx.db
 				.select()
-				.from(bots)
-				.where(eq(bots.id, input.botId));
+				.from(botsTable)
+				.where(eq(botsTable.id, input.botId));
 
 			if (!bot[0] || bot[0].userId !== ctx.session.user.id) {
 				throw new Error("Bot not found");
@@ -156,10 +156,10 @@ export const eventsRouter = createTRPCRouter({
 			const event = await ctx.db
 				.select({
 					event: events,
-					bot: bots,
+					bot: botsTable,
 				})
 				.from(events)
-				.leftJoin(bots, eq(events.botId, bots.id))
+				.leftJoin(botsTable, eq(events.botId, botsTable.id))
 				.where(eq(events.id, input.id));
 
 			if (!event[0]?.bot || event[0].bot.userId !== ctx.session.user.id) {
@@ -194,10 +194,10 @@ export const eventsRouter = createTRPCRouter({
 			const event = await ctx.db
 				.select({
 					event: events,
-					bot: bots,
+					bot: botsTable,
 				})
 				.from(events)
-				.leftJoin(bots, eq(events.botId, bots.id))
+				.leftJoin(botsTable, eq(events.botId, botsTable.id))
 				.where(eq(events.id, input.id));
 
 			if (!event[0]?.bot || event[0].bot.userId !== ctx.session.user.id) {

@@ -91,7 +91,7 @@ beforeAll(async () => {
 
 		// Try inserting user with Drizzle ORM
 		await testDb
-			.insert(schema.users)
+			.insert(schema.usersTable)
 			.values({
 				id: "00000000-0000-4000-a000-000000000000",
 				name: "Test User",
@@ -108,7 +108,7 @@ beforeAll(async () => {
 		console.log("User verification check:", userCheck);
 
 		// Also verify the test user by using the schema objects
-		const userSchemaCheck = await testDb.select().from(schema.users);
+		const userSchemaCheck = await testDb.select().from(schema.usersTable);
 		console.log("User schema check:", userSchemaCheck);
 
 		if (!userSchemaCheck || userSchemaCheck.length === 0) {
@@ -314,7 +314,7 @@ describe("eventsRouter", () => {
 		try {
 			// Create a different user with Drizzle ORM
 			await testDb
-				.insert(schema.users)
+				.insert(schema.usersTable)
 				.values({
 					id: differentUserId,
 					name: "Different User",
@@ -326,8 +326,8 @@ describe("eventsRouter", () => {
 			// Verify the different user exists
 			const differentUserCheck = await testDb
 				.select()
-				.from(schema.users)
-				.where(eq(schema.users.id, differentUserId));
+				.from(schema.usersTable)
+				.where(eq(schema.usersTable.id, differentUserId));
 
 			if (!differentUserCheck || differentUserCheck.length === 0) {
 				console.error("Different user not inserted properly!");
@@ -339,7 +339,7 @@ describe("eventsRouter", () => {
 
 			// Create a bot owned by the different user
 			const otherUserBot = await testDb
-				.insert(schema.bots)
+				.insert(schema.botsTable)
 				.values({
 					botDisplayName: "Other User's Bot",
 					meetingTitle: "Other User's Meeting",

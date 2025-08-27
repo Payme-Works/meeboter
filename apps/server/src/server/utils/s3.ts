@@ -2,28 +2,26 @@ import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { env } from "@/env";
 
-class S3ClientSingleton {
-	private static instance: S3Client | null = null;
+let s3ClientInstance: S3Client | null = null;
 
-	private static credentials =
-		env.AWS_ACCESS_KEY_ID && env.AWS_SECRET_ACCESS_KEY
-			? {
-					accessKeyId: env.AWS_ACCESS_KEY_ID,
-					secretAccessKey: env.AWS_SECRET_ACCESS_KEY,
-				}
-			: undefined;
+const credentials =
+	env.AWS_ACCESS_KEY_ID && env.AWS_SECRET_ACCESS_KEY
+		? {
+				accessKeyId: env.AWS_ACCESS_KEY_ID,
+				secretAccessKey: env.AWS_SECRET_ACCESS_KEY,
+			}
+		: undefined;
 
-	public static getInstance(): S3Client {
-		S3ClientSingleton.instance ??= new S3Client({
-			region: env.AWS_REGION,
-			credentials: S3ClientSingleton.credentials,
-		});
+const getS3Client = (): S3Client => {
+	s3ClientInstance ??= new S3Client({
+		region: env.AWS_REGION,
+		credentials: credentials,
+	});
 
-		return S3ClientSingleton.instance;
-	}
-}
+	return s3ClientInstance;
+};
 
-const s3Client = S3ClientSingleton.getInstance();
+const s3Client = getS3Client();
 
 export const generateSignedUrl = async (key: string, expiresIn = 3600) => {
 	const command = new GetObjectCommand({

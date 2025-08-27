@@ -1,8 +1,10 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* biome-ignore lint/suspicious/noUnknownAtRules: Tailwind CSS custom variant directive */
 @custom-variant dark (&:is(.dark *));
 
+/* biome-ignore lint/suspicious/noUnknownAtRules: Tailwind CSS theme directive */
 @theme {
 	--font-sans:
 		var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif,
@@ -78,11 +80,13 @@
 	--sidebar-ring: oklch(0.551 0.027 264.364);
 }
 
+/* biome-ignore lint/suspicious/noUnknownAtRules: Tailwind CSS theme inline directive */
 @theme inline {
 	--radius-sm: calc(var(--radius) - 4px);
 	--radius-md: calc(var(--radius) - 2px);
 	--radius-lg: var(--radius);
 	--radius-xl: calc(var(--radius) + 4px);
+
 	--color-background: var(--background);
 	--color-foreground: var(--foreground);
 	--color-card: var(--card);
@@ -118,9 +122,11 @@
 
 @layer base {
 	* {
+		/* biome-ignore lint/suspicious/noUnknownAtRules: Tailwind CSS apply directive */
 		@apply border-border outline-ring/50;
 	}
 	body {
+		/* biome-ignore lint/suspicious/noUnknownAtRules: Tailwind CSS apply directive */
 		@apply bg-background text-foreground;
 	}
 }

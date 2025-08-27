@@ -27,7 +27,7 @@ export class TeamsBot extends Bot {
 
 	constructor(
 		botSettings: BotConfig,
-		onEvent: (eventType: EventCode, data?: any) => Promise<void>,
+		onEvent: (eventType: EventCode, data?: unknown) => Promise<void>,
 	) {
 		super(botSettings, onEvent);
 		this.recordingPath = "./recording.webm";
@@ -185,7 +185,7 @@ export class TeamsBot extends Bot {
 
 		// Get the stream
 		this.stream = await getStream(
-			this.page as any, //puppeteer type issue
+			this.page as unknown as Parameters<typeof getStream>[0],
 			{ audio: true, video: true },
 		);
 
@@ -297,7 +297,7 @@ export class TeamsBot extends Bot {
 		// Close File if it exists
 		if (this.file) {
 			this.file.close();
-			this.file = null as any;
+			this.file = null;
 		}
 
 		// Close Browser

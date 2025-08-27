@@ -1,7 +1,7 @@
 import { and, eq, gte, isNotNull } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
-import { bots, dailyUsageSchema } from "@/server/database/schema";
+import { botsTable, dailyUsageSchema } from "@/server/database/schema";
 
 // Interface matching dailyUsageSchema exactly
 interface DayUsage {
@@ -38,15 +38,15 @@ export const usageRouter = createTRPCRouter({
 			// Get all bots timestamp
 			const userBots = await ctx.db
 				.select({
-					startTime: bots.startTime,
-					endTime: bots.lastHeartbeat,
-					id: bots.id,
+					startTime: botsTable.startTime,
+					endTime: botsTable.lastHeartbeat,
+					id: botsTable.id,
 				}) //TODO: End Time reflects this
-				.from(bots)
+				.from(botsTable)
 				.where(
 					and(
-						eq(bots.userId, ctx.session.user.id),
-						isNotNull(bots.lastHeartbeat),
+						eq(botsTable.userId, ctx.session.user.id),
+						isNotNull(botsTable.lastHeartbeat),
 					),
 				);
 
@@ -141,16 +141,16 @@ export const usageRouter = createTRPCRouter({
 			// Get all bots timestamp
 			const userBots = await ctx.db
 				.select({
-					startTime: bots.startTime,
-					endTime: bots.lastHeartbeat,
-					id: bots.id,
+					startTime: botsTable.startTime,
+					endTime: botsTable.lastHeartbeat,
+					id: botsTable.id,
 				}) //TODO: End Time reflects this
-				.from(bots)
+				.from(botsTable)
 				.where(
 					and(
-						eq(bots.userId, ctx.session.user.id),
-						gte(bots.startTime, startOfWeek), // After the beginning of the week
-						isNotNull(bots.lastHeartbeat),
+						eq(botsTable.userId, ctx.session.user.id),
+						gte(botsTable.startTime, startOfWeek), // After the beginning of the week
+						isNotNull(botsTable.lastHeartbeat),
 					),
 				);
 
@@ -229,16 +229,16 @@ export const usageRouter = createTRPCRouter({
 			// Get all bots timestamp
 			const userBots = await ctx.db
 				.select({
-					startTime: bots.startTime,
-					endTime: bots.lastHeartbeat,
-					id: bots.id,
+					startTime: botsTable.startTime,
+					endTime: botsTable.lastHeartbeat,
+					id: botsTable.id,
 				}) //TODO: End Time reflects this
-				.from(bots)
+				.from(botsTable)
 				.where(
 					and(
-						eq(bots.userId, ctx.session.user.id),
-						gte(bots.startTime, startOfMonth), // After the beginning of the week
-						isNotNull(bots.lastHeartbeat),
+						eq(botsTable.userId, ctx.session.user.id),
+						gte(botsTable.startTime, startOfMonth), // After the beginning of the week
+						isNotNull(botsTable.lastHeartbeat),
 					),
 				);
 

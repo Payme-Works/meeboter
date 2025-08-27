@@ -15,8 +15,8 @@ export const deployBot = jest
 		}) => {
 			const botResult = await db
 				.select()
-				.from(schema.bots)
-				.where(eq(schema.bots.id, botId));
+				.from(schema.botsTable)
+				.where(eq(schema.botsTable.id, botId));
 
 			if (!botResult[0]) {
 				throw new Error("Bot not found");
@@ -24,9 +24,9 @@ export const deployBot = jest
 
 			// Update the bot status and return it
 			const updatedBot = await db
-				.update(schema.bots)
+				.update(schema.botsTable)
 				.set({ status: "JOINING_CALL" })
-				.where(eq(schema.bots.id, botId))
+				.where(eq(schema.botsTable.id, botId))
 				.returning();
 
 			return updatedBot[0];

@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useId, useState } from "react";
 import type { MeetingType } from "@/types/MeetingType";
 import { Button } from "./button";
 
@@ -93,7 +93,12 @@ function parseZoomMeetingLink(url: string) {
 }
 
 export default function MeetingBotCreator() {
-	const [response, setResponse] = useState<any>({});
+	const checkboxId = useId();
+
+	const [response, setResponse] = useState<Record<string, unknown> | string>(
+		{},
+	);
+
 	const [link, setMeetingLink] = useState("");
 	const [recordingEnabled, setRecordingEnabled] = useState(false);
 	const [waitingForResponse, setWaitingForResponse] = useState(false);
@@ -198,7 +203,9 @@ export default function MeetingBotCreator() {
 			});
 
 			const data = await res.json();
+
 			setResponse(data);
+
 			setWaitingForResponse(false);
 		} catch (error) {
 			setResponse(
@@ -238,9 +245,10 @@ export default function MeetingBotCreator() {
 			? " font-medium text-accent-foreground hover:text-accent-foreground"
 			: " text-muted-foreground hover:text-muted-foreground");
 
-	const shortResponse = response.id
-		? "Bot was created."
-		: "Bot was not created.";
+	const shortResponse =
+		typeof response === "object" && "id" in response
+			? "Bot was created."
+			: "Bot was not created.";
 
 	return (
 		<div style={{ width: "50%", minWidth: "300px", padding: "20px" }}>
@@ -255,12 +263,12 @@ export default function MeetingBotCreator() {
 			<div className="mt-4 flex items-center space-x-2">
 				<input
 					type="checkbox"
-					id="recordingEnabled"
+					id={checkboxId}
 					checked={recordingEnabled}
 					onChange={(e) => setRecordingEnabled(e.target.checked)}
 					className="rounded"
 				/>
-				<label htmlFor="recordingEnabled" className="text-sm font-medium">
+				<label htmlFor={checkboxId} className="text-sm font-medium">
 					Enable Recording
 				</label>
 			</div>

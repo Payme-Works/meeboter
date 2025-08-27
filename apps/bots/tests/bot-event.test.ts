@@ -39,7 +39,7 @@ describe("Meet Event Tests", () => {
 		// Create Bot
 		bot = new MeetsBot(
 			mockMeetConfig,
-			async (_eventType: string, _data: any) => {},
+			async (_eventType: string, _data: unknown) => {},
 		);
 
 		// Mock Bot Recording -- never actually record
@@ -78,11 +78,11 @@ describe("Meet Event Tests", () => {
 			.mockImplementation(async (selector: string) => {
 				console.log(`Mock waitForSelector called with selector: ${selector}`);
 
-				return Promise.resolve({} as any); // Mock the resolved value
+				return Promise.resolve(null); // Mock the resolved value
 			});
 
 		jest.spyOn(bot.page, "click").mockImplementation(async () => {
-			return Promise.resolve({} as any); // Mock the resolved value
+			return Promise.resolve(null); // Mock the resolved value
 		});
 
 		// Set a DOM so bot can detect a person joining
@@ -216,7 +216,7 @@ describe("Zoom Event Tests", () => {
 					// automaticLeave: null, //Not included to see what happens on a bad config
 				},
 			} as BotConfig,
-			async (_eventType: string, _data: any) => {},
+			async (_eventType: string, _data: unknown) => {},
 		);
 
 		// Mock
@@ -272,7 +272,7 @@ describe("Teams Event Tests", () => {
 					// automaticLeave: null, //Not included to see what happens on a bad config
 				},
 			} as BotConfig,
-			async (_eventType: string, _data: any) => {},
+			async (_eventType: string, _data: unknown) => {},
 		);
 
 		// Mock

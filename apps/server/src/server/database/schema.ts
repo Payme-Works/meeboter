@@ -25,7 +25,7 @@ export const createTable = pgTableCreator((name) => `server_${name}`);
 const pgTable = pgTableCreator((name) => name);
 
 /** AUTH TABLES */
-export const users = pgTable("user", {
+export const usersTable = pgTable("user", {
 	id: uuid("id")
 		.primaryKey()
 		.$defaultFn(() => crypto.randomUUID()),
@@ -36,12 +36,12 @@ export const users = pgTable("user", {
 	createdAt: timestamp("createdAt").defaultNow(),
 });
 
-export const accounts = pgTable(
+export const accountsTable = pgTable(
 	"account",
 	{
 		userId: uuid("userId")
 			.notNull()
-			.references(() => users.id, { onDelete: "cascade" }),
+			.references(() => usersTable.id, { onDelete: "cascade" }),
 		type: text("type").$type<AdapterAccount>().notNull(),
 		provider: text("provider").notNull(),
 		providerAccountId: text("providerAccountId").notNull(),
@@ -62,15 +62,15 @@ export const accounts = pgTable(
 	],
 );
 
-export const sessions = pgTable("session", {
+export const sessionsTable = pgTable("session", {
 	sessionToken: text("sessionToken").primaryKey(),
 	userId: uuid("userId")
 		.notNull()
-		.references(() => users.id, { onDelete: "cascade" }),
+		.references(() => usersTable.id, { onDelete: "cascade" }),
 	expires: timestamp("expires", { mode: "date" }).notNull(),
 });
 
-export const verificationTokens = pgTable(
+export const verificationTokensTable = pgTable(
 	"verificationToken",
 	{
 		identifier: text("identifier").notNull(),
@@ -86,13 +86,13 @@ export const verificationTokens = pgTable(
 	],
 );
 
-export const authenticators = pgTable(
+export const authenticatorsTable = pgTable(
 	"authenticator",
 	{
 		credentialID: text("credentialID").notNull().unique(),
 		userId: uuid("userId")
 			.notNull()
-			.references(() => users.id, { onDelete: "cascade" }),
+			.references(() => usersTable.id, { onDelete: "cascade" }),
 		providerAccountId: text("providerAccountId").notNull(),
 		credentialPublicKey: text("credentialPublicKey").notNull(),
 		counter: integer("counter").notNull(),
@@ -108,11 +108,11 @@ export const authenticators = pgTable(
 		},
 	],
 );
-/** API KEYS */
-export const apiKeys = pgTable("api_keys", {
+
+export const apiKeysTable = pgTable("api_keys", {
 	id: serial("id").primaryKey(),
 	userId: uuid("user_id")
-		.references(() => users.id)
+		.references(() => usersTable.id)
 		.notNull(),
 	key: varchar("key", { length: 64 }).notNull().unique(),
 	name: varchar("name", { length: 255 }).notNull(),
@@ -122,21 +122,21 @@ export const apiKeys = pgTable("api_keys", {
 	isRevoked: boolean("is_revoked").default(false),
 });
 
-export const insertApiKeySchema = createInsertSchema(apiKeys).pick({
+export const insertApiKeySchema = createInsertSchema(apiKeysTable).pick({
 	name: true,
 	expiresAt: true,
 });
 
-export const selectApiKeySchema = createSelectSchema(apiKeys);
+export const selectApiKeySchema = createSelectSchema(apiKeysTable);
 
 /** API REQUEST LOGS */
-export const apiRequestLogs = pgTable("api_request_logs", {
+export const apiRequestLogsTable = pgTable("api_request_logs", {
 	id: serial("id").primaryKey(),
 	apiKeyId: integer("api_key_id")
-		.references(() => apiKeys.id)
+		.references(() => apiKeysTable.id)
 		.notNull(),
 	userId: uuid("user_id")
-		.references(() => users.id)
+		.references(() => usersTable.id)
 		.notNull(),
 	method: varchar("method", { length: 10 }).notNull(),
 	path: varchar("path", { length: 255 }).notNull(),
@@ -149,16 +149,19 @@ export const apiRequestLogs = pgTable("api_request_logs", {
 });
 
 export const insertApiRequestLogSchema = createInsertSchema(
-	apiRequestLogs,
+	apiRequestLogsTable,
 ).omit({
 	id: true,
 	createdAt: true,
 });
 
-export const selectApiRequestLogSchema = createSelectSchema(apiRequestLogs, {
-	requestBody: z.any(),
-	responseBody: z.any(),
-});
+export const selectApiRequestLogSchema = createSelectSchema(
+	apiRequestLogsTable,
+	{
+		requestBody: z.any(),
+		responseBody: z.any(),
+	},
+);
 
 export const speakerTimeframeSchema = z.object({
 	speakerName: z.string(),
@@ -235,14 +238,14 @@ export const EVENT_DESCRIPTIONS = {
 export const eventCode = z.enum(allEventCodes).describe("Event type code");
 export type EventCode = z.infer<typeof eventCode>;
 
-export const bots = pgTable("bots", {
+export const botsTable = pgTable("bots", {
 	// bot stuff
 	id: serial("id").primaryKey(),
 	botDisplayName: varchar("bot_display_name", { length: 255 }).notNull(),
 	botImage: varchar("bot_image", { length: 255 }),
 	// refernce user
 	userId: uuid("user_id")
-		.references(() => users.id)
+		.references(() => usersTable.id)
 		.notNull(),
 	// meeting stuff
 	meetingTitle: varchar("meeting_name", { length: 255 }).notNull(),
@@ -289,7 +292,7 @@ export const insertBotSchema = z.object({
 });
 export type InsertBotType = z.infer<typeof insertBotSchema>;
 
-export const selectBotSchema = createSelectSchema(bots, {
+export const selectBotSchema = createSelectSchema(botsTable, {
 	meetingInfo: meetingInfoSchema,
 	automaticLeave: automaticLeaveSchema,
 	speakerTimeframes: z.array(speakerTimeframeSchema),
@@ -349,7 +352,7 @@ export type EventData = z.infer<typeof eventData>;
 export const events = pgTable("events", {
 	id: serial("id").primaryKey(),
 	botId: integer("bot_id")
-		.references(() => bots.id)
+		.references(() => botsTable.id)
 		.notNull(),
 	eventType: varchar("event_type", { length: 255 })
 		.$type<EventCode>()

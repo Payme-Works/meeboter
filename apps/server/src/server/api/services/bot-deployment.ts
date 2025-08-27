@@ -11,7 +11,7 @@ import { eq } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { env } from "@/env";
 import type * as schema from "@/server/database/schema";
-import { type BotConfig, bots } from "@/server/database/schema";
+import { type BotConfig, botsTable } from "@/server/database/schema";
 
 // Get the directory path using import.meta.url
 const __filename = fileURLToPath(import.meta.url);
@@ -66,7 +66,10 @@ export async function deployBot({
 	botId: number;
 	db: PostgresJsDatabase<typeof schema>;
 }) {
-	const botResult = await db.select().from(bots).where(eq(bots.id, botId));
+	const botResult = await db
+		.select()
+		.from(botsTable)
+		.where(eq(botsTable.id, botId));
 
 	if (!botResult[0]) {
 		throw new Error("Bot not found");
@@ -76,7 +79,10 @@ export async function deployBot({
 	const dev = env.NODE_ENV === "development";
 
 	// First, update bot status to deploying
-	await db.update(bots).set({ status: "DEPLOYING" }).where(eq(bots.id, botId));
+	await db
+		.update(botsTable)
+		.set({ status: "DEPLOYING" })
+		.where(eq(botsTable.id, botId));
 
 	try {
 		// Get the absolute path to the bots directory (parent directory)
@@ -157,12 +163,12 @@ export async function deployBot({
 
 		// Update status to joining call
 		const result = await db
-			.update(bots)
+			.update(botsTable)
 			.set({
 				status: "JOINING_CALL",
 				deploymentError: null,
 			})
-			.where(eq(bots.id, botId))
+			.where(eq(botsTable.id, botId))
 			.returning();
 
 		if (!result[0]) {
@@ -173,13 +179,13 @@ export async function deployBot({
 	} catch (error) {
 		// Update status to fatal and store error message
 		await db
-			.update(bots)
+			.update(botsTable)
 			.set({
 				status: "FATAL",
 				deploymentError:
 					error instanceof Error ? error.message : "Unknown error",
 			})
-			.where(eq(bots.id, botId));
+			.where(eq(botsTable.id, botId));
 
 		throw error;
 	}

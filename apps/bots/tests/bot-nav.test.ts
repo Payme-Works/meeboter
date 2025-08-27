@@ -62,7 +62,7 @@ const mockTeamsConfig = {
 	},
 } as BotConfig;
 
-const test_bot_join = async (bot: any) => {
+const test_bot_join = async (bot: MeetsBot | ZoomBot | TeamsBot) => {
 	// See if passes
 	let passes = false;
 
@@ -107,7 +107,7 @@ describe("Bot Join a Meeting Tests", () => {
 			const passes = await test_bot_join(
 				new MeetsBot(
 					mockMeetConfig,
-					async (_eventType: string, _data: any) => {},
+					async (_eventType: string, _data: unknown) => {},
 				),
 			);
 
@@ -128,7 +128,7 @@ describe("Bot Join a Meeting Tests", () => {
 			const passes = await test_bot_join(
 				new ZoomBot(
 					mockZoomConfig,
-					async (_eventType: string, _data: any) => {},
+					async (_eventType: string, _data: unknown) => {},
 				),
 			);
 
@@ -149,7 +149,7 @@ describe("Bot Join a Meeting Tests", () => {
 			const passes = await test_bot_join(
 				new TeamsBot(
 					mockTeamsConfig,
-					async (_eventType: string, _data: any) => {},
+					async (_eventType: string, _data: unknown) => {},
 				),
 			);
 
@@ -183,7 +183,7 @@ describe("Bot fail join due to invalid URL", () => {
 					meetingUrl: "https://meet.google.com/invalid-url",
 				},
 			} as BotConfig,
-			async (_eventType: string, _data: any) => {},
+			async (_eventType: string, _data: unknown) => {},
 		);
 
 		// Mock bot.joinMeeting to simulate the page setup and override waitForSelector
@@ -192,7 +192,7 @@ describe("Bot fail join due to invalid URL", () => {
 				waitForSelector: jest.fn(async () => {
 					throw new Error("Navigation failed: could not find specific element");
 				}),
-			} as any; // Mock the page object
+			} as typeof bot.page; // Mock the page object
 
 			throw new MeetingJoinError("Simulated joinMeeting failure");
 		});
@@ -215,7 +215,7 @@ describe("Bot fail join due to invalid URL", () => {
 					meetingId: "",
 				},
 			} as BotConfig,
-			async (_eventType: string, _data: any) => {},
+			async (_eventType: string, _data: unknown) => {},
 		);
 
 		// Mock bot.joinMeeting to simulate the page setup and override waitForSelector
@@ -224,7 +224,7 @@ describe("Bot fail join due to invalid URL", () => {
 				waitForSelector: jest.fn(async () => {
 					throw new Error("Navigation failed: could not find specific element");
 				}),
-			} as any; // Mock the page object
+			} as typeof bot.page; // Mock the page object
 
 			throw new MeetingJoinError("Simulated joinMeeting failure");
 		});
@@ -248,7 +248,7 @@ describe("Bot fail join due to invalid URL", () => {
 					organizerId: "",
 				},
 			} as BotConfig,
-			async (_eventType: string, _data: any) => {},
+			async (_eventType: string, _data: unknown) => {},
 		);
 
 		// Mock bot.joinMeeting to simulate the page setup and override waitForSelector
@@ -257,7 +257,7 @@ describe("Bot fail join due to invalid URL", () => {
 				waitForSelector: jest.fn(async () => {
 					throw new Error("Navigation failed: could not find specific element");
 				}),
-			} as any; // Mock the page object
+			} as typeof bot.page; // Mock the page object
 
 			throw new MeetingJoinError("Simulated joinMeeting failure");
 		});

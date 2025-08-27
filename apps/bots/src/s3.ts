@@ -23,7 +23,7 @@ export function createS3Client(
 				region,
 				credentials: {
 					accessKeyId: accessKeyId,
-					secretAccessKey: secretKey!,
+					secretAccessKey: secretKey ?? "",
 				},
 			});
 
@@ -94,7 +94,7 @@ export async function uploadRecordingToS3(
 
 	try {
 		const commandObjects = {
-			Bucket: process.env.AWS_BUCKET_NAME!,
+			Bucket: process.env.AWS_BUCKET_NAME ?? "",
 			Key: key,
 			Body: fileContent,
 			ContentType: contentType,

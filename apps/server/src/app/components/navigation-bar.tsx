@@ -59,8 +59,8 @@ export default function NavigationBar() {
 						className="mr-2"
 					/>
 					<NavigationMenuList>
-						{components.map((component, index) => (
-							<NavigationMenuItem key={index}>
+						{components.map((component) => (
+							<NavigationMenuItem key={component.href}>
 								<Link href={component.href} passHref>
 									<NavigationMenuLink
 										className={navigationMenuTriggerStyle()}

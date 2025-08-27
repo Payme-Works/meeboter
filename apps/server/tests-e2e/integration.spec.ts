@@ -4,7 +4,7 @@ test.describe("Integration Tests", () => {
 	test.describe("Google Meet Bot", () => {
 		test.fixme(
 			"should successfully join a Google Meet and log events",
-			async ({ page, browser: _browser }) => {
+			async ({ page, browser }) => {
 				// Go to the main dashboard
 				await page.goto("/");
 				await page.getByRole("link", { name: "API Keys" }).click();

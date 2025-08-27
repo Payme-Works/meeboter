@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const { spawn } = require("node:child_process");
+import { spawn } from "node:child_process";
 
 // Get command line arguments (skip first two - node and script path)
 const args = process.argv.slice(2);

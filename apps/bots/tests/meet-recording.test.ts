@@ -54,7 +54,7 @@ describe("Meet Bot Record Tests", () => {
 		// Create Bot
 		bot = new MeetsBot(
 			mockMeetConfig,
-			async (_eventType: string, _data: any) => {},
+			async (_eventType: string, _data: unknown) => {},
 		);
 
 		recordingPath = null;
