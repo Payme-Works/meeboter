@@ -1,10 +1,10 @@
-import { EventCode, Status } from "./types";
-import { trpc } from "./trpc";
-import { setTimeout } from "timers/promises";
-import dotenv from "dotenv";
+import { EventCode, Status } from './types';
+import { trpc } from './trpc';
+import { setTimeout } from 'timers/promises';
+import dotenv from 'dotenv';
 
 // Load the .env.test file (overrides variables from .env if they overlap)
-dotenv.config({ path: ".env.test" });
+dotenv.config({ path: '.env.test' });
 
 // Start heartbeat loop in the background
 export const startHeartbeat = async (
@@ -18,8 +18,8 @@ export const startHeartbeat = async (
       console.log(`[${new Date().toISOString()}] Heartbeat sent`);
     } catch (error) {
       // Do not log the entire heartbeat error if, in local, the user has set HEARTBEAT_DEBUG to false.
-      if ((process.env?.HEARTBEAT_DEBUG ?? "true") !== "false")
-        console.error("Failed to send heartbeat:", error);
+      if ((process.env?.HEARTBEAT_DEBUG ?? 'true') !== 'false')
+        console.error('Failed to send heartbeat:', error);
     }
     await setTimeout(intervalMs); // Send heartbeat every 5 seconds
   }
@@ -32,7 +32,7 @@ export const reportEvent = async (
   eventData: any = null,
 ) => {
   // do not report events in development
-  if (process.env.NODE_ENV === "development") {
+  if (process.env.NODE_ENV === 'development') {
     return;
   }
 
@@ -72,6 +72,6 @@ export const reportEvent = async (
 
     console.log(`[${new Date().toISOString()}] Event reported: ${eventType}`);
   } catch (error) {
-    console.error("Failed to report event:", error);
+    console.error('Failed to report event:', error);
   }
 };

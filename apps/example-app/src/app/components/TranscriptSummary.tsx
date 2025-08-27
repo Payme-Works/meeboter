@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { Button } from "./button";
+import { useState } from 'react';
+import { Button } from './button';
 
 interface TranscriptSummaryProps {
   recordingUrl: string | null;
@@ -26,31 +26,31 @@ export default function TranscriptSummary({
       setLoading(true);
       setError(null);
 
-      const response = await fetch("/api/transcribe", {
-        method: "POST",
+      const response = await fetch('/api/transcribe', {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({ recordingUrl }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to transcribe recording");
+        throw new Error(errorData.error || 'Failed to transcribe recording');
       }
 
       const result = await response.json();
       setData(result);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
-      console.error("Transcription error:", err);
+      setError(err instanceof Error ? err.message : 'An error occurred');
+      console.error('Transcription error:', err);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="border rounded-lg p-4 bg-card">
+    <div className="bg-card rounded-lg border p-4">
       {!recordingUrl ? (
         <p className="text-muted-foreground">No recording available yet</p>
       ) : !data && !loading ? (
@@ -61,13 +61,13 @@ export default function TranscriptSummary({
         </div>
       ) : loading ? (
         <div className="flex flex-col items-center justify-center p-6">
-          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-primary"></div>
-          <p className="mt-4 text-muted-foreground">
+          <div className="border-primary h-8 w-8 animate-spin rounded-full border-t-2"></div>
+          <p className="text-muted-foreground mt-4">
             Processing recording... This may take a few minutes.
           </p>
         </div>
       ) : error ? (
-        <div className="text-destructive p-4 rounded-md border border-destructive">
+        <div className="text-destructive border-destructive rounded-md border p-4">
           <p>Error: {error}</p>
           <Button
             variant="outline"
@@ -80,15 +80,15 @@ export default function TranscriptSummary({
       ) : data ? (
         <div className="space-y-4">
           <div>
-            <h3 className="text-lg font-semibold mb-2">Summary</h3>
-            <div className="bg-secondary/50 p-3 rounded-md whitespace-pre-wrap">
+            <h3 className="mb-2 text-lg font-semibold">Summary</h3>
+            <div className="bg-secondary/50 whitespace-pre-wrap rounded-md p-3">
               {data.summary}
             </div>
           </div>
 
           <div>
-            <h3 className="text-lg font-semibold mb-2">Transcript</h3>
-            <div className="bg-secondary/50 p-3 rounded-md max-h-60 overflow-y-auto whitespace-pre-wrap">
+            <h3 className="mb-2 text-lg font-semibold">Transcript</h3>
+            <div className="bg-secondary/50 max-h-60 overflow-y-auto whitespace-pre-wrap rounded-md p-3">
               {data.transcription}
             </div>
           </div>

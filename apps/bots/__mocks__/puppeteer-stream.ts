@@ -1,8 +1,8 @@
-import { jest } from "@jest/globals";
+import { jest } from '@jest/globals';
 
 // Mock Puppeteer-stream (called in ../zoom/src/bot.ts)
 const launch = jest.fn(() => {
-  console.log("Mocking Puppeteer Launch");
+  console.log('Mocking Puppeteer Launch');
 
   return {
     defaultBrowserContext: jest.fn(() => ({

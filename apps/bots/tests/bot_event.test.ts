@@ -1,8 +1,8 @@
-import { MeetsBot } from "../meet/src/bot";
-import * as dotenv from "dotenv";
-import { BotConfig } from "../src/types";
-import { TeamsBot } from "../teams/src/bot";
-import { ZoomBot } from "../zoom/src/bot";
+import { MeetsBot } from '../meet/src/bot';
+import * as dotenv from 'dotenv';
+import { BotConfig } from '../src/types';
+import { TeamsBot } from '../teams/src/bot';
+import { ZoomBot } from '../zoom/src/bot';
 import {
   beforeAll,
   beforeEach,
@@ -12,8 +12,8 @@ import {
   describe,
   expect,
   it,
-} from "@jest/globals";
-import exp from "constants";
+} from '@jest/globals';
+import exp from 'constants';
 
 //
 // Bot Exiit Tests as described in Section 2.1.2.5
@@ -21,9 +21,9 @@ import exp from "constants";
 //
 
 // Create Mock Configs
-dotenv.config({ path: ".env.test" });
+dotenv.config({ path: '.env.test' });
 
-describe("Meet Event Tests", () => {
+describe('Meet Event Tests', () => {
   let bot: MeetsBot;
   let addParticipant: () => Promise<void>;
   let removeParticipant: () => Promise<void>;
@@ -33,7 +33,7 @@ describe("Meet Event Tests", () => {
     // Create Mock Configs
     const mockMeetConfig = {
       id: 0,
-      meetingInfo: JSON.parse(process.env.MEET_TEST_MEETING_INFO || "{}"),
+      meetingInfo: JSON.parse(process.env.MEET_TEST_MEETING_INFO || '{}'),
       automaticLeave: {
         // automaticLeave: null, //Not included to see what happens on a bad config
       },
@@ -46,24 +46,24 @@ describe("Meet Event Tests", () => {
     );
 
     // Mock Bot Recording -- never actually record
-    jest.spyOn(bot, "startRecording").mockImplementation(async () => {
-      console.log("Mock startRecording called");
+    jest.spyOn(bot, 'startRecording').mockImplementation(async () => {
+      console.log('Mock startRecording called');
     });
-    jest.spyOn(bot, "stopRecording").mockImplementation(async () => {
-      console.log("Mock stopRecording called");
+    jest.spyOn(bot, 'stopRecording').mockImplementation(async () => {
+      console.log('Mock stopRecording called');
       return 0;
     });
-    jest.spyOn(bot, "leaveMeeting").mockImplementation(async () => {
-      console.log("Mock leaveMeeting called");
+    jest.spyOn(bot, 'leaveMeeting').mockImplementation(async () => {
+      console.log('Mock leaveMeeting called');
       return 0; // don't actually leave any meeting
     });
 
     // Keep track
-    jest.spyOn(bot, "endLife");
+    jest.spyOn(bot, 'endLife');
 
     // Kicked right away.
-    jest.spyOn(bot, "checkKicked").mockImplementation(async () => {
-      console.log("Mock checkKicked called");
+    jest.spyOn(bot, 'checkKicked').mockImplementation(async () => {
+      console.log('Mock checkKicked called');
       return true;
     });
 
@@ -72,12 +72,12 @@ describe("Meet Event Tests", () => {
 
     // Replace implementation of page functions (we don't care about navigation)
     jest
-      .spyOn(bot.page, "waitForSelector")
+      .spyOn(bot.page, 'waitForSelector')
       .mockImplementation(async (selector: string) => {
         console.log(`Mock waitForSelector called with selector: ${selector}`);
         return Promise.resolve({} as any); // Mock the resolved value
       });
-    jest.spyOn(bot.page, "click").mockImplementation(async () => {
+    jest.spyOn(bot.page, 'click').mockImplementation(async () => {
       return Promise.resolve({} as any); // Mock the resolved value
     });
 
@@ -93,13 +93,13 @@ describe("Meet Event Tests", () => {
         const peopleList = document.querySelector(
           '[aria-label="Participants"]',
         );
-        const participant = document.createElement("div");
+        const participant = document.createElement('div');
         participant.setAttribute(
-          "data-participant-id",
+          'data-participant-id',
           `participant-${peopleList?.childNodes.length ?? 0}`,
         );
         participant.setAttribute(
-          "aria-label",
+          'aria-label',
           `name-${peopleList?.childNodes.length ?? 0}`,
         );
         peopleList?.appendChild(participant);
@@ -134,7 +134,7 @@ describe("Meet Event Tests", () => {
   /**
    * Check if a bot can detect a person joining
    */
-  it("Detect a Person Joining", async () => {
+  it('Detect a Person Joining', async () => {
     // Setup Functions. Bot will get kicked rightaway.
     await bot.meetingActions();
 
@@ -155,7 +155,7 @@ describe("Meet Event Tests", () => {
   /**
    * Check if a bot can detect a person joining
    */
-  it("Detect a Person Leaving", async () => {
+  it('Detect a Person Leaving', async () => {
     // Setup Functions. Bot will get kicked rightaway.
     await bot.meetingActions();
 
@@ -174,11 +174,11 @@ describe("Meet Event Tests", () => {
     expect(bot.participants.length).toBe(1);
   }, 60000);
 
-  it.skip("Detect a Participant Media Share Start", () => {
+  it.skip('Detect a Participant Media Share Start', () => {
     // No functionality yet.
   });
 
-  it.skip("Detect a Participant Media Share Stop", () => {
+  it.skip('Detect a Participant Media Share Stop', () => {
     // No functionality yet.
   });
 });
@@ -188,7 +188,7 @@ describe("Meet Event Tests", () => {
 // ===============================================================================================================================================================
 // ===============================================================================================================================================================
 
-describe("Zoom Event Tests", () => {
+describe('Zoom Event Tests', () => {
   let bot: ZoomBot;
   let addParticipant: () => Promise<void>;
   let removeParticipant: () => Promise<void>;
@@ -199,7 +199,7 @@ describe("Zoom Event Tests", () => {
     bot = new ZoomBot(
       {
         id: 0,
-        meetingInfo: JSON.parse(process.env.ZOOM_TEST_MEETING_INFO || "{}"),
+        meetingInfo: JSON.parse(process.env.ZOOM_TEST_MEETING_INFO || '{}'),
         automaticLeave: {
           // automaticLeave: null, //Not included to see what happens on a bad config
         },
@@ -222,19 +222,19 @@ describe("Zoom Event Tests", () => {
     jest.clearAllMocks();
   });
 
-  it.skip("Detect a Person Joining", async () => {
+  it.skip('Detect a Person Joining', async () => {
     // Empty, no functionality yet.
   });
 
-  it.skip("Detect a Person Leaving", async () => {
+  it.skip('Detect a Person Leaving', async () => {
     // Empty, no functionality yet.
   });
 
-  it.skip("Detect a Participant Media Share Start", () => {
+  it.skip('Detect a Participant Media Share Start', () => {
     // No functionality yet.
   });
 
-  it.skip("Detect a Participant Media Share Stop", () => {
+  it.skip('Detect a Participant Media Share Stop', () => {
     // No functionality yet.
   });
 });
@@ -244,7 +244,7 @@ describe("Zoom Event Tests", () => {
 // ===============================================================================================================================================================
 // ===============================================================================================================================================================
 
-describe("Teams Event Tests", () => {
+describe('Teams Event Tests', () => {
   let bot: TeamsBot;
   let addParticipant: () => Promise<void>;
   let removeParticipant: () => Promise<void>;
@@ -255,7 +255,7 @@ describe("Teams Event Tests", () => {
     bot = new TeamsBot(
       {
         id: 0,
-        meetingInfo: JSON.parse(process.env.TEAMS_TEST_MEETING_INFO || "{}"),
+        meetingInfo: JSON.parse(process.env.TEAMS_TEST_MEETING_INFO || '{}'),
         automaticLeave: {
           // automaticLeave: null, //Not included to see what happens on a bad config
         },
@@ -278,19 +278,19 @@ describe("Teams Event Tests", () => {
     jest.clearAllMocks();
   });
 
-  it.skip("Detect a Person Joining", async () => {
+  it.skip('Detect a Person Joining', async () => {
     // Empty, no functionality yet.
   });
 
-  it.skip("Detect a Person Leaving", async () => {
+  it.skip('Detect a Person Leaving', async () => {
     // Empty, no functionality yet.
   });
 
-  it.skip("Detect a Participant Media Share Start", () => {
+  it.skip('Detect a Participant Media Share Start', () => {
     // No functionality yet.
   });
 
-  it.skip("Detect a Participant Media Share Stop", () => {
+  it.skip('Detect a Participant Media Share Stop', () => {
     // No functionality yet.
   });
 });

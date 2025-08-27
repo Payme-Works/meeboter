@@ -79,7 +79,7 @@ The orchestrator can be configured through the `OrchestratorConfig` interface:
 
 ```typescript
 const config: OrchestratorConfig = {
-  meetingUrl: "https://meet.google.com/eqp-efzz-vhb",
+  meetingUrl: 'https://meet.google.com/eqp-efzz-vhb',
   botCount: 3, // Number of bots to deploy
   staggerDelay: 8000, // 8 seconds between bot joins
   headless: false, // Set to true for production
@@ -88,7 +88,7 @@ const config: OrchestratorConfig = {
     waitingRoomTimeout: 60000, // 60 seconds
   },
   // Optional: provide custom bot names
-  customBotNames: ["John Smith", "Jane Doe", "Mike Johnson"],
+  customBotNames: ['John Smith', 'Jane Doe', 'Mike Johnson'],
 };
 ```
 

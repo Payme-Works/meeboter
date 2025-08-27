@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 interface AppSectionProps {
   header: string;
@@ -16,7 +16,7 @@ export default function AppSection({
       <h2 className="text-2xl font-bold tracking-tight">{header}</h2>
       <p className="text-muted-foreground">{description}</p>
 
-      <div className={"p-4 pt-0"}>{children}</div>
+      <div className={'p-4 pt-0'}>{children}</div>
     </section>
   );
 }

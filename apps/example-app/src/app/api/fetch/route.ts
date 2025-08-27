@@ -1,9 +1,9 @@
 // app/api/hello/route.ts
-import { NextResponse } from "next/server";
+import { NextResponse } from 'next/server';
 
 // Handle GET request
 export async function GET() {
-  return NextResponse.json({ message: "Hello from the backend!" });
+  return NextResponse.json({ message: 'Hello from the backend!' });
 }
 
 // Handle POST request

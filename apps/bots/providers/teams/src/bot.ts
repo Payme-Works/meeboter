@@ -1,15 +1,15 @@
-import fs from "fs";
-import puppeteer, { Browser, Page } from "puppeteer";
-import { launch, getStream, wss } from "puppeteer-stream";
+import fs from 'fs';
+import puppeteer, { Browser, Page } from 'puppeteer';
+import { launch, getStream, wss } from 'puppeteer-stream';
 import {
   BotConfig,
   EventCode,
   SpeakerTimeframe,
   WaitingRoomTimeoutError,
-} from "../../../src/types";
-import { Bot } from "../../../src/bot";
-import path from "path";
-import { Transform } from "stream";
+} from '../../../src/types';
+import { Bot } from '../../../src/bot';
+import path from 'path';
+import { Transform } from 'stream';
 
 const leaveButtonSelector =
   'button[aria-label="Leave (Ctrl+Shift+H)"], button[aria-label="Leave (⌘+Shift+H)"]';
@@ -30,8 +30,8 @@ export class TeamsBot extends Bot {
     onEvent: (eventType: EventCode, data?: any) => Promise<void>,
   ) {
     super(botSettings, onEvent);
-    this.recordingPath = "./recording.webm";
-    this.contentType = "video/webm";
+    this.recordingPath = './recording.webm';
+    this.contentType = 'video/webm';
     this.url = `https://teams.microsoft.com/v2/?meetingjoin=true#/l/meetup-join/19:meeting_${this.settings.meetingInfo.meetingId}@thread.v2/0?context=%7b%22Tid%22%3a%22${this.settings.meetingInfo.tenantId}%22%2c%22Oid%22%3a%22${this.settings.meetingInfo.organizerId}%22%7d&anon=true`;
     this.participants = [];
     this.participantsIntervalId = setInterval(() => {}, 0);
@@ -50,14 +50,14 @@ export class TeamsBot extends Bot {
     return this.contentType;
   }
 
-  async screenshot(fName: string = "screenshot.png") {
+  async screenshot(fName: string = 'screenshot.png') {
     try {
-      if (!this.page) throw new Error("Page not initialized");
-      if (!this.browser) throw new Error("Browser not initialized");
+      if (!this.page) throw new Error('Page not initialized');
+      if (!this.browser) throw new Error('Browser not initialized');
 
       const screenshot = await this.page.screenshot({
-        type: "png",
-        encoding: "binary",
+        type: 'png',
+        encoding: 'binary',
       });
 
       // Save the screenshot to a file
@@ -65,7 +65,7 @@ export class TeamsBot extends Bot {
       fs.writeFileSync(screenshotPath, screenshot);
       console.log(`Screenshot saved to ${screenshotPath}`);
     } catch (e) {
-      console.log("Error taking screenshot:", e);
+      console.log('Error taking screenshot:', e);
     }
   }
 
@@ -73,24 +73,24 @@ export class TeamsBot extends Bot {
     // Launch the browser and open a new blank page
     this.browser = (await launch({
       executablePath: puppeteer.executablePath(),
-      headless: "new",
+      headless: 'new',
       // args: ["--use-fake-ui-for-media-stream"],
-      args: ["--no-sandbox"],
+      args: ['--no-sandbox'],
       protocolTimeout: 0,
     })) as unknown as Browser;
 
     // Parse the URL
-    console.log("Parsing URL:", this.url);
+    console.log('Parsing URL:', this.url);
     const urlObj = new URL(this.url);
 
     // Override camera and microphone permissions
     const context = this.browser.defaultBrowserContext();
     context.clearPermissionOverrides();
-    context.overridePermissions(urlObj.origin, ["camera", "microphone"]);
+    context.overridePermissions(urlObj.origin, ['camera', 'microphone']);
 
     // Open a new page
     this.page = await this.browser.newPage();
-    console.log("Opened Page");
+    console.log('Opened Page');
   }
 
   async joinMeeting() {
@@ -98,28 +98,28 @@ export class TeamsBot extends Bot {
 
     // Navigate the page to a URL
     const urlObj = new URL(this.url);
-    console.log("Navigating to URL:", urlObj.href);
+    console.log('Navigating to URL:', urlObj.href);
     await this.page.goto(urlObj.href);
 
     // Fill in the display name
     await this.page
       .locator(`[data-tid="prejoin-display-name-input"]`)
-      .fill(this.settings.botDisplayName ?? "Live Boost");
-    console.log("Entered Display Name");
+      .fill(this.settings.botDisplayName ?? 'Live Boost');
+    console.log('Entered Display Name');
 
     // Mute microphone before joining
     await this.page.locator(`[data-tid="toggle-mute"]`).click();
-    console.log("Muted Microphone");
+    console.log('Muted Microphone');
 
     // Join the meeting
     await this.page.locator(`[data-tid="prejoin-join-button"]`).click();
-    console.log("Found & Clicked the Join Button");
+    console.log('Found & Clicked the Join Button');
 
     // Wait until join button is disabled or disappears
     await this.page.waitForFunction(
-      (selector) => {
+      selector => {
         const joinButton = document.querySelector(selector);
-        return !joinButton || joinButton.hasAttribute("disabled");
+        return !joinButton || joinButton.hasAttribute('disabled');
       },
       {},
       '[data-tid="prejoin-join-button"]',
@@ -129,7 +129,7 @@ export class TeamsBot extends Bot {
     const joinButton = await this.page.$('[data-tid="prejoin-join-button"]');
     const isWaitingRoom =
       joinButton &&
-      (await joinButton.evaluate((button) => button.hasAttribute("disabled")));
+      (await joinButton.evaluate(button => button.hasAttribute('disabled')));
 
     let timeout = 30000; // if not in the waiting room, wait 30 seconds to join the meeting
     if (isWaitingRoom) {
@@ -153,7 +153,7 @@ export class TeamsBot extends Bot {
     console.log(
       "Waiting for the ability to leave the meeting (when I'm in the meeting...)",
       timeout,
-      "ms",
+      'ms',
     );
     try {
       await this.page.waitForSelector(leaveButtonSelector, {
@@ -165,7 +165,7 @@ export class TeamsBot extends Bot {
     }
 
     // Log Done
-    console.log("Successfully joined meeting");
+    console.log('Successfully joined meeting');
   }
 
   // Ensure we're not kicked from the meeting
@@ -175,7 +175,7 @@ export class TeamsBot extends Bot {
   }
 
   async startRecording() {
-    if (!this.page) throw new Error("Page not initialized");
+    if (!this.page) throw new Error('Page not initialized');
 
     // Get the stream
     this.stream = await getStream(
@@ -188,13 +188,13 @@ export class TeamsBot extends Bot {
     this.stream.pipe(this.file);
 
     // Pipe the stream to a file
-    console.log("Recording...");
+    console.log('Recording...');
   }
 
   async stopRecording() {
     // Stop recording
     if (this.stream) {
-      console.log("Stopping recording...");
+      console.log('Stopping recording...');
       this.stream.destroy();
     }
   }
@@ -207,20 +207,20 @@ export class TeamsBot extends Bot {
     this.file = fs.createWriteStream(this.getRecordingPath());
 
     // Click the people button
-    console.log("Opening the participants list");
+    console.log('Opening the participants list');
     await this.page.locator('[aria-label="People"]').click();
 
     // Wait for the attendees tree to appear
-    console.log("Waiting for the attendees tree to appear");
+    console.log('Waiting for the attendees tree to appear');
     const tree = await this.page.waitForSelector('[role="tree"]');
-    console.log("Attendees tree found");
+    console.log('Attendees tree found');
 
     const updateParticipants = async () => {
       try {
         const currentParticipants = await this.page.evaluate(() => {
           const participantsList = document.querySelector('[role="tree"]');
           if (!participantsList) {
-            console.log("No participants list found");
+            console.log('No participants list found');
             return [];
           }
 
@@ -231,20 +231,20 @@ export class TeamsBot extends Bot {
           );
 
           return currentElements
-            .map((el) => {
-              const nameSpan = el.querySelector("span[title]");
+            .map(el => {
+              const nameSpan = el.querySelector('span[title]');
               return (
-                nameSpan?.getAttribute("title") ||
+                nameSpan?.getAttribute('title') ||
                 nameSpan?.textContent?.trim() ||
-                ""
+                ''
               );
             })
-            .filter((name) => name);
+            .filter(name => name);
         });
 
         this.participants = currentParticipants;
       } catch (error) {
-        console.log("Error getting participants:", error);
+        console.log('Error getting participants:', error);
       }
     };
 
@@ -259,19 +259,19 @@ export class TeamsBot extends Bot {
 
     // Start Recording only if enabled
     if (this.settings.recordingEnabled) {
-      console.log("Starting Recording");
+      console.log('Starting Recording');
       await this.startRecording();
     } else {
-      console.log("Recording is disabled for this bot");
+      console.log('Recording is disabled for this bot');
     }
 
     // Then wait for meeting to end by watching for the "Leave" button to disappear
     await this.page.waitForFunction(
-      (selector) => !document.querySelector(selector),
+      selector => !document.querySelector(selector),
       { timeout: 0 }, // wait indefinitely
       leaveButtonSelector,
     );
-    console.log("Meeting ended");
+    console.log('Meeting ended');
 
     // Clear the participants checking interval
     clearInterval(this.participantsIntervalId);

@@ -1,1 +1,1 @@
-export type MeetingType = "meet" | "zoom" | "teams";
+export type MeetingType = 'meet' | 'zoom' | 'teams';

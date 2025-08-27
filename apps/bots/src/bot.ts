@@ -1,5 +1,5 @@
-import { reportEvent } from "./monitoring";
-import { type BotConfig, type EventCode, type SpeakerTimeframe } from "./types";
+import { reportEvent } from './monitoring';
+import { type BotConfig, type EventCode, type SpeakerTimeframe } from './types';
 
 export interface BotInterface {
   readonly settings: BotConfig;
@@ -31,7 +31,7 @@ export class Bot implements BotInterface {
    * Open a browser and navigatges, joins the meeting.
    */
   async joinMeeting(): Promise<any> {
-    throw new Error("Method not implemented.");
+    throw new Error('Method not implemented.');
   }
 
   /**
@@ -39,7 +39,7 @@ export class Bot implements BotInterface {
    * @param fName - The name of the file to save the screenshot as.
    */
   async screenshot(fName?: string): Promise<void> {
-    throw new Error("Method not implemented.");
+    throw new Error('Method not implemented.');
   }
 
   /**
@@ -52,7 +52,7 @@ export class Bot implements BotInterface {
    * @returns {Promise<void>}
    */
   async endLife(): Promise<any> {
-    throw new Error("Method not implemented.");
+    throw new Error('Method not implemented.');
   }
 
   /**
@@ -60,7 +60,7 @@ export class Bot implements BotInterface {
    * and waits to leave -- then leaves.
    */
   async run(): Promise<void> {
-    throw new Error("Method not implemented.");
+    throw new Error('Method not implemented.');
   }
 
   /**
@@ -68,7 +68,7 @@ export class Bot implements BotInterface {
    * @returns {string} recordingPath
    */
   getRecordingPath(): string {
-    throw new Error("Method not implemented.");
+    throw new Error('Method not implemented.');
   }
 
   /**
@@ -76,11 +76,11 @@ export class Bot implements BotInterface {
    * @returns {string} contentType
    */
   getContentType(): string {
-    throw new Error("Method not implemented.");
+    throw new Error('Method not implemented.');
   }
 
   getSpeakerTimeframes(): SpeakerTimeframe[] {
-    throw new Error("Method not implemented.");
+    throw new Error('Method not implemented.');
   }
 
   /**
@@ -88,7 +88,7 @@ export class Bot implements BotInterface {
    * @returns {Promise<boolean>} - True if the bot has been kicked, false otherwise.
    */
   async checkKicked(): Promise<boolean> {
-    throw new Error("Method not implemented.");
+    throw new Error('Method not implemented.');
   }
 }
 
@@ -106,7 +106,7 @@ const validPlatformForImage = (
   imageName: string,
 ): boolean => {
   if (platform === imageName) return true;
-  if (platform === "google" && imageName === "meet") return true; //ignore any mismatch between platform and bot name
+  if (platform === 'google' && imageName === 'meet') return true; //ignore any mismatch between platform and bot name
 
   return false;
 };
@@ -122,7 +122,7 @@ export const createBot = async (botData: BotConfig): Promise<Bot> => {
   // If local development (implies DOCKER_MEETING_PLATFORM is not set), we don't need this check.
   if (
     dockerImageName &&
-    !validPlatformForImage(platform ?? "", dockerImageName)
+    !validPlatformForImage(platform ?? '', dockerImageName)
   ) {
     throw new Error(
       `Docker image name ${dockerImageName} does not match platform ${platform}`,
@@ -130,20 +130,20 @@ export const createBot = async (botData: BotConfig): Promise<Bot> => {
   }
 
   switch (botData.meetingInfo.platform) {
-    case "google":
-      const { MeetsBot } = await import("../providers/meet/src/bot");
+    case 'google':
+      const { MeetsBot } = await import('../providers/meet/src/bot');
       return new MeetsBot(botData, async (eventType: EventCode, data: any) => {
         await reportEvent(botId, eventType, data);
       });
 
-    case "teams":
-      const { TeamsBot } = await import("../providers/teams/src/bot");
+    case 'teams':
+      const { TeamsBot } = await import('../providers/teams/src/bot');
       return new TeamsBot(botData, async (eventType: EventCode, data: any) => {
         await reportEvent(botId, eventType, data);
       });
 
-    case "zoom":
-      const { ZoomBot } = await import("../providers/zoom/src/bot");
+    case 'zoom':
+      const { ZoomBot } = await import('../providers/zoom/src/bot');
       return new ZoomBot(botData, async (eventType: EventCode, data: any) => {
         await reportEvent(botId, eventType, data);
       });

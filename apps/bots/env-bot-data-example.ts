@@ -1,8 +1,8 @@
-import { BotConfig } from "./src/types";
+import { BotConfig } from './src/types';
 // @ts-ignore
-import fs from "fs";
+import fs from 'fs';
 // @ts-ignore
-import path from "path";
+import path from 'path';
 
 /* THIS SCRIPT IS USED TO CREATE THE BOT_DATA ENV VARIABLE FOR THE TEAMS BOT WHEN TESTING LOCALLY */
 
@@ -13,16 +13,16 @@ import path from "path";
 // 4. Run the script via `pnpm tsx env-bot-data.ts` (this will modify your .env file)
 
 // Paste in your meeting URL here
-const url = "<MEETING_URL>";
+const url = '<MEETING_URL>';
 
 const botData: BotConfig = {
   id: 1,
-  userId: "<USER_ID>",
+  userId: '<USER_ID>',
   meetingInfo: {}, // empty, because we fill it in as expected by parsing the URL (this makes it easy for teams & zoom, which request a specific format)
-  meetingTitle: "Test Meeting",
+  meetingTitle: 'Test Meeting',
   startTime: new Date(),
   endTime: new Date(),
-  botDisplayName: "John Doe",
+  botDisplayName: 'John Doe',
   botImage: undefined,
   heartbeatInterval: 10000,
   automaticLeave: {
@@ -31,7 +31,7 @@ const botData: BotConfig = {
     everyoneLeftTimeout: 3600000,
     inactivityTimeout: 3600000,
   },
-  callbackUrl: "<CALLBACK_URL>",
+  callbackUrl: '<CALLBACK_URL>',
   recordingEnabled: false,
 };
 
@@ -58,24 +58,24 @@ const checkZoomBotLink = (link: string) => {
 function parseTeamsMeetingLink(url: string) {
   try {
     const urlObj = new URL(url);
-    const pathSegments = urlObj.pathname.split("/");
+    const pathSegments = urlObj.pathname.split('/');
 
     // Extract meetingId (after "19:meeting_")
     let meetingId: string | null = null;
     const meetingSegment = pathSegments.find(
-      (segment) =>
-        segment.startsWith("19%3ameeting_") ||
-        segment.startsWith("19:meeting_"),
+      segment =>
+        segment.startsWith('19%3ameeting_') ||
+        segment.startsWith('19:meeting_'),
     );
     if (meetingSegment) {
-      const s = meetingSegment.split("meeting_")[1];
+      const s = meetingSegment.split('meeting_')[1];
       if (!s) return null;
-      meetingId = meetingSegment ? decodeURIComponent(s).split("@")[0] : null;
+      meetingId = meetingSegment ? decodeURIComponent(s).split('@')[0] : null;
     }
 
     // Extract tenantId and organizationId from context parameter
     const params = new URLSearchParams(urlObj.search);
-    const context = params.get("context");
+    const context = params.get('context');
 
     let tenantId = null;
     let organizationId = null;
@@ -85,7 +85,7 @@ function parseTeamsMeetingLink(url: string) {
       organizationId = contextObj.Oid || null;
     }
 
-    console.log("Teams: found: ", meetingId, tenantId, organizationId);
+    console.log('Teams: found: ', meetingId, tenantId, organizationId);
 
     if (meetingId === null || tenantId === null || organizationId === null) {
       return null;
@@ -111,23 +111,23 @@ const linkParsers: Record<MeetingType, (link: string) => boolean> = {
 function parseZoomMeetingLink(url: string) {
   try {
     const urlObj = new URL(url);
-    const pathSegments = urlObj.pathname.split("/");
+    const pathSegments = urlObj.pathname.split('/');
     const meetingId = pathSegments[pathSegments.length - 1];
-    const meetingPassword = urlObj.searchParams.get("pwd") || "";
+    const meetingPassword = urlObj.searchParams.get('pwd') || '';
 
     return {
       meetingId,
       meetingPassword,
     };
   } catch (error) {
-    console.error("Error parsing Zoom meeting link:", error);
+    console.error('Error parsing Zoom meeting link:', error);
     return null;
   }
 }
 
-type MeetingType = "meet" | "zoom" | "teams";
+type MeetingType = 'meet' | 'zoom' | 'teams';
 const defineMeetingInfo = (link: string) => {
-  console.log("Splitting Meeting Link");
+  console.log('Splitting Meeting Link');
 
   // Check Valid Meeting Link
   const parseMeetingLink = () => {
@@ -145,32 +145,32 @@ const defineMeetingInfo = (link: string) => {
   };
 
   const type = parseMeetingLink();
-  console.log("Detected type", type);
+  console.log('Detected type', type);
 
-  if (type === "meet") {
+  if (type === 'meet') {
     // Ensure we get a meeting URL
-    if (!link.startsWith("https://meet.google.com/"))
-      link = "https://meet.google.com/" + link;
-    if (!link.startsWith("https://")) link = "https://" + link;
+    if (!link.startsWith('https://meet.google.com/'))
+      link = 'https://meet.google.com/' + link;
+    if (!link.startsWith('https://')) link = 'https://' + link;
 
     return {
       meetingUrl: link,
-      platform: "google",
+      platform: 'google',
     };
   }
   // Zoom
-  if (type === "zoom") {
+  if (type === 'zoom') {
     const parsed = parseZoomMeetingLink(link);
     if (!parsed) return undefined;
 
     return {
-      platform: "zoom",
+      platform: 'zoom',
       meetingId: parsed.meetingId,
       meetingPassword: parsed.meetingPassword,
     };
   }
   // Teams
-  if (type === "teams") {
+  if (type === 'teams') {
     // Fetch
     const parsed = parseTeamsMeetingLink(link);
     if (!parsed) return undefined;
@@ -178,7 +178,7 @@ const defineMeetingInfo = (link: string) => {
     const { meetingId, organizationId, tenantId } = parsed;
 
     return {
-      platform: "teams",
+      platform: 'teams',
       meetingId,
       organizerId: organizationId,
       tenantId,
@@ -197,15 +197,15 @@ const defineMeetingInfo = (link: string) => {
 // Append the botData object to the .env file as a BOT_DATA json variable
 
 //@ts-ignore
-const envFilePath = path.join(__dirname, ".env");
-let envFileContent = fs.readFileSync(envFilePath, "utf8");
+const envFilePath = path.join(__dirname, '.env');
+let envFileContent = fs.readFileSync(envFilePath, 'utf8');
 
 // Delete the existing BOT_DATA line
-envFileContent = envFileContent.replace(/BOT_DATA=.*\n?/, "");
+envFileContent = envFileContent.replace(/BOT_DATA=.*\n?/, '');
 
 const meetingInfo = defineMeetingInfo(decodeURI(url));
 const updatedEnvFileContent = `${envFileContent}\nBOT_DATA=${JSON.stringify({ ...botData, meetingInfo })}`;
 
 if (meetingInfo) fs.writeFileSync(envFilePath, updatedEnvFileContent);
 
-console.log("BOT_DATA variable updated in .env file");
+console.log('BOT_DATA variable updated in .env file');

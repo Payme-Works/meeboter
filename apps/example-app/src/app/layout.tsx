@@ -1,12 +1,12 @@
-import type { Metadata } from "next";
-import { GeistSans } from "geist/font/sans";
-import "./globals.css";
+import type { Metadata } from 'next';
+import { GeistSans } from 'geist/font/sans';
+import './globals.css';
 
 export const metadata: Metadata = {
-  title: "Live Boost Example Application",
+  title: 'Live Boost Example Application',
   description:
-    "A user-friendly interface for scheduling meetings effortlessly.",
-  icons: [{ rel: "icon", url: "/logo.svg" }],
+    'A user-friendly interface for scheduling meetings effortlessly.',
+  icons: [{ rel: 'icon', url: '/logo.svg' }],
 };
 
 export default function RootLayout({

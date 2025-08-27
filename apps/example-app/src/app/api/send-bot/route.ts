@@ -1,5 +1,5 @@
 // app/api/bots/route.ts
-import { NextResponse } from "next/server";
+import { NextResponse } from 'next/server';
 
 export async function POST(req: Request) {
   try {
@@ -22,14 +22,14 @@ export async function POST(req: Request) {
     // Send request to Live Boost API to start and send a bot to a meeting
     //
     const eurl = `${endpoint}/api/bots`;
-    console.log("Sending Request to", eurl, "with body", body);
+    console.log('Sending Request to', eurl, 'with body', body);
 
     //Send
     const response = await fetch(eurl, {
-      method: "POST",
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
-        "x-api-key": key,
+        'Content-Type': 'application/json',
+        'x-api-key': key,
       },
       body: JSON.stringify(body),
     });
@@ -39,14 +39,14 @@ export async function POST(req: Request) {
     //
 
     const data = await response.json();
-    console.log("RECEIVED", data);
+    console.log('RECEIVED', data);
     return NextResponse.json(data, { status: response.status });
   } catch (error) {
-    console.error("Error:", error);
+    console.error('Error:', error);
     return NextResponse.json(
       {
         error:
-          error instanceof Error ? error.message : "An unknown error occurred",
+          error instanceof Error ? error.message : 'An unknown error occurred',
       },
       { status: 500 },
     );

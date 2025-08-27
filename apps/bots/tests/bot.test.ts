@@ -1,8 +1,8 @@
-import { createBot, Bot } from "../src/bot";
-import { MeetsBot } from "../meet/src/bot";
-import { BotConfig } from "../src/types";
-import { ZoomBot } from "../zoom/src/bot";
-import { TeamsBot } from "../teams/src/bot";
+import { createBot, Bot } from '../src/bot';
+import { MeetsBot } from '../meet/src/bot';
+import { BotConfig } from '../src/types';
+import { ZoomBot } from '../zoom/src/bot';
+import { TeamsBot } from '../teams/src/bot';
 import {
   jest,
   it,
@@ -12,22 +12,22 @@ import {
   beforeEach,
   afterAll,
   beforeAll,
-} from "@jest/globals";
+} from '@jest/globals';
 
 //
 // Bot Creation Tests as described in Section 2.1.2.1
 // Of our System Verification and Validation Document.
 //
 
-describe("Bot Creation from given data", () => {
+describe('Bot Creation from given data', () => {
   /**
    * Create a meets bot
    */
-  it("Create Meets Bot", () => {
+  it('Create Meets Bot', () => {
     const mockBotData = {
       id: 0,
       meetingInfo: {
-        platform: "google",
+        platform: 'google',
       },
     } as BotConfig;
 
@@ -39,11 +39,11 @@ describe("Bot Creation from given data", () => {
   /**
    * Creates a Zoom Bot
    */
-  it("Create Zoom Bot", () => {
+  it('Create Zoom Bot', () => {
     const mockBotData = {
       id: 0,
       meetingInfo: {
-        platform: "zoom",
+        platform: 'zoom',
       },
     } as BotConfig;
 
@@ -55,11 +55,11 @@ describe("Bot Creation from given data", () => {
   /**
    * Creates a teams bot
    */
-  it("Create Teams Bot", () => {
+  it('Create Teams Bot', () => {
     const mockBotData = {
       id: 0,
       meetingInfo: {
-        platform: "teams",
+        platform: 'teams',
       },
     } as BotConfig;
 
@@ -69,11 +69,11 @@ describe("Bot Creation from given data", () => {
   });
 });
 
-describe("Bot fails creation from invalid data", () => {
+describe('Bot fails creation from invalid data', () => {
   /**
    * Create a bot with invalid data
    */
-  it("Create Bot with invalid data (empty meetingInfo)", async () => {
+  it('Create Bot with invalid data (empty meetingInfo)', async () => {
     const mockBotData = {
       id: 0,
       meetingInfo: {},
@@ -84,7 +84,7 @@ describe("Bot fails creation from invalid data", () => {
     }).rejects.toThrow();
   });
 
-  it("Create Bot with invalid data (missing meetingInfo)", async () => {
+  it('Create Bot with invalid data (missing meetingInfo)', async () => {
     const mockBotData = {
       id: 0,
     } as BotConfig;
@@ -97,11 +97,11 @@ describe("Bot fails creation from invalid data", () => {
   /**
    * Create a bot with invalid data
    */
-  it("Create Bot with invalid data (no platform, but some other data)", async () => {
+  it('Create Bot with invalid data (no platform, but some other data)', async () => {
     const mockBotData = {
       id: 0,
       meetingInfo: {
-        meetingUrl: "https://example.com",
+        meetingUrl: 'https://example.com',
       },
     } as BotConfig;
 

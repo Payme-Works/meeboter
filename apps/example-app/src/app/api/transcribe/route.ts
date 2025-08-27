@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
-import OpenAI from "openai";
-import { env } from "../../../env.js";
+import { NextResponse } from 'next/server';
+import OpenAI from 'openai';
+import { env } from '../../../env.js';
 
 const openai = new OpenAI({
   apiKey: env.OPENAI_API_KEY,
@@ -12,7 +12,7 @@ export async function POST(req: Request) {
 
     if (!recordingUrl) {
       return NextResponse.json(
-        { error: "Recording URL is required" },
+        { error: 'Recording URL is required' },
         { status: 400 },
       );
     }
@@ -24,23 +24,23 @@ export async function POST(req: Request) {
 
     // Transcribe with Whisper (not our own model)
     const transcriptionResponse = await openai.audio.transcriptions.create({
-      file: new File([audioBlob], "recording.mp4"),
-      model: "whisper-1",
+      file: new File([audioBlob], 'recording.mp4'),
+      model: 'whisper-1',
     });
 
     const transcription = transcriptionResponse.text;
 
     // Generate summary with GPT-4o (not our own model)
     const summaryResponse = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: 'gpt-4o',
       messages: [
         {
-          role: "system",
+          role: 'system',
           content:
-            "You are a helpful assistant that summarizes meeting transcripts.",
+            'You are a helpful assistant that summarizes meeting transcripts.',
         },
         {
-          role: "user",
+          role: 'user',
           content: `Please provide a concise summary of this meeting transcript: ${transcription}`,
         },
       ],
@@ -50,11 +50,11 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ transcription, summary }, { status: 200 });
   } catch (error) {
-    console.error("Error in transcription or summarization:", error);
+    console.error('Error in transcription or summarization:', error);
     return NextResponse.json(
       {
         error:
-          error instanceof Error ? error.message : "An unknown error occurred",
+          error instanceof Error ? error.message : 'An unknown error occurred',
       },
       { status: 500 },
     );

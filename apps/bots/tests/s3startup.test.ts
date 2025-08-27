@@ -1,6 +1,6 @@
-import { createS3Client, uploadRecordingToS3 } from "../src/s3";
-import { PutObjectCommand } from "@aws-sdk/client-s3";
-import { S3Client } from "@aws-sdk/client-s3";
+import { createS3Client, uploadRecordingToS3 } from '../src/s3';
+import { PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client } from '@aws-sdk/client-s3';
 import {
   jest,
   it,
@@ -10,10 +10,10 @@ import {
   beforeEach,
   afterAll,
   beforeAll,
-} from "@jest/globals";
-import fs from "fs";
-import { BotConfig } from "../src/types";
-import { Bot } from "../src/bot";
+} from '@jest/globals';
+import fs from 'fs';
+import { BotConfig } from '../src/types';
+import { Bot } from '../src/bot';
 
 //
 // Bot Startup Tests as described in Section 2.1.2, and recording upload tests as described in 2.1.2.4,
@@ -21,15 +21,15 @@ import { Bot } from "../src/bot";
 //
 
 // Excplicit mock build-in module required for jest to work with fs
-jest.mock("fs");
+jest.mock('fs');
 
-describe("Bot S3 Startup Tests", () => {
+describe('Bot S3 Startup Tests', () => {
   // Test that the S3 client is created with credentials when provided
   // (Local Development Example)
-  it("create an S3 client with credentials when provided", () => {
-    const mockRegion = "us-east-1";
-    const mockAccessKeyId = "mockAccessKeyId";
-    const mockSecretKey = "mockSecretKey";
+  it('create an S3 client with credentials when provided', () => {
+    const mockRegion = 'us-east-1';
+    const mockAccessKeyId = 'mockAccessKeyId';
+    const mockSecretKey = 'mockSecretKey';
 
     createS3Client(mockRegion, mockAccessKeyId, mockSecretKey);
 
@@ -44,8 +44,8 @@ describe("Bot S3 Startup Tests", () => {
 
   // Test that the S3 client is created without credentials when not provided
   // (Production Example)
-  it("create an S3 client without credentials when not provided", () => {
-    const mockRegion = "us-east-1";
+  it('create an S3 client without credentials when not provided', () => {
+    const mockRegion = 'us-east-1';
 
     createS3Client(mockRegion, undefined, undefined);
 
@@ -54,18 +54,18 @@ describe("Bot S3 Startup Tests", () => {
     });
   });
 
-  it("Bot exits immediately if s3 config passed in is invalid", () => {
+  it('Bot exits immediately if s3 config passed in is invalid', () => {
     const result = createS3Client(undefined, undefined, undefined);
     expect(result).toBeNull();
   });
 });
 
-describe("S3Client Upload Tests", () => {
-  it("upload a file to S3", async () => {
+describe('S3Client Upload Tests', () => {
+  it('upload a file to S3', async () => {
     // Fake S3 Client
-    const mockBucketName = "mock-bucket-name";
-    const mockKey = "mock-key";
-    const mockBody = "mock-body";
+    const mockBucketName = 'mock-bucket-name';
+    const mockKey = 'mock-key';
+    const mockBody = 'mock-body';
 
     const s3Client = new S3Client({});
     const putObjectCommand = new PutObjectCommand({
@@ -77,7 +77,7 @@ describe("S3Client Upload Tests", () => {
     // Create a fake bot
     const mockConfig = {
       meetingInfo: {
-        platform: "mock-platform",
+        platform: 'mock-platform',
       },
     } as unknown as BotConfig;
     const mockOnEvent = async (eventType: string, data?: any) => {
@@ -86,8 +86,8 @@ describe("S3Client Upload Tests", () => {
 
     //Create Mock Bot
     const someBot = new Bot(mockConfig, mockOnEvent);
-    someBot.getRecordingPath = jest.fn(() => "mock-path"); // Mock the getRecordingPath method to return the mock body
-    someBot.getContentType = jest.fn(() => "mock-content-type"); // Mock the getContentType method to return the mock content type
+    someBot.getRecordingPath = jest.fn(() => 'mock-path'); // Mock the getRecordingPath method to return the mock body
+    someBot.getContentType = jest.fn(() => 'mock-content-type'); // Mock the getContentType method to return the mock content type
 
     //
     // Test

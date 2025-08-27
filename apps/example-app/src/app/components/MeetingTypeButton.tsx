@@ -1,6 +1,6 @@
-"use client";
-import { MeetingType } from "@/types/MeetingType";
-import { Button } from "./button";
+'use client';
+import { MeetingType } from '@/types/MeetingType';
+import { Button } from './button';
 
 export default function MeetingTypeButton({
   type,
@@ -22,8 +22,8 @@ export default function MeetingTypeButton({
     // <Button onClick={update} className={(selected ? selectedStyle : '') + " " + style}>
     <Button
       onClick={update}
-      variant={selected ? "outline" : "ghost"}
-      className={selected ? "font-bold" : ""}
+      variant={selected ? 'outline' : 'ghost'}
+      className={selected ? 'font-bold' : ''}
     >
       {type.charAt(0).toUpperCase() + type.slice(1)}
     </Button>

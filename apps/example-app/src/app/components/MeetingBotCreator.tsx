@@ -1,7 +1,7 @@
-"use client";
-import { useState } from "react";
-import { Button } from "./button";
-import { MeetingType } from "@/types/MeetingType";
+'use client';
+import { useState } from 'react';
+import { Button } from './button';
+import { MeetingType } from '@/types/MeetingType';
 
 //Meeting Check Functions
 const checkMeetBotLink = (link: string) => {
@@ -20,22 +20,22 @@ const checkZoomBotLink = (link: string) => {
 function parseTeamsMeetingLink(url: string) {
   try {
     const urlObj = new URL(url);
-    const pathSegments = urlObj.pathname.split("/");
+    const pathSegments = urlObj.pathname.split('/');
 
     // Extract meetingId (after "19:meeting_")
     let meetingId = null;
-    const meetingSegment = pathSegments.find((segment) =>
-      segment.startsWith("19%3ameeting_"),
+    const meetingSegment = pathSegments.find(segment =>
+      segment.startsWith('19%3ameeting_'),
     );
     if (meetingSegment) {
-      const s = meetingSegment.split("19%3ameeting_")[1];
+      const s = meetingSegment.split('19%3ameeting_')[1];
       if (!s) return null;
-      meetingId = meetingSegment ? decodeURIComponent(s).split("@")[0] : null;
+      meetingId = meetingSegment ? decodeURIComponent(s).split('@')[0] : null;
     }
 
     // Extract tenantId and organizationId from context parameter
     const params = new URLSearchParams(urlObj.search);
-    const context = params.get("context");
+    const context = params.get('context');
 
     let tenantId = null;
     let organizationId = null;
@@ -51,7 +51,7 @@ function parseTeamsMeetingLink(url: string) {
 
     return { meetingId, tenantId, organizationId };
   } catch (error) {
-    console.error("Error parsing Teams meeting link:", error);
+    console.error('Error parsing Teams meeting link:', error);
     return null;
   }
 }
@@ -69,16 +69,16 @@ const linkParsers: Record<MeetingType, (link: string) => boolean> = {
 function parseZoomMeetingLink(url: string) {
   try {
     const urlObj = new URL(url);
-    const pathSegments = urlObj.pathname.split("/");
+    const pathSegments = urlObj.pathname.split('/');
     const meetingId = pathSegments[pathSegments.length - 1];
-    const meetingPassword = urlObj.searchParams.get("pwd") || "";
+    const meetingPassword = urlObj.searchParams.get('pwd') || '';
 
     return {
       meetingId,
       meetingPassword,
     };
   } catch (error) {
-    console.error("Error parsing Zoom meeting link:", error);
+    console.error('Error parsing Zoom meeting link:', error);
     return null;
   }
 }
@@ -86,36 +86,36 @@ function parseZoomMeetingLink(url: string) {
 export default function MeetingBotCreator() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [response, setResponse] = useState<any>({});
-  const [link, setMeetingLink] = useState("");
+  const [link, setMeetingLink] = useState('');
   const [recordingEnabled, setRecordingEnabled] = useState(false);
   const [waitingForResponse, setWaitingForResponse] = useState(false);
   const [showFullResponse, setShowFullResponse] = useState(false);
 
   const defineMeetingInfo = (link: string, type: MeetingType | undefined) => {
-    if (type === "meet") {
+    if (type === 'meet') {
       // Ensure we get a meeting URL
-      if (!link.startsWith("https://meet.google.com/"))
-        link = "https://meet.google.com/" + link;
-      if (!link.startsWith("https://")) link = "https://" + link;
+      if (!link.startsWith('https://meet.google.com/'))
+        link = 'https://meet.google.com/' + link;
+      if (!link.startsWith('https://')) link = 'https://' + link;
 
       return {
         meetingUrl: link,
-        platform: "google",
+        platform: 'google',
       };
     }
     // Zoom
-    if (type === "zoom") {
+    if (type === 'zoom') {
       const parsed = parseZoomMeetingLink(link);
       if (!parsed) return undefined;
 
       return {
-        platform: "zoom",
+        platform: 'zoom',
         meetingId: parsed.meetingId,
         meetingPassword: parsed.meetingPassword,
       };
     }
     // Teams
-    if (type === "teams") {
+    if (type === 'teams') {
       // Fetch
       const parsed = parseTeamsMeetingLink(link);
       if (!parsed) return undefined;
@@ -123,7 +123,7 @@ export default function MeetingBotCreator() {
       const { meetingId, organizationId, tenantId } = parsed;
 
       return {
-        platform: "teams",
+        platform: 'teams',
         meetingId,
         organizerId: organizationId,
         tenantId,
@@ -140,24 +140,24 @@ export default function MeetingBotCreator() {
     // Find the type again
     const inputType = parseMeetingLink();
     if (inputType === undefined) {
-      setResponse("Invalid Meeting Link. Must be of form meet/teams/zoom");
+      setResponse('Invalid Meeting Link. Must be of form meet/teams/zoom');
     }
 
     // Define Here
-    const ruuid = "50e8400-e29b-41d4-a716-446655440000";
+    const ruuid = '50e8400-e29b-41d4-a716-446655440000';
     const callbackUrl =
       process.env.NEXT_PUBLIC_CALLBACK_URL ||
-      "https://localhost:3002/api/callback";
+      'https://localhost:3002/api/callback';
 
     const meetingInfo = defineMeetingInfo(link, inputType);
     if (!meetingInfo) {
-      setResponse("Could not generate meeting info body. Bad URL.");
+      setResponse('Could not generate meeting info body. Bad URL.');
     }
 
     // Create Bot Data
     const botData = {
       userId: ruuid,
-      meetingTitle: `Test ${inputType && inputType[0]?.toUpperCase() + inputType?.slice(1) + " "}Bot`,
+      meetingTitle: `Test ${inputType && inputType[0]?.toUpperCase() + inputType?.slice(1) + ' '}Bot`,
       meetingInfo,
       callbackUrl,
       recordingEnabled,
@@ -165,10 +165,10 @@ export default function MeetingBotCreator() {
 
     setWaitingForResponse(true);
     try {
-      const res = await fetch("/api/send-bot", {
-        method: "POST",
+      const res = await fetch('/api/send-bot', {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify(botData),
       });
@@ -178,7 +178,7 @@ export default function MeetingBotCreator() {
       setWaitingForResponse(false);
     } catch (error) {
       setResponse(
-        `Failed to create bot: ${error instanceof Error ? error.message : "Unknown error"}`,
+        `Failed to create bot: ${error instanceof Error ? error.message : 'Unknown error'}`,
       );
       setWaitingForResponse(false);
     }
@@ -205,31 +205,31 @@ export default function MeetingBotCreator() {
     : undefined;
 
   const inputFieldClass =
-    "my-[20px] p-2 w-full rounded-md border border-input bg-background shadow-sm hover:bg-accent mt-0" +
+    'my-[20px] p-2 w-full rounded-md border border-input bg-background shadow-sm hover:bg-accent mt-0' +
     (detectedBot
-      ? " font-medium text-accent-foreground hover:text-accent-foreground"
-      : " text-muted-foreground hover:text-muted-foreground");
+      ? ' font-medium text-accent-foreground hover:text-accent-foreground'
+      : ' text-muted-foreground hover:text-muted-foreground');
 
   const shortResponse = response.id
-    ? "Bot was created."
-    : "Bot was not created.";
+    ? 'Bot was created.'
+    : 'Bot was not created.';
 
   return (
-    <div style={{ width: "50%", minWidth: "300px", padding: "20px" }}>
+    <div style={{ width: '50%', minWidth: '300px', padding: '20px' }}>
       <input
         type="text"
         value={link}
-        onChange={(e) => setMeetingLink(e.target.value)}
+        onChange={e => setMeetingLink(e.target.value)}
         placeholder="https:/meet.google.com/abc-defg-hij"
         className={inputFieldClass}
       />
 
-      <div className="flex items-center space-x-2 mt-4">
+      <div className="mt-4 flex items-center space-x-2">
         <input
           type="checkbox"
           id="recordingEnabled"
           checked={recordingEnabled}
-          onChange={(e) => setRecordingEnabled(e.target.checked)}
+          onChange={e => setRecordingEnabled(e.target.checked)}
           className="rounded"
         />
         <label htmlFor="recordingEnabled" className="text-sm font-medium">
@@ -238,13 +238,13 @@ export default function MeetingBotCreator() {
       </div>
 
       {waitingForResponse ? (
-        <Button variant={"disabled"}>Sending Request...</Button>
+        <Button variant={'disabled'}>Sending Request...</Button>
       ) : detectedBot ? (
-        <Button variant={"outline"} onClick={createBot}>
+        <Button variant={'outline'} onClick={createBot}>
           Create {platformString} Bot
         </Button>
       ) : (
-        <Button variant={"disabled"}>Unknown Meeting Link</Button>
+        <Button variant={'disabled'}>Unknown Meeting Link</Button>
       )}
 
       {response && (
@@ -252,11 +252,11 @@ export default function MeetingBotCreator() {
           <h2 className="text-large font-bold tracking-tight">Response</h2>
           {showFullResponse ? (
             <div>
-              <pre className="pl-4 text-xs opacity-70 max-h-[200px] overflow-y-auto">
+              <pre className="max-h-[200px] overflow-y-auto pl-4 text-xs opacity-70">
                 {JSON.stringify(response, null, 2)}
               </pre>
               <Button
-                variant={"ghost"}
+                variant={'ghost'}
                 onClick={() => setShowFullResponse(false)}
               >
                 Hide Full Response
@@ -267,7 +267,7 @@ export default function MeetingBotCreator() {
               <p className="text-muted-foreground mb-2">{shortResponse}</p>
 
               <Button
-                variant={"outline"}
+                variant={'outline'}
                 onClick={() => setShowFullResponse(true)}
               >
                 Show Full Response

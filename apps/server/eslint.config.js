@@ -8,6 +8,7 @@ const compat = new FlatCompat({
   baseDirectory: import.meta.dirname,
 });
 
+/** @type {import('typescript-eslint').Config} */
 export default tseslint.config(
   {
     ignores: [".next"],

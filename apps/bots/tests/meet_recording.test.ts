@@ -1,8 +1,8 @@
-import { MeetsBot } from "../meet/src/bot";
-import * as dotenv from "dotenv";
-import { BotConfig } from "../src/types";
-import { TeamsBot } from "../teams/src/bot";
-import { ZoomBot } from "../zoom/src/bot";
+import { MeetsBot } from '../meet/src/bot';
+import * as dotenv from 'dotenv';
+import { BotConfig } from '../src/types';
+import { TeamsBot } from '../teams/src/bot';
+import { ZoomBot } from '../zoom/src/bot';
 import {
   beforeAll,
   beforeEach,
@@ -13,11 +13,11 @@ import {
   expect,
   it,
   test,
-} from "@jest/globals";
+} from '@jest/globals';
 
-import exp from "constants";
-const fs = require("fs");
-const { execSync } = require("child_process");
+import exp from 'constants';
+const fs = require('fs');
+const { execSync } = require('child_process');
 
 //
 // Bot Recording Tests as described in Section 2.1.2.4
@@ -31,28 +31,28 @@ const { execSync } = require("child_process");
 //
 
 // Load the .env.test file (overrides variables from .env if they overlap)
-dotenv.config({ path: ".env.test" });
+dotenv.config({ path: '.env.test' });
 
 // Create Mock Configs
 const mockMeetConfig = {
   id: 0,
-  meetingInfo: JSON.parse(process.env.MEET_TEST_MEETING_INFO || "{}"),
+  meetingInfo: JSON.parse(process.env.MEET_TEST_MEETING_INFO || '{}'),
   automaticLeave: {
     // automaticLeave: null, //Not included to see what happens on a bad config
   },
 } as BotConfig;
 
-describe("Meet Bot Record Tests", () => {
+describe('Meet Bot Record Tests', () => {
   let bot: MeetsBot;
   let recordingPath: null | string;
   let ffmpegExists = false;
 
   // Check if ffmpeg is available
   try {
-    execSync("ffmpeg -version", { stdio: "ignore" });
+    execSync('ffmpeg -version', { stdio: 'ignore' });
     ffmpegExists = true;
   } catch (error) {
-    console.warn("Skipping tests: ffmpeg is not available.");
+    console.warn('Skipping tests: ffmpeg is not available.');
   }
 
   // Create the bot for each
@@ -79,7 +79,7 @@ describe("Meet Bot Record Tests", () => {
    */
   const conditionalTest = ffmpegExists ? it : it.skip;
   conditionalTest(
-    "Recording file Exists",
+    'Recording file Exists',
     async function () {
       /**
        *  Skipped because of ffmpeg requirments which aren't availabe locally wihtout tremendous effort.
@@ -100,8 +100,8 @@ describe("Meet Bot Record Tests", () => {
       await bot.launchBrowser();
 
       // Mock page
-      await bot.page.goto("https://www.google.com", {
-        waitUntil: "networkidle",
+      await bot.page.goto('https://www.google.com', {
+        waitUntil: 'networkidle',
       });
       await bot.page.waitForTimeout(100);
 

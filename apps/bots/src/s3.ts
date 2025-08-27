@@ -1,7 +1,7 @@
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { readFileSync, promises as fsPromises } from "fs";
-import { Bot } from "./bot";
-import { randomUUID } from "crypto";
+import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { readFileSync, promises as fsPromises } from 'fs';
+import { Bot } from './bot';
+import { randomUUID } from 'crypto';
 
 /**
  * Creates an S3 Connection to the bucket.
@@ -14,7 +14,7 @@ export function createS3Client(
   secretKey: string | undefined,
 ): S3Client | null {
   try {
-    if (!region) throw new Error("Region is required");
+    if (!region) throw new Error('Region is required');
 
     // Create an S3 client with credentials if they are provided
     // Local Development requires AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.
@@ -56,7 +56,7 @@ export async function uploadRecordingToS3(
   while (true) {
     try {
       fileContent = readFileSync(filePath);
-      console.log("Successfully read recording file");
+      console.log('Successfully read recording file');
       break; // Exit loop if readFileSync is successful
     } catch (error) {
       const err = error as NodeJS.ErrnoException;
@@ -64,17 +64,17 @@ export async function uploadRecordingToS3(
       // Could not read file.
 
       // Busy File
-      if (err.code === "EBUSY") {
-        console.log("File is busy, retrying...");
-        await new Promise((r) => setTimeout(r, 1000)); // Wait for 1 second before retrying
+      if (err.code === 'EBUSY') {
+        console.log('File is busy, retrying...');
+        await new Promise(r => setTimeout(r, 1000)); // Wait for 1 second before retrying
 
         // File DNE
-      } else if (err.code === "ENOENT") {
+      } else if (err.code === 'ENOENT') {
         // Throw an Error
-        if (i < 0) throw new Error("File not found after multiple retries");
+        if (i < 0) throw new Error('File not found after multiple retries');
 
-        console.log("File not found, retrying ", i--, " more times");
-        await new Promise((r) => setTimeout(r, 1000)); // Wait for 1 second before retrying
+        console.log('File not found, retrying ', i--, ' more times');
+        await new Promise(r => setTimeout(r, 1000)); // Wait for 1 second before retrying
 
         // Other Error
       } else {
@@ -88,7 +88,7 @@ export async function uploadRecordingToS3(
   const contentType = bot.getContentType();
   const key = `recordings/${uuid}-${
     bot.settings.meetingInfo.platform
-  }-recording.${contentType.split("/")[1]}`;
+  }-recording.${contentType.split('/')[1]}`;
 
   try {
     const commandObjects = {
@@ -108,9 +108,9 @@ export async function uploadRecordingToS3(
     // Return the Upload Key
     return key;
   } catch (error) {
-    console.error("Error uploading to S3:", error);
+    console.error('Error uploading to S3:', error);
   }
 
   // No Upload
-  return "";
+  return '';
 }

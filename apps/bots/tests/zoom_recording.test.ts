@@ -1,8 +1,8 @@
-import { MeetsBot } from "../meet/src/bot";
-import * as dotenv from "dotenv";
-import { BotConfig } from "../src/types";
-import { TeamsBot } from "../teams/src/bot";
-import { ZoomBot } from "../zoom/src/bot";
+import { MeetsBot } from '../meet/src/bot';
+import * as dotenv from 'dotenv';
+import { BotConfig } from '../src/types';
+import { TeamsBot } from '../teams/src/bot';
+import { ZoomBot } from '../zoom/src/bot';
 import {
   beforeAll,
   beforeEach,
@@ -13,14 +13,14 @@ import {
   expect,
   it,
   test,
-} from "@jest/globals";
-import exp from "constants";
+} from '@jest/globals';
+import exp from 'constants';
 
-const fs = require("fs");
-const { execSync } = require("child_process");
+const fs = require('fs');
+const { execSync } = require('child_process');
 
 // Ensure puppeteer-stream is not mocked
-jest.unmock("puppeteer-stream");
+jest.unmock('puppeteer-stream');
 
 //
 // Bot Recording Tests as described in Section 2.1.2.4
@@ -34,24 +34,24 @@ jest.unmock("puppeteer-stream");
 //
 
 // Load the .env.test file (overrides variables from .env if they overlap)
-dotenv.config({ path: ".env.test" });
+dotenv.config({ path: '.env.test' });
 
 // Create Mock Configs
 const mockZoomConfig = {
   id: 0,
-  meetingInfo: JSON.parse(process.env.ZOOM_TEST_MEETING_INFO || "{}"),
+  meetingInfo: JSON.parse(process.env.ZOOM_TEST_MEETING_INFO || '{}'),
   automaticLeave: {
     // automaticLeave: null, //Not included to see what happens on a bad config
   },
 } as BotConfig;
 
-describe("Zoom Bot Recording Test", () => {
+describe('Zoom Bot Recording Test', () => {
   let ffmpegExists = false;
   try {
-    execSync("ffmpeg -version", { stdio: "ignore" });
+    execSync('ffmpeg -version', { stdio: 'ignore' });
     ffmpegExists = true;
   } catch (error) {
-    console.warn("Skipping test: ffmpeg is not available.");
+    console.warn('Skipping test: ffmpeg is not available.');
   }
 
   // Cleanup
@@ -61,7 +61,7 @@ describe("Zoom Bot Recording Test", () => {
 
   const conditionalTest = ffmpegExists ? it : it.skip;
   conditionalTest(
-    "Recording Dimension Test",
+    'Recording Dimension Test',
     async function () {
       const bot = new ZoomBot(
         mockZoomConfig,
@@ -71,17 +71,17 @@ describe("Zoom Bot Recording Test", () => {
 
       // Launch a broser
       await bot.launchBrowser();
-      await new Promise((resolve) => setTimeout(resolve, 400));
+      await new Promise(resolve => setTimeout(resolve, 400));
 
       // Start Recording
       await bot.startRecording();
-      console.log("Started Recording");
-      await new Promise((resolve) => setTimeout(resolve, 10000));
-      console.log("Done holding.");
+      console.log('Started Recording');
+      await new Promise(resolve => setTimeout(resolve, 10000));
+      console.log('Done holding.');
 
       // Stop Recording
       await bot.stopRecording();
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Stop Recording
       recordingPath = bot.getRecordingPath();
