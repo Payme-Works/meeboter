@@ -1,8 +1,10 @@
+import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import type { DefaultSession, Session, User } from "next-auth";
 import NextAuth from "next-auth";
 import GitHub from "next-auth/providers/github";
 import type { Provider } from "next-auth/providers/index";
 import { cache } from "react";
+import { db } from "./database/db";
 
 /**
  * Module augmentation for `next-auth` types. Allows us to add custom properties to the `session`
@@ -24,6 +26,8 @@ export const { auth: uncachedAuth, handlers } = NextAuth({
 	session: {
 		strategy: "database",
 	},
+
+	adapter: DrizzleAdapter(db),
 
 	callbacks: {
 		session: ({ session, user }: { session: Session; user: User }) => ({

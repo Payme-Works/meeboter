@@ -131,8 +131,3 @@ ALB_DNS=$(terraform output -raw alb_dns_name 2>/dev/null || echo "")
 if [[ -n "$ALB_DNS" ]]; then
     log_info "Load Balancer: $ALB_DNS"
 fi
-
-log_info "Next steps:"
-log_info "  • Check your resources in AWS Console"
-log_info "  • Update your domain's nameservers if this is the first deployment"
-log_info "  • Test your application endpoints"

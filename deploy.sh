@@ -3,6 +3,14 @@
 # Live Boost Deployment Script
 # This script deploys the Live Boost infrastructure and applications
 # It applies Terraform, builds Docker images, and pushes them to AWS ECR
+#
+# Usage:
+#   ./deploy.sh                                    # Deploy all images to development
+#   ./deploy.sh --images server                    # Build only server image
+#   ./deploy.sh --images server,bots-meet          # Build server and meet bot images
+#   ./deploy.sh --workspace production             # Deploy to production
+#   ./deploy.sh --skip-terraform --images server   # Only build/push images, skip infrastructure
+#   ./deploy.sh -w staging --images bots-meet      # Deploy meet bot to staging
 
 set -euo pipefail
 
@@ -18,6 +26,7 @@ TAG=${TAG:-"sha-$(git rev-parse --short HEAD)"}
 
 SKIP_RESTART=${SKIP_RESTART:-false}
 SKIP_TERRAFORM=${SKIP_TERRAFORM:-false}
+IMAGES=${IMAGES:-"all"}
 
 # Disable AWS CLI pager globally
 export AWS_PAGER=""
@@ -346,8 +355,32 @@ prepare_build() {
     fi
 }
 
+# Check if an image should be built based on IMAGES variable
+should_build_image() {
+    local image_name=$1
+    
+    if [[ "$IMAGES" == "all" ]]; then
+        return 0
+    fi
+    
+    # Convert comma-separated list to array and check each item
+    IFS=',' read -ra ADDR <<< "$IMAGES"
+    for i in "${ADDR[@]}"; do
+        if [[ "$i" == "$image_name" ]]; then
+            return 0
+        fi
+    done
+    
+    return 1
+}
+
 # Build and push server image
 build_server() {
+    if ! should_build_image "server"; then
+        log_info "Skipping server image build (not in --images list)"
+        return 0
+    fi
+    
     log_info "Building server image..."
     
     # Build from monorepo root with proper context
@@ -395,6 +428,12 @@ build_server() {
 build_bot_provider() {
     local bot_type=$1
     local ecr_url=$2
+    local image_name="bots-$bot_type"
+    
+    if ! should_build_image "$image_name"; then
+        log_info "Skipping $bot_type bot image build (not in --images list)"
+        return 0
+    fi
     
     log_info "Building $bot_type bot image..."
     
@@ -477,8 +516,6 @@ restart_services() {
                 --region "$AWS_REGION" \
                 --cluster "$cluster_name" \
                 --services "$service" \
-                --max-attempts 20 \
-                --delay 30 \
                 --no-cli-pager; then
                 log_success "Service $service deployed successfully"
             else
@@ -587,6 +624,7 @@ main() {
     log_info "Tag: $TAG"
     log_info "AWS Region: $AWS_REGION"
     log_info "Terraform Workspace: $TERRAFORM_WORKSPACE"
+    log_info "Images to build: $IMAGES"
     
     check_prerequisites
     get_aws_account_id
@@ -636,8 +674,37 @@ cleanup_on_interrupt() {
     exit 130
 }
 
+# Parse command line arguments
+parse_args() {
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --images)
+                IMAGES="$2"
+                shift 2
+                ;;
+            --workspace|-w)
+                TERRAFORM_WORKSPACE="$2"
+                shift 2
+                ;;
+            --skip-terraform)
+                SKIP_TERRAFORM="true"
+                shift
+                ;;
+            -h|--help)
+                show_help
+                exit 0
+                ;;
+            *)
+                log_error "Unknown option: $1"
+                show_help
+                exit 1
+                ;;
+        esac
+    done
+}
+
 # Show help
-if [[ "${1:-}" == "--help" ]] || [[ "${1:-}" == "-h" ]]; then
+show_help() {
     cat <<EOF
 Live Boost Deployment Script
 
@@ -649,17 +716,29 @@ Environment Variables:
   TAG                     Docker image tag (default: git short hash)
   SKIP_RESTART            Skip ECS service restart (default: false)
   SKIP_TERRAFORM          Skip Terraform apply (default: false)
+  IMAGES                  Images to build (default: all)
 
 Options:
+  --images <list>        Comma-separated list of images to build
+                         Options: server, bots-meet, bots-teams, bots-zoom, all
+                         Examples: --images server
+                                  --images server,bots-meet
+                                  --images bots-meet,bots-teams,bots-zoom
+  -w, --workspace <env>  Terraform workspace (development, staging, production)
+  --skip-terraform       Skip Terraform apply step
   -h, --help             Show this help message
 
 Examples:
   $0                                    # Deploy to development (default)
-  TERRAFORM_WORKSPACE=production $0     # Deploy to production
-  TERRAFORM_WORKSPACE=staging $0        # Deploy to staging  
+  $0 --workspace production             # Deploy to production
+  $0 -w staging                         # Deploy to staging  
   TAG=v1.0.0 $0                        # Deploy with custom tag
   SKIP_RESTART=true $0                 # Deploy without restarting services
-  SKIP_TERRAFORM=true $0               # Only build/push images, skip infrastructure
+  $0 --skip-terraform                  # Only build/push images, skip infrastructure
+  $0 --images server                   # Build and push only server image
+  $0 --images server,bots-meet         # Build and push server and meet bot images
+  $0 --workspace staging --images server # Build server image for staging
+  $0 --skip-terraform --images bots-meet # Build meet bot without Terraform
 
 Prerequisites:
   - Docker installed and running
@@ -679,8 +758,8 @@ The script will:
   7. Restart ECS services to deploy latest images
   8. Clean up local Docker images
 EOF
-    exit 0
-fi
+}
 
-# Run main function
-main "$@"
+# Parse arguments and run main function
+parse_args "$@"
+main

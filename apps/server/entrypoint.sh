@@ -1,16 +1,17 @@
 #!/bin/sh
 set -e
 
-echo "Running database migrations..."
-
 # Set Node.js environment variable to ignore SSL certificate errors
 export NODE_TLS_REJECT_UNAUTHORIZED=0
+
 echo "Set NODE_TLS_REJECT_UNAUTHORIZED=0 to ignore SSL certificate errors"
 
 # Run database migrations
-cd /app/apps/server && npx drizzle-kit migrate
+echo "Running database migrations..."
 
-echo "Starting server..."
+node /app/apps/server/drizzle-migrate.js
 
 # Start the Next.js server
-cd /app && exec node app/server.js
+echo "Starting server..."
+
+exec node /app/apps/server/server.js

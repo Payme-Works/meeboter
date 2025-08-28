@@ -12,10 +12,11 @@ COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 
 RUN test -f pnpm-workspace.yaml || (echo "ERROR: Must build from monorepo root directory" && exit 1)
 
-COPY apps/server/package.json ./apps/server/
-COPY packages ./packages
+COPY ./apps/server /app/apps/server
+COPY ./packages /app/packages
 
-RUN npm install -g pnpm && pnpm install --no-frozen-lockfile
+RUN npm install -g pnpm
+RUN pnpm install --frozen-lockfile
 
 # Builder
 
@@ -41,9 +42,9 @@ ARG ECS_SECURITY_GROUPS
 
 WORKDIR /app
 
-COPY --from=deps /app/node_modules ./node_modules
-COPY packages ./packages
-COPY apps/server ./apps/server
+COPY --from=deps /app/node_modules /app/node_modules
+COPY --from=deps /app/packages /app/packages
+COPY --from=deps /app/apps/server /app/apps/server
 
 # Build the server app using pnpm workspace filtering
 RUN npm install -g pnpm
@@ -61,21 +62,22 @@ RUN npm install -g npm@latest
 WORKDIR /app
 
 ENV NODE_ENV production
+ENV PORT 3000
 
-COPY --from=builder /app/apps/server/.next/standalone ./
-COPY --from=builder /app/apps/server/.next/static ./apps/server/.next/static
-COPY --from=builder /app/apps/server/public ./apps/server/public
+COPY --from=builder /app/node_modules /app/node_modules
+COPY --from=builder /app/apps/server/.next /app/apps/server/.next
+COPY --from=builder /app/apps/server/.next/standalone /app/
 
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/apps/server/drizzle ./apps/server/drizzle
-COPY --from=builder /app/apps/server/drizzle.config.ts ./apps/server/drizzle.config.ts
+COPY --from=builder /app/apps/server /app/apps/server
 
-COPY apps/server/entrypoint.sh /app/entrypoint.sh
+COPY --from=builder /app/apps/server/drizzle /app/apps/server/drizzle
+COPY --from=builder /app/apps/server/drizzle.config.ts /app/apps/server/drizzle.config.ts
+COPY --from=builder /app/apps/server/drizzle-migrate.js /app/apps/server/drizzle-migrate.js
 
-RUN chmod +x /app/entrypoint.sh
+COPY apps/server/entrypoint.sh /app/apps/server/entrypoint.sh
+
+RUN chmod +x /app/apps/server/entrypoint.sh
 
 EXPOSE 3000
 
-ENV PORT 3000
-
-CMD ["/app/entrypoint.sh"]
+CMD ["/app/apps/server/entrypoint.sh"]

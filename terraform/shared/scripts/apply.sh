@@ -96,8 +96,3 @@ log_success "Shared resources deployment completed!"
 # Display outputs
 log_info "Shared resource outputs:"
 terraform output
-
-log_info "Next steps:"
-log_info "  • Deploy environment resources using main apply.sh"
-log_info "  • Check your resources in AWS Console"
-log_info "  • Update your domain's nameservers if this is the first deployment"
