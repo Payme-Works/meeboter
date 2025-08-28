@@ -228,23 +228,23 @@ export const EVENT_DESCRIPTIONS = {
 
 // Define event codes with descriptions
 export const eventCode = z.enum(allEventCodes).describe("Event type code");
+
 export type EventCode = z.infer<typeof eventCode>;
 
 export const botsTable = pgTable("bots", {
-	// bot stuff
 	id: serial("id").primaryKey(),
 	botDisplayName: varchar("bot_display_name", { length: 255 }).notNull(),
 	botImage: varchar("bot_image", { length: 255 }),
-	// refernce user
+
 	userId: uuid("user_id")
 		.references(() => usersTable.id)
 		.notNull(),
-	// meeting stuff
+
 	meetingTitle: varchar("meeting_name", { length: 255 }).notNull(),
 	meetingInfo: json("meeting_info").$type<MeetingInfo>().notNull(),
 	startTime: timestamp("start_time").notNull(),
 	endTime: timestamp("end_time").notNull(),
-	// recording stuff
+
 	recording: varchar("recording", { length: 255 }),
 	recordingEnabled: boolean("recording_enabled").notNull().default(false),
 	speakerTimeframes: json("speaker_timeframes")
@@ -252,17 +252,17 @@ export const botsTable = pgTable("bots", {
 		.notNull()
 		.default([]),
 	lastHeartbeat: timestamp("last_heartbeat"),
-	// status stuff
+
 	status: varchar("status", { length: 255 })
 		.$type<Status>()
 		.notNull()
 		.default("READY_TO_DEPLOY"),
 	deploymentError: varchar("deployment_error", { length: 1024 }),
-	// config
+
 	heartbeatInterval: integer("heartbeat_interval").notNull(),
 	automaticLeave: json("automatic_leave").$type<AutomaticLeave>().notNull(),
 	callbackUrl: varchar("callback_url", { length: 1024 }),
-	// timestamps
+
 	createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -353,6 +353,7 @@ export const events = pgTable("events", {
 	data: json("details").$type<EventData | null>(),
 	createdAt: timestamp("created_at").defaultNow(),
 });
+
 export const insertEventSchema = createInsertSchema(events)
 	.omit({
 		id: true,
@@ -362,6 +363,7 @@ export const insertEventSchema = createInsertSchema(events)
 		data: eventData.nullable(),
 		eventType: eventCode,
 	});
+
 export const selectEventSchema = createSelectSchema(events).extend({
 	data: eventData.nullable(),
 	eventType: eventCode,

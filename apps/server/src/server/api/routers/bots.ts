@@ -73,11 +73,18 @@ export const botsRouter = createTRPCRouter({
 			},
 		})
 		.input(
-			insertBotSchema.transform((data) => ({
-				...data,
-				startTime: data.startTime ? new Date(data.startTime) : undefined,
-				endTime: data.endTime ? new Date(data.endTime) : undefined,
-			})),
+			insertBotSchema.extend({
+				startTime: z
+					.string()
+					.optional()
+					.transform((val) => (val ? new Date(val) : undefined))
+					.default(new Date()),
+				endTime: z
+					.string()
+					.optional()
+					.transform((val) => (val ? new Date(val) : undefined))
+					.default(new Date()),
+			}),
 		)
 		.output(selectBotSchema)
 		.mutation(async ({ input, ctx }) => {
@@ -97,8 +104,8 @@ export const botsRouter = createTRPCRouter({
 					userId: ctx.session.user.id,
 					meetingTitle: input.meetingTitle ?? "Meeting",
 					meetingInfo: input.meetingInfo,
-					startTime: input.startTime ?? new Date(),
-					endTime: input.endTime ?? new Date(),
+					startTime: input.startTime,
+					endTime: input.endTime,
 					recordingEnabled: input.recordingEnabled ?? false,
 					heartbeatInterval: input.heartbeatInterval ?? 5000,
 					automaticLeave: input.automaticLeave
