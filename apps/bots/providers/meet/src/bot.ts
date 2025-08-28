@@ -40,7 +40,6 @@ const cameraOffButton = `[aria-label*="Turn off camera"]`;
 
 const infoPopupClick = `//button[.//span[text()="Got it"]]`;
 
-// TODO: pass this in meeting info
 const SCREEN_WIDTH = 1920;
 const SCREEN_HEIGHT = 1080;
 
@@ -84,7 +83,7 @@ declare global {
  * The bot is capable of joining meetings, performing actions, recording the meeting,
  * monitoring participants, and leaving the meeting based on specific conditions.
  *
- * @class MeetsBot
+ * @class GoogleMeetBot
  * @extends Bot
  *
  * @property {string[]} browserArgs - Arguments passed to the browser instance.
@@ -130,7 +129,7 @@ declare global {
  * @method leaveMeeting - Stops the recording and leaves the meeting.
  * @returns {Promise<number>} Returns 0 if the bot successfully leaves the meeting.
  */
-export class MeetsBot extends Bot {
+export class GoogleMeetBot extends Bot {
 	browserArgs: string[];
 	meetingURL: string;
 	browser!: Browser;
@@ -158,7 +157,10 @@ export class MeetsBot extends Bot {
 	 */
 	constructor(
 		botSettings: BotConfig,
-		onEvent: (eventType: EventCode, data?: unknown) => Promise<void>,
+		onEvent: (
+			eventType: EventCode,
+			data?: Record<string, unknown>,
+		) => Promise<void>,
 	) {
 		super(botSettings, onEvent);
 		this.recordingPath = path.resolve(__dirname, "recording.mp4");
@@ -814,7 +816,9 @@ export class MeetsBot extends Bot {
 
 					// Gather all participants in the merged audio node
 					mergedAudioNode.parentNode?.childNodes.forEach((childNode) => {
-						const participantId = childNode.getAttribute("data-participant-id");
+						const participantId = (childNode as Element).getAttribute(
+							"data-participant-id",
+						);
 
 						if (!participantId) {
 							return;
@@ -822,7 +826,7 @@ export class MeetsBot extends Bot {
 
 						detectedParticipants.push({
 							id: participantId,
-							name: childNode.getAttribute("aria-label"),
+							name: (childNode as Element).getAttribute("aria-label") ?? "",
 						});
 					});
 
@@ -846,7 +850,7 @@ export class MeetsBot extends Bot {
 
 							window.mergedAudioParticipantArray.push(participant);
 							window.onParticipantJoin(participant);
-							window.observeSpeech(vidBlock, participant);
+							window.observeSpeech(vidBlock as Element, participant);
 							window.participantArray.push(participant);
 						});
 					} else if (
@@ -888,8 +892,8 @@ export class MeetsBot extends Bot {
 
 			initialParticipants.forEach((node) => {
 				const participant = {
-					id: node.getAttribute("data-participant-id"),
-					name: node.getAttribute("aria-label"),
+					id: (node as Element).getAttribute("data-participant-id") ?? "",
+					name: (node as Element).getAttribute("aria-label") ?? "",
 				};
 
 				if (!participant.id) {
@@ -899,7 +903,7 @@ export class MeetsBot extends Bot {
 				}
 
 				window.onParticipantJoin(participant);
-				window.observeSpeech(node, participant);
+				window.observeSpeech(node as Element, participant);
 				window.participantArray.push(participant);
 			});
 
@@ -913,26 +917,29 @@ export class MeetsBot extends Bot {
 
 							if (
 								node.nodeType === Node.ELEMENT_NODE &&
-								node.getAttribute &&
-								node.getAttribute("data-participant-id") &&
+								(node as Element).getAttribute &&
+								(node as Element).getAttribute("data-participant-id") &&
 								window.participantArray.find(
 									(p: Participant) =>
-										p.id === node.getAttribute("data-participant-id"),
+										p.id ===
+										(node as Element).getAttribute("data-participant-id"),
 								)
 							) {
 								console.log(
 									"Participant left:",
-									node.getAttribute("aria-label"),
+									(node as Element).getAttribute("aria-label"),
 								);
 
 								window.onParticipantLeave({
-									id: node.getAttribute("data-participant-id"),
-									name: node.getAttribute("aria-label"),
+									id:
+										(node as Element).getAttribute("data-participant-id") ?? "",
+									name: (node as Element).getAttribute("aria-label") ?? "",
 								});
 
 								window.participantArray = window.participantArray.filter(
 									(p: Participant) =>
-										p.id !== node.getAttribute("data-participant-id"),
+										p.id !==
+										(node as Element).getAttribute("data-participant-id"),
 								);
 							} else if (
 								document.querySelector('[aria-label="Merged audio"]')
@@ -946,24 +953,25 @@ export class MeetsBot extends Bot {
 						console.log("Added Node", node);
 
 						if (
-							node.getAttribute?.("data-participant-id") &&
+							(node as Element).getAttribute?.("data-participant-id") &&
 							!window.participantArray.find(
 								(p: Participant) =>
-									p.id === node.getAttribute("data-participant-id"),
+									p.id ===
+									(node as Element).getAttribute("data-participant-id"),
 							)
 						) {
 							console.log(
 								"Participant joined:",
-								node.getAttribute("aria-label"),
+								(node as Element).getAttribute("aria-label"),
 							);
 
 							const participant = {
-								id: node.getAttribute("data-participant-id"),
-								name: node.getAttribute("aria-label"),
+								id: (node as Element).getAttribute("data-participant-id") ?? "",
+								name: (node as Element).getAttribute("aria-label") ?? "",
 							};
 
 							window.onParticipantJoin(participant);
-							window.observeSpeech(node, participant);
+							window.observeSpeech(node as Element, participant);
 							window.participantArray.push(participant);
 						} else if (document.querySelector('[aria-label="Merged audio"]')) {
 							window.handleMergedAudio();

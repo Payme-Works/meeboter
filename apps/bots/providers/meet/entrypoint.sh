@@ -1,5 +1,4 @@
 #!/bin/bash
-# Ensure End of Line is unix-style (LF)
 
 echo "[entrypoint.sh] Setting up XDG_RUNTIME_DIR..."
 
@@ -20,9 +19,8 @@ echo "[entrypoint.sh] Starting PulseAudio..."
 
 pulseaudio -D --exit-idle-time=-1
 
-# Give a few seconds for everything to warm up
 sleep 2
 
 echo "[entrypoint.sh] Starting bot..."
 
-cd providers/meet && NODE_PATH=./node_modules ./node_modules/.bin/tsx ../../src/index.ts
+NODE_PATH=/app/node_modules /app/node_modules/.bin/tsx /app/apps/bots/src/index.ts

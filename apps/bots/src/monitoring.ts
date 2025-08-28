@@ -15,6 +15,7 @@ export const startHeartbeat = async (
 	while (!abortSignal.aborted) {
 		try {
 			await trpc.bots.heartbeat.mutate({ id: botId });
+
 			console.log(`[${new Date().toISOString()}] Heartbeat sent`);
 		} catch (error) {
 			// Do not log the entire heartbeat error if, in local, the user has set HEARTBEAT_DEBUG to false.

@@ -14,7 +14,7 @@ import {
 const leaveButtonSelector =
 	'button[aria-label="Leave (Ctrl+Shift+H)"], button[aria-label="Leave (⌘+Shift+H)"]';
 
-export class TeamsBot extends Bot {
+export class MicrosoftTeamsBot extends Bot {
 	recordingPath: string;
 	contentType: string;
 	url: string;
@@ -22,12 +22,15 @@ export class TeamsBot extends Bot {
 	participantsIntervalId: NodeJS.Timeout;
 	browser!: Browser;
 	page!: Page;
-	file!: fs.WriteStream;
+	file!: fs.WriteStream | null;
 	stream!: Transform;
 
 	constructor(
 		botSettings: BotConfig,
-		onEvent: (eventType: EventCode, data?: unknown) => Promise<void>,
+		onEvent: (
+			eventType: EventCode,
+			data?: Record<string, unknown>,
+		) => Promise<void>,
 	) {
 		super(botSettings, onEvent);
 		this.recordingPath = "./recording.webm";

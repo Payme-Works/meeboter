@@ -603,13 +603,13 @@ main() {
     # Check Docker daemon first before any operations
     check_docker
     
-    # Always prompt for environment selection to ensure user is aware of target environment
-    # But allow TERRAFORM_WORKSPACE env var to skip the prompt for automation
-    if [[ "${SKIP_ENV_PROMPT:-false}" == "true" ]]; then
+    # Skip environment selection if workspace was provided via flag or env var
+    # But allow SKIP_ENV_PROMPT env var to skip the prompt for automation
+    if [[ "${SKIP_ENV_PROMPT:-false}" == "true" ]] || [[ "${WORKSPACE_PROVIDED:-false}" == "true" ]]; then
         # Validate provided workspace name
         case "$TERRAFORM_WORKSPACE" in
             "development"|"staging"|"production")
-                log_success "Using environment: $TERRAFORM_WORKSPACE (prompt skipped)"
+                log_success "Using environment: $TERRAFORM_WORKSPACE (${WORKSPACE_PROVIDED:+flag provided}${SKIP_ENV_PROMPT:+prompt skipped})"
                 ;;
             *)
                 log_error "Invalid TERRAFORM_WORKSPACE: $TERRAFORM_WORKSPACE. Must be one of: development, staging, production"
@@ -617,7 +617,7 @@ main() {
                 ;;
         esac
     else
-        # Always show environment selection to make user aware
+        # Show environment selection to make user aware
         select_environment
     fi
     
@@ -684,6 +684,7 @@ parse_args() {
                 ;;
             --workspace|-w)
                 TERRAFORM_WORKSPACE="$2"
+                WORKSPACE_PROVIDED="true"
                 shift 2
                 ;;
             --skip-terraform)

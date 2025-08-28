@@ -3,7 +3,10 @@ import type { BotConfig, EventCode, SpeakerTimeframe } from "./types";
 
 export interface BotInterface {
 	readonly settings: BotConfig;
-	onEvent: (eventType: EventCode, data?: unknown) => Promise<void>;
+	onEvent: (
+		eventType: EventCode,
+		data?: Record<string, unknown>,
+	) => Promise<void>;
 	getRecordingPath(): string;
 	getContentType(): string;
 	run(): Promise<void>;
@@ -15,11 +18,18 @@ export interface BotInterface {
 
 export class Bot implements BotInterface {
 	readonly settings: BotConfig;
-	onEvent: (eventType: EventCode, data?: unknown) => Promise<void>;
+
+	onEvent: (
+		eventType: EventCode,
+		data?: Record<string, unknown>,
+	) => Promise<void>;
 
 	constructor(
 		settings: BotConfig,
-		onEvent: (eventType: EventCode, data?: unknown) => Promise<void>,
+		onEvent: (
+			eventType: EventCode,
+			data?: Record<string, unknown>,
+		) => Promise<void>,
 	) {
 		this.settings = settings;
 		this.onEvent = onEvent;
@@ -130,22 +140,22 @@ export const createBot = async (botData: BotConfig): Promise<Bot> => {
 
 	switch (botData.meetingInfo.platform) {
 		case "google": {
-			const { MeetsBot } = await import("../providers/meet/src/bot");
+			const { GoogleMeetBot } = await import("../providers/meet/src/bot");
 
-			return new MeetsBot(
+			return new GoogleMeetBot(
 				botData,
-				async (eventType: EventCode, data: unknown) => {
+				async (eventType: EventCode, data?: Record<string, unknown>) => {
 					await reportEvent(botId, eventType, data);
 				},
 			);
 		}
 
 		case "teams": {
-			const { TeamsBot } = await import("../providers/teams/src/bot");
+			const { MicrosoftTeamsBot } = await import("../providers/teams/src/bot");
 
-			return new TeamsBot(
+			return new MicrosoftTeamsBot(
 				botData,
-				async (eventType: EventCode, data: unknown) => {
+				async (eventType: EventCode, data?: Record<string, unknown>) => {
 					await reportEvent(botId, eventType, data);
 				},
 			);
@@ -156,7 +166,7 @@ export const createBot = async (botData: BotConfig): Promise<Bot> => {
 
 			return new ZoomBot(
 				botData,
-				async (eventType: EventCode, data: unknown) => {
+				async (eventType: EventCode, data?: Record<string, unknown>) => {
 					await reportEvent(botId, eventType, data);
 				},
 			);

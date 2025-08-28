@@ -195,8 +195,8 @@ describe("eventsRouter", () => {
 				platform: "zoom",
 				meetingUrl: "https://zoom.us/events-test",
 			},
-			startTime: new Date(Date.now() + 3600000), // 1 hour in the future
-			endTime: new Date(Date.now() + 7200000), // 2 hours in the future
+			startTime: new Date(Date.now() + 3600000).toISOString(), // 1 hour in the future
+			endTime: new Date(Date.now() + 7200000).toISOString(), // 2 hours in the future
 			heartbeatInterval: 5000,
 			automaticLeave: {
 				waitingRoomTimeout: 300000,

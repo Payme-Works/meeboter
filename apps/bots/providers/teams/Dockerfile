@@ -1,11 +1,10 @@
 # Use Node.js 20 Alpine as base image
 FROM node:20-alpine
 
-ENV \
-    # Configure default locale (important for chrome-headless-shell).
-    LANG=en_US.UTF-8 \
-    # Get meeting platform this file is built for
-    DOCKER_MEETING_PLATFORM=teams
+# Configure default locale (important for chrome-headless-shell).
+ENV LANG=en_US.UTF-8
+# Get meeting platform this file is built for
+ENV DOCKER_MEETING_PLATFORM=teams
 
 # Install system dependencies required for Chrome/Puppeteer
 RUN apk add --no-cache \
@@ -21,7 +20,6 @@ RUN apk add --no-cache \
 # Tell Puppeteer to skip installing Chrome. We'll be using the installed package.
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
-# Install pnpm
 RUN npm install -g pnpm
 
 # Create a non-root user

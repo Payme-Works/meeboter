@@ -29,12 +29,15 @@ export class ZoomBot extends Bot {
 	url: string;
 	browser!: Browser;
 	page!: Page;
-	file!: fs.WriteStream;
+	file!: fs.WriteStream | null;
 	stream!: Transform;
 
 	constructor(
 		botSettings: BotConfig,
-		onEvent: (eventType: EventCode, data?: unknown) => Promise<void>,
+		onEvent: (
+			eventType: EventCode,
+			data?: Record<string, unknown>,
+		) => Promise<void>,
 	) {
 		super(botSettings, onEvent);
 		this.recordingPath = path.resolve(__dirname, "recording.mp4");
