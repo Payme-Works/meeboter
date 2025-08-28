@@ -8,9 +8,9 @@ export NODE_TLS_REJECT_UNAUTHORIZED=0
 echo "Set NODE_TLS_REJECT_UNAUTHORIZED=0 to ignore SSL certificate errors"
 
 # Run database migrations
-npx drizzle-kit migrate
+cd /app/apps/server && npx drizzle-kit migrate
 
 echo "Starting server..."
 
 # Start the Next.js server
-exec node app/server.js
+cd /app && exec node app/server.js
