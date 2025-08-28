@@ -9,7 +9,7 @@ import type {
 	TRPC_ERROR_CODE_NUMBER,
 } from "@trpc/server/rpc";
 import type { SessionContextValue } from "next-auth/react";
-import type { typeToFlattenedError } from "zod";
+import type { typeToFlattenedError } from "zod/v3";
 
 /**
  * This is a utility function to create a mock for React Query.

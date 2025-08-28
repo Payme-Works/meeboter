@@ -55,15 +55,13 @@ export function UsageChart() {
 	}, []);
 
 	// Load the Data
-	const weekData = api.usage.getWeekDailyUsage.useQuery(
-		{},
-		{ enabled: timeframe === "week" },
-	);
+	const weekData = api.usage.getWeekDailyUsage.useQuery(undefined, {
+		enabled: timeframe === "week",
+	});
 
-	const monthData = api.usage.getMonthDailyUsage.useQuery(
-		{},
-		{ enabled: timeframe === "month" },
-	);
+	const monthData = api.usage.getMonthDailyUsage.useQuery(undefined, {
+		enabled: timeframe === "month",
+	});
 
 	const { data, isLoading, error } =
 		timeframe === "week" ? weekData : monthData;

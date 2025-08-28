@@ -22,7 +22,7 @@ export const eventsRouter = createTRPCRouter({
 						.join("\n"),
 			},
 		})
-		.input(z.object({}))
+		.input(z.void())
 		.output(z.array(selectEventSchema))
 		.query(async ({ ctx }) => {
 			// Get all events for bots owned by the user
@@ -59,7 +59,7 @@ export const eventsRouter = createTRPCRouter({
 						.join("\n"),
 			},
 		})
-		.input(z.object({ botId: z.number() }))
+		.input(z.object({ botId: z.string().transform((val) => Number(val)) }))
 		.output(z.array(selectEventSchema))
 		.query(async ({ ctx, input }) => {
 			// Check if the bot belongs to the user
@@ -86,7 +86,7 @@ export const eventsRouter = createTRPCRouter({
 				description: "Get a specific event by its ID",
 			},
 		})
-		.input(z.object({ id: z.number() }))
+		.input(z.object({ id: z.string().transform((val) => Number(val)) }))
 		.output(selectEventSchema)
 		.query(async ({ ctx, input }) => {
 			// Get the event and join with bots to check ownership
@@ -146,7 +146,7 @@ export const eventsRouter = createTRPCRouter({
 		})
 		.input(
 			z.object({
-				id: z.number(),
+				id: z.string().transform((val) => Number(val)),
 				data: insertEventSchema.partial(),
 			}),
 		)
@@ -187,7 +187,7 @@ export const eventsRouter = createTRPCRouter({
 				description: "Delete an event by its ID",
 			},
 		})
-		.input(z.object({ id: z.number() }))
+		.input(z.object({ id: z.string().transform((val) => Number(val)) }))
 		.output(z.object({ message: z.string() }))
 		.mutation(async ({ ctx, input }) => {
 			// Check if the event's bot belongs to the user

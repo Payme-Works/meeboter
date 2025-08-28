@@ -62,7 +62,7 @@ export const apiKeysRouter = createTRPCRouter({
 				description: "List all API keys for the specified user",
 			},
 		})
-		.input(z.object({}))
+		.input(z.void())
 		.output(z.array(selectApiKeySchema))
 		.query(async ({ ctx }) => {
 			return await ctx.db
@@ -79,7 +79,7 @@ export const apiKeysRouter = createTRPCRouter({
 				description: "Revoke an API key",
 			},
 		})
-		.input(z.object({ id: z.number() }))
+		.input(z.object({ id: z.string().transform((val) => Number(val)) }))
 		.output(selectApiKeySchema)
 		.mutation(async ({ input, ctx }) => {
 			// Check if the API key belongs to the user
@@ -125,9 +125,17 @@ export const apiKeysRouter = createTRPCRouter({
 		})
 		.input(
 			z.object({
-				id: z.number(),
-				limit: z.number().min(1).max(100).default(50),
-				offset: z.number().min(0).default(0),
+				id: z.string().transform((val) => Number(val)),
+				limit: z
+					.string()
+					.transform((val) => Number(val))
+					.pipe(z.number().min(1).max(100))
+					.default(50),
+				offset: z
+					.string()
+					.transform((val) => Number(val))
+					.pipe(z.number().min(0))
+					.default(0),
 			}),
 		)
 		.output(
@@ -193,8 +201,16 @@ export const apiKeysRouter = createTRPCRouter({
 		})
 		.input(
 			z.object({
-				limit: z.number().min(1).max(100).default(50),
-				offset: z.number().min(0).default(0),
+				limit: z
+					.string()
+					.transform((val) => Number(val))
+					.pipe(z.number().min(1).max(100))
+					.default(50),
+				offset: z
+					.string()
+					.transform((val) => Number(val))
+					.pipe(z.number().min(0))
+					.default(0),
 			}),
 		)
 		.output(
@@ -259,7 +275,7 @@ export const apiKeysRouter = createTRPCRouter({
 					"Get the total count of non-expired API keys owned by the user",
 			},
 		})
-		.input(z.object({}))
+		.input(z.void())
 		.output(z.object({ count: z.number() }))
 		.query(async ({ ctx }) => {
 			const countResult = await ctx.db

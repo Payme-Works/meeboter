@@ -27,7 +27,7 @@ export const botsRouter = createTRPCRouter({
 				description: "Retrieve a list of all bots",
 			},
 		})
-		.input(z.object({}))
+		.input(z.void())
 		.output(z.array(selectBotSchema))
 		.query(async ({ ctx }) => {
 			return await ctx.db
@@ -45,7 +45,7 @@ export const botsRouter = createTRPCRouter({
 				description: "Get a specific bot by its ID",
 			},
 		})
-		.input(z.object({ id: z.number() }))
+		.input(z.object({ id: z.string().transform((val) => Number(val)) }))
 		.output(selectBotSchema)
 		.query(async ({ input, ctx }) => {
 			const result = await ctx.db
@@ -155,7 +155,7 @@ export const botsRouter = createTRPCRouter({
 		})
 		.input(
 			z.object({
-				id: z.number(),
+				id: z.string().transform((val) => Number(val)),
 				data: insertBotSchema.partial(),
 			}),
 		)
@@ -194,7 +194,7 @@ export const botsRouter = createTRPCRouter({
 		})
 		.input(
 			z.object({
-				id: z.number(),
+				id: z.string().transform((val) => Number(val)),
 				status: status,
 				recording: z.string().optional(),
 				speakerTimeframes: z.array(speakerTimeframeSchema).optional(),
@@ -286,7 +286,7 @@ export const botsRouter = createTRPCRouter({
 				description: "Delete a bot by its ID",
 			},
 		})
-		.input(z.object({ id: z.number() }))
+		.input(z.object({ id: z.string().transform((val) => Number(val)) }))
 		.output(z.object({ message: z.string() }))
 		.mutation(async ({ input, ctx }) => {
 			// Check if the bot belongs to the user
@@ -320,7 +320,7 @@ export const botsRouter = createTRPCRouter({
 					"Retrieve a signed URL for the recording associated with a specific bot",
 			},
 		})
-		.input(z.object({ id: z.number() }))
+		.input(z.object({ id: z.string().transform((val) => Number(val)) }))
 		.output(z.object({ recordingUrl: z.string().nullable() }))
 		.query(async ({ input, ctx }) => {
 			const result = await ctx.db
@@ -350,7 +350,7 @@ export const botsRouter = createTRPCRouter({
 					"Called every few seconds by bot scripts to indicate that the bot is still running",
 			},
 		})
-		.input(z.object({ id: z.number() }))
+		.input(z.object({ id: z.string().transform((val) => Number(val)) }))
 		.output(z.object({ success: z.boolean() }))
 		.mutation(async ({ input, ctx }) => {
 			console.log("Heartbeat received for bot", input.id);
@@ -380,7 +380,7 @@ export const botsRouter = createTRPCRouter({
 		})
 		.input(
 			z.object({
-				id: z.number(),
+				id: z.string().transform((val) => Number(val)),
 				event: insertEventSchema.omit({ botId: true }),
 			}),
 		)
@@ -404,7 +404,7 @@ export const botsRouter = createTRPCRouter({
 					"Deploy a bot by provisioning necessary resources and starting it up",
 			},
 		})
-		.input(z.object({ id: z.number() }))
+		.input(z.object({ id: z.string().transform((val) => Number(val)) }))
 		.output(selectBotSchema)
 		.mutation(async ({ input, ctx }) => {
 			// Check if the bot belongs to the user
@@ -432,7 +432,7 @@ export const botsRouter = createTRPCRouter({
 					"Get the count of currently active bots (not DONE or FATAL)",
 			},
 		})
-		.input(z.object({}))
+		.input(z.void())
 		.output(z.object({ count: z.number() }))
 		.query(async ({ ctx }) => {
 			const result = await ctx.db

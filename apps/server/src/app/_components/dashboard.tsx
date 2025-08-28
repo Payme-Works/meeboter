@@ -16,13 +16,13 @@ export default function Dashboard() {
 		data: activeBotCount,
 		isLoading: activeBotCountLoading,
 		error: activeBotCountError,
-	} = api.bots.getActiveBotCount.useQuery({});
+	} = api.bots.getActiveBotCount.useQuery();
 
 	const {
 		data: keyCount,
 		isLoading: keyCountLoading,
 		error: keyCountError,
-	} = api.apiKeys.getApiKeyCount.useQuery({});
+	} = api.apiKeys.getApiKeyCount.useQuery();
 
 	return (
 		<div className="space-y-4">

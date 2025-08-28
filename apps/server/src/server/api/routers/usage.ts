@@ -32,7 +32,7 @@ export const usageRouter = createTRPCRouter({
 					"Retreive a sorted list of daily bot usage over all time\n",
 			},
 		})
-		.input(z.object({}))
+		.input(z.void())
 		.output(z.array(dailyUsageSchema))
 		.query(async ({ ctx }) => {
 			// Get all bots timestamp
@@ -128,7 +128,7 @@ export const usageRouter = createTRPCRouter({
 					"Retreive a list of daily bot usage over the last week. Empty days will be reported as well.\n",
 			},
 		})
-		.input(z.object({}))
+		.input(z.void())
 		.output(z.array(dailyUsageSchema))
 		.query(async ({ ctx }) => {
 			// Calculate start of this week
@@ -217,7 +217,7 @@ export const usageRouter = createTRPCRouter({
 					"Retreive a list of daily bot usage over the last month. Empty days will be reported as well.\n",
 			},
 		})
-		.input(z.object({}))
+		.input(z.void())
 		.output(z.array(dailyUsageSchema))
 		.query(async ({ ctx }) => {
 			// Calculate start of this week

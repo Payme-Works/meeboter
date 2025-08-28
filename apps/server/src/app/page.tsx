@@ -14,12 +14,9 @@ export default function Home() {
 		data: apiKeyCount,
 		isLoading: apiKeyCountIsLoading,
 		error: apiKeyCountError,
-	} = api.apiKeys.getApiKeyCount.useQuery(
-		{},
-		{
-			enabled: !!session,
-		},
-	);
+	} = api.apiKeys.getApiKeyCount.useQuery(undefined, {
+		enabled: !!session,
+	});
 
 	const isLoading = status === "loading" || apiKeyCountIsLoading;
 	const showWelcome = !session || apiKeyCount?.count === 0;

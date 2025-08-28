@@ -26,9 +26,9 @@ export function ViewLogsDialog({
 		error,
 	} = api.apiKeys.getApiKeyLogs.useQuery(
 		{
-			id: Number(selectedViewLogsKeyId),
-			limit: 10,
-			offset: 0,
+			id: String(selectedViewLogsKeyId),
+			limit: "10",
+			offset: "0",
 		},
 		{
 			enabled: selectedViewLogsKeyId !== null,

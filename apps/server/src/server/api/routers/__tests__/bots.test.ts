@@ -234,7 +234,7 @@ describe("botsRouter", () => {
 			}),
 		);
 
-		const result = await caller.getBots({});
+		const result = await caller.getBots();
 
 		expect(result).toBeDefined();
 		expect(Array.isArray(result)).toBe(true);
@@ -248,7 +248,7 @@ describe("botsRouter", () => {
 			}),
 		);
 
-		const result = await caller.getBot({ id: testBotId });
+		const result = await caller.getBot({ id: String(testBotId) });
 
 		expect(result).toBeDefined();
 		expect(result.id).toBe(testBotId);
@@ -265,7 +265,7 @@ describe("botsRouter", () => {
 		const updatedTitle = "Updated Test Meeting";
 
 		const result = await caller.updateBot({
-			id: testBotId,
+			id: String(testBotId),
 			data: {
 				meetingTitle: updatedTitle,
 			},
@@ -284,7 +284,7 @@ describe("botsRouter", () => {
 		);
 
 		const result = await caller.deployBot({
-			id: testBotId,
+			id: String(testBotId),
 		});
 
 		expect(result).toBeDefined();
@@ -306,7 +306,7 @@ describe("botsRouter", () => {
 			.where(eq(schema.botsTable.id, testBotId));
 
 		const result = await caller.getSignedRecordingUrl({
-			id: testBotId,
+			id: String(testBotId),
 		});
 
 		expect(result).toBeDefined();
@@ -343,7 +343,7 @@ describe("botsRouter", () => {
 		});
 
 		const deleteResult = await caller.deleteBot({
-			id: newBot.id,
+			id: String(newBot.id),
 		});
 
 		expect(deleteResult).toBeDefined();
@@ -351,7 +351,7 @@ describe("botsRouter", () => {
 
 		// Verify the bot was actually deleted
 		try {
-			await caller.getBot({ id: newBot.id });
+			await caller.getBot({ id: String(newBot.id) });
 			fail("Bot should have been deleted");
 		} catch (error) {
 			expect((error as Error).message).toBe("Bot not found");

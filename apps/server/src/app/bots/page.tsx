@@ -14,7 +14,7 @@ import { api } from "@/trpc/react";
 
 export default function BotsPage() {
 	const [selectedBot, setSelectedBot] = useState<number | null>(null);
-	const { data: bots = [], isLoading, error } = api.bots.getBots.useQuery({});
+	const { data: bots = [], isLoading, error } = api.bots.getBots.useQuery();
 
 	type Bot = (typeof bots)[number];
 

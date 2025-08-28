@@ -39,7 +39,7 @@ const formSchema = z.object({
 	name: z.string().min(2, {
 		message: "Name must be at least 2 characters.",
 	}),
-	expiresAt: z.date().default(getSixMonthsFromNowAtEndOfDay()),
+	expiresAt: z.date().default(getSixMonthsFromNowAtEndOfDay()).optional(),
 });
 
 type CreateApiKeyFormProps = {
@@ -76,7 +76,10 @@ export function CreateApiKeyForm({ onSuccess }: CreateApiKeyFormProps) {
 
 	async function onSubmit(values: z.infer<typeof formSchema>) {
 		// Set time to end of day (23:59:59.999) in local time
-		const expiresAt = new Date(values.expiresAt);
+		const expiresAt = new Date(
+			values.expiresAt ?? getSixMonthsFromNowAtEndOfDay(),
+		);
+
 		expiresAt.setHours(23, 59, 59, 999);
 
 		await createApiKey.mutateAsync({

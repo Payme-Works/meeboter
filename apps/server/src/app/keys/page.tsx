@@ -16,7 +16,7 @@ export default function Keys() {
 		data: apiKeys,
 		isLoading,
 		error,
-	} = api.apiKeys.listApiKeys.useQuery({});
+	} = api.apiKeys.listApiKeys.useQuery();
 
 	return (
 		<div className="space-y-4">

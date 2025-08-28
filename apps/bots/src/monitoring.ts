@@ -30,7 +30,7 @@ export const startHeartbeat = async (
 export const reportEvent = async (
 	botId: number,
 	eventType: EventCode,
-	eventData: unknown = null,
+	eventData: Record<string, unknown> | null = null,
 ) => {
 	// do not report events in development
 	if (process.env.NODE_ENV === "development") {
@@ -40,7 +40,7 @@ export const reportEvent = async (
 	try {
 		// Report event
 		await trpc.bots.reportEvent.mutate({
-			id: botId,
+			id: String(botId),
 			event: {
 				eventType,
 				eventTime: new Date(),
@@ -58,14 +58,14 @@ export const reportEvent = async (
 			// If the event is DONE, we need to include the recording parameter
 			if (eventType === EventCode.DONE && eventData?.recording) {
 				await trpc.bots.updateBotStatus.mutate({
-					id: botId,
+					id: String(botId),
 					status: eventType as unknown as Status,
 					recording: eventData.recording,
 					speakerTimeframes: eventData.speakerTimeframes,
 				});
 			} else {
 				await trpc.bots.updateBotStatus.mutate({
-					id: botId,
+					id: String(botId),
 					status: eventType as unknown as Status,
 				});
 			}

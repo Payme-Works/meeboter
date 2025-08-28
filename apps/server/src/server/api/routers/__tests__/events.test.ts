@@ -247,7 +247,7 @@ describe("eventsRouter", () => {
 			}),
 		);
 
-		const result = await caller.getEventsForBot({ botId: testBotId });
+		const result = await caller.getEventsForBot({ botId: String(testBotId) });
 
 		expect(result).toBeDefined();
 		expect(Array.isArray(result)).toBe(true);
@@ -284,7 +284,7 @@ describe("eventsRouter", () => {
 		expect(newEvent.eventType).toBe("CALL_ENDED");
 
 		// Verify the event was properly saved by retrieving it
-		const events = await caller.getEventsForBot({ botId: testBotId });
+		const events = await caller.getEventsForBot({ botId: String(testBotId) });
 		const foundEvent = events.find((e) => e.id === newEvent.id);
 
 		expect(foundEvent).toBeDefined();
@@ -300,7 +300,7 @@ describe("eventsRouter", () => {
 
 		// Try to get events for a non-existent bot ID
 		try {
-			await caller.getEventsForBot({ botId: 999999 });
+			await caller.getEventsForBot({ botId: "999999" });
 			fail("Should have thrown an error for non-existent bot");
 		} catch (error) {
 			expect((error as Error).message).toBe("Bot not found");
@@ -370,7 +370,10 @@ describe("eventsRouter", () => {
 			// Try to get events for a bot that doesn't belong to our test user
 			if (otherUserBot[0]) {
 				try {
-					await caller.getEventsForBot({ botId: otherUserBot[0].id });
+					await caller.getEventsForBot({
+						botId: String(otherUserBot[0].id),
+					});
+
 					fail("Should have thrown an error for bot belonging to another user");
 				} catch (error) {
 					expect((error as Error).message).toBe("Bot not found");

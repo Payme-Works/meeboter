@@ -63,7 +63,9 @@ export default function ActionCell({
 				{!isRevoked && (
 					<DropdownMenuItem
 						className="text-red-600"
-						onClick={async () => await revokeKey.mutateAsync({ id })}
+						onClick={async () =>
+							await revokeKey.mutateAsync({ id: String(id) })
+						}
 					>
 						Revoke Key
 					</DropdownMenuItem>
