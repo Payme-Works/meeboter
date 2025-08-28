@@ -31,18 +31,23 @@ RUN addgroup -g 1001 -S pptruser \
 # Set working directory
 WORKDIR /home/pptruser
 
-# Copy files
-COPY package.json pnpm-lock.yaml ./
-COPY src ./src
+# Copy workspace configuration and files
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 
-COPY providers/teams/package.json providers/teams/pnpm-lock.yaml providers/teams/entrypoint.sh ./providers/teams/
-COPY providers/teams/src ./providers/teams/src
+# Ensure we're building from monorepo root
+RUN test -f pnpm-workspace.yaml || (echo "ERROR: Must build from monorepo root directory" && exit 1)
+
+COPY apps/bots/package.json ./apps/bots/
+COPY packages ./packages
+COPY apps/bots/src ./src
+COPY apps/bots/providers/teams/package.json apps/bots/providers/teams/entrypoint.sh ./providers/teams/
+COPY apps/bots/providers/teams/src ./providers/teams/src
 
 # Convert entrypoint.sh to use Unix line endings
 RUN sed -i 's/\r$//' ./providers/teams/entrypoint.sh
 
-# Install dependencies as root
-RUN pnpm install --filter "@live-boost/bots-teams"
+# Install dependencies as root with workspace context
+RUN pnpm install --no-frozen-lockfile
 
 # Change ownership of all files after installation
 RUN chown -R pptruser:pptruser /home/pptruser

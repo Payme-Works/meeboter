@@ -55,6 +55,29 @@ provider "aws" {
 }
 ```
 
+## Docker Build Guidelines
+
+### Monorepo Docker Builds
+
+- **Always build from monorepo root**: Use `docker build -f apps/<app>/Dockerfile .` 
+- **Never build from subdirectories**: Workspace dependencies won't resolve correctly
+- **Include workspace context**: Copy `pnpm-workspace.yaml`, root `package.json`, and `packages/` directory
+- **Use workspace filtering**: For builds, use `pnpm --filter @package/name build`
+- **Protection checks**: All Dockerfiles include root directory validation
+- **Disk cleanup**: Run `docker system prune -f --volumes` after builds to manage disk space
+
+### Docker Build Commands
+
+```bash
+# Server
+docker build -f apps/server/Dockerfile -t live-boost-server .
+
+# Bots  
+docker build -f apps/bots/providers/meet/Dockerfile -t live-boost-meet .
+docker build -f apps/bots/providers/teams/Dockerfile -t live-boost-teams .
+docker build -f apps/bots/providers/zoom/Dockerfile -t live-boost-zoom .
+```
+
 ## Development Workflow
 
 1. Always check existing code patterns before implementing new features

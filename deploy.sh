@@ -292,9 +292,7 @@ prepare_build() {
 build_server() {
     log_info "Building server image..."
     
-    cd apps/server
-    
-    # Build the Docker image
+    # Build from monorepo root with proper context
     if ! docker build \
         --platform linux/amd64 \
         --build-arg AUTH_SECRET="dummy" \
@@ -312,29 +310,26 @@ build_server() {
         --build-arg ECS_CLUSTER_NAME="dummy" \
         --build-arg ECS_SUBNETS="dummy" \
         --build-arg ECS_SECURITY_GROUPS="dummy" \
+        -f apps/server/Dockerfile \
         -t "$ECR_SERVER:$TAG" \
         -t "$ECR_SERVER:latest" \
         .; then
         
         log_error "Failed to build server image"
-        cd ../..
         exit 1
     fi
     
     # Push images
     if ! docker push "$ECR_SERVER:$TAG"; then
         log_error "Failed to push server image with tag $TAG"
-        cd ../..
         exit 1
     fi
     
     if ! docker push "$ECR_SERVER:latest"; then
         log_error "Failed to push server image with latest tag"
-        cd ../..
         exit 1
     fi
     
-    cd ../..
     log_success "Server image built and pushed"
 }
 
@@ -345,35 +340,29 @@ build_bot_provider() {
     
     log_info "Building $bot_type bot image..."
     
-    cd apps/bots
-    
-    # Build the Docker image
+    # Build from monorepo root with proper context
     if ! docker build \
         --platform linux/amd64 \
-        -f "providers/$bot_type/Dockerfile" \
+        -f "apps/bots/providers/$bot_type/Dockerfile" \
         -t "$ecr_url:$TAG" \
         -t "$ecr_url:latest" \
         .; then
         
         log_error "Failed to build $bot_type bot image"
-        cd ../..
         exit 1
     fi
     
     # Push images
     if ! docker push "$ecr_url:$TAG"; then
         log_error "Failed to push $bot_type bot image with tag $TAG"
-        cd ../..
         exit 1
     fi
     
     if ! docker push "$ecr_url:latest"; then
         log_error "Failed to push $bot_type bot image with latest tag"
-        cd ../..
         exit 1
     fi
     
-    cd ../..
     log_success "$bot_type bot image built and pushed"
 }
 

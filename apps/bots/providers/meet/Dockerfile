@@ -18,15 +18,20 @@ WORKDIR /app
 # Install pnpm globally
 RUN npm install -g pnpm
 
-# Copy dependency files
-COPY package.json pnpm-lock.yaml ./
-COPY providers/meet/package.json providers/meet/pnpm-lock.yaml providers/meet/entrypoint.sh ./providers/meet/
+# Copy workspace configuration and dependency files
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+
+# Ensure we're building from monorepo root
+RUN test -f pnpm-workspace.yaml || (echo "ERROR: Must build from monorepo root directory" && exit 1)
+COPY apps/bots/package.json ./apps/bots/
+COPY packages ./packages
+COPY apps/bots/providers/meet/package.json apps/bots/providers/meet/entrypoint.sh ./providers/meet/
 
 # Convert entrypoint.sh to use Unix line endings
 RUN sed -i 's/\r$//' ./providers/meet/entrypoint.sh
 
-# Install dependencies
-RUN pnpm install --filter "@live-boost/bots-meet"
+# Install dependencies with workspace context
+RUN pnpm install --no-frozen-lockfile
 
 # Install Playwright dependencies
 RUN pnpm dlx playwright@1.52.0 install-deps
@@ -65,18 +70,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN npm install -g pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
-# Copy package.json and playwright files from the base stage
-COPY --from=base /app/package.json /app/package.json
+# Copy from base stage
+COPY --from=base /app/node_modules ./node_modules
 COPY --from=base /root/ms-playwright /root/ms-playwright
-
-COPY --from=base /app/providers/meet/node_modules /app/providers/meet/node_modules
-COPY --from=base /app/providers/meet/pnpm-lock.yaml /app/providers/meet/pnpm-lock.yaml
-COPY --from=base /app/providers/meet/package.json /app/providers/meet/package.json
 COPY --from=base /app/providers/meet/entrypoint.sh /app/entrypoint.sh
 
-# Copy working files into the container
-COPY src ./src
-COPY providers/meet/src ./providers/meet/src
+# Copy source files
+COPY apps/bots/src ./src
+COPY apps/bots/providers/meet/src ./providers/meet/src
 
 # Make all files available to the meetbot user
 RUN chown -R meetbot:meetbot /app

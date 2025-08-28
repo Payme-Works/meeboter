@@ -1,28 +1,27 @@
 import { getMultipleBrazilianNames } from "./constants/bot-display-names";
 
-const PRODUCTION_API_KEY =
-	"00e137cd5b97f23ca34f170b780f4c9d368c784b0ec40c06d92160a9c293aaa2";
+const API_KEYS = {
+	production:
+		"00e137cd5b97f23ca34f170b780f4c9d368c784b0ec40c06d92160a9c293aaa2",
+	development:
+		"175113ee117feaae481c6115f3f67e4cc1b4c862a66a9b3f61a4c14b9035aca9",
+};
 
-const DEVELOPMENT_API_KEY =
-	"175113ee117feaae481c6115f3f67e4cc1b4c862a66a9b3f61a4c14b9035aca9";
-
-const PRODUCTION_API_BASE_URL = "https://live-boost.andredezzy.com/api";
-
-const DEVELOPMENT_API_BASE_URL =
-	"https://development.live-boost.andredezzy.com/api";
+const API_BASE_URLS = {
+	production: "https://live-boost.andredezzy.com/api",
+	development: "https://development.live-boost.andredezzy.com/api",
+};
 
 const ENV: "production" | "development" = "production";
 
-const API_BASE_URL =
-	ENV === "production" ? PRODUCTION_API_BASE_URL : DEVELOPMENT_API_BASE_URL;
+const API_BASE_URL = API_BASE_URLS[ENV];
+const API_KEY = API_KEYS[ENV];
 
-const API_KEY = ENV === "production" ? PRODUCTION_API_KEY : DEVELOPMENT_API_KEY;
-
-const GOOGLE_MEET_URL = "https://meet.google.com/ius-zoyy-iih";
+const GOOGLE_MEET_URL = "https://meet.google.com/mod-qsvx-ubn";
 
 // Configuration for multiple bots
 const BOT_CONFIG = {
-	numberOfBots: 100, // Configure how many bots to deploy
+	numberOfBots: 5, // Configure how many bots to deploy
 	meetingDurationHours: 1, // Meeting duration in hours
 	staggerDelay: 5000, // Delay between bot deployments in milliseconds (5 seconds)
 } as const;

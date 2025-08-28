@@ -6,14 +6,17 @@ WORKDIR /app
 
 # Install dependencies based on the preferred package manager
 
-COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml\* ./
+# Copy workspace configuration and all package.json files
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 
-RUN \
-    if [ -f yarn.lock ]; then yarn --frozen-lockfile; \
-    elif [ -f package-lock.json ]; then npm ci; \
-    elif [ -f pnpm-lock.yaml ]; then npm install -g pnpm && pnpm i; \
-    else echo "Lockfile not found." && exit 1; \
-    fi
+# Ensure we're building from monorepo root
+RUN test -f pnpm-workspace.yaml || (echo "ERROR: Must build from monorepo root directory" && exit 1)
+
+COPY apps/server/package.json ./apps/server/
+COPY packages ./packages
+
+# Install pnpm and dependencies
+RUN npm install -g pnpm && pnpm install --no-frozen-lockfile
 
 ##### BUILDER
 
@@ -38,16 +41,13 @@ ARG ECS_SECURITY_GROUPS
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
-COPY . .
+COPY packages ./packages
+COPY apps/server ./apps/server
 
 # ENV NEXT_TELEMETRY_DISABLED 1
 
-RUN \
-    if [ -f yarn.lock ]; then SKIP_ENV_VALIDATION=1 yarn build; \
-    elif [ -f package-lock.json ]; then SKIP_ENV_VALIDATION=1 npm run build; \
-    elif [ -f pnpm-lock.yaml ]; then npm install -g pnpm && SKIP_ENV_VALIDATION=1 pnpm run build; \
-    else echo "Lockfile not found." && exit 1; \
-    fi
+# Build the server app using pnpm workspace filtering
+RUN npm install -g pnpm && SKIP_ENV_VALIDATION=1 pnpm --filter @live-boost/server build
 
 ##### RUNNER
 
@@ -59,17 +59,17 @@ ENV NODE_ENV production
 
 # ENV NEXT_TELEMETRY_DISABLED 1
 
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./app/.next/static
-COPY --from=builder /app/public ./app/public
+COPY --from=builder /app/apps/server/.next/standalone ./
+COPY --from=builder /app/apps/server/.next/static ./apps/server/.next/static
+COPY --from=builder /app/apps/server/public ./apps/server/public
 
 # Copy node_modules for drizzle-kit and migration files
 COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/drizzle ./drizzle
-COPY --from=builder /app/drizzle.config.ts ./drizzle.config.ts
+COPY --from=builder /app/apps/server/drizzle ./apps/server/drizzle
+COPY --from=builder /app/apps/server/drizzle.config.ts ./apps/server/drizzle.config.ts
 
 # Copy entrypoint script
-COPY entrypoint.sh /app/entrypoint.sh
+COPY apps/server/entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
 EXPOSE 3000
