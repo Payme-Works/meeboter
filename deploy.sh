@@ -244,11 +244,69 @@ build_ecr_urls() {
     log_info "ECR URLs configured for workspace: $TERRAFORM_WORKSPACE"
 }
 
+# Check Docker daemon health
+check_docker() {
+    log_info "Checking Docker daemon..."
+    
+    local max_attempts=30
+    local attempt=1
+    
+    while [ $attempt -le $max_attempts ]; do
+        if docker info >/dev/null 2>&1; then
+            log_success "Docker daemon is ready"
+            return 0
+        fi
+        
+        log_warning "Docker daemon not ready, attempt $attempt/$max_attempts (waiting 2s...)"
+        sleep 2
+        attempt=$((attempt + 1))
+    done
+    
+    log_error "Docker daemon is not responding after $max_attempts attempts"
+    log_error "Please ensure Docker Desktop is running and try again"
+    exit 1
+}
+
 # Login to ECR
 ecr_login() {
     log_info "Logging into AWS ECR..."
-    aws ecr get-login-password --profile "$AWS_PROFILE" --region "$AWS_REGION" --no-cli-pager | docker login --username AWS --password-stdin "$ECR_BASE"
-    log_success "ECR login successful"
+    
+    # Check Docker daemon first
+    check_docker
+    
+    # Test ECR connectivity
+    log_info "Testing ECR connectivity..."
+    if ! aws ecr describe-repositories --profile "$AWS_PROFILE" --region "$AWS_REGION" --max-items 1 >/dev/null 2>&1; then
+        log_error "Cannot connect to ECR. Check AWS credentials and permissions."
+        exit 1
+    fi
+    
+    # Get login password
+    log_info "Getting ECR login token..."
+    local login_password
+    if ! login_password=$(aws ecr get-login-password --profile "$AWS_PROFILE" --region "$AWS_REGION" --no-cli-pager 2>/dev/null); then
+        log_error "Failed to get ECR login password. Check AWS credentials."
+        exit 1
+    fi
+    
+    # Docker login with retry mechanism
+    log_info "Logging into Docker registry..."
+    local login_attempts=3
+    local attempt=1
+    
+    while [ $attempt -le $login_attempts ]; do
+        if echo "$login_password" | docker login --username AWS --password-stdin "$ECR_BASE" >/dev/null 2>&1; then
+            log_success "ECR login successful"
+            return 0
+        fi
+        
+        log_warning "ECR login attempt $attempt/$login_attempts failed, retrying..."
+        sleep 2
+        attempt=$((attempt + 1))
+    done
+    
+    log_error "Failed to login to ECR Docker registry after $login_attempts attempts"
+    exit 1
 }
 
 # Check if ECR repositories exist
@@ -504,6 +562,9 @@ cleanup() {
 # Main execution
 main() {
     log_info "Starting Live Boost deployment process..."
+    
+    # Check Docker daemon first before any operations
+    check_docker
     
     # Always prompt for environment selection to ensure user is aware of target environment
     # But allow TERRAFORM_WORKSPACE env var to skip the prompt for automation
