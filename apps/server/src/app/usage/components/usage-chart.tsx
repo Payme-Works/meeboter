@@ -111,13 +111,13 @@ export function UsageChart() {
 	};
 
 	return (
-		<div className="p-1 px-[50px]">
-			{/* Buttons */}
+		<div>
 			<div
 				className={`flex ${isMobile ? "flex-col" : "justify-between"} mt-4 w-full gap-2`}
 			>
 				<div className="align-center flex flex-col justify-center">
 					<div className="pb-2 font-semibold">Time Span</div>
+
 					<div className="flex gap-2">
 						{/* <Button variant={timeframe === 'year' ? "default" : 'outline'} onClick={() => setTimeframe('year')}>This Year</Button> */}
 						<Button
@@ -139,6 +139,7 @@ export function UsageChart() {
 
 				<div className="align-center flex flex-col justify-center">
 					<div className="pb-2 font-semibold">Metric</div>
+
 					<div className="flex gap-2">
 						<Button
 							variant={metric === "estimatedCost" ? "default" : "outline"}
@@ -201,7 +202,7 @@ export function UsageChart() {
 						</ResponsiveContainer>
 					</div>
 				) : isLoading ? (
-					<Skeleton className="w-100 mt-2 h-[300px]" />
+					<Skeleton className="w-full mt-2 h-[300px]" />
 				) : error ? (
 					<ErrorAlert errorMessage={error.message} />
 				) : (

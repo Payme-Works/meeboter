@@ -6,7 +6,7 @@ import ErrorAlert from "@/components/custom/error-alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/trpc/react";
 import { UsageChart } from "../usage/components/usage-chart";
-import CommunityCard from "./community-card";
+
 import DashboardCard from "./dashboard-card";
 
 export default function Dashboard() {
@@ -25,8 +25,8 @@ export default function Dashboard() {
 	} = api.apiKeys.getApiKeyCount.useQuery({});
 
 	return (
-		<>
-			<div className="mb-5 mt-5">
+		<div className="space-y-4">
+			<div>
 				<h1 className="text-3xl font-bold">
 					Welcome to Live Boost
 					{session?.user?.name ? `, ${session.user.name}` : ""}
@@ -36,6 +36,7 @@ export default function Dashboard() {
 					popular video meeting platforms.
 				</p>
 			</div>
+
 			<div>
 				<div className="grid grid-cols-1 gap-6 lg:h-[48rem] lg:grid-cols-3">
 					<DashboardCard
@@ -61,6 +62,7 @@ export default function Dashboard() {
 							text: "View Bots",
 						}}
 					/>
+
 					<DashboardCard
 						title="Active Keys"
 						className="h-full min-h-56"
@@ -82,6 +84,7 @@ export default function Dashboard() {
 							text: "View Keys",
 						}}
 					/>
+
 					<DashboardCard
 						title="View our Docs"
 						className="h-full min-h-56"
@@ -93,10 +96,8 @@ export default function Dashboard() {
 							text: "View Documentation",
 						}}
 					/>
-					<div className="h-[30rem] min-h-0 lg:row-span-2 lg:h-full">
-						<CommunityCard className="h-full" />
-					</div>
-					<div className="h-[30rem] lg:col-span-2 lg:row-span-2 lg:min-h-0">
+
+					<div className="lg:col-span-2 lg:row-span-2 lg:min-h-0">
 						<DashboardCard
 							title="Your Recent Usage"
 							className="h-full"
@@ -110,6 +111,6 @@ export default function Dashboard() {
 					</div>
 				</div>
 			</div>
-		</>
+		</div>
 	);
 }

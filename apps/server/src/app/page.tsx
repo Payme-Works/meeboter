@@ -1,10 +1,11 @@
 "use client";
+
 import { useSession } from "next-auth/react";
 import ErrorAlert from "@/components/custom/error-alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/trpc/react";
-import Dashboard from "./components/dashboard";
-import WelcomeDashboard from "./components/welcome-dashboard";
+import Dashboard from "./_components/dashboard";
+import WelcomeDashboard from "./_components/welcome-dashboard";
 
 export default function Home() {
 	const { data: session, status } = useSession();
@@ -26,27 +27,32 @@ export default function Home() {
 	return (
 		<main>
 			{isLoading ? (
-				<div>
-					<div className="mb-5 mt-5">
+				<div className="space-y-4">
+					<div>
 						<h1 className="text-3xl font-bold">
 							Welcome to Live Boost
 							<Skeleton className="ml-2 inline-block h-8 w-80" />
 						</h1>
+
 						<p className="mt-2 text-gray-600">
 							Easily create automated applications that leverage recordings
 							across popular video meeting platforms.
 						</p>
 					</div>
+
 					<div className="grid gap-6 lg:grid-cols-3">
 						<div className="min-h-0">
 							<Skeleton className="h-60 w-full" />
 						</div>
+
 						<div className="min-h-0">
 							<Skeleton className="h-60 w-full" />
 						</div>
+
 						<div className="min-h-0">
 							<Skeleton className="h-60 w-full" />
 						</div>
+
 						<div className="h-full min-h-0 lg:col-span-3">
 							<Skeleton className="h-80 w-full" />
 						</div>

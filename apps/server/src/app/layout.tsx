@@ -3,7 +3,7 @@ import "./globals.css";
 import type { Metadata } from "next";
 import { SessionProvider } from "next-auth/react";
 import { TRPCReactProvider } from "@/trpc/react";
-import NavigationBar from "./components/navigation-bar";
+import NavigationBar from "./_components/navigation-bar";
 
 export const metadata: Metadata = {
 	title: "Live Boost",
@@ -20,10 +20,10 @@ export default function RootLayout({
 			<body>
 				<TRPCReactProvider>
 					<SessionProvider>
-						<div className="flex h-full w-full flex-col items-center justify-center">
+						<div className="flex h-full w-full flex-col items-center gap-4 justify-center">
 							<NavigationBar />
 
-							<div className="container h-full">{children}</div>
+							<div className="container h-full px-4">{children}</div>
 						</div>
 					</SessionProvider>
 				</TRPCReactProvider>

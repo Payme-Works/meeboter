@@ -1,7 +1,6 @@
 import { createCallerFactory, createTRPCRouter } from "@/server/api/trpc";
 import { apiKeysRouter } from "./routers/api-keys";
 import { botsRouter } from "./routers/bots";
-import { communityRouter } from "./routers/community";
 import { eventsRouter } from "./routers/events";
 import { usageRouter } from "./routers/usage";
 
@@ -15,7 +14,6 @@ export const appRouter = createTRPCRouter({
 	events: eventsRouter,
 	apiKeys: apiKeysRouter,
 	usage: usageRouter,
-	community: communityRouter,
 });
 
 // export type definition of API

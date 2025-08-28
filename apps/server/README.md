@@ -100,7 +100,6 @@ src/server
 │ │ │ ├── routers             # tRPC endPoints -- the actual backend APIS
 │ │ │ │ ├── apiKeys.ts           # API keys management APIs
 │ │ │ │ ├── bots.ts              # Bots management APIs
-│ │ │ │ ├── community.ts         # Community APIs
 │ │ │ │ ├── events.ts            # Event APIs
 │ │ │ │ └── usage.ts             # Usage Rate APIs
 │ │ │ ├── services            # Service functions for backend to use

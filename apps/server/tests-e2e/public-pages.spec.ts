@@ -19,10 +19,6 @@ test.describe("Public Pages", () => {
 			);
 		});
 
-		test("should display community link", async ({ page }) => {
-			await expect(page.getByRole("main")).toContainText("Join Community");
-		});
-
 		test("can navigate to API docs", async ({ page }) => {
 			test.setTimeout(30000); // api docs are slow to load
 			await page.getByRole("link", { name: "View Documentation" }).click();

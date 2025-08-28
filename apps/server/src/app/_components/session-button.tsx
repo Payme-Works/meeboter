@@ -45,6 +45,7 @@ export default function SessionButton() {
 					{session.user.name}
 				</Button>
 			</DropdownMenuTrigger>
+
 			<DropdownMenuContent>
 				<DropdownMenuLabel>My Account</DropdownMenuLabel>
 				<DropdownMenuSeparator />

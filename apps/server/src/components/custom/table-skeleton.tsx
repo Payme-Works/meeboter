@@ -29,6 +29,7 @@ export default function TableSkeleton() {
 							</TableHead>
 						</TableRow>
 					</TableHeader>
+
 					<TableBody>
 						{Array.from({ length: 5 }, (_, i) => i).map((i) => (
 							<TableRow key={`skeleton-row-${i}`}>
@@ -49,6 +50,7 @@ export default function TableSkeleton() {
 					</TableBody>
 				</Table>
 			</div>
+
 			<div className="flex items-center justify-end space-x-2 py-4">
 				<Skeleton className="h-8 w-20" />
 				<Skeleton className="h-8 w-20" />

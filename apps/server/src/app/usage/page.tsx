@@ -1,16 +1,6 @@
 "use client";
 
-import dynamic from "next/dynamic";
-import { Skeleton } from "@/components/ui/skeleton";
-
-// Dynamically import the chart component with SSR disabled
-const UsageChart = dynamic(
-	() => import("./components/usage-chart").then((mod) => mod.UsageChart),
-	{
-		ssr: false,
-		loading: () => <Skeleton className="h-[400px] w-full" />,
-	},
-);
+import { UsageChart } from "./components/usage-chart";
 
 export default function Keys() {
 	return (
@@ -18,6 +8,7 @@ export default function Keys() {
 			<div className="flex items-center justify-between">
 				<div>
 					<h2 className="text-2xl font-bold tracking-tight">Usage</h2>
+
 					<p className="text-muted-foreground">Track your bot usage</p>
 				</div>
 			</div>

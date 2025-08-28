@@ -36,33 +36,37 @@ export default function DashboardCard({
 	className,
 }: DashboardCardProps) {
 	return (
-		<Card className={`flex h-full flex-col ${className}`}>
-			{(!!title || !!description || !!icon) && (
+		<Card className={`flex h-full flex-col justify-between ${className}`}>
+			{!!title || !!description || !!icon ? (
 				<CardHeader className="relative">
-					{!!icon && <div className="absolute right-2 top-2">{icon}</div>}
-					{!!title && typeof title === "string" ? (
-						<CardTitle>{title}</CardTitle>
-					) : (
-						title
-					)}
-					{!!description &&
-						(typeof description === "string" ? (
-							<CardDescription>{description}</CardDescription>
+					<div className="flex items-center justify-between">
+						{!!title && typeof title === "string" ? (
+							<CardTitle>{title}</CardTitle>
 						) : (
-							description
-						))}
+							title
+						)}
+
+						{icon ? <div>{icon}</div> : null}
+					</div>
+
+					{!!description && typeof description === "string" ? (
+						<CardDescription>{description}</CardDescription>
+					) : (
+						description
+					)}
 				</CardHeader>
-			)}
-			{!!content && (
-				<CardContent className="min-h-0 flex-1">{content}</CardContent>
-			)}
-			{!!link && (
+			) : null}
+
+			{content ? <CardContent>{content}</CardContent> : null}
+
+			{link ? (
 				<CardFooter className="mt-auto">
 					{link.type === "CUSTOM" ? (
 						link.component
 					) : (
 						<Link href={link.url} className="flex items-center">
 							{link.text}
+
 							{link.type === "EXTERNAL" ? (
 								<ExternalLink className="ml-2 h-4 w-4" />
 							) : (
@@ -71,7 +75,7 @@ export default function DashboardCard({
 						</Link>
 					)}
 				</CardFooter>
-			)}
+			) : null}
 		</Card>
 	);
 }
