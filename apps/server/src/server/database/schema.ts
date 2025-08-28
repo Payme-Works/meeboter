@@ -14,14 +14,6 @@ import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import type { AdapterAccount } from "next-auth/adapters";
 import { z } from "zod";
 
-/**
- * This is an example of how to use the multi-project schema feature of Drizzle ORM. Use the same
- * database instance for multiple projects.
- *
- * @see https://orm.drizzle.team/docs/goodies#multi-project-schema
- */
-export const createTable = pgTableCreator((name) => `server_${name}`);
-
 const pgTable = pgTableCreator((name) => name);
 
 /** AUTH TABLES */
