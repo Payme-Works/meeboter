@@ -110,7 +110,7 @@ export default function BotsPage() {
 		<div className="space-y-4">
 			<div className="flex items-center justify-between">
 				<div>
-					<h2 className="text-2xl font-bold tracking-tight">Bots (Debug)</h2>
+					<h2 className="text-2xl font-bold tracking-tight">Bots</h2>
 					<p className="text-muted-foreground">
 						View and manage bots that have been created.
 					</p>
