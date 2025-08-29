@@ -14,7 +14,7 @@ export const startHeartbeat = async (
 ) => {
 	while (!abortSignal.aborted) {
 		try {
-			await trpc.bots.heartbeat.mutate({ id: botId });
+			await trpc.bots.heartbeat.mutate({ id: String(botId) });
 
 			console.log(`[${new Date().toISOString()}] Heartbeat sent`);
 		} catch (error) {

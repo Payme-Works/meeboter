@@ -3,10 +3,10 @@ import superjson from "superjson";
 import type { AppRouter } from "../../server/src/server/api/root";
 
 export const trpc = createTRPCProxyClient<AppRouter>({
-	transformer: superjson,
 	links: [
 		httpBatchLink({
 			url: process.env.BACKEND_URL || "http://localhost:3001/api/trpc",
+			transformer: superjson,
 		}),
 	],
 });
