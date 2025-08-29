@@ -1,4 +1,5 @@
 # Use Node.js 20 Alpine as the base stage
+
 FROM node:20-alpine
 
 # Create a non-root user
@@ -8,9 +9,9 @@ RUN addgroup -g 1001 -S pptruser \
 WORKDIR /home/pptruser/
 
 # Copy workspace configuration and files
-COPY pnpm-workspace.yaml ./
-COPY package.json ./
-COPY pnpm-lock.yaml ./
+COPY ./pnpm-workspace.yaml ./
+COPY ./package.json ./
+COPY ./pnpm-lock.yaml ./
 
 # Ensure we're building from monorepo root
 RUN test -f pnpm-workspace.yaml || (echo "ERROR: Must build from monorepo root directory" && exit 1)
@@ -37,8 +38,8 @@ ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
 RUN npm install -g pnpm
 
-COPY apps/bots/ ./apps/bots/
-COPY packages/ ./packages/
+COPY ./apps/bots/ ./apps/bots/
+COPY ./packages/ ./packages/
 
 # Convert entrypoint.sh to use Unix line endings
 RUN sed -i 's/\r$//' ./apps/bots/providers/zoom/entrypoint.sh
