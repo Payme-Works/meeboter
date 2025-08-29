@@ -596,6 +596,29 @@ cleanup() {
     log_success "Cleanup completed"
 }
 
+# Enhanced cleanup function for error scenarios
+cleanup_on_error() {
+    log_error "Deployment failed, performing comprehensive Docker cleanup..."
+    
+    # Remove any images that might have been built but not pushed
+    docker rmi "$ECR_SERVER:$TAG" "$ECR_SERVER:latest" 2>/dev/null || true
+    docker rmi "$ECR_MEET:$TAG" "$ECR_MEET:latest" 2>/dev/null || true
+    docker rmi "$ECR_TEAMS:$TAG" "$ECR_TEAMS:latest" 2>/dev/null || true
+    docker rmi "$ECR_ZOOM:$TAG" "$ECR_ZOOM:latest" 2>/dev/null || true
+    
+    # Clean up dangling images and build cache
+    docker image prune -f --filter "dangling=true"
+    docker builder prune -f
+    
+    # Clean up any stopped containers
+    docker container prune -f
+    
+    # System-wide cleanup to free up maximum disk space
+    docker system prune -f --volumes
+    
+    log_success "Docker cleanup completed"
+}
+
 # Main execution
 main() {
     log_info "Starting Live Boost deployment process..."
@@ -666,11 +689,13 @@ main() {
     log_info "  Zoom Bot: $ECR_ZOOM:$TAG"
 }
 
-# Handle script interruption - only cleanup on normal exit, not on errors
+# Handle script interruption and errors
 trap cleanup_on_interrupt INT TERM
+trap cleanup_on_error ERR
 
 cleanup_on_interrupt() {
     log_warning "Build process interrupted"
+    cleanup_on_error
     exit 130
 }
 
