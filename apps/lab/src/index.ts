@@ -17,7 +17,7 @@ const ENV: "production" | "development" = "production";
 const API_BASE_URL = API_BASE_URLS[ENV];
 const API_KEY = API_KEYS[ENV];
 
-const GOOGLE_MEET_URL = "https://meet.google.com/mms-zaat-mpo";
+const GOOGLE_MEET_URL = "https://meet.google.com/qma-heii-nyx";
 
 // Configuration for multiple bots
 const BOT_CONFIG = {

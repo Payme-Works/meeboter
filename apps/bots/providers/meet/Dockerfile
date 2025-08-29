@@ -17,17 +17,20 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app/
 
-RUN echo "Install pnpm"
-
-RUN npm install -g pnpm
+RUN echo "Copy workspace configuration and files"
 
 COPY ./pnpm-workspace.yaml ./
+COPY ./turbo.json ./
 COPY ./package.json ./
 COPY ./pnpm-lock.yaml ./
 
 RUN echo "Ensure we're building from monorepo root"
 
 RUN test -f pnpm-workspace.yaml || (echo "ERROR: Must build from monorepo root directory" && exit 1)
+
+RUN echo "Copy node_modules if they exist"
+
+COPY ./node_modules* /app/node_modules
 
 RUN echo "Copy workspace configuration and files"
 
@@ -37,6 +40,11 @@ COPY ./packages/ /app/packages/
 RUN echo "Convert entrypoint.sh to use Unix line endings"
 
 RUN sed -i 's/\r$//' /app/apps/bots/providers/meet/entrypoint.sh
+
+RUN echo "Install npm and pnpm"
+
+RUN npm install -g npm@latest
+RUN npm install -g pnpm@latest
 
 RUN echo "Install dependencies"
 
@@ -77,9 +85,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     pulseaudio \
     && rm -rf /var/lib/apt/lists/*
 
-RUN echo "Install pnpm"
+RUN echo "Install npm and pnpm"
 
-RUN npm install -g pnpm
+RUN npm install -g npm@latest
+RUN npm install -g pnpm@latest
 
 RUN echo "Enable corepack"
 

@@ -374,7 +374,7 @@ should_build_image() {
     return 1
 }
 
-# Build and push server image
+# Build server image (without pushing)
 build_server() {
     if ! should_build_image "server"; then
         log_info "Skipping server image build (not in --images list)"
@@ -410,21 +410,10 @@ build_server() {
         exit 1
     fi
     
-    # Push images
-    if ! docker push "$ECR_SERVER:$TAG"; then
-        log_error "Failed to push server image with tag $TAG"
-        exit 1
-    fi
-    
-    if ! docker push "$ECR_SERVER:latest"; then
-        log_error "Failed to push server image with latest tag"
-        exit 1
-    fi
-    
-    log_success "Server image built and pushed"
+    log_success "Server image built"
 }
 
-# Build and push bot images
+# Build bot images (without pushing)
 build_bot_provider() {
     local bot_type=$1
     local ecr_url=$2
@@ -449,18 +438,45 @@ build_bot_provider() {
         exit 1
     fi
     
-    # Push images
-    if ! docker push "$ecr_url:$TAG"; then
-        log_error "Failed to push $bot_type bot image with tag $TAG"
-        exit 1
+    log_success "$bot_type bot image built"
+}
+
+# Push all built images simultaneously
+push_all_images() {
+    log_info "Pushing all built images to ECR..."
+    
+    # Create array of images to push
+    local push_commands=()
+    
+    if should_build_image "server"; then
+        push_commands+=("docker push '$ECR_SERVER:$TAG' &")
+        push_commands+=("docker push '$ECR_SERVER:latest' &")
     fi
     
-    if ! docker push "$ecr_url:latest"; then
-        log_error "Failed to push $bot_type bot image with latest tag"
-        exit 1
+    if should_build_image "bots-meet"; then
+        push_commands+=("docker push '$ECR_MEET:$TAG' &")
+        push_commands+=("docker push '$ECR_MEET:latest' &")
     fi
     
-    log_success "$bot_type bot image built and pushed"
+    if should_build_image "bots-teams"; then
+        push_commands+=("docker push '$ECR_TEAMS:$TAG' &")
+        push_commands+=("docker push '$ECR_TEAMS:latest' &")
+    fi
+    
+    if should_build_image "bots-zoom"; then
+        push_commands+=("docker push '$ECR_ZOOM:$TAG' &")
+        push_commands+=("docker push '$ECR_ZOOM:latest' &")
+    fi
+    
+    # Execute all push commands in parallel
+    for cmd in "${push_commands[@]}"; do
+        eval "$cmd"
+    done
+    
+    # Wait for all background jobs to complete
+    wait
+    
+    log_success "All images pushed to ECR"
 }
 
 # Restart ECS services to pull latest images
@@ -625,9 +641,12 @@ cleanup_on_error() {
     log_success "Docker cleanup completed"
 }
 
-# Main execution
+# Main execution with guaranteed cleanup
 main() {
     log_info "Starting Live Boost deployment process..."
+    
+    # Set up cleanup trap for both success and failure
+    trap 'cleanup_on_exit' EXIT
     
     # Check Docker daemon first before any operations
     check_docker
@@ -671,11 +690,14 @@ main() {
     check_ecr_repositories
     prepare_build
     
-    # Build and push all images
+    # Build all images first
     build_server
     build_bot_provider "meet" "$ECR_MEET"
     build_bot_provider "teams" "$ECR_TEAMS"
     build_bot_provider "zoom" "$ECR_ZOOM"
+    
+    # Push all images simultaneously
+    push_all_images
     
     # Restart services to pull latest images (unless skipped)
     if [[ "$SKIP_RESTART" != "true" ]]; then
@@ -683,9 +705,6 @@ main() {
     else
         log_info "Skipping service restart (SKIP_RESTART=true)"
     fi
-    
-    # Cleanup
-    cleanup
     
     log_success "Deployment process completed!"
     log_info "Tagged images:"
@@ -702,10 +721,29 @@ cleanup_on_interrupt() {
     exit 130
 }
 
+# Unified cleanup function that runs on any exit
+cleanup_on_exit() {
+    local exit_code=$?
+    
+    if [ $exit_code -eq 0 ]; then
+        log_info "Deployment completed successfully, running cleanup..."
+        cleanup
+    else
+        log_error "Deployment failed (exit code: $exit_code), running comprehensive cleanup..."
+        cleanup_on_error
+    fi
+}
+
 cleanup_on_failure() {
     log_error "Build failed, running cleanup..."
     cleanup_on_error
     exit 1
+}
+
+cleanup_on_interrupt() {
+    log_warning "Build process interrupted"
+    cleanup_on_error
+    exit 130
 }
 
 trap cleanup_on_interrupt INT TERM

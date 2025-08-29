@@ -16,12 +16,22 @@ WORKDIR /home/pptruser/
 RUN echo "Copy workspace configuration and files"
 
 COPY ./pnpm-workspace.yaml ./
+COPY ./turbo.json ./
 COPY ./package.json ./
 COPY ./pnpm-lock.yaml ./
 
 RUN echo "Ensure we're building from monorepo root"
 
 RUN test -f pnpm-workspace.yaml || (echo "ERROR: Must build from monorepo root directory" && exit 1)
+
+RUN echo "Copy node_modules if they exist"
+
+COPY ./node_modules* /app/node_modules
+
+RUN echo "Copy bots and packages"
+
+COPY ./apps/bots/ ./apps/bots/
+COPY ./packages/ ./packages/
 
 RUN echo "Configure default locale (important for chrome-headless-shell)"
 
@@ -47,14 +57,10 @@ RUN echo "Tell Puppeteer to skip installing Chrome. We'll be using the installed
 
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
-RUN echo "Install pnpm"
+RUN echo "Install npm and pnpm"
 
-RUN npm install -g pnpm
-
-RUN echo "Copy workspace configuration and files"
-
-COPY ./apps/bots/ ./apps/bots/
-COPY ./packages/ ./packages/
+RUN npm install -g npm@latest
+RUN npm install -g pnpm@latest
 
 RUN echo "Convert entrypoint.sh to use Unix line endings"
 

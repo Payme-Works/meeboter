@@ -4,9 +4,10 @@ FROM --platform=linux/amd64 node:20-alpine AS deps
 
 RUN echo "Use Node.js 20 Alpine as the base stage"
 
-RUN echo "Install npm"
+RUN echo "Install npm and pnpm"
 
 RUN npm install -g npm@latest
+RUN npm install -g pnpm@latest
 
 RUN echo "Install system dependencies"
 
@@ -15,6 +16,8 @@ RUN apk add --no-cache libc6-compat openssl
 RUN echo "Set working directory"
 
 WORKDIR /app
+
+RUN echo "Copy workspace configuration and files"
 
 COPY ./package.json /app/
 COPY ./turbo.json /app/
@@ -25,22 +28,29 @@ RUN echo "Ensure we're building from monorepo root"
 
 RUN test -f pnpm-workspace.yaml || (echo "ERROR: Must build from monorepo root directory" && exit 1)
 
+RUN echo "Copy essential package.json files for dependency resolution"
+
+COPY ./apps/server/package.json /app/apps/server/
+COPY ./packages/config-typescript/package.json /app/packages/config-typescript/
+
+RUN echo "Fetch dependencies to pnpm store"
+
+RUN --mount=type=cache,target=/app/.pnpm-store pnpm config set store-dir /app/.pnpm-store
+RUN --mount=type=cache,target=/app/.pnpm-store pnpm fetch
+
+RUN echo "Install dependencies from cache (skip postinstall scripts)"
+
+RUN --mount=type=cache,target=/app/.pnpm-store pnpm install --frozen-lockfile --offline --ignore-scripts
+
 RUN echo "Copy scripts"
 
 COPY ./scripts/ /app/scripts/
 
-RUN echo "Copy server app and packages"
+RUN echo "Copy server app and packages source code"
 
 COPY ./apps/server/ /app/apps/server/
 COPY ./packages/ /app/packages/
 
-RUN echo "Install pnpm"
-
-RUN npm install -g pnpm
-
-RUN echo "Install dependencies"
-
-RUN pnpm install --frozen-lockfile
 
 # Builder
 
@@ -48,9 +58,10 @@ FROM --platform=linux/amd64 node:20-alpine AS builder
 
 RUN echo "Use Node.js 20 Alpine as the builder stage"
 
-RUN echo "Install npm"
+RUN echo "Install npm and pnpm"
 
-  RUN npm install -g npm@latest
+RUN npm install -g npm@latest
+RUN npm install -g pnpm@latest
 
 RUN echo "Install system dependencies"
 
@@ -78,21 +89,25 @@ RUN echo "Set working directory"
 
 WORKDIR /app
 
+RUN echo "Copy node_modules"
+
 COPY --from=deps /app/node_modules/ /app/node_modules/
+
+RUN echo "Copy workspace configuration and files"
 
 COPY --from=deps /app/package.json /app/
 COPY --from=deps /app/turbo.json /app/
 COPY --from=deps /app/pnpm-workspace.yaml /app/
 COPY --from=deps /app/pnpm-lock.yaml /app/
 
+RUN echo "Copy scripts"
+
 COPY --from=deps /app/scripts/ /app/scripts/
+
+RUN echo "Copy server app and packages source code"
 
 COPY --from=deps /app/apps/server/ /app/apps/server/
 COPY --from=deps /app/packages/ /app/packages/
-
-RUN echo "Install pnpm"
-
-RUN npm install -g pnpm
 
 RUN echo "Build the server app using pnpm workspace filtering"
 
@@ -100,15 +115,17 @@ ENV SKIP_ENV_VALIDATION=1
 
 RUN pnpm turbos server build
 
+
 # Runner
 
 FROM --platform=linux/amd64 node:20-alpine AS runner
 
 RUN echo "Use Node.js 20 Alpine as the runner stage"
 
-RUN echo "Install npm"
+RUN echo "Install npm and pnpm"
 
 RUN npm install -g npm@latest
+RUN npm install -g pnpm@latest
 
 RUN echo "Set working directory"
 
