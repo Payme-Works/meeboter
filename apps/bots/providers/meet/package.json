@@ -3,7 +3,7 @@
 	"version": "1.0.0",
 	"private": true,
 	"scripts": {
-		"preinstall": "pnpm dlx playwright@1.52 install"
+		"postinstall": "pnpm dlx playwright@1.52 install"
 	},
 	"dependencies": {
 		"@aws-sdk/client-s3": "^3.697.0",

@@ -600,21 +600,27 @@ cleanup() {
 cleanup_on_error() {
     log_error "Deployment failed, performing comprehensive Docker cleanup..."
     
+    # Kill any running Docker builds
+    docker ps -q --filter "ancestor=node:20-alpine" | xargs -r docker kill 2>/dev/null || true
+    docker ps -q --filter "ancestor=mcr.microsoft.com/playwright:v1.52.0-jammy" | xargs -r docker kill 2>/dev/null || true
+    
     # Remove any images that might have been built but not pushed
     docker rmi "$ECR_SERVER:$TAG" "$ECR_SERVER:latest" 2>/dev/null || true
     docker rmi "$ECR_MEET:$TAG" "$ECR_MEET:latest" 2>/dev/null || true
     docker rmi "$ECR_TEAMS:$TAG" "$ECR_TEAMS:latest" 2>/dev/null || true
     docker rmi "$ECR_ZOOM:$TAG" "$ECR_ZOOM:latest" 2>/dev/null || true
     
-    # Clean up dangling images and build cache
-    docker image prune -f --filter "dangling=true"
-    docker builder prune -f
+    # Remove intermediate/untagged images
+    docker images --filter "dangling=true" -q | xargs -r docker rmi 2>/dev/null || true
+    
+    # Clean up build cache aggressively
+    docker builder prune -af 2>/dev/null || true
     
     # Clean up any stopped containers
-    docker container prune -f
+    docker container prune -f 2>/dev/null || true
     
     # System-wide cleanup to free up maximum disk space
-    docker system prune -f --volumes
+    docker system prune -af --volumes 2>/dev/null || true
     
     log_success "Docker cleanup completed"
 }
@@ -690,14 +696,20 @@ main() {
 }
 
 # Handle script interruption and errors
-trap cleanup_on_interrupt INT TERM
-trap cleanup_on_error ERR
-
 cleanup_on_interrupt() {
     log_warning "Build process interrupted"
     cleanup_on_error
     exit 130
 }
+
+cleanup_on_failure() {
+    log_error "Build failed, running cleanup..."
+    cleanup_on_error
+    exit 1
+}
+
+trap cleanup_on_interrupt INT TERM
+trap cleanup_on_failure ERR
 
 # Parse command line arguments
 parse_args() {
