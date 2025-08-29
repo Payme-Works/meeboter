@@ -972,6 +972,7 @@ export class GoogleMeetBot extends Bot {
 
 							window.onParticipantJoin(participant);
 							window.observeSpeech(node as Element, participant);
+
 							window.participantArray.push(participant);
 						} else if (document.querySelector('[aria-label="Merged audio"]')) {
 							window.handleMergedAudio();
@@ -985,6 +986,7 @@ export class GoogleMeetBot extends Bot {
 
 		// Loop -- check for end meeting conditions every second
 		console.log("Waiting until a leave condition is fulfilled..");
+
 		while (true) {
 			// Check if it's only me in the meeting
 			if (this.participants.length === 1) {
@@ -1010,6 +1012,7 @@ export class GoogleMeetBot extends Bot {
 			// Check each of the potentials conditions
 			if (await this.checkKicked()) {
 				console.log("Detected that we were kicked from the meeting.");
+
 				this.kicked = true; //store
 
 				break; //exit loop
@@ -1022,7 +1025,7 @@ export class GoogleMeetBot extends Bot {
 				Date.now() - this.lastActivity >
 					this.settings.automaticLeave.inactivityTimeout
 			) {
-				console.log("No Activity for 5 minutes");
+				console.log("No activity for 5 minutes");
 
 				break;
 			}
@@ -1031,6 +1034,7 @@ export class GoogleMeetBot extends Bot {
 
 			// Reset Loop
 			console.log("Waiting 5 seconds.");
+
 			await setTimeout(5000); //5 second loop
 		}
 
