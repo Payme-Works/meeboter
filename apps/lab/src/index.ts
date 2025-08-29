@@ -17,11 +17,11 @@ const ENV: "production" | "development" = "production";
 const API_BASE_URL = API_BASE_URLS[ENV];
 const API_KEY = API_KEYS[ENV];
 
-const GOOGLE_MEET_URL = "https://meet.google.com/zyr-eanh-yzi";
+const GOOGLE_MEET_URL = "https://meet.google.com/mms-zaat-mpo";
 
 // Configuration for multiple bots
 const BOT_CONFIG = {
-	numberOfBots: 5, // Configure how many bots to deploy
+	numberOfBots: 100, // Configure how many bots to deploy
 	meetingDurationHours: 1, // Meeting duration in hours
 	staggerDelay: 5000, // Delay between bot deployments in milliseconds (5 seconds)
 } as const;
