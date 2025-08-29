@@ -7,7 +7,7 @@ import {
 	jest,
 } from "@jest/globals";
 import * as dotenv from "dotenv";
-import { MeetsBot } from "../meet/src/bot";
+import { GoogleMeetBot } from "../providers/meet/src/bot";
 import type { BotConfig } from "../src/types";
 
 const fs = require("node:fs");
@@ -37,7 +37,7 @@ const mockMeetConfig = {
 } as BotConfig;
 
 describe("Meet Bot Record Tests", () => {
-	let bot: MeetsBot;
+	let bot: GoogleMeetBot;
 	let recordingPath: null | string;
 	let ffmpegExists = false;
 
@@ -52,7 +52,7 @@ describe("Meet Bot Record Tests", () => {
 	// Create the bot for each
 	beforeEach(() => {
 		// Create Bot
-		bot = new MeetsBot(
+		bot = new GoogleMeetBot(
 			mockMeetConfig,
 			async (_eventType: string, _data: unknown) => {},
 		);

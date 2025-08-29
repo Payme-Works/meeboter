@@ -3,8 +3,9 @@
 	"version": "0.1.0",
 	"private": true,
 	"type": "module",
+	"types": "./dist/index.d.ts",
 	"scripts": {
-		"build": "next build",
+		"build": "next build && tsup",
 		"start": "next start",
 		"dev": "next dev --turbo",
 		"typecheck": "tsc --noEmit",
@@ -13,7 +14,8 @@
 		"db:generate": "drizzle-kit generate",
 		"db:migrate": "drizzle-kit migrate",
 		"db:push": "drizzle-kit push",
-		"db:studio": "drizzle-kit studio"
+		"db:studio": "drizzle-kit studio",
+		"postinstall": "pnpm build"
 	},
 	"dependencies": {
 		"@auth/drizzle-adapter": "^1.10.0",
@@ -85,6 +87,7 @@
 		"postcss": "^8.5.3",
 		"tailwindcss": "^4.0.15",
 		"totp-generator": "^1.0.0",
+		"tsup": "^8.5.0",
 		"typescript": "^5"
 	}
 }

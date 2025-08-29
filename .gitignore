@@ -53,3 +53,6 @@ lerna-debug.log*
 
 # Build
 .turbo
+
+# Next.js
+.next

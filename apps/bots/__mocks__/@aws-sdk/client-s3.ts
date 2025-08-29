@@ -1,14 +1,16 @@
 import { jest } from "@jest/globals";
 
-const S3Client = jest.fn(function (params) {
-	console.log("S3Client called with params:", params);
+class S3Client {
+	constructor(params: Record<string, unknown>) {
+		console.log("S3Client called with params:", params);
+	}
 
-	this.send = jest.fn((params) => {
-		console.log("S3Client send called with params:", params);
-	}); // Mock the send method
+	send = jest.fn((sendParams: unknown) => {
+		console.log("S3Client send called with params:", sendParams);
+	});
 
-	this.destroy = jest.fn(); // Mock the destroy method
-});
+	destroy = jest.fn();
+}
 
 const PutObjectCommand = jest.fn((params) => {
 	console.log("PutObjectCommand called with params:", params);

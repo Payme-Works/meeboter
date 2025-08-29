@@ -7,10 +7,10 @@ import {
 	jest,
 } from "@jest/globals";
 import * as dotenv from "dotenv";
-import { MeetsBot } from "../meet/src/bot";
+import { GoogleMeetBot } from "../providers/meet/src/bot";
+import { MicrosoftTeamsBot } from "../providers/teams/src/bot";
+import { ZoomBot } from "../providers/zoom/src/bot";
 import type { BotConfig } from "../src/types";
-import { TeamsBot } from "../teams/src/bot";
-import { ZoomBot } from "../zoom/src/bot";
 
 //
 // Bot Exiit Tests as described in Section 2.1.2.5
@@ -21,7 +21,7 @@ import { ZoomBot } from "../zoom/src/bot";
 dotenv.config({ path: ".env.test" });
 
 describe("Meet Event Tests", () => {
-	let bot: MeetsBot;
+	let bot: GoogleMeetBot;
 	let addParticipant: () => Promise<void>;
 	let removeParticipant: () => Promise<void>;
 
@@ -37,7 +37,7 @@ describe("Meet Event Tests", () => {
 		} as BotConfig;
 
 		// Create Bot
-		bot = new MeetsBot(
+		bot = new GoogleMeetBot(
 			mockMeetConfig,
 			async (_eventType: string, _data: unknown) => {},
 		);
@@ -82,7 +82,7 @@ describe("Meet Event Tests", () => {
 			});
 
 		jest.spyOn(bot.page, "click").mockImplementation(async () => {
-			return Promise.resolve(null); // Mock the resolved value
+			return Promise.resolve(void 0); // Mock the resolved value
 		});
 
 		// Set a DOM so bot can detect a person joining
@@ -257,14 +257,14 @@ describe("Zoom Event Tests", () => {
 // ===============================================================================================================================================================
 
 describe("Teams Event Tests", () => {
-	let bot: TeamsBot;
+	let bot: MicrosoftTeamsBot;
 	let _addParticipant: () => Promise<void>;
 	let _removeParticipant: () => Promise<void>;
 
 	// Create the bot for each
 	beforeEach(async () => {
 		// Create a Zoom Bot
-		bot = new TeamsBot(
+		bot = new MicrosoftTeamsBot(
 			{
 				id: 0,
 				meetingInfo: JSON.parse(process.env.TEAMS_TEST_MEETING_INFO || "{}"),

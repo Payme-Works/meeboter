@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, jest } from "@jest/globals";
 import * as dotenv from "dotenv";
+import { ZoomBot } from "../providers/zoom/src/bot";
 import type { BotConfig } from "../src/types";
-import { ZoomBot } from "../zoom/src/bot";
 
 const fs = require("node:fs");
 const { execSync } = require("node:child_process");

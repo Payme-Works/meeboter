@@ -1,9 +1,9 @@
 import { describe, expect, it } from "@jest/globals";
-import { MeetsBot } from "../meet/src/bot";
+import { GoogleMeetBot } from "../providers/meet/src/bot";
+import { MicrosoftTeamsBot } from "../providers/teams/src/bot";
+import { ZoomBot } from "../providers/zoom/src/bot";
 import { type Bot, createBot } from "../src/bot";
 import type { BotConfig } from "../src/types";
-import { TeamsBot } from "../teams/src/bot";
-import { ZoomBot } from "../zoom/src/bot";
 
 //
 // Bot Creation Tests as described in Section 2.1.2.1
@@ -23,7 +23,7 @@ describe("Bot Creation from given data", () => {
 		} as BotConfig;
 
 		createBot(mockBotData).then((bot: Bot) => {
-			expect(bot).toBeInstanceOf(MeetsBot);
+			expect(bot).toBeInstanceOf(GoogleMeetBot);
 		});
 	});
 
@@ -55,7 +55,7 @@ describe("Bot Creation from given data", () => {
 		} as BotConfig;
 
 		createBot(mockBotData).then((bot: Bot) => {
-			expect(bot).toBeInstanceOf(TeamsBot);
+			expect(bot).toBeInstanceOf(MicrosoftTeamsBot);
 		});
 	});
 });

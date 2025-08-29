@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, jest } from "@jest/globals";
 import * as dotenv from "dotenv";
+import { MicrosoftTeamsBot } from "../providers/teams/src/bot";
 import type { BotConfig } from "../src/types";
-import { TeamsBot } from "../teams/src/bot";
 
 const fs = require("node:fs");
 const { execSync } = require("node:child_process");
@@ -53,7 +53,7 @@ describe("Teams Bot Recording Test", () => {
 	conditionalTest(
 		"Recording Dimension Test",
 		async () => {
-			const bot = new TeamsBot(
+			const bot = new MicrosoftTeamsBot(
 				mockTeamsConfig,
 				async (_eventType: string, _data: unknown) => {},
 			);

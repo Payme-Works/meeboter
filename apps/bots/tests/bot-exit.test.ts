@@ -7,10 +7,10 @@ import {
 	jest,
 } from "@jest/globals";
 import * as dotenv from "dotenv";
-import { MeetsBot } from "../meet/src/bot";
+import { GoogleMeetBot } from "../providers/meet/src/bot";
+import { MicrosoftTeamsBot } from "../providers/teams/src/bot";
+import { ZoomBot } from "../providers/zoom/src/bot";
 import type { BotConfig } from "../src/types";
-import { TeamsBot } from "../teams/src/bot";
-import { ZoomBot } from "../zoom/src/bot";
 
 //
 // Bot Exiit Tests as described in Section 2.1.2.3
@@ -46,12 +46,12 @@ const mockTeamsConfig = {
 } as BotConfig;
 
 describe("Meet Bot Exit Tests", () => {
-	let bot: MeetsBot;
+	let bot: GoogleMeetBot;
 
 	// Create the bot for each
 	beforeEach(() => {
 		// Create Bot
-		bot = new MeetsBot(
+		bot = new GoogleMeetBot(
 			mockMeetConfig,
 			async (_eventType: string, _data: unknown) => {},
 		);
@@ -70,7 +70,7 @@ describe("Meet Bot Exit Tests", () => {
 			evaluate: jest.fn(async () => {
 				return 0;
 			}), // Simulate successful evaluation
-		} as typeof bot.page; // Mock the page object
+		} as unknown as typeof bot.page; // Mock the page object
 
 		// Mock Bot Recording -- never actually record
 		jest.spyOn(bot, "startRecording").mockImplementation(async () => {
@@ -108,7 +108,7 @@ describe("Meet Bot Exit Tests", () => {
 		// Run Meeting info without setting up the browser
 
 		// Break private value setter and set the timeAloneStarted to a value that is a long time ago
-		(bot as { timeAloneStarted: number }).timeAloneStarted =
+		(bot as unknown as { timeAloneStarted: number }).timeAloneStarted =
 			Date.now() - 1000000;
 
 		(bot as { participants: unknown[] }).participants = [
@@ -130,7 +130,7 @@ describe("Meet Bot Exit Tests", () => {
 		// Run Meeting info without setting up the browser
 
 		// Break private value setter and set the timeAloneStarted to a value that is a long time ago
-		(bot as { timeAloneStarted: number }).timeAloneStarted =
+		(bot as unknown as { timeAloneStarted: number }).timeAloneStarted =
 			Date.now() - 1000000;
 
 		(bot as { participants: unknown[] }).participants = [
@@ -182,7 +182,7 @@ describe("Zoom Bot Exit Tests", () => {
 			const originalModule = jest.requireActual("puppeteer");
 
 			return {
-				...originalModule,
+				...(originalModule as object),
 				wss: jest.fn(async () => ({
 					wsEndpoint: jest.fn(() => "ws://mocked-websocket-endpoint"),
 					disconnect: jest.fn(),
@@ -210,7 +210,7 @@ describe("Zoom Bot Exit Tests", () => {
 			evaluate: jest.fn(async () => {
 				return 0;
 			}), // Simulate successful evaluation
-		} as typeof bot.page; // Mock the page object
+		} as unknown as typeof bot.page; // Mock the page object
 
 		bot.browser = {} as typeof bot.browser;
 
@@ -263,7 +263,7 @@ describe("Zoom Bot Exit Tests", () => {
 // ===========================================================================
 
 describe("Teams Bot Exit Tests", () => {
-	let bot: TeamsBot;
+	let bot: MicrosoftTeamsBot;
 
 	beforeEach(() => {
 		// Mock WebSocket connection for Puppeteer
@@ -271,7 +271,7 @@ describe("Teams Bot Exit Tests", () => {
 			const originalModule = jest.requireActual("puppeteer");
 
 			return {
-				...originalModule,
+				...(originalModule as object),
 				wss: jest.fn(async () => ({
 					wsEndpoint: jest.fn(() => "ws://mocked-websocket-endpoint"),
 					disconnect: jest.fn(),
@@ -280,7 +280,7 @@ describe("Teams Bot Exit Tests", () => {
 		});
 
 		// Create Bot
-		bot = new TeamsBot(
+		bot = new MicrosoftTeamsBot(
 			mockTeamsConfig,
 			async (_eventType: string, _data: unknown) => {},
 		);
@@ -299,7 +299,7 @@ describe("Teams Bot Exit Tests", () => {
 			evaluate: jest.fn(async () => {
 				return 0;
 			}), // Simulate successful evaluation
-		} as typeof bot.page; // Mock the page object
+		} as unknown as typeof bot.page; // Mock the page object
 
 		// Override
 		bot.browser = {} as typeof bot.browser;

@@ -1,19 +1,24 @@
 {
-	"extends": "@live-boost/typescript-config/nextjs.json",
-	"compilerOptions": {
-		"moduleResolution": "Bundler",
-		"baseUrl": ".",
-		"paths": {
-			"@/*": ["./src/*"]
-		}
-	},
-	"include": [
-		"**/*.js",
-		"**/*.mjs",
-		"**/*.ts",
-		"**/*.tsx",
-		"next-env.d.ts",
-		".next/types/**/*.ts"
-	],
-	"exclude": ["node_modules"]
+  "extends": "@live-boost/typescript-config/nextjs.json",
+  "compilerOptions": {
+    "moduleResolution": "Bundler",
+    "tsBuildInfoFile": ".tsbuildinfo",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ]
+    }
+  },
+  "include": [
+    "**/*.js",
+    "**/*.mjs",
+    "**/*.ts",
+    "**/*.tsx",
+    "next-env.d.ts",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }

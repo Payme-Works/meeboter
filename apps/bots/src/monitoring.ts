@@ -31,7 +31,17 @@ export const startHeartbeat = async (
 export const reportEvent = async (
 	botId: number,
 	eventType: EventCode,
-	eventData: Record<string, unknown> | null = null,
+	eventData: {
+		message?: string;
+		description?: string;
+		sub_code?: string;
+		recording?: string;
+		speakerTimeframes?: {
+			speakerName: string;
+			start: number;
+			end: number;
+		}[];
+	} | null = null,
 ) => {
 	// do not report events in development
 	if (process.env.NODE_ENV === "development") {

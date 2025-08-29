@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it, jest } from "@jest/globals";
 import * as dotenv from "dotenv";
-import { MeetsBot } from "../meet/src/bot";
+import { GoogleMeetBot } from "../providers/meet/src/bot";
+import { MicrosoftTeamsBot } from "../providers/teams/src/bot";
+import { ZoomBot } from "../providers/zoom/src/bot";
 import {
 	type BotConfig,
 	MeetingJoinError,
 	WaitingRoomTimeoutError,
 } from "../src/types";
-import { TeamsBot } from "../teams/src/bot";
-import { ZoomBot } from "../zoom/src/bot";
 
 //
 // Bot Unit Nav Tests as described in Section 2.1.2.1
@@ -62,7 +62,9 @@ const mockTeamsConfig = {
 	},
 } as BotConfig;
 
-const test_bot_join = async (bot: MeetsBot | ZoomBot | TeamsBot) => {
+const test_bot_join = async (
+	bot: GoogleMeetBot | ZoomBot | MicrosoftTeamsBot,
+) => {
 	// See if passes
 	let passes = false;
 
@@ -105,7 +107,7 @@ describe("Bot Join a Meeting Tests", () => {
 		async () => {
 			// Create Bot
 			const passes = await test_bot_join(
-				new MeetsBot(
+				new GoogleMeetBot(
 					mockMeetConfig,
 					async (_eventType: string, _data: unknown) => {},
 				),
@@ -147,7 +149,7 @@ describe("Bot Join a Meeting Tests", () => {
 		async () => {
 			// Create Bot
 			const passes = await test_bot_join(
-				new TeamsBot(
+				new MicrosoftTeamsBot(
 					mockTeamsConfig,
 					async (_eventType: string, _data: unknown) => {},
 				),
@@ -176,7 +178,7 @@ describe("Bot fail join due to invalid URL", () => {
 	 */
 	it("Meet : Ensure program crashes if cannot join meeting from link", async () => {
 		// Create Bot with overruled config
-		const bot = new MeetsBot(
+		const bot = new GoogleMeetBot(
 			{
 				...mockMeetConfig,
 				meetingInfo: {
@@ -192,7 +194,7 @@ describe("Bot fail join due to invalid URL", () => {
 				waitForSelector: jest.fn(async () => {
 					throw new Error("Navigation failed: could not find specific element");
 				}),
-			} as typeof bot.page; // Mock the page object
+			} as unknown as typeof bot.page; // Mock the page object
 
 			throw new MeetingJoinError("Simulated joinMeeting failure");
 		});
@@ -224,7 +226,7 @@ describe("Bot fail join due to invalid URL", () => {
 				waitForSelector: jest.fn(async () => {
 					throw new Error("Navigation failed: could not find specific element");
 				}),
-			} as typeof bot.page; // Mock the page object
+			} as unknown as typeof bot.page; // Mock the page object
 
 			throw new MeetingJoinError("Simulated joinMeeting failure");
 		});
@@ -239,7 +241,7 @@ describe("Bot fail join due to invalid URL", () => {
 	 */
 	it("Teams : Ensure program crashes if cannot join meeting from link", async () => {
 		// Create Bot with overruled config
-		const bot = new TeamsBot(
+		const bot = new MicrosoftTeamsBot(
 			{
 				...mockTeamsConfig,
 				meetingInfo: {
@@ -257,7 +259,7 @@ describe("Bot fail join due to invalid URL", () => {
 				waitForSelector: jest.fn(async () => {
 					throw new Error("Navigation failed: could not find specific element");
 				}),
-			} as typeof bot.page; // Mock the page object
+			} as unknown as typeof bot.page; // Mock the page object
 
 			throw new MeetingJoinError("Simulated joinMeeting failure");
 		});

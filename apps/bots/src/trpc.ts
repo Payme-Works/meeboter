@@ -1,6 +1,10 @@
-import { createTRPCProxyClient, httpBatchLink } from "@trpc/client";
+import type { AppRouter } from "@live-boost/server";
+import {
+	createTRPCProxyClient,
+	httpBatchLink,
+	type TRPCClient,
+} from "@trpc/client";
 import superjson from "superjson";
-import type { AppRouter } from "../../server/src/server/api/root";
 
 export const trpc = createTRPCProxyClient<AppRouter>({
 	links: [
@@ -9,4 +13,4 @@ export const trpc = createTRPCProxyClient<AppRouter>({
 			transformer: superjson,
 		}),
 	],
-});
+}) as TRPCClient<AppRouter>;
