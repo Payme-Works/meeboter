@@ -11,16 +11,18 @@ RUN apt-get update && apt-get install -y \
     fluxbox \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /app
+WORKDIR /app/
 
 RUN npm install -g pnpm
 
-COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY pnpm-workspace.yaml ./
+COPY package.json ./
+COPY pnpm-lock.yaml ./
 
 RUN test -f pnpm-workspace.yaml || (echo "ERROR: Must build from monorepo root directory" && exit 1)
 
-COPY apps/bots /app/apps/bots
-COPY packages /app/packages
+COPY apps/bots/ /app/apps/bots/
+COPY packages/ /app/packages/
 
 RUN sed -i 's/\r$//' /app/apps/bots/providers/meet/entrypoint.sh
 

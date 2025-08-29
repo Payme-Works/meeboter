@@ -1,5 +1,7 @@
 #!/bin/bash
 
+echo "[entrypoint.sh] Starting Google Meet bot..."
+
 echo "[entrypoint.sh] Setting up XDG_RUNTIME_DIR..."
 
 export XDG_RUNTIME_DIR=/tmp/runtime-$USER
@@ -21,6 +23,6 @@ pulseaudio -D --exit-idle-time=-1
 
 sleep 2
 
-echo "[entrypoint.sh] Starting bot..."
+echo "[entrypoint.sh] Starting..."
 
 NODE_PATH=/app/node_modules /app/node_modules/.bin/tsx /app/apps/bots/src/index.ts

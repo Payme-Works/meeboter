@@ -5,8 +5,7 @@ FROM node:20-alpine
 RUN addgroup -g 1001 -S pptruser \
     && adduser -S pptruser -u 1001
 
-# Set working directory
-WORKDIR /home/pptruser
+WORKDIR /home/pptruser/
 
 # Copy workspace configuration and files
 COPY pnpm-workspace.yaml ./
