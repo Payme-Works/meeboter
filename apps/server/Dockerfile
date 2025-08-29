@@ -8,12 +8,17 @@ RUN apk add --no-cache libc6-compat openssl
 
 WORKDIR /app
 
-COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY ./package.json /app/
+COPY ./turbo.json /app/
+COPY ./pnpm-workspace.yaml /app/
+COPY ./pnpm-lock.yaml /app/
 
 RUN test -f pnpm-workspace.yaml || (echo "ERROR: Must build from monorepo root directory" && exit 1)
 
-COPY ./apps/server /app/apps/server
-COPY ./packages /app/packages
+COPY ./scripts/ /app/scripts/
+
+COPY ./apps/server/ /app/apps/server/
+COPY ./packages/ /app/packages/
 
 RUN npm install -g pnpm
 RUN pnpm install --frozen-lockfile
@@ -42,16 +47,24 @@ ARG ECS_SECURITY_GROUPS
 
 WORKDIR /app
 
-COPY --from=deps /app/node_modules /app/node_modules
-COPY --from=deps /app/packages /app/packages
-COPY --from=deps /app/apps/server /app/apps/server
+COPY --from=deps /app/node_modules/ /app/node_modules/
+
+COPY --from=deps /app/package.json /app/
+COPY --from=deps /app/turbo.json /app/
+COPY --from=deps /app/pnpm-workspace.yaml /app/
+COPY --from=deps /app/pnpm-lock.yaml /app/
+
+COPY --from=deps /app/scripts/ /app/scripts/
+
+COPY --from=deps /app/apps/server/ /app/apps/server/
+COPY --from=deps /app/packages/ /app/packages/
 
 # Build the server app using pnpm workspace filtering
 RUN npm install -g pnpm
 
 ENV SKIP_ENV_VALIDATION=1
 
-RUN pnpm --filter @live-boost/server build
+RUN pnpm turbos server build
 
 # Runner
 
@@ -64,15 +77,14 @@ WORKDIR /app
 ENV NODE_ENV production
 ENV PORT 3000
 
-COPY --from=builder /app/node_modules /app/node_modules
-COPY --from=builder /app/apps/server/.next /app/apps/server/.next
-COPY --from=builder /app/apps/server/.next/standalone /app/
+COPY --from=builder /app/node_modules/ /app/node_modules/
 
-COPY --from=builder /app/apps/server /app/apps/server
+COPY --from=builder /app/apps/server/ /app/apps/server/
+COPY --from=builder /app/apps/server/.next/standalone/apps/server/ /app/apps/server/
 
-COPY --from=builder /app/apps/server/drizzle /app/apps/server/drizzle
-COPY --from=builder /app/apps/server/drizzle.config.ts /app/apps/server/drizzle.config.ts
-COPY --from=builder /app/apps/server/drizzle-migrate.js /app/apps/server/drizzle-migrate.js
+COPY --from=builder /app/apps/server/drizzle/ /app/apps/server/drizzle/
+COPY --from=builder /app/apps/server/drizzle.config.ts /app/apps/server/
+COPY --from=builder /app/apps/server/drizzle-migrate.js /app/apps/server/
 
 COPY apps/server/entrypoint.sh /app/apps/server/entrypoint.sh
 

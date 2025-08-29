@@ -12,16 +12,16 @@ const API_BASE_URLS = {
 	development: "https://development.live-boost.andredezzy.com/api",
 };
 
-const ENV: "production" | "development" = "development";
+const ENV: "production" | "development" = "production";
 
 const API_BASE_URL = API_BASE_URLS[ENV];
 const API_KEY = API_KEYS[ENV];
 
-const GOOGLE_MEET_URL = "https://meet.google.com/fvq-hmhs-nfm";
+const GOOGLE_MEET_URL = "https://meet.google.com/zyr-eanh-yzi";
 
 // Configuration for multiple bots
 const BOT_CONFIG = {
-	numberOfBots: 1, // Configure how many bots to deploy
+	numberOfBots: 5, // Configure how many bots to deploy
 	meetingDurationHours: 1, // Meeting duration in hours
 	staggerDelay: 5000, // Delay between bot deployments in milliseconds (5 seconds)
 } as const;

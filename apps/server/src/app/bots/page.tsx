@@ -5,6 +5,7 @@ import { formatDistanceToNow } from "date-fns";
 import { ExternalLinkIcon, Plus } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { useState } from "react";
 import { BotDetailsDialog } from "@/app/bots/components/bot-details-dialog";
 import { MultiBotJoinDialog } from "@/app/bots/components/multi-bot-join-dialog";
@@ -16,6 +17,9 @@ import { api } from "@/trpc/react";
 export default function BotsPage() {
 	const [selectedBot, setSelectedBot] = useState<number | null>(null);
 	const [multiBotDialogOpen, setMultiBotDialogOpen] = useState(false);
+
+	const { data: session } = useSession();
+
 	const { data: bots = [], isLoading, error } = api.bots.getBots.useQuery();
 
 	type Bot = (typeof bots)[number];
@@ -106,26 +110,33 @@ export default function BotsPage() {
 		<div className="space-y-4">
 			<div className="flex items-center justify-between">
 				<div>
-					<h2 className="text-2xl font-bold tracking-tight">Bots</h2>
+					<h2 className="text-2xl font-bold tracking-tight">Bots (Debug)</h2>
 					<p className="text-muted-foreground">
 						View and manage bots that have been created.
 					</p>
 				</div>
-				<Button onClick={() => setMultiBotDialogOpen(true)}>
+
+				<Button
+					onClick={() => setMultiBotDialogOpen(true)}
+					disabled={!session?.user}
+				>
 					<Plus className="h-4 w-4 mr-2" />
 					Join Multiple Bots
 				</Button>
 			</div>
+
 			<DataTable
 				columns={columns}
 				data={bots}
 				isLoading={isLoading}
 				errorMessage={error?.message}
 			/>
+
 			<BotDetailsDialog
 				botId={selectedBot}
 				onClose={() => setSelectedBot(null)}
 			/>
+
 			<MultiBotJoinDialog
 				open={multiBotDialogOpen}
 				onClose={() => setMultiBotDialogOpen(false)}
