@@ -312,7 +312,7 @@ resource "aws_ecs_task_definition" "meet_bot" {
       environment = [
         {
           name  = "BACKEND_URL"
-          value = "https://${var.domain_name}/api/trpc"
+          value = "https://${local.workspace_domain}/api/trpc"
         },
         {
           name  = "AWS_BUCKET_NAME"
@@ -358,7 +358,7 @@ resource "aws_ecs_task_definition" "zoom_bot" {
       environment = [
         {
           name  = "BACKEND_URL"
-          value = "https://${var.domain_name}/api/trpc"
+          value = "https://${local.workspace_domain}/api/trpc"
         },
         {
           name  = "AWS_BUCKET_NAME"
@@ -404,7 +404,7 @@ resource "aws_ecs_task_definition" "teams_bot" {
       environment = [
         {
           name  = "BACKEND_URL"
-          value = "https://${var.domain_name}/api/trpc"
+          value = "https://${local.workspace_domain}/api/trpc"
         },
         {
           name  = "AWS_BUCKET_NAME"
