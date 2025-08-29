@@ -51,8 +51,8 @@ RUN pnpm install --frozen-lockfile
 RUN chown -R pptruser:pptruser /home/pptruser
 
 # Change ownership of working files after installation
-RUN chown -R pptruser:pptruser /home/pptruser/src && chmod -R 755 /home/pptruser/src
-RUN chown -R pptruser:pptruser /home/pptruser/providers/teams/src && chmod -R 755 /home/pptruser/providers/teams/src
+RUN chown -R pptruser:pptruser /home/pptruser/apps
+RUN chmod -R 755 /home/pptruser/apps
 
 # Switch to pptruser for running the application
 USER pptruser
