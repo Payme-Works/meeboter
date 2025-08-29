@@ -1,6 +1,5 @@
 #!/bin/sh
-# Teams Bot Entry Point
 
-echo "[entrypoint.sh] Starting teams bot..."
+echo "[entrypoint.sh] Starting Teams bot..."
 
-cd providers/teams && NODE_PATH=/app/node_modules /app/node_modules/.bin/tsx ../../src/index.ts
+NODE_PATH=/app/node_modules /app/node_modules/.bin/tsx /app/apps/bots/src/index.ts
