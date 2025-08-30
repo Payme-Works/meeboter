@@ -463,6 +463,31 @@ build_bot_provider() {
 }
 
 
+# Complete Docker cleanup between build and push
+docker_cleanup_complete() {
+    log_info "Running complete Docker cleanup..."
+    
+    # Remove all stopped containers
+    docker container prune -f 2>/dev/null || true
+    
+    # Remove all dangling images
+    docker image prune -f 2>/dev/null || true
+    
+    # Remove unused networks
+    docker network prune -f 2>/dev/null || true
+    
+    # Remove unused volumes
+    docker volume prune -f 2>/dev/null || true
+    
+    # Clean build cache aggressively
+    docker builder prune -af 2>/dev/null || true
+    
+    # System-wide cleanup to free maximum disk space
+    docker system prune -af --volumes 2>/dev/null || true
+    
+    log_success "Complete Docker cleanup finished"
+}
+
 # Restart ECS services to pull latest images
 restart_services() {
     log_info "Restarting ECS services to pull latest images..."
@@ -677,6 +702,9 @@ main() {
     build_bot_provider "meet" "$ECR_MEET"
     build_bot_provider "teams" "$ECR_TEAMS"
     build_bot_provider "zoom" "$ECR_ZOOM"
+    
+    # Run complete Docker cleanup after all builds are complete
+    docker_cleanup_complete
     
     # Restart services to pull latest images (unless skipped)
     if [[ "$SKIP_RESTART" != "true" ]]; then
