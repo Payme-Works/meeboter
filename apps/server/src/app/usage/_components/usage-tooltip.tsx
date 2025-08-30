@@ -63,21 +63,21 @@ export const UsageTooltip = ({
 	};
 
 	// Format Date - handle both ISO timestamps and date strings
-	const formatDate = (dateString: string | undefined): string => {
-		if (!dateString) {
+	const formatDate = (dateInput: string | undefined): string => {
+		if (!dateInput) {
 			return "Unknown Date";
 		}
 
 		// Handle different date formats from server
 		let date: Date;
 
-		if (dateString.includes("T")) {
+		if (dateInput.includes("T")) {
 			// Full ISO timestamp like "2025-08-30T03:00:00.000Z"
-			date = new Date(dateString);
+			date = new Date(dateInput);
 		} else {
 			// Date string like "2025-08-30" - parse as local midnight instead of UTC
 			// This ensures the date represents the correct day in user's timezone
-			const [year, month, day] = dateString.split("-").map(Number);
+			const [year, month, day] = dateInput.split("-").map(Number);
 			date = new Date(year, month - 1, day);
 		}
 

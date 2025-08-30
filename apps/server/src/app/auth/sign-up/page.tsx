@@ -58,7 +58,7 @@ export default function SignUpPage() {
 			} else {
 				router.push("/");
 			}
-		} catch (err) {
+		} catch {
 			setError("An unexpected error occurred");
 		} finally {
 			setIsLoading(false);

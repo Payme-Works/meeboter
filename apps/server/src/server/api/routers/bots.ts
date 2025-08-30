@@ -102,7 +102,7 @@ export const botsRouter = createTRPCRouter({
 
 				console.log("Database connection successful");
 
-				// Validate bot creation limits  
+				// Validate bot creation limits
 				const validation = await validateBotCreation(
 					ctx.db,
 					ctx.session.user.id,
@@ -583,7 +583,6 @@ export const botsRouter = createTRPCRouter({
 			}),
 		)
 		.query(async ({ input, ctx }) => {
-			const timeZone = input?.timeZone || "UTC";
 			const date = input?.date ? new Date(input.date) : new Date();
 
 			const subscriptionInfo = await getUserSubscriptionInfo(

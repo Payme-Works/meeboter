@@ -1,6 +1,5 @@
 import {
 	boolean,
-	date,
 	integer,
 	json,
 	pgTableCreator,

@@ -1,27 +1,27 @@
 {
-  "version": "7",
-  "dialect": "postgresql",
-  "entries": [
-    {
-      "idx": 0,
-      "version": "7",
-      "when": 1756513756328,
-      "tag": "0000_motionless_skreet",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1756528561709,
-      "tag": "0001_lowly_captain_midlands",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1756534874698,
-      "tag": "0002_boring_bulldozer",
-      "breakpoints": true
-    }
-  ]
+	"version": "7",
+	"dialect": "postgresql",
+	"entries": [
+		{
+			"idx": 0,
+			"version": "7",
+			"when": 1756513756328,
+			"tag": "0000_motionless_skreet",
+			"breakpoints": true
+		},
+		{
+			"idx": 1,
+			"version": "7",
+			"when": 1756528561709,
+			"tag": "0001_lowly_captain_midlands",
+			"breakpoints": true
+		},
+		{
+			"idx": 2,
+			"version": "7",
+			"when": 1756534874698,
+			"tag": "0002_boring_bulldozer",
+			"breakpoints": true
+		}
+	]
 }

@@ -6,7 +6,8 @@ import { defineConfig } from "eslint/config";
 
 export default defineConfig([
 	{
-		files: ["**/*.{ts,tsx,js,jsx}"],
+		files: ["**/src/**/*.{ts,tsx,js,jsx}"],
+		ignores: ["node_modules", ".next"],
 
 		languageOptions: {
 			parser: tsParser,

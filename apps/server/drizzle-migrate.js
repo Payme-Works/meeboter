@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 
+import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
-import * as path from "path";
 import { Client } from "pg";
-import { fileURLToPath } from "url";
 
 async function runMigrations() {
 	const databaseUrl = process.env.DATABASE_URL;

@@ -280,9 +280,8 @@ export function MultiBotJoinDialog({ open, onClose }: MultiBotJoinDialogProps) {
 								<AlertDescription className="text-amber-800">
 									You're trying to create {botCount} bots, but only have{" "}
 									{remaining} bots remaining today.
-									{subscriptionInfo?.currentPlan === "FREE" && (
-										<> Consider upgrading to Pro for 200 bots/day.</>
-									)}
+									{subscriptionInfo?.currentPlan === "FREE" &&
+										"Consider upgrading to Pro for 200 bots/day."}
 								</AlertDescription>
 							</Alert>
 						)}

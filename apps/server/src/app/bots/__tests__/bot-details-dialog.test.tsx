@@ -13,8 +13,8 @@ const { BotDetailsDialog } =
 const { api } = require("@/trpc/react") as typeof import("@/trpc/react");
 
 // Fake data that will be used to test the component
-const startTimeString = "Mar 10, 2025, 11:30 AM";
-const endTimeString = "Mar 10, 2025, 12:00 PM";
+const startTime = "Mar 10, 2025, 11:30 AM";
+const endTime = "Mar 10, 2025, 12:00 PM";
 
 const fakeBotData: SelectBotType = {
 	status: "JOINING_CALL",
@@ -28,8 +28,8 @@ const fakeBotData: SelectBotType = {
 		platform: "zoom",
 	},
 	recordingEnabled: true,
-	startTime: new Date(startTimeString),
-	endTime: new Date(endTimeString),
+	startTime: new Date(startTime),
+	endTime: new Date(endTime),
 	recording: "https://example.com/recording.mp4",
 	speakerTimeframes: [],
 	lastHeartbeat: new Date(),

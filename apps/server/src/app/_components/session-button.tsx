@@ -14,13 +14,6 @@ import { signOut, useSession } from "@/lib/auth-client";
 export default function SessionButton() {
 	const { data: session } = useSession();
 
-	const getInitials = (name: string) => {
-		return name
-			.split(" ")
-			.map((n) => n[0])
-			.join("");
-	};
-
 	if (!session?.user) {
 		return (
 			<Button variant="outline" className="gap-2" asChild>

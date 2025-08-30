@@ -24,11 +24,11 @@ export type DailyUsageType = z.infer<typeof dailyUsageSchema>;
 
 const formatDayUsageDictToOutput = (eventsByDate: Record<string, DayUsage>) => {
 	// Create Output Object (list of dates)
-	const outputObject = Object.values(eventsByDate);
+	const sortedEntries = Object.values(eventsByDate);
 
 	// The estimatedCost is already a string, so we don't need to convert it
 	// Sort output keys (date)
-	return outputObject.sort(
+	return sortedEntries.sort(
 		(a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
 	);
 };
@@ -100,10 +100,10 @@ export const usageRouter = createTRPCRouter({
 			});
 
 			// Create Output Object (list of dates)
-			let outputObject = Object.values(eventsByDate);
+			let entries = Object.values(eventsByDate);
 
 			// Alter to include a cost variable
-			outputObject = outputObject.map((d) => {
+			entries = entries.map((d) => {
 				return {
 					...d,
 					estimatedCost: (d.msEllapsed / 36000000).toFixed(2),
@@ -111,11 +111,11 @@ export const usageRouter = createTRPCRouter({
 			});
 
 			// Sort by keys
-			outputObject = outputObject.sort(
+			entries = entries.sort(
 				(a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
 			);
 
-			return outputObject;
+			return entries;
 		}),
 
 	getDailyUsage: protectedProcedure
@@ -178,11 +178,10 @@ export const usageRouter = createTRPCRouter({
 			for (let i = 0; i < 24; i++) {
 				const hourStartUTC = addHours(startTimeUTC, i);
 
-				const dateString =
-					hourStartUTC.toISOString().slice(0, 13) + ":00:00.000Z";
+				const hourKey = `${hourStartUTC.toISOString().slice(0, 13)}:00:00.000Z`;
 
-				eventsByHour[dateString] = {
-					date: dateString,
+				eventsByHour[hourKey] = {
+					date: hourKey,
 					botsUsed: 0,
 					msEllapsed: 0,
 					estimatedCost: "0",
@@ -195,23 +194,20 @@ export const usageRouter = createTRPCRouter({
 				const botStartHour = new Date(bot.startTime);
 				botStartHour.setMinutes(0, 0, 0);
 
-				const dateString =
-					botStartHour.toISOString().slice(0, 13) + ":00:00.000Z";
+				const hourKey = `${botStartHour.toISOString().slice(0, 13)}:00:00.000Z`;
 
 				// Calculate bot elapsed time
 				const endTime = bot.endTime || bot.lastHeartbeat || nowUTC;
 				const botElapsed = endTime.getTime() - bot.startTime.getTime();
 
 				// Add to the appropriate hour bucket
-				if (eventsByHour[dateString] && botElapsed > 0) {
-					eventsByHour[dateString].msEllapsed += botElapsed;
-					eventsByHour[dateString].botsUsed += 1;
+				if (eventsByHour[hourKey] && botElapsed > 0) {
+					eventsByHour[hourKey].msEllapsed += botElapsed;
+					eventsByHour[hourKey].botsUsed += 1;
 
-					const currentCost = parseFloat(
-						eventsByHour[dateString].estimatedCost,
-					);
+					const currentCost = parseFloat(eventsByHour[hourKey].estimatedCost);
 
-					eventsByHour[dateString].estimatedCost = (
+					eventsByHour[hourKey].estimatedCost = (
 						currentCost +
 						botElapsed / 36000000
 					).toFixed(2);
@@ -274,10 +270,10 @@ export const usageRouter = createTRPCRouter({
 				// Add days in user's timezone to maintain proper date boundaries
 				const dayInUserTz = addDays(startOfWeekZoned, i);
 				// Convert to UTC date string format for consistent API response
-				const dateString = dayInUserTz.toISOString().split("T")[0];
+				const dayKey = dayInUserTz.toISOString().split("T")[0];
 
-				eventsByDate[dateString] = {
-					date: dateString,
+				eventsByDate[dayKey] = {
+					date: dayKey,
 					botsUsed: 0,
 					msEllapsed: 0,
 					estimatedCost: "0",
@@ -371,10 +367,10 @@ export const usageRouter = createTRPCRouter({
 
 			for (let i = 0; i < daysInMonth; i++) {
 				const dayUTC = addDays(startOfMonthUTC, i);
-				const dateString = dayUTC.toISOString().split("T")[0];
+				const dayKey = dayUTC.toISOString().split("T")[0];
 
-				eventsByDate[dateString] = {
-					date: dateString,
+				eventsByDate[dayKey] = {
+					date: dayKey,
 					botsUsed: 0,
 					msEllapsed: 0,
 					estimatedCost: "0",
