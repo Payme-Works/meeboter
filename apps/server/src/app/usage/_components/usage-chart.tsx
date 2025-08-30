@@ -79,8 +79,6 @@ export function UsageChart() {
 				? weekData
 				: monthData;
 
-	console.log("data", data);
-
 	// Decide scale
 	const max =
 		data &&

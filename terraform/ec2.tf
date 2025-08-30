@@ -72,7 +72,7 @@ resource "aws_autoscaling_group" "ecs_instances" {
   name                = "${local.name}-ecs-instances"
   vpc_zone_identifier = aws_subnet.public[*].id
   min_size            = 1
-  max_size            = local.prod ? 3 : 1  # Production can scale, dev/staging single instance
+  max_size            = local.prod ? 3 : 2  # Production can scale up to 3, dev/staging up to 2
   desired_capacity    = 1
 
   launch_template {

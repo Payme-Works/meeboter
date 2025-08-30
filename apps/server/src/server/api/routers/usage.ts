@@ -140,11 +140,11 @@ export const usageRouter = createTRPCRouter({
 
 			// Get current time in user's timezone
 			const nowUTC = new Date();
-			const nowInUserTZ = toZonedTime(nowUTC, timeZone);
+			const nowInUserTimeZone = toZonedTime(nowUTC, timeZone);
 
 			// Calculate 24 hours ago in user's timezone
 			const twentyFourHoursAgoInUserTimeZone = new Date(
-				nowInUserTZ.getTime() - 24 * 60 * 60 * 1000,
+				nowInUserTimeZone.getTime() - 24 * 60 * 60 * 1000,
 			);
 
 			// Convert back to UTC for database queries
@@ -153,7 +153,7 @@ export const usageRouter = createTRPCRouter({
 				timeZone,
 			);
 
-			const endTimeUTC = fromZonedTime(nowInUserTZ, timeZone);
+			const endTimeUTC = fromZonedTime(nowInUserTimeZone, timeZone);
 
 			// Get all bots for the last 24 hours
 			const userBots = await ctx.db
