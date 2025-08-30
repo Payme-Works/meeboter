@@ -375,7 +375,7 @@ should_build_image() {
 }
 
 # Build, push, and remove server image
-build_server() {
+build_and_push_server() {
     if ! should_build_image "server"; then
         log_info "Skipping server image build (not in --images list)"
         return 0
@@ -421,7 +421,7 @@ build_server() {
 }
 
 # Build, push, and remove bot images
-build_bot_provider() {
+build_and_push_bot_provider() {
     local bot_type=$1
     local ecr_url=$2
     local image_name="bots-$bot_type"
@@ -672,19 +672,19 @@ main() {
     prepare_build
     
     # Build, push, and remove images one by one to save disk space
-    build_server
+    build_and_push_server
 
     docker_cleanup "standard"
 
-    build_bot_provider "meet" "$ECR_MEET"
+    build_and_push_bot_provider "meet" "$ECR_MEET"
 
     docker_cleanup "standard"
 
-    build_bot_provider "teams" "$ECR_TEAMS"
+    build_and_push_bot_provider "teams" "$ECR_TEAMS"
 
     docker_cleanup "standard"
 
-    build_bot_provider "zoom" "$ECR_ZOOM"
+    build_and_push_bot_provider "zoom" "$ECR_ZOOM"
 
     docker_cleanup "standard"
     
