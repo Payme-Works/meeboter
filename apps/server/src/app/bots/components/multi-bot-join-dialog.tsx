@@ -95,6 +95,7 @@ export function MultiBotJoinDialog({ open, onClose }: MultiBotJoinDialogProps) {
 			await utils.bots.getBots.invalidate();
 
 			form.reset();
+
 			onClose();
 		} catch (error) {
 			console.error("Failed to create bots:", error);
