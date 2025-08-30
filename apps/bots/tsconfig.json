@@ -2,8 +2,8 @@
 	"$schema": "https://json.schemastore.org/tsconfig",
 	"extends": "@live-boost/typescript-config/base.json",
 	"compilerOptions": {
-    "declaration": false,
-    "declarationMap": false,
+		"declaration": false,
+		"declarationMap": false,
 		"baseUrl": ".",
 		"paths": {
 			"@/*": ["./src/*"]

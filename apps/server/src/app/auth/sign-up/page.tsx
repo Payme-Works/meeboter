@@ -71,13 +71,11 @@ export default function SignUpPage() {
 
 	return (
 		<div className="flex flex-1 items-center justify-center px-4">
-			<Card className="w-full max-w-md -mt-20">
+			<Card className="w-full max-w-md">
 				<CardHeader className="text-center">
 					<CardTitle className="text-2xl">Sign Up</CardTitle>
 
-					<CardDescription>
-						Create a new account to get started
-					</CardDescription>
+					<CardDescription>Create a new account to get started</CardDescription>
 				</CardHeader>
 				<CardContent className="space-y-4">
 					<form onSubmit={handleSubmit} className="space-y-4">

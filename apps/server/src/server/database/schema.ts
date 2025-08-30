@@ -1,5 +1,6 @@
 import {
 	boolean,
+	date,
 	integer,
 	json,
 	pgTableCreator,
@@ -13,43 +14,77 @@ import { z } from "zod";
 
 const pgTable = pgTableCreator((name) => name);
 
+export const subscriptionEnum = z.enum(["PRO", "PAY_AS_YOU_GO", "CUSTOM"]);
+export type Subscription = z.infer<typeof subscriptionEnum>;
+
+export const subscriptionsTable = pgTable("subscription", {
+	id: serial("id").primaryKey(),
+
+	userId: text("userId")
+		.references(() => usersTable.id, { onDelete: "cascade" })
+		.notNull(),
+
+	type: varchar("type", { length: 50 }).$type<Subscription>().notNull(),
+	isActive: boolean("isActive").notNull().default(true),
+
+	startDate: timestamp("startDate").notNull().defaultNow(),
+	endDate: timestamp("endDate"),
+
+	createdAt: timestamp("createdAt").notNull().defaultNow(),
+});
+
 export const usersTable = pgTable("user", {
 	id: text("id").primaryKey(),
+
 	name: text("name").notNull(),
 	email: text("email").notNull().unique(),
 	emailVerified: boolean("emailVerified").notNull().default(false),
+
 	image: text("image"),
+
+	customDailyBotLimit: integer("customDailyBotLimit"),
+
 	createdAt: timestamp("createdAt").notNull().defaultNow(),
 	updatedAt: timestamp("updatedAt").notNull().defaultNow(),
 });
 
 export const sessionsTable = pgTable("session", {
 	id: text("id").primaryKey(),
+
 	expiresAt: timestamp("expiresAt").notNull(),
 	token: text("token").notNull().unique(),
-	createdAt: timestamp("createdAt").notNull().defaultNow(),
-	updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+
 	ipAddress: text("ipAddress"),
 	userAgent: text("userAgent"),
+
 	userId: text("userId")
 		.notNull()
 		.references(() => usersTable.id, { onDelete: "cascade" }),
+
+	createdAt: timestamp("createdAt").notNull().defaultNow(),
+	updatedAt: timestamp("updatedAt").notNull().defaultNow(),
 });
 
 export const accountsTable = pgTable("account", {
 	id: text("id").primaryKey(),
+
 	accountId: text("accountId").notNull(),
 	providerId: text("providerId").notNull(),
+
 	userId: text("userId")
 		.notNull()
 		.references(() => usersTable.id, { onDelete: "cascade" }),
+
 	accessToken: text("accessToken"),
 	refreshToken: text("refreshToken"),
 	idToken: text("idToken"),
+
 	accessTokenExpiresAt: timestamp("accessTokenExpiresAt"),
 	refreshTokenExpiresAt: timestamp("refreshTokenExpiresAt"),
+
 	scope: text("scope"),
 	password: text("password"),
+
 	createdAt: timestamp("createdAt").notNull().defaultNow(),
 	updatedAt: timestamp("updatedAt").notNull().defaultNow(),
 });
@@ -334,6 +369,22 @@ export const selectEventSchema = createSelectSchema(events).extend({
 });
 
 export type SelectEventType = z.infer<typeof selectEventSchema>;
+
+export const dailyBotUsageTable = pgTable("dailyBotUsage", {
+	id: serial("id").primaryKey(),
+	userId: text("userId")
+		.references(() => usersTable.id, { onDelete: "cascade" })
+		.notNull(),
+	date: date("date").notNull(), // format: YYYY-MM-DD
+	botCount: integer("botCount").notNull().default(0),
+	createdAt: timestamp("createdAt").notNull().defaultNow(),
+});
+
+export const insertSubscriptionSchema = createInsertSchema(subscriptionsTable);
+export const selectSubscriptionSchema = createSelectSchema(subscriptionsTable);
+
+export const insertDailyBotUsageSchema = createInsertSchema(dailyBotUsageTable);
+export const selectDailyBotUsageSchema = createSelectSchema(dailyBotUsageTable);
 
 export const dailyUsageSchema = z.object({
 	date: z.string(),

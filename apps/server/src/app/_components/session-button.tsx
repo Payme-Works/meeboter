@@ -1,6 +1,5 @@
 "use client";
 import Link from "next/link";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -34,12 +33,6 @@ export default function SessionButton() {
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>
 				<Button variant="outline" className="gap-2">
-					<Avatar className="h-6 w-6">
-						<AvatarImage src="https://github.com/shadcn.png" />
-						<AvatarFallback>
-							{getInitials(session.user.name ?? "")}
-						</AvatarFallback>
-					</Avatar>
 					{session.user.name}
 				</Button>
 			</DropdownMenuTrigger>

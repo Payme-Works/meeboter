@@ -16,6 +16,12 @@ import {
 } from "@/server/database/schema";
 import { extractCount } from "@/server/utils/database";
 import { generateSignedUrl } from "@/server/utils/s3";
+import {
+	getDailyBotUsage,
+	getUserSubscriptionInfo,
+	incrementDailyBotUsage,
+	validateBotCreation,
+} from "@/server/utils/subscription";
 import { deployBot, shouldDeployImmediately } from "../services/bot-deployment";
 
 export const botsRouter = createTRPCRouter({
@@ -96,6 +102,20 @@ export const botsRouter = createTRPCRouter({
 
 				console.log("Database connection successful");
 
+				// Validate bot creation limits
+				const validation = await validateBotCreation(
+					ctx.db,
+					ctx.session.user.id,
+				);
+
+				if (!validation.allowed) {
+					throw new Error(validation.reason || "Bot creation not allowed");
+				}
+
+				console.log(
+					`Bot creation allowed. Current usage: ${validation.usage}/${validation.limit ?? "unlimited"}`,
+				);
+
 				// Extract database fields from input
 
 				const dbInput = {
@@ -144,6 +164,9 @@ export const botsRouter = createTRPCRouter({
 				if (!result[0]) {
 					throw new Error("Bot creation failed - no result returned");
 				}
+
+				// Increment daily bot usage counter
+				await incrementDailyBotUsage(ctx.db, ctx.session.user.id);
 
 				// Check if we should deploy immediately
 				if (await shouldDeployImmediately(input.startTime)) {
@@ -500,5 +523,84 @@ export const botsRouter = createTRPCRouter({
 				);
 
 			return { count: extractCount(result) };
+		}),
+
+	getUserSubscription: protectedProcedure
+		.meta({
+			openapi: {
+				method: "GET",
+				path: "/user/subscription",
+				description: "Get the current user's subscription information",
+			},
+		})
+		.input(z.void())
+		.output(
+			z.object({
+				currentPlan: z.string(),
+				dailyBotLimit: z.number().nullable(),
+				customDailyBotLimit: z.number().nullable(),
+				effectiveDailyLimit: z.number().nullable(),
+				subscriptionActive: z.boolean(),
+				subscriptionEndDate: z.date().nullable(),
+			}),
+		)
+		.query(async ({ ctx }) => {
+			const subscriptionInfo = await getUserSubscriptionInfo(
+				ctx.db,
+				ctx.session.user.id,
+			);
+
+			return {
+				currentPlan: subscriptionInfo.currentPlan,
+				dailyBotLimit: subscriptionInfo.dailyBotLimit,
+				customDailyBotLimit: subscriptionInfo.customDailyBotLimit,
+				effectiveDailyLimit: subscriptionInfo.effectiveDailyLimit,
+				subscriptionActive: subscriptionInfo.subscriptionActive,
+				subscriptionEndDate: subscriptionInfo.subscriptionEndDate,
+			};
+		}),
+
+	getDailyUsage: protectedProcedure
+		.meta({
+			openapi: {
+				method: "GET",
+				path: "/user/daily-usage",
+				description: "Get the user's daily bot usage",
+			},
+		})
+		.input(
+			z
+				.object({
+					date: z.string().optional(), // YYYY-MM-DD format
+				})
+				.optional(),
+		)
+		.output(
+			z.object({
+				usage: z.number(),
+				limit: z.number().nullable(),
+				date: z.string(),
+				remaining: z.number().nullable(),
+			}),
+		)
+		.query(async ({ input, ctx }) => {
+			const date = input?.date ? new Date(input.date) : new Date();
+
+			const subscriptionInfo = await getUserSubscriptionInfo(
+				ctx.db,
+				ctx.session.user.id,
+			);
+
+			const usage = await getDailyBotUsage(ctx.db, ctx.session.user.id, date);
+
+			const limit = subscriptionInfo.effectiveDailyLimit;
+			const remaining = limit !== null ? Math.max(0, limit - usage) : null;
+
+			return {
+				usage,
+				limit,
+				date: date.toISOString().split("T")[0],
+				remaining,
+			};
 		}),
 });

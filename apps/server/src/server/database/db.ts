@@ -16,9 +16,12 @@ const globalForDb = globalThis as unknown as {
 const client =
 	globalForDb.client ??
 	postgres(env.DATABASE_URL, {
-		ssl: env.NODE_ENV === "production" ? {
-			rejectUnauthorized: false,
-		} : false,
+		ssl:
+			env.NODE_ENV === "production"
+				? {
+						rejectUnauthorized: false,
+					}
+				: false,
 		max: 1,
 	});
 

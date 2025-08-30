@@ -86,6 +86,15 @@ docker build -f apps/bots/providers/zoom/Dockerfile -t live-boost-zoom .
 4. Use meaningful commit messages
 5. Never commit secrets, API keys, or sensitive information
 
+## Database Migration Rules
+
+- **NEVER run database migrations automatically** - migrations must be explicitly requested by the user
+- **NEVER generate migration files** unless specifically asked to do so
+- **Always implement schema changes first** in the schema.ts file without running migrations
+- **ALWAYS run lint and typecheck after ANY implementation or change** - this is mandatory
+- When user requests migration generation, use the appropriate database migration tool (e.g., `drizzle-kit generate`, `prisma migrate dev`)
+- Always backup database before running migrations in production environments
+
 ## Code Quality
 
 - Write self-documenting code with clear variable and function names

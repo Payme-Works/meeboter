@@ -1,9 +1,12 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { AlertTriangle, Ban } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -22,6 +25,8 @@ import {
 	FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/trpc/react";
 import { getRandomBrazilianNames } from "@/utils/random-names";
 
@@ -54,6 +59,12 @@ export function MultiBotJoinDialog({ open, onClose }: MultiBotJoinDialogProps) {
 	const createBotMutation = api.bots.createBot.useMutation();
 	const utils = api.useUtils();
 
+	// Fetch subscription and usage data
+	const { data: subscriptionInfo, isLoading: subLoading } =
+		api.bots.getUserSubscription.useQuery();
+	const { data: dailyUsage, isLoading: usageLoading } =
+		api.bots.getDailyUsage.useQuery();
+
 	const detectPlatform = (url: string): "google" | "teams" | "zoom" => {
 		if (url.includes("meet.google.com")) return "google";
 
@@ -65,7 +76,36 @@ export function MultiBotJoinDialog({ open, onClose }: MultiBotJoinDialogProps) {
 		return "google"; // Default to google
 	};
 
+	// Calculate quota validation
+	const remaining = dailyUsage?.remaining ?? 0;
+	const isUnlimited = dailyUsage?.remaining === null;
+	const botCount = form.watch("botCount") || 1;
+	const willExceedQuota = !isUnlimited && remaining < botCount;
+
+	const formatPlanName = (plan: string) => {
+		switch (plan) {
+			case "FREE":
+				return "Free";
+			case "PRO":
+				return "Pro";
+			case "PAY_AS_YOU_GO":
+				return "Pay-as-You-Go";
+			case "CUSTOM":
+				return "Enterprise";
+			default:
+				return plan;
+		}
+	};
+
 	const handleSubmit = async (data: MultiBotFormData) => {
+		// Pre-validation before submission
+		if (!isUnlimited && remaining < data.botCount) {
+			form.setError("botCount", {
+				message: `Not enough bots remaining. You have ${remaining} bots left today.`,
+			});
+			return;
+		}
+
 		setIsSubmitting(true);
 
 		try {
@@ -91,14 +131,22 @@ export function MultiBotJoinDialog({ open, onClose }: MultiBotJoinDialogProps) {
 
 			await Promise.all(botCreationPromises);
 
-			// Refresh bots list
+			// Refresh bots list and usage data
 			await utils.bots.getBots.invalidate();
+			await utils.bots.getDailyUsage.invalidate();
 
 			form.reset();
 
 			onClose();
 		} catch (error) {
 			console.error("Failed to create bots:", error);
+
+			// Handle specific quota errors from the server
+			if (error instanceof Error && error.message.includes("Daily bot limit")) {
+				form.setError("botCount", {
+					message: error.message,
+				});
+			}
 		} finally {
 			setIsSubmitting(false);
 		}
@@ -114,6 +162,50 @@ export function MultiBotJoinDialog({ open, onClose }: MultiBotJoinDialogProps) {
 						Teams, or Zoom)
 					</DialogDescription>
 				</DialogHeader>
+
+				{/* Subscription & Quota Information */}
+				{subLoading || usageLoading ? (
+					<div className="space-y-2">
+						<Skeleton className="h-4 w-32" />
+						<Skeleton className="h-4 w-48" />
+					</div>
+				) : (
+					<div className="space-y-3 rounded-lg bg-muted p-3">
+						<div className="flex items-center justify-between">
+							<span className="text-sm font-medium">Current Plan:</span>
+							<Badge
+								className="border border-zinc-500"
+								variant={
+									subscriptionInfo?.currentPlan === "FREE"
+										? "secondary"
+										: "default"
+								}
+							>
+								{subscriptionInfo
+									? formatPlanName(subscriptionInfo.currentPlan)
+									: "Free"}
+							</Badge>
+						</div>
+
+						<div className="flex items-center justify-between">
+							<span className="text-sm font-medium">Today's Usage:</span>
+							<span className="text-sm">
+								{dailyUsage
+									? `${dailyUsage.usage}/${isUnlimited ? "∞" : dailyUsage.limit}`
+									: "0/0"}
+							</span>
+						</div>
+
+						<div className="flex items-center justify-between">
+							<span className="text-sm font-medium">Remaining Today:</span>
+							<span className="text-sm font-semibold">
+								{isUnlimited ? "Unlimited" : remaining}
+							</span>
+						</div>
+					</div>
+				)}
+
+				<Separator />
 
 				<Form {...form}>
 					<form
@@ -150,7 +242,11 @@ export function MultiBotJoinDialog({ open, onClose }: MultiBotJoinDialogProps) {
 										<Input
 											type="number"
 											min="1"
-											max="128"
+											max={
+												isUnlimited
+													? "128"
+													: Math.min(128, remaining).toString()
+											}
 											placeholder="1"
 											{...field}
 											value={field.value}
@@ -160,19 +256,65 @@ export function MultiBotJoinDialog({ open, onClose }: MultiBotJoinDialogProps) {
 										/>
 									</FormControl>
 									<FormDescription>
-										Number of bots to join the meeting (1-128)
+										{isUnlimited
+											? "Number of bots to join the meeting (1-128)"
+											: `Number of bots to join (1-${Math.min(128, remaining)} remaining today)`}
 									</FormDescription>
 									<FormMessage />
 								</FormItem>
 							)}
 						/>
 
+						{/* Quota Warning */}
+						{willExceedQuota && (
+							<Alert className="border-amber-200 bg-amber-50">
+								<AlertTriangle className="h-4 w-4" />
+								<AlertDescription className="text-amber-800">
+									You're trying to create {botCount} bots, but only have{" "}
+									{remaining} bots remaining today.
+									{subscriptionInfo?.currentPlan === "FREE" && (
+										<> Consider upgrading to Pro for 200 bots/day.</>
+									)}
+								</AlertDescription>
+							</Alert>
+						)}
+
+						{/* No quota remaining warning */}
+						{!isUnlimited && remaining === 0 && (
+							<Alert className="border-red-200 bg-red-50">
+								<Ban className="h-4 w-4" />
+								<AlertDescription className="text-red-800">
+									You've reached your daily bot limit.
+									{subscriptionInfo?.currentPlan === "FREE" && (
+										<>
+											{" "}
+											Upgrade to Pro for 200 bots/day or wait until tomorrow for
+											your limit to reset.
+										</>
+									)}
+								</AlertDescription>
+							</Alert>
+						)}
+
 						<div className="flex justify-end space-x-2">
 							<Button type="button" variant="outline" onClick={onClose}>
 								Cancel
 							</Button>
-							<Button type="submit" disabled={isSubmitting}>
-								{isSubmitting ? "Creating Bots..." : "Create Bots"}
+							<Button
+								type="submit"
+								disabled={
+									isSubmitting ||
+									willExceedQuota ||
+									(!isUnlimited && remaining === 0)
+								}
+							>
+								{isSubmitting
+									? "Creating Bots..."
+									: willExceedQuota
+										? "Exceeds Quota"
+										: !isUnlimited && remaining === 0
+											? "No Quota Remaining"
+											: "Create Bots"}
 							</Button>
 						</div>
 					</form>

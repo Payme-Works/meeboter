@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/lib/auth-client";
 import DashboardCard from "./dashboard-card";
+import SubscriptionPlansSection from "./subscription-plans-section";
 
 export default function WelcomeDashboard() {
 	const { data: session } = useSession();
@@ -18,8 +19,8 @@ export default function WelcomeDashboard() {
 				</h1>
 
 				<p className="mt-2 text-gray-600">
-					Easily create automated applications that leverage recordings across
-					popular video meeting platforms.
+					Deploy intelligent bots to boost engagement and productivity in your meetings across
+					popular video platforms.
 				</p>
 			</div>
 
@@ -58,7 +59,7 @@ export default function WelcomeDashboard() {
 									<DashboardCard
 										title="View our Docs"
 										className="h-full"
-										content="To learn more about how to create bots, pull meeting recordings, pull transcriptions and more, view our Documentation!"
+										content="Learn how to deploy engagement bots, configure meeting interactions, access recordings, and more in our comprehensive documentation!"
 										icon={<File className="text-slate-500" />}
 										link={{
 											type: "EXTERNAL",
@@ -71,6 +72,11 @@ export default function WelcomeDashboard() {
 						</div>
 					</div>
 				</div>
+			</div>
+
+			{/* Subscription Plans Section */}
+			<div className="mt-12">
+				<SubscriptionPlansSection />
 			</div>
 		</div>
 	);
