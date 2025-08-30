@@ -110,8 +110,8 @@ export async function getDailyBotUsage(
 		.where(
 			and(
 				eq(botsTable.userId, userId),
-				gte(botsTable.createdAt, startOfDayUTC),
-				lt(botsTable.createdAt, endOfDayUTC),
+				gte(botsTable.startTime, startOfDayUTC),
+				lt(botsTable.startTime, endOfDayUTC),
 			),
 		);
 
