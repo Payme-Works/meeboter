@@ -133,6 +133,7 @@ const automaticLeaveSchema = z.object({
 });
 
 export type AutomaticLeave = z.infer<typeof automaticLeaveSchema>;
+
 export const meetingInfoSchema = z.object({
 	meetingId: z.string().optional().describe("Meeting ID"),
 	meetingPassword: z.string().optional().describe("Meeting password"),
