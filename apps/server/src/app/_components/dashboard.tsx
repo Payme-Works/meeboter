@@ -1,9 +1,9 @@
 "use client";
 
 import { Bot, File, Key } from "lucide-react";
-import { useSession } from "next-auth/react";
 import ErrorAlert from "@/components/custom/error-alert";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useSession } from "@/lib/auth-client";
 import { api } from "@/trpc/react";
 import { UsageChart } from "../usage/components/usage-chart";
 

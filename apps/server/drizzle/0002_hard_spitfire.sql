@@ -1,1 +1,0 @@
-ALTER TABLE "bots" ADD COLUMN "recording_enabled" boolean DEFAULT false NOT NULL;

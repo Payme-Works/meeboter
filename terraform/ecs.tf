@@ -171,10 +171,6 @@ resource "aws_ecs_task_definition" "server" {
           value = "postgresql://${aws_db_instance.this.username}:${random_password.db_password.result}@${aws_db_instance.this.endpoint}/${aws_db_instance.this.db_name}?sslmode=require"
         },
         {
-          name  = "GITHUB_TOKEN"
-          value = var.github_token
-        },
-        {
           name  = "AWS_BUCKET_NAME"
           value = aws_s3_bucket.this.bucket
         },

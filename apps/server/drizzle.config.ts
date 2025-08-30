@@ -1,3 +1,5 @@
+import "dotenv-flow/config";
+
 import type { Config } from "drizzle-kit";
 
 export default {
@@ -5,9 +7,12 @@ export default {
 	dialect: "postgresql",
 	dbCredentials: {
 		url: process.env.DATABASE_URL ?? "",
-		ssl: {
-			rejectUnauthorized: false,
-		},
+		ssl:
+			process.env.NODE_ENV === "production"
+				? {
+						rejectUnauthorized: false,
+					}
+				: false,
 	},
 	tablesFilter: ["server_*"],
 } satisfies Config;

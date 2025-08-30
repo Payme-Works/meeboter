@@ -9,7 +9,6 @@
 
 import { initTRPC, TRPCError } from "@trpc/server";
 import { and, eq, gt } from "drizzle-orm";
-import type { Session } from "next-auth";
 import superjson from "superjson";
 import type { OpenApiMeta } from "trpc-to-openapi";
 import { ZodError } from "zod";
@@ -20,6 +19,16 @@ import {
 	apiRequestLogsTable,
 	usersTable,
 } from "@/server/database/schema";
+
+type Session = {
+	user: {
+		id: string;
+		name: string | null;
+		email: string;
+		image?: string | null;
+	};
+	expires: string;
+};
 
 /**
  * 1. CONTEXT
@@ -34,7 +43,9 @@ import {
  * @see https://trpc.io/docs/server/context
  */
 export const createTRPCContext = async (opts: { headers: Headers }) => {
-	const session = await auth();
+	const session = await auth.api.getSession({
+		headers: opts.headers,
+	});
 
 	return {
 		db,

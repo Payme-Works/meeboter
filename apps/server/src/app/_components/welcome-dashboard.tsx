@@ -2,8 +2,8 @@
 
 import { File, LogIn, Plus } from "lucide-react";
 import Link from "next/link";
-import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
+import { signIn, useSession } from "@/lib/auth-client";
 import DashboardCard from "./dashboard-card";
 
 export default function WelcomeDashboard() {
@@ -44,11 +44,11 @@ export default function WelcomeDashboard() {
 													</Button>
 												</Link>
 											) : (
-												<Link href={`/api/auth/signin?provider=github`}>
-													<Button>
-														Sign In <LogIn />
-													</Button>
-												</Link>
+												<Button
+													onClick={() => signIn.social({ provider: "github" })}
+												>
+													Sign In <LogIn />
+												</Button>
 											)
 										}
 									/>

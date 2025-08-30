@@ -5,7 +5,7 @@ import { formatDistanceToNow } from "date-fns";
 import { ExternalLinkIcon, Plus } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/auth-client";
 import { useState } from "react";
 import { BotDetailsDialog } from "@/app/bots/components/bot-details-dialog";
 import { MultiBotJoinDialog } from "@/app/bots/components/multi-bot-join-dialog";

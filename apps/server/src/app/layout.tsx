@@ -1,7 +1,6 @@
 import "./globals.css";
 
 import type { Metadata } from "next";
-import { SessionProvider } from "next-auth/react";
 import { TRPCReactProvider } from "@/trpc/react";
 import NavigationBar from "./_components/navigation-bar";
 
@@ -19,13 +18,11 @@ export default function RootLayout({
 		<html lang="en">
 			<body>
 				<TRPCReactProvider>
-					<SessionProvider>
-						<div className="flex h-full w-full flex-col items-center gap-4 justify-center">
-							<NavigationBar />
+					<div className="flex h-full w-full flex-col items-center gap-4 justify-center">
+						<NavigationBar />
 
-							<div className="container h-full px-4">{children}</div>
-						</div>
-					</SessionProvider>
+						<div className="container h-full px-4">{children}</div>
+					</div>
 				</TRPCReactProvider>
 			</body>
 		</html>

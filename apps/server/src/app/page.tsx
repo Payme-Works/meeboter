@@ -1,6 +1,6 @@
 "use client";
 
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/auth-client";
 import ErrorAlert from "@/components/custom/error-alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/trpc/react";
@@ -8,7 +8,7 @@ import Dashboard from "./_components/dashboard";
 import WelcomeDashboard from "./_components/welcome-dashboard";
 
 export default function Home() {
-	const { data: session, status } = useSession();
+	const { data: session, isPending } = useSession();
 
 	const {
 		data: apiKeyCount,
@@ -18,7 +18,7 @@ export default function Home() {
 		enabled: !!session,
 	});
 
-	const isLoading = status === "loading" || apiKeyCountIsLoading;
+	const isLoading = isPending || apiKeyCountIsLoading;
 	const showWelcome = !session || apiKeyCount?.count === 0;
 
 	return (

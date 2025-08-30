@@ -3,115 +3,77 @@ import {
 	integer,
 	json,
 	pgTableCreator,
-	primaryKey,
 	serial,
 	text,
 	timestamp,
-	uuid,
 	varchar,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
-import type { AdapterAccount } from "next-auth/adapters";
 import { z } from "zod";
 
 const pgTable = pgTableCreator((name) => name);
 
-/** AUTH TABLES */
 export const usersTable = pgTable("user", {
-	id: uuid("id")
-		.primaryKey()
-		.$defaultFn(() => crypto.randomUUID()),
-	name: text("name"),
-	email: text("email").unique(),
-	emailVerified: timestamp("emailVerified", { mode: "date" }),
+	id: text("id").primaryKey(),
+	name: text("name").notNull(),
+	email: text("email").notNull().unique(),
+	emailVerified: boolean("emailVerified").notNull().default(false),
 	image: text("image"),
-	createdAt: timestamp("createdAt").defaultNow(),
+	createdAt: timestamp("createdAt").notNull().defaultNow(),
+	updatedAt: timestamp("updatedAt").notNull().defaultNow(),
 });
-
-export const accountsTable = pgTable(
-	"account",
-	{
-		userId: uuid("userId")
-			.notNull()
-			.references(() => usersTable.id, { onDelete: "cascade" }),
-		type: text("type").$type<AdapterAccount>().notNull(),
-		provider: text("provider").notNull(),
-		providerAccountId: text("providerAccountId").notNull(),
-		refresh_token: text("refresh_token"),
-		access_token: text("access_token"),
-		expires_at: integer("expires_at"),
-		token_type: text("token_type"),
-		scope: text("scope"),
-		id_token: text("id_token"),
-		session_state: text("session_state"),
-	},
-	(account) => [
-		{
-			compoundKey: primaryKey({
-				columns: [account.provider, account.providerAccountId],
-			}),
-		},
-	],
-);
 
 export const sessionsTable = pgTable("session", {
-	sessionToken: text("sessionToken").primaryKey(),
-	userId: uuid("userId")
+	id: text("id").primaryKey(),
+	expiresAt: timestamp("expiresAt").notNull(),
+	token: text("token").notNull().unique(),
+	createdAt: timestamp("createdAt").notNull().defaultNow(),
+	updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+	ipAddress: text("ipAddress"),
+	userAgent: text("userAgent"),
+	userId: text("userId")
 		.notNull()
 		.references(() => usersTable.id, { onDelete: "cascade" }),
-	expires: timestamp("expires", { mode: "date" }).notNull(),
 });
 
-export const verificationTokensTable = pgTable(
-	"verificationToken",
-	{
-		identifier: text("identifier").notNull(),
-		token: text("token").notNull(),
-		expires: timestamp("expires", { mode: "date" }).notNull(),
-	},
-	(verificationToken) => [
-		{
-			compositePk: primaryKey({
-				columns: [verificationToken.identifier, verificationToken.token],
-			}),
-		},
-	],
-);
+export const accountsTable = pgTable("account", {
+	id: text("id").primaryKey(),
+	accountId: text("accountId").notNull(),
+	providerId: text("providerId").notNull(),
+	userId: text("userId")
+		.notNull()
+		.references(() => usersTable.id, { onDelete: "cascade" }),
+	accessToken: text("accessToken"),
+	refreshToken: text("refreshToken"),
+	idToken: text("idToken"),
+	accessTokenExpiresAt: timestamp("accessTokenExpiresAt"),
+	refreshTokenExpiresAt: timestamp("refreshTokenExpiresAt"),
+	scope: text("scope"),
+	password: text("password"),
+	createdAt: timestamp("createdAt").notNull().defaultNow(),
+	updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+});
 
-export const authenticatorsTable = pgTable(
-	"authenticator",
-	{
-		credentialID: text("credentialID").notNull().unique(),
-		userId: uuid("userId")
-			.notNull()
-			.references(() => usersTable.id, { onDelete: "cascade" }),
-		providerAccountId: text("providerAccountId").notNull(),
-		credentialPublicKey: text("credentialPublicKey").notNull(),
-		counter: integer("counter").notNull(),
-		credentialDeviceType: text("credentialDeviceType").notNull(),
-		credentialBackedUp: boolean("credentialBackedUp").notNull(),
-		transports: text("transports"),
-	},
-	(authenticator) => [
-		{
-			compositePK: primaryKey({
-				columns: [authenticator.userId, authenticator.credentialID],
-			}),
-		},
-	],
-);
+export const verificationTable = pgTable("verification", {
+	id: text("id").primaryKey(),
+	identifier: text("identifier").notNull(),
+	value: text("value").notNull(),
+	expiresAt: timestamp("expiresAt").notNull(),
+	createdAt: timestamp("createdAt").defaultNow(),
+	updatedAt: timestamp("updatedAt").defaultNow(),
+});
 
-export const apiKeysTable = pgTable("api_keys", {
+export const apiKeysTable = pgTable("apiKeys", {
 	id: serial("id").primaryKey(),
-	userId: uuid("user_id")
+	userId: text("userId")
 		.references(() => usersTable.id)
 		.notNull(),
 	key: varchar("key", { length: 64 }).notNull().unique(),
 	name: varchar("name", { length: 255 }).notNull(),
-	createdAt: timestamp("created_at").defaultNow(),
-	lastUsedAt: timestamp("last_used_at"),
-	expiresAt: timestamp("expires_at"),
-	isRevoked: boolean("is_revoked").default(false),
+	createdAt: timestamp("createdAt").defaultNow(),
+	lastUsedAt: timestamp("lastUsedAt"),
+	expiresAt: timestamp("expiresAt"),
+	isRevoked: boolean("isRevoked").default(false),
 });
 
 export const insertApiKeySchema = createInsertSchema(apiKeysTable).pick({
@@ -122,22 +84,22 @@ export const insertApiKeySchema = createInsertSchema(apiKeysTable).pick({
 export const selectApiKeySchema = createSelectSchema(apiKeysTable);
 
 /** API REQUEST LOGS */
-export const apiRequestLogsTable = pgTable("api_request_logs", {
+export const apiRequestLogsTable = pgTable("apiRequestLogs", {
 	id: serial("id").primaryKey(),
-	apiKeyId: integer("api_key_id")
+	apiKeyId: integer("apiKeyId")
 		.references(() => apiKeysTable.id)
 		.notNull(),
-	userId: uuid("user_id")
+	userId: text("userId")
 		.references(() => usersTable.id)
 		.notNull(),
 	method: varchar("method", { length: 10 }).notNull(),
 	path: varchar("path", { length: 255 }).notNull(),
-	statusCode: integer("status_code").notNull(),
-	requestBody: json("request_body").$type<Record<string, unknown> | null>(),
-	responseBody: json("response_body").$type<Record<string, unknown> | null>(),
+	statusCode: integer("statusCode").notNull(),
+	requestBody: json("requestBody").$type<Record<string, unknown> | null>(),
+	responseBody: json("responseBody").$type<Record<string, unknown> | null>(),
 	error: varchar("error", { length: 1024 }),
-	duration: integer("duration").notNull(), // in milliseconds
-	createdAt: timestamp("created_at").defaultNow(),
+	duration: integer("duration").notNull(),
+	createdAt: timestamp("createdAt").defaultNow(),
 });
 
 export const insertApiRequestLogSchema = createInsertSchema(
@@ -233,37 +195,37 @@ export type EventCode = z.infer<typeof eventCode>;
 
 export const botsTable = pgTable("bots", {
 	id: serial("id").primaryKey(),
-	botDisplayName: varchar("bot_display_name", { length: 255 }).notNull(),
-	botImage: varchar("bot_image", { length: 255 }),
+	botDisplayName: varchar("botDisplayName", { length: 255 }).notNull(),
+	botImage: varchar("botImage", { length: 255 }),
 
-	userId: uuid("user_id")
+	userId: text("userId")
 		.references(() => usersTable.id)
 		.notNull(),
 
-	meetingTitle: varchar("meeting_name", { length: 255 }).notNull(),
-	meetingInfo: json("meeting_info").$type<MeetingInfo>().notNull(),
-	startTime: timestamp("start_time").notNull(),
-	endTime: timestamp("end_time").notNull(),
+	meetingTitle: varchar("meetingTitle", { length: 255 }).notNull(),
+	meetingInfo: json("meetingInfo").$type<MeetingInfo>().notNull(),
+	startTime: timestamp("startTime").notNull(),
+	endTime: timestamp("endTime").notNull(),
 
 	recording: varchar("recording", { length: 255 }),
-	recordingEnabled: boolean("recording_enabled").notNull().default(false),
-	speakerTimeframes: json("speaker_timeframes")
+	recordingEnabled: boolean("recordingEnabled").notNull().default(false),
+	speakerTimeframes: json("speakerTimeframes")
 		.$type<SpeakerTimeframe[]>()
 		.notNull()
 		.default([]),
-	lastHeartbeat: timestamp("last_heartbeat"),
+	lastHeartbeat: timestamp("lastHeartbeat"),
 
 	status: varchar("status", { length: 255 })
 		.$type<Status>()
 		.notNull()
 		.default("READY_TO_DEPLOY"),
-	deploymentError: varchar("deployment_error", { length: 1024 }),
+	deploymentError: varchar("deploymentError", { length: 1024 }),
 
-	heartbeatInterval: integer("heartbeat_interval").notNull(),
-	automaticLeave: json("automatic_leave").$type<AutomaticLeave>().notNull(),
-	callbackUrl: varchar("callback_url", { length: 1024 }),
+	heartbeatInterval: integer("heartbeatInterval").notNull(),
+	automaticLeave: json("automaticLeave").$type<AutomaticLeave>().notNull(),
+	callbackUrl: varchar("callbackUrl", { length: 1024 }),
 
-	createdAt: timestamp("created_at").defaultNow(),
+	createdAt: timestamp("createdAt").defaultNow(),
 });
 
 export const insertBotSchema = z.object({
@@ -343,15 +305,13 @@ export type EventData = z.infer<typeof eventData>;
 
 export const events = pgTable("events", {
 	id: serial("id").primaryKey(),
-	botId: integer("bot_id")
+	botId: integer("botId")
 		.references(() => botsTable.id)
 		.notNull(),
-	eventType: varchar("event_type", { length: 255 })
-		.$type<EventCode>()
-		.notNull(),
-	eventTime: timestamp("event_time").notNull(),
-	data: json("details").$type<EventData | null>(),
-	createdAt: timestamp("created_at").defaultNow(),
+	eventType: varchar("eventType", { length: 255 }).$type<EventCode>().notNull(),
+	eventTime: timestamp("eventTime").notNull(),
+	data: json("data").$type<EventData | null>(),
+	createdAt: timestamp("createdAt").defaultNow(),
 });
 
 export const insertEventSchema = createInsertSchema(events)

@@ -390,7 +390,6 @@ build_server() {
         --build-arg AUTH_GITHUB_ID="dummy" \
         --build-arg AUTH_GITHUB_SECRET="dummy" \
         --build-arg DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" \
-        --build-arg GITHUB_TOKEN="dummy" \
         --build-arg AWS_ACCESS_KEY_ID="dummy" \
         --build-arg AWS_SECRET_ACCESS_KEY="dummy" \
         --build-arg AWS_BUCKET_NAME="dummy" \

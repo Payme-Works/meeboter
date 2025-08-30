@@ -15,24 +15,11 @@ export const env = createEnv({
 			.enum(["development", "test", "production"])
 			.default("development"),
 
-		AUTH_SECRET: isProduction ? z.string() : z.string().optional(),
-		AUTH_GITHUB_ID: !isProduction
-			? z.preprocess(() => "fake_github_id", z.string())
-			: z.string(),
-		AUTH_GITHUB_SECRET: !isProduction
-			? z.preprocess(() => "fake_github_secret", z.string())
-			: z.string(),
+		AUTH_SECRET: z.string(),
+		AUTH_GITHUB_ID: z.string(),
+		AUTH_GITHUB_SECRET: z.string(),
 
-		DATABASE_URL: !isProduction
-			? z.preprocess(
-					() => "postgresql://fake_user:fake_password@localhost:5432/fake_db",
-					z.string(),
-				)
-			: z.string().url().startsWith("postgresql://"),
-
-		GITHUB_TOKEN: !isProduction
-			? z.preprocess(() => "fake_github_token", z.string())
-			: z.string(),
+		DATABASE_URL: z.string().startsWith("postgresql://"),
 
 		AWS_ACCESS_KEY_ID: z.string().optional(),
 		AWS_SECRET_ACCESS_KEY: z.string().optional(),
@@ -88,7 +75,6 @@ export const env = createEnv({
 		AUTH_GITHUB_SECRET: process.env.AUTH_GITHUB_SECRET,
 		DATABASE_URL: process.env.DATABASE_URL,
 		NODE_ENV: process.env.NODE_ENV,
-		GITHUB_TOKEN: process.env.GITHUB_TOKEN,
 		AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID,
 		AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY,
 		AWS_BUCKET_NAME: process.env.AWS_BUCKET_NAME,

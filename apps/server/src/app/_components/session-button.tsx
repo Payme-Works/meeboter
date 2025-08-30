@@ -1,6 +1,5 @@
 "use client";
-import Link from "next/link";
-import { useSession } from "next-auth/react";
+import { useSession, signIn, signOut } from "@/lib/auth-client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,11 +23,13 @@ export default function SessionButton() {
 
 	if (!session?.user) {
 		return (
-			<Link href="/api/auth/signin?provider=github">
-				<Button variant="outline" className="gap-2">
-					Sign In
-				</Button>
-			</Link>
+			<Button 
+				variant="outline" 
+				className="gap-2"
+				onClick={() => signIn.social({ provider: "github" })}
+			>
+				Sign In
+			</Button>
 		);
 	}
 
@@ -49,9 +50,12 @@ export default function SessionButton() {
 			<DropdownMenuContent>
 				<DropdownMenuLabel>My Account</DropdownMenuLabel>
 				<DropdownMenuSeparator />
-				<Link href="/api/auth/signout" className="cursor-pointer">
-					<DropdownMenuItem>Logout</DropdownMenuItem>
-				</Link>
+				<DropdownMenuItem 
+					className="cursor-pointer"
+					onClick={() => signOut()}
+				>
+					Logout
+				</DropdownMenuItem>
 			</DropdownMenuContent>
 		</DropdownMenu>
 	);

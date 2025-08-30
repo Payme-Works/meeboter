@@ -1,43 +1,31 @@
-import { DrizzleAdapter } from "@auth/drizzle-adapter";
-import type { DefaultSession, Session, User } from "next-auth";
-import NextAuth from "next-auth";
-import GitHub from "next-auth/providers/github";
-import type { Provider } from "next-auth/providers/index";
-import { cache } from "react";
+import { betterAuth } from "better-auth";
+import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { env } from "@/env";
 import { db } from "./database/db";
+import {
+	accountsTable,
+	sessionsTable,
+	usersTable,
+	verificationTable,
+} from "./database/schema";
 
-/**
- * Module augmentation for `next-auth` types. Allows us to add custom properties to the `session`
- * object and keep type safety.
- *
- * @see https://next-auth.js.org/getting-started/typescript#module-augmentation
- */
-declare module "next-auth" {
-	interface Session extends DefaultSession {
-		user: {
-			id: string;
-		} & DefaultSession["user"];
-	}
-}
+export const auth = betterAuth({
+	database: drizzleAdapter(db, {
+		provider: "pg",
+		schema: {
+			user: usersTable,
+			session: sessionsTable,
+			account: accountsTable,
+			verification: verificationTable,
+		},
+	}),
 
-export const { auth: uncachedAuth, handlers } = NextAuth({
-	providers: [GitHub as unknown as Provider],
-
-	session: {
-		strategy: "database",
+	socialProviders: {
+		github: {
+			clientId: env.AUTH_GITHUB_ID,
+			clientSecret: env.AUTH_GITHUB_SECRET,
+		},
 	},
 
-	adapter: DrizzleAdapter(db),
-
-	callbacks: {
-		session: ({ session, user }: { session: Session; user: User }) => ({
-			...session,
-			user: {
-				...session.user,
-				id: user.id,
-			},
-		}),
-	},
+	secret: env.AUTH_SECRET,
 });
-
-export const auth = cache(uncachedAuth);
