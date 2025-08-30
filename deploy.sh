@@ -413,14 +413,14 @@ build_server() {
     
     # Push immediately after build
     log_info "Pushing server image to ECR..."
+
     docker push "$ECR_SERVER:$TAG"
     docker push "$ECR_SERVER:latest"
+
     log_success "Server image pushed"
     
-    # Remove local images to free up disk space
-    log_info "Removing local server images to free disk space..."
-    docker rmi "$ECR_SERVER:$TAG" "$ECR_SERVER:latest" 2>/dev/null || true
-    log_success "Local server images removed"
+    # Docker cleanup
+    docker_cleanup "standard"
 }
 
 # Build, push, and remove bot images
@@ -452,21 +452,47 @@ build_bot_provider() {
     
     # Push immediately after build
     log_info "Pushing $bot_type bot image to ECR..."
+
     docker push "$ecr_url:$TAG"
     docker push "$ecr_url:latest"
+
     log_success "$bot_type bot image pushed"
     
-    # Remove local images to free up disk space
-    log_info "Removing local $bot_type bot images to free disk space..."
-    docker rmi "$ecr_url:$TAG" "$ecr_url:latest" 2>/dev/null || true
-    log_success "Local $bot_type bot images removed"
+    # Docker cleanup
+    docker_cleanup "standard"
 }
 
 
-# Complete Docker cleanup between build and push
-docker_cleanup_complete() {
-    log_info "Running complete Docker cleanup..."
+# Comprehensive Docker cleanup function
+docker_cleanup() {
+    local cleanup_type=${1:-"standard"}
     
+    case $cleanup_type in
+        "error")
+            log_error "Deployment failed, performing comprehensive Docker cleanup..."
+            
+            # Kill any running Docker builds
+            docker ps -q --filter "ancestor=node:20-alpine" | xargs -r docker kill 2>/dev/null || true
+            docker ps -q --filter "ancestor=mcr.microsoft.com/playwright:v1.52.0-jammy" | xargs -r docker kill 2>/dev/null || true
+            
+            # Remove any images that might have been built but not pushed or removed
+            docker rmi "$ECR_SERVER:$TAG" "$ECR_SERVER:latest" 2>/dev/null || true
+            docker rmi "$ECR_MEET:$TAG" "$ECR_MEET:latest" 2>/dev/null || true
+            docker rmi "$ECR_TEAMS:$TAG" "$ECR_TEAMS:latest" 2>/dev/null || true
+            docker rmi "$ECR_ZOOM:$TAG" "$ECR_ZOOM:latest" 2>/dev/null || true
+            
+            # Remove intermediate/untagged images
+            docker images --filter "dangling=true" -q | xargs -r docker rmi 2>/dev/null || true
+            ;;
+        "complete")
+            log_info "Running complete Docker cleanup..."
+            ;;
+        *)
+            log_info "Cleaning up Docker artifacts..."
+            ;;
+    esac
+    
+    # Common cleanup operations for all types
     # Remove all stopped containers
     docker container prune -f 2>/dev/null || true
     
@@ -485,7 +511,7 @@ docker_cleanup_complete() {
     # System-wide cleanup to free maximum disk space
     docker system prune -af --volumes 2>/dev/null || true
     
-    log_success "Complete Docker cleanup finished"
+    log_success "Docker cleanup completed"
 }
 
 # Restart ECS services to pull latest images
@@ -604,49 +630,6 @@ apply_terraform() {
     fi
 }
 
-# Clean up Docker images locally
-cleanup() {
-    log_info "Cleaning up remaining Docker artifacts..."
-    
-    # Images are already removed after each build/push
-    # Just clean up any remaining Docker artifacts
-    
-    # Prune unused images and build cache
-    docker image prune -f
-    docker builder prune -f
-    
-    log_success "Cleanup completed"
-}
-
-# Enhanced cleanup function for error scenarios
-cleanup_on_error() {
-    log_error "Deployment failed, performing comprehensive Docker cleanup..."
-    
-    # Kill any running Docker builds
-    docker ps -q --filter "ancestor=node:20-alpine" | xargs -r docker kill 2>/dev/null || true
-    docker ps -q --filter "ancestor=mcr.microsoft.com/playwright:v1.52.0-jammy" | xargs -r docker kill 2>/dev/null || true
-    
-    # Remove any images that might have been built but not pushed or removed
-    # (These should already be cleaned up by individual functions, but include as fallback)
-    docker rmi "$ECR_SERVER:$TAG" "$ECR_SERVER:latest" 2>/dev/null || true
-    docker rmi "$ECR_MEET:$TAG" "$ECR_MEET:latest" 2>/dev/null || true
-    docker rmi "$ECR_TEAMS:$TAG" "$ECR_TEAMS:latest" 2>/dev/null || true
-    docker rmi "$ECR_ZOOM:$TAG" "$ECR_ZOOM:latest" 2>/dev/null || true
-    
-    # Remove intermediate/untagged images
-    docker images --filter "dangling=true" -q | xargs -r docker rmi 2>/dev/null || true
-    
-    # Clean up build cache aggressively
-    docker builder prune -af 2>/dev/null || true
-    
-    # Clean up any stopped containers
-    docker container prune -f 2>/dev/null || true
-    
-    # System-wide cleanup to free up maximum disk space
-    docker system prune -af --volumes 2>/dev/null || true
-    
-    log_success "Docker cleanup completed"
-}
 
 # Main execution with guaranteed cleanup
 main() {
@@ -704,7 +687,7 @@ main() {
     build_bot_provider "zoom" "$ECR_ZOOM"
     
     # Run complete Docker cleanup after all builds are complete
-    docker_cleanup_complete
+    docker_cleanup "complete"
     
     # Restart services to pull latest images (unless skipped)
     if [[ "$SKIP_RESTART" != "true" ]]; then
@@ -721,12 +704,6 @@ main() {
     log_info "  Zoom Bot: $ECR_ZOOM:$TAG"
 }
 
-# Handle script interruption and errors
-cleanup_on_interrupt() {
-    log_warning "Build process interrupted"
-    cleanup_on_error
-    exit 130
-}
 
 # Unified cleanup function that runs on any exit
 cleanup_on_exit() {
@@ -734,22 +711,22 @@ cleanup_on_exit() {
     
     if [ $exit_code -eq 0 ]; then
         log_info "Deployment completed successfully, running cleanup..."
-        cleanup
+        docker_cleanup "standard"
     else
         log_error "Deployment failed (exit code: $exit_code), running comprehensive cleanup..."
-        cleanup_on_error
+        docker_cleanup "error"
     fi
 }
 
 cleanup_on_failure() {
     log_error "Build failed, running cleanup..."
-    cleanup_on_error
+    docker_cleanup "error"
     exit 1
 }
 
 cleanup_on_interrupt() {
     log_warning "Build process interrupted"
-    cleanup_on_error
+    docker_cleanup "error"
     exit 130
 }
 

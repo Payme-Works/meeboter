@@ -110,3 +110,24 @@ docker build -f apps/bots/providers/zoom/Dockerfile -t live-boost-zoom .
 - Validate all inputs
 - Follow principle of least privilege for AWS IAM roles and policies
 - Keep dependencies updated and scan for vulnerabilities
+
+## Code Formatting
+
+### Action Block Spacing Rule
+
+When writing code blocks that contain:
+1. A message announcing an action
+2. One or more commands/statements performing the action  
+3. A message confirming completion
+
+**Format:**
+```
+action_start_message
+
+command1
+command2
+
+action_completion_message
+```
+
+**Rationale:** Blank lines visually separate the action messages from the actual commands/statements, improving readability and making the code structure clearer.
