@@ -374,7 +374,7 @@ should_build_image() {
     return 1
 }
 
-# Build server image (without pushing)
+# Build, push, and remove server image
 build_server() {
     if ! should_build_image "server"; then
         log_info "Skipping server image build (not in --images list)"
@@ -410,9 +410,20 @@ build_server() {
     fi
     
     log_success "Server image built"
+    
+    # Push immediately after build
+    log_info "Pushing server image to ECR..."
+    docker push "$ECR_SERVER:$TAG"
+    docker push "$ECR_SERVER:latest"
+    log_success "Server image pushed"
+    
+    # Remove local images to free up disk space
+    log_info "Removing local server images to free disk space..."
+    docker rmi "$ECR_SERVER:$TAG" "$ECR_SERVER:latest" 2>/dev/null || true
+    log_success "Local server images removed"
 }
 
-# Build bot images (without pushing)
+# Build, push, and remove bot images
 build_bot_provider() {
     local bot_type=$1
     local ecr_url=$2
@@ -438,45 +449,19 @@ build_bot_provider() {
     fi
     
     log_success "$bot_type bot image built"
+    
+    # Push immediately after build
+    log_info "Pushing $bot_type bot image to ECR..."
+    docker push "$ecr_url:$TAG"
+    docker push "$ecr_url:latest"
+    log_success "$bot_type bot image pushed"
+    
+    # Remove local images to free up disk space
+    log_info "Removing local $bot_type bot images to free disk space..."
+    docker rmi "$ecr_url:$TAG" "$ecr_url:latest" 2>/dev/null || true
+    log_success "Local $bot_type bot images removed"
 }
 
-# Push all built images simultaneously
-push_all_images() {
-    log_info "Pushing all built images to ECR..."
-    
-    # Create array of images to push
-    local push_commands=()
-    
-    if should_build_image "server"; then
-        push_commands+=("docker push '$ECR_SERVER:$TAG' &")
-        push_commands+=("docker push '$ECR_SERVER:latest' &")
-    fi
-    
-    if should_build_image "bots-meet"; then
-        push_commands+=("docker push '$ECR_MEET:$TAG' &")
-        push_commands+=("docker push '$ECR_MEET:latest' &")
-    fi
-    
-    if should_build_image "bots-teams"; then
-        push_commands+=("docker push '$ECR_TEAMS:$TAG' &")
-        push_commands+=("docker push '$ECR_TEAMS:latest' &")
-    fi
-    
-    if should_build_image "bots-zoom"; then
-        push_commands+=("docker push '$ECR_ZOOM:$TAG' &")
-        push_commands+=("docker push '$ECR_ZOOM:latest' &")
-    fi
-    
-    # Execute all push commands in parallel
-    for cmd in "${push_commands[@]}"; do
-        eval "$cmd"
-    done
-    
-    # Wait for all background jobs to complete
-    wait
-    
-    log_success "All images pushed to ECR"
-}
 
 # Restart ECS services to pull latest images
 restart_services() {
@@ -596,13 +581,10 @@ apply_terraform() {
 
 # Clean up Docker images locally
 cleanup() {
-    log_info "Cleaning up local Docker images..."
+    log_info "Cleaning up remaining Docker artifacts..."
     
-    # Remove local images to free up space
-    docker rmi "$ECR_SERVER:$TAG" "$ECR_SERVER:latest" 2>/dev/null || true
-    docker rmi "$ECR_MEET:$TAG" "$ECR_MEET:latest" 2>/dev/null || true
-    docker rmi "$ECR_TEAMS:$TAG" "$ECR_TEAMS:latest" 2>/dev/null || true
-    docker rmi "$ECR_ZOOM:$TAG" "$ECR_ZOOM:latest" 2>/dev/null || true
+    # Images are already removed after each build/push
+    # Just clean up any remaining Docker artifacts
     
     # Prune unused images and build cache
     docker image prune -f
@@ -619,7 +601,8 @@ cleanup_on_error() {
     docker ps -q --filter "ancestor=node:20-alpine" | xargs -r docker kill 2>/dev/null || true
     docker ps -q --filter "ancestor=mcr.microsoft.com/playwright:v1.52.0-jammy" | xargs -r docker kill 2>/dev/null || true
     
-    # Remove any images that might have been built but not pushed
+    # Remove any images that might have been built but not pushed or removed
+    # (These should already be cleaned up by individual functions, but include as fallback)
     docker rmi "$ECR_SERVER:$TAG" "$ECR_SERVER:latest" 2>/dev/null || true
     docker rmi "$ECR_MEET:$TAG" "$ECR_MEET:latest" 2>/dev/null || true
     docker rmi "$ECR_TEAMS:$TAG" "$ECR_TEAMS:latest" 2>/dev/null || true
@@ -689,14 +672,11 @@ main() {
     check_ecr_repositories
     prepare_build
     
-    # Build all images first
+    # Build, push, and remove images one by one to save disk space
     build_server
     build_bot_provider "meet" "$ECR_MEET"
     build_bot_provider "teams" "$ECR_TEAMS"
     build_bot_provider "zoom" "$ECR_ZOOM"
-    
-    # Push all images simultaneously
-    push_all_images
     
     # Restart services to pull latest images (unless skipped)
     if [[ "$SKIP_RESTART" != "true" ]]; then
