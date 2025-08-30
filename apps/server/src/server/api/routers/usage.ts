@@ -1,15 +1,24 @@
-import { and, eq, gte, isNotNull } from "drizzle-orm";
+import { and, eq, gte } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
-import { botsTable, dailyUsageSchema } from "@/server/database/schema";
+import { botsTable } from "@/server/database/schema";
 
 // Interface matching dailyUsageSchema exactly
 interface DayUsage {
 	date: string;
-	count: number;
+	botsUsed: number;
 	msEllapsed: number;
 	estimatedCost: string;
 }
+
+export const dailyUsageSchema = z.object({
+	date: z.string(),
+	msEllapsed: z.number(),
+	estimatedCost: z.string(),
+	botsUsed: z.number(),
+});
+
+export type DailyUsageType = z.infer<typeof dailyUsageSchema>;
 
 const formatDayUsageDictToOutput = (eventsByDate: Record<string, DayUsage>) => {
 	// Create Output Object (list of dates)
@@ -39,16 +48,12 @@ export const usageRouter = createTRPCRouter({
 			const userBots = await ctx.db
 				.select({
 					startTime: botsTable.startTime,
-					endTime: botsTable.lastHeartbeat,
+					endTime: botsTable.endTime,
+					lastHeartbeat: botsTable.lastHeartbeat,
 					id: botsTable.id,
-				}) //TODO: End Time reflects this
+				})
 				.from(botsTable)
-				.where(
-					and(
-						eq(botsTable.userId, ctx.session.user.id),
-						isNotNull(botsTable.lastHeartbeat),
-					),
-				);
+				.where(eq(botsTable.userId, ctx.session.user.id));
 
 			// Collect the Bot Id's.
 			const botIds = userBots.map((bot) => bot.id);
@@ -68,10 +73,6 @@ export const usageRouter = createTRPCRouter({
 			const eventsByDate: Record<string, DayUsage> = {};
 
 			userBots.forEach((bot) => {
-				if (bot.endTime === null) {
-					return; //next in loop
-				}
-
 				// Get the start date
 				const startDate = bot.startTime.toISOString().split("T")[0];
 
@@ -79,21 +80,20 @@ export const usageRouter = createTRPCRouter({
 				if (startDate && !eventsByDate[startDate]) {
 					eventsByDate[startDate] = {
 						date: startDate,
-						count: 0,
+						botsUsed: 0,
 						msEllapsed: 0,
 						estimatedCost: "0",
 					};
 				}
 
-				//Time the bot ellapsed
-				const botElapsed =
-					new Date(bot.endTime.toISOString()).getTime() -
-					new Date(bot.startTime.toISOString()).getTime();
+				// Calculate bot elapsed time - use endTime, lastHeartbeat, or current time
+				const endTime = bot.endTime || bot.lastHeartbeat || new Date();
+				const botElapsed = endTime.getTime() - bot.startTime.getTime();
 
-				// Ensure properties exist before accessing them
-				if (startDate && eventsByDate[startDate]) {
+				// Only count positive elapsed time
+				if (botElapsed > 0 && startDate && eventsByDate[startDate]) {
 					eventsByDate[startDate].msEllapsed += botElapsed;
-					eventsByDate[startDate].count += 1;
+					eventsByDate[startDate].botsUsed += 1;
 				}
 			});
 
@@ -119,6 +119,127 @@ export const usageRouter = createTRPCRouter({
 			return outputObject;
 		}),
 
+	getDailyUsage: protectedProcedure
+		.meta({
+			openapi: {
+				method: "GET",
+				path: "/usage/daily",
+				description:
+					"Retrieve hourly bot usage for today. Empty hours will be reported as well.\n",
+			},
+		})
+		.input(
+			z
+				.object({
+					timezoneOffset: z
+						.string()
+						.transform((val) => Number(val))
+						.optional()
+						.default(0), // minutes offset from UTC
+				})
+				.optional(),
+		)
+		.output(z.array(dailyUsageSchema))
+		.query(async ({ input, ctx }) => {
+			const timezoneOffset = input?.timezoneOffset || 0;
+
+			// Calculate start of today in user's timezone
+			const now = new Date();
+
+			const localNow = new Date(now.getTime() - timezoneOffset * 60000);
+
+			const startOfDay = new Date(
+				localNow.getFullYear(),
+				localNow.getMonth(),
+				localNow.getDate(),
+			);
+
+			const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
+
+			// Convert back to UTC for database query
+			const startOfDayUTC = new Date(
+				startOfDay.getTime() + timezoneOffset * 60000,
+			);
+
+			const endOfDayUTC = new Date(endOfDay.getTime() + timezoneOffset * 60000);
+
+			// Get all bots for today
+			const userBots = await ctx.db
+				.select({
+					startTime: botsTable.startTime,
+					endTime: botsTable.endTime,
+					lastHeartbeat: botsTable.lastHeartbeat,
+					id: botsTable.id,
+				})
+				.from(botsTable)
+				.where(
+					and(
+						eq(botsTable.userId, ctx.session.user.id),
+						gte(botsTable.startTime, startOfDayUTC),
+					),
+				);
+
+			// Populate entries for each hour of the day (24 hours)
+			const eventsByHour: Record<string, DayUsage> = {};
+			for (let i = 0; i < 24; i++) {
+				const hourStart = new Date(startOfDay.getTime() + i * 60 * 60 * 1000);
+				const dateString = hourStart.toISOString().slice(0, 13) + ":00:00.000Z";
+
+				eventsByHour[dateString] = {
+					date: dateString,
+					botsUsed: 0,
+					msEllapsed: 0,
+					estimatedCost: "0",
+				};
+			}
+
+			userBots.forEach((bot) => {
+				// Convert bot start time to user's timezone
+				const botStartLocal = new Date(
+					bot.startTime.getTime() - timezoneOffset * 60000,
+				);
+
+				const hourBucket = new Date(
+					botStartLocal.getFullYear(),
+					botStartLocal.getMonth(),
+					botStartLocal.getDate(),
+					botStartLocal.getHours(),
+					0,
+					0,
+					0,
+				);
+
+				// Convert back to UTC format for the key
+				const hourBucketUTC = new Date(
+					hourBucket.getTime() + timezoneOffset * 60000,
+				);
+
+				const dateString =
+					hourBucketUTC.toISOString().slice(0, 13) + ":00:00.000Z";
+
+				// Calculate bot elapsed time
+				const endTime = bot.endTime || bot.lastHeartbeat || now;
+				const botElapsed = endTime.getTime() - bot.startTime.getTime();
+
+				// Add to the appropriate hour bucket
+				if (eventsByHour[dateString] && botElapsed > 0) {
+					eventsByHour[dateString].msEllapsed += botElapsed;
+					eventsByHour[dateString].botsUsed += 1;
+
+					const currentCost = parseFloat(
+						eventsByHour[dateString].estimatedCost,
+					);
+
+					eventsByHour[dateString].estimatedCost = (
+						currentCost +
+						botElapsed / 36000000
+					).toFixed(2);
+				}
+			});
+
+			return formatDayUsageDictToOutput(eventsByHour);
+		}),
+
 	getWeekDailyUsage: protectedProcedure
 		.meta({
 			openapi: {
@@ -128,48 +249,63 @@ export const usageRouter = createTRPCRouter({
 					"Retreive a list of daily bot usage over the last week. Empty days will be reported as well.\n",
 			},
 		})
-		.input(z.void())
+		.input(
+			z
+				.object({
+					timezoneOffset: z
+						.string()
+						.transform((val) => Number(val))
+						.optional()
+						.default(0), // minutes offset from UTC
+				})
+				.optional(),
+		)
 		.output(z.array(dailyUsageSchema))
-		.query(async ({ ctx }) => {
-			// Calculate start of this week
-			const today = new Date();
+		.query(async ({ input, ctx }) => {
+			const timezoneOffset = input?.timezoneOffset || 0;
+
+			// Calculate start of this week in user's timezone
+			const now = new Date();
+			const localNow = new Date(now.getTime() - timezoneOffset * 60000);
 
 			const startOfWeek = new Date(
-				today.setDate(today.getDate() - today.getDay()),
+				localNow.setDate(localNow.getDate() - localNow.getDay()),
+			);
+
+			// Convert to UTC for database query
+			const startOfWeekUTC = new Date(
+				startOfWeek.getTime() + timezoneOffset * 60000,
 			);
 
 			// Get all bots timestamp
 			const userBots = await ctx.db
 				.select({
 					startTime: botsTable.startTime,
-					endTime: botsTable.lastHeartbeat,
+					endTime: botsTable.endTime,
+					lastHeartbeat: botsTable.lastHeartbeat,
 					id: botsTable.id,
-				}) //TODO: End Time reflects this
+				})
 				.from(botsTable)
 				.where(
 					and(
 						eq(botsTable.userId, ctx.session.user.id),
-						gte(botsTable.startTime, startOfWeek), // After the beginning of the week
-						isNotNull(botsTable.lastHeartbeat),
+						gte(botsTable.startTime, startOfWeekUTC), // After the beginning of the week
 					),
 				);
 
-			// Empty -- No Data
-			if (userBots.length === 0) {
-				return [];
-			}
-
-			// Populate entries for each day of the week
+			// Populate entries for each day of the week, even if no data
 			const eventsByDate: Record<string, DayUsage> = {};
 			for (let i = 0; i < 7; i++) {
-				const currentDate = new Date(startOfWeek);
-				currentDate.setDate(startOfWeek.getDate() + i);
+				const currentDate = new Date(
+					startOfWeek.getTime() + i * 24 * 60 * 60 * 1000,
+				);
+
 				const dateString = currentDate.toISOString().split("T")[0];
 
 				if (dateString && !eventsByDate[dateString]) {
 					eventsByDate[dateString] = {
 						date: dateString,
-						count: 0,
+						botsUsed: 0,
 						msEllapsed: 0,
 						estimatedCost: "0",
 					};
@@ -177,23 +313,21 @@ export const usageRouter = createTRPCRouter({
 			}
 
 			userBots.forEach((bot) => {
-				// Did not finish
-				if (bot.endTime === null) {
-					return; //next in loop
-				}
+				// Convert bot start time to user's timezone for date bucketing
+				const botStartLocal = new Date(
+					bot.startTime.getTime() - timezoneOffset * 60000,
+				);
 
-				// Get the start date
-				const startDate = bot.startTime.toISOString().split("T")[0];
+				const startDate = botStartLocal.toISOString().split("T")[0];
 
-				//Time the bot ellapsed
-				const botElapsed =
-					new Date(bot.endTime.toISOString()).getTime() -
-					new Date(bot.startTime.toISOString()).getTime();
+				// Calculate bot elapsed time - use endTime, lastHeartbeat, or current time
+				const endTime = bot.endTime || bot.lastHeartbeat || now;
+				const botElapsed = endTime.getTime() - bot.startTime.getTime();
 
-				// Check if the date exists before accessing it
-				if (startDate && eventsByDate[startDate]) {
+				// Check if the date exists and elapsed time is positive
+				if (startDate && eventsByDate[startDate] && botElapsed > 0) {
 					eventsByDate[startDate].msEllapsed += botElapsed;
-					eventsByDate[startDate].count += 1;
+					eventsByDate[startDate].botsUsed += 1;
 					// Convert to string when saving
 					const currentCost = parseFloat(eventsByDate[startDate].estimatedCost);
 
@@ -217,48 +351,74 @@ export const usageRouter = createTRPCRouter({
 					"Retreive a list of daily bot usage over the last month. Empty days will be reported as well.\n",
 			},
 		})
-		.input(z.void())
+		.input(
+			z
+				.object({
+					timezoneOffset: z
+						.string()
+						.transform((val) => Number(val))
+						.optional()
+						.default(0), // minutes offset from UTC
+				})
+				.optional(),
+		)
 		.output(z.array(dailyUsageSchema))
-		.query(async ({ ctx }) => {
-			// Calculate start of this week
-			const today = new Date();
-			const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-			const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+		.query(async ({ input, ctx }) => {
+			const timezoneOffset = input?.timezoneOffset || 0;
+
+			// Calculate start of this month in user's timezone
+			const now = new Date();
+			const localNow = new Date(now.getTime() - timezoneOffset * 60000);
+
+			const startOfMonth = new Date(
+				localNow.getFullYear(),
+				localNow.getMonth(),
+				1,
+			);
+
+			const endOfMonth = new Date(
+				localNow.getFullYear(),
+				localNow.getMonth() + 1,
+				0,
+			);
+
 			const daysInMonth = endOfMonth.getDate();
+
+			// Convert to UTC for database query
+			const startOfMonthUTC = new Date(
+				startOfMonth.getTime() + timezoneOffset * 60000,
+			);
 
 			// Get all bots timestamp
 			const userBots = await ctx.db
 				.select({
 					startTime: botsTable.startTime,
-					endTime: botsTable.lastHeartbeat,
+					endTime: botsTable.endTime,
+					lastHeartbeat: botsTable.lastHeartbeat,
 					id: botsTable.id,
-				}) //TODO: End Time reflects this
+				})
 				.from(botsTable)
 				.where(
 					and(
 						eq(botsTable.userId, ctx.session.user.id),
-						gte(botsTable.startTime, startOfMonth), // After the beginning of the week
-						isNotNull(botsTable.lastHeartbeat),
+						gte(botsTable.startTime, startOfMonthUTC), // After the beginning of the month
 					),
 				);
 
-			// Empty -- No Data
-			if (userBots.length === 0) {
-				return [];
-			}
-
-			// Populate entries for each day of the week
+			// Populate entries for each day of the month, even if no data
 			const eventsByDate: Record<string, DayUsage> = {};
 
-			for (let i = 0; i <= daysInMonth; i++) {
-				const currentDate = new Date(startOfMonth);
-				currentDate.setDate(startOfMonth.getDate() + i);
+			for (let i = 0; i < daysInMonth; i++) {
+				const currentDate = new Date(
+					startOfMonth.getTime() + i * 24 * 60 * 60 * 1000,
+				);
+
 				const dateString = currentDate.toISOString().split("T")[0];
 
 				if (dateString && !eventsByDate[dateString]) {
 					eventsByDate[dateString] = {
 						date: dateString,
-						count: 0,
+						botsUsed: 0,
 						msEllapsed: 0,
 						estimatedCost: "0",
 					};
@@ -266,23 +426,21 @@ export const usageRouter = createTRPCRouter({
 			}
 
 			userBots.forEach((bot) => {
-				// Did not finish
-				if (bot.endTime === null) {
-					return; //next in loop
-				}
+				// Convert bot start time to user's timezone for date bucketing
+				const botStartLocal = new Date(
+					bot.startTime.getTime() - timezoneOffset * 60000,
+				);
 
-				// Get the start date
-				const startDate = bot.startTime.toISOString().split("T")[0];
+				const startDate = botStartLocal.toISOString().split("T")[0];
 
-				//Time the bot ellapsed
-				const botElapsed =
-					new Date(bot.endTime.toISOString()).getTime() -
-					new Date(bot.startTime.toISOString()).getTime();
+				// Calculate bot elapsed time - use endTime, lastHeartbeat, or current time
+				const endTime = bot.endTime || bot.lastHeartbeat || now;
+				const botElapsed = endTime.getTime() - bot.startTime.getTime();
 
-				// Check if the date exists before accessing it
-				if (startDate && eventsByDate[startDate]) {
+				// Check if the date exists and elapsed time is positive
+				if (startDate && eventsByDate[startDate] && botElapsed > 0) {
 					eventsByDate[startDate].msEllapsed += botElapsed;
-					eventsByDate[startDate].count += 1;
+					eventsByDate[startDate].botsUsed += 1;
 					// Convert to string when saving
 					const currentCost = parseFloat(eventsByDate[startDate].estimatedCost);
 

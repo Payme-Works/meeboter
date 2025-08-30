@@ -370,27 +370,5 @@ export const selectEventSchema = createSelectSchema(events).extend({
 
 export type SelectEventType = z.infer<typeof selectEventSchema>;
 
-export const dailyBotUsageTable = pgTable("dailyBotUsage", {
-	id: serial("id").primaryKey(),
-	userId: text("userId")
-		.references(() => usersTable.id, { onDelete: "cascade" })
-		.notNull(),
-	date: date("date").notNull(), // format: YYYY-MM-DD
-	botCount: integer("botCount").notNull().default(0),
-	createdAt: timestamp("createdAt").notNull().defaultNow(),
-});
-
 export const insertSubscriptionSchema = createInsertSchema(subscriptionsTable);
 export const selectSubscriptionSchema = createSelectSchema(subscriptionsTable);
-
-export const insertDailyBotUsageSchema = createInsertSchema(dailyBotUsageTable);
-export const selectDailyBotUsageSchema = createSelectSchema(dailyBotUsageTable);
-
-export const dailyUsageSchema = z.object({
-	date: z.string(),
-	msEllapsed: z.number(),
-	estimatedCost: z.string(),
-	count: z.number(),
-});
-
-export type DailyUsageType = z.infer<typeof dailyUsageSchema>;

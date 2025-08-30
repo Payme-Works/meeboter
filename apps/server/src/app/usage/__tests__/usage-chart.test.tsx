@@ -1,14 +1,14 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { createTrpcApiMock, mockUseQuery } from "@/lib/test-utils";
-import type { DailyUsageType } from "@/server/database/schema";
+import type { DailyUsageType } from "@/server/api/routers/usage";
 
 // Fake data that will be used to test the component
 const fakeWeeklyUsageData: DailyUsageType[] = Array.from(
 	{ length: 7 },
 	(_, i) => ({
 		date: `Mar ${i + 1}, 2025`,
-		count: i,
+		botsUsed: i,
 		msEllapsed: 100 * i,
 		estimatedCost: `${100 * i}`,
 	}),
@@ -18,7 +18,7 @@ const fakeMonthlyUsageData: DailyUsageType[] = Array.from(
 	{ length: 30 },
 	(_, i) => ({
 		date: `Apr ${i + 1}, 2025`,
-		count: i,
+		botsUsed: i,
 		msEllapsed: 100 * i,
 		estimatedCost: `${100 * i}`,
 	}),

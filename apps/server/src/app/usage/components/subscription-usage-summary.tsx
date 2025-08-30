@@ -8,11 +8,16 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/trpc/react";
 
 export function SubscriptionUsageSummary() {
+	// Get user's timezone offset
+	const timezoneOffset = new Date().getTimezoneOffset();
+
 	const { data: subscriptionInfo, isLoading: subLoading } =
 		api.bots.getUserSubscription.useQuery();
 
 	const { data: dailyUsage, isLoading: usageLoading } =
-		api.bots.getDailyUsage.useQuery();
+		api.bots.getDailyUsage.useQuery({
+			timezoneOffset: timezoneOffset.toString(),
+		});
 
 	if (subLoading || usageLoading) {
 		return (
@@ -23,6 +28,7 @@ export function SubscriptionUsageSummary() {
 							<CardTitle className="text-sm font-medium">
 								<Skeleton className="h-4 w-20" />
 							</CardTitle>
+
 							<Skeleton className="h-4 w-4" />
 						</CardHeader>
 
@@ -107,12 +113,14 @@ export function SubscriptionUsageSummary() {
 					<CardTitle className="text-sm font-medium">Daily Bot Limit</CardTitle>
 					<Zap className="h-4 w-4 text-muted-foreground" />
 				</CardHeader>
+
 				<CardContent>
 					<div className="text-2xl font-bold">
 						{subscriptionInfo
 							? formatLimit(subscriptionInfo.effectiveDailyLimit)
 							: "Loading..."}
 					</div>
+
 					{subscriptionInfo?.customDailyBotLimit && (
 						<Badge variant="outline" className="text-xs">
 							Custom Override

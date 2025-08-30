@@ -8,7 +8,7 @@ export default function Usage() {
 		<div className="mx-auto container space-y-6 px-4">
 			<div className="flex items-center justify-between">
 				<div>
-					<h2 className="text-2xl font-bold tracking-tight">Usage Dashboard</h2>
+					<h2 className="text-2xl font-bold tracking-tight">Usage</h2>
 					<p className="text-muted-foreground">
 						Monitor your subscription and engagement bot deployment usage
 					</p>

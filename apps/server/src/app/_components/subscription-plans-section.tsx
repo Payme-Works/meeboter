@@ -18,7 +18,8 @@ export default function SubscriptionPlansSection({
 			<div>
 				<h2 className="text-2xl font-bold text-left">Choose Your Plan</h2>
 				<p className="text-gray-600 mt-2 text-left">
-					Choose the right plan to deploy engagement bots and enhance your meetings
+					Choose the right plan to deploy engagement bots and enhance your
+					meetings
 				</p>
 			</div>
 
@@ -33,9 +34,13 @@ export default function SubscriptionPlansSection({
 			</div>
 
 			<div className="text-left text-sm text-gray-500">
-				<p>All plans include secure bot deployment, meeting engagement features, and recording capabilities.</p>
 				<p>
-					Need custom engagement solutions? Contact our sales team for enterprise bot deployments.
+					All plans include secure bot deployment, meeting engagement features,
+					and recording capabilities.
+				</p>
+				<p>
+					Need custom engagement solutions? Contact our sales team for
+					enterprise bot deployments.
 				</p>
 			</div>
 		</div>

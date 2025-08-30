@@ -15,6 +15,13 @@
       "when": 1756528561709,
       "tag": "0001_lowly_captain_midlands",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1756534874698,
+      "tag": "0002_boring_bulldozer",
+      "breakpoints": true
     }
   ]
 }

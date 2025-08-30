@@ -19,8 +19,8 @@ export default function WelcomeDashboard() {
 				</h1>
 
 				<p className="mt-2 text-gray-600">
-					Deploy intelligent bots to boost engagement and productivity in your meetings across
-					popular video platforms.
+					Deploy intelligent bots to boost engagement and productivity in your
+					meetings across popular video platforms.
 				</p>
 			</div>
 

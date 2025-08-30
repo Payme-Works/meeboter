@@ -3,7 +3,7 @@
 // Define the data structure
 interface UsageData {
 	date: string;
-	count: number;
+	botsUsed: number;
 	msEllapsed: number;
 	estimatedCost: string;
 }
@@ -12,7 +12,7 @@ export interface UsageTooltipProps {
 	active?: boolean;
 	payload?: { payload: UsageData }[];
 	label?: string;
-	metric: "count" | "msEllapsed" | "estimatedCost";
+	metric: "botsUsed" | "msEllapsed" | "estimatedCost";
 }
 
 export const UsageTooltip = ({
@@ -96,12 +96,8 @@ export const UsageTooltip = ({
 		<div className="rounded-md border bg-white p-3 shadow-md">
 			<p className="pb-2 font-semibold">{formatDate(label)}</p>
 
-			<p className={`pb-2 text-blue-600 ${checkActive("estimatedCost")}`}>
-				Estimated Cost: ${objData.estimatedCost}
-			</p>
-
-			<p className={`text-grey-500 ${checkActive("count")}`}>
-				Bots Used: {objData.count}
+			<p className={`text-grey-500 ${checkActive("botsUsed")}`}>
+				Bots Used: {objData.botsUsed}
 			</p>
 
 			<p className={`text-grey-600 ${checkActive("msEllapsed")}`}>

@@ -19,7 +19,6 @@ import { generateSignedUrl } from "@/server/utils/s3";
 import {
 	getDailyBotUsage,
 	getUserSubscriptionInfo,
-	incrementDailyBotUsage,
 	validateBotCreation,
 } from "@/server/utils/subscription";
 import { deployBot, shouldDeployImmediately } from "../services/bot-deployment";
@@ -90,6 +89,11 @@ export const botsRouter = createTRPCRouter({
 					.optional()
 					.transform((val) => (val ? new Date(val) : undefined))
 					.default(new Date()),
+				timezoneOffset: z
+					.string()
+					.transform((val) => Number(val))
+					.optional()
+					.default(0), // minutes offset from UTC
 			}),
 		)
 		.output(selectBotSchema)
@@ -106,6 +110,7 @@ export const botsRouter = createTRPCRouter({
 				const validation = await validateBotCreation(
 					ctx.db,
 					ctx.session.user.id,
+					input.timezoneOffset,
 				);
 
 				if (!validation.allowed) {
@@ -164,9 +169,6 @@ export const botsRouter = createTRPCRouter({
 				if (!result[0]) {
 					throw new Error("Bot creation failed - no result returned");
 				}
-
-				// Increment daily bot usage counter
-				await incrementDailyBotUsage(ctx.db, ctx.session.user.id);
 
 				// Check if we should deploy immediately
 				if (await shouldDeployImmediately(input.startTime)) {
@@ -572,6 +574,11 @@ export const botsRouter = createTRPCRouter({
 			z
 				.object({
 					date: z.string().optional(), // YYYY-MM-DD format
+					timezoneOffset: z
+						.string()
+						.transform((val) => Number(val))
+						.optional()
+						.default(0), // minutes offset from UTC
 				})
 				.optional(),
 		)
@@ -584,14 +591,23 @@ export const botsRouter = createTRPCRouter({
 			}),
 		)
 		.query(async ({ input, ctx }) => {
-			const date = input?.date ? new Date(input.date) : new Date();
+			const date = input?.date
+				? new Date(input.date)
+				: new Date(new Date().setHours(0, 0, 0, 0));
+
+			const timezoneOffset = input?.timezoneOffset || 0;
 
 			const subscriptionInfo = await getUserSubscriptionInfo(
 				ctx.db,
 				ctx.session.user.id,
 			);
 
-			const usage = await getDailyBotUsage(ctx.db, ctx.session.user.id, date);
+			const usage = await getDailyBotUsage(
+				ctx.db,
+				ctx.session.user.id,
+				date,
+				timezoneOffset,
+			);
 
 			const limit = subscriptionInfo.effectiveDailyLimit;
 			const remaining = limit !== null ? Math.max(0, limit - usage) : null;

@@ -19,7 +19,7 @@ import { UsageTooltip } from "./usage-tooltip";
 // Define a proper type for the usage data
 interface UsageData {
 	date: string;
-	count: number;
+	botsUsed: number;
 	msEllapsed: number;
 	estimatedCost: string;
 }
@@ -30,20 +30,26 @@ export interface UsageChartProps {
 }
 
 export function UsageChart() {
-	// Get Metric
+	// Get Metric - default to count since estimatedCost is disabled
 	const [metric, setMetric] = React.useState<
-		"count" | "msEllapsed" | "estimatedCost"
-	>("estimatedCost");
+		"botsUsed" | "msEllapsed" | "estimatedCost"
+	>("botsUsed");
 
-	const [timeframe, setTimeframe] = React.useState<"week" | "month" | "year">(
+	const [timeframe, setTimeframe] = React.useState<"daily" | "week" | "month">(
 		"week",
 	);
 
 	const [isMobile, setIsMobile] = useState(false);
+	const [timezoneOffset, setTimezoneOffset] = useState(0);
+	const [userTimezone, setUserTimezone] = useState("");
 
 	// Initialize window-dependent states safely
 	useEffect(() => {
 		setIsMobile(window.innerWidth < 768);
+
+		// Get user's timezone information
+		setTimezoneOffset(new Date().getTimezoneOffset());
+		setUserTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone);
 
 		const handleResize = () => {
 			setIsMobile(window.innerWidth < 768);
@@ -54,17 +60,28 @@ export function UsageChart() {
 		return () => window.removeEventListener("resize", handleResize);
 	}, []);
 
-	// Load the Data
-	const weekData = api.usage.getWeekDailyUsage.useQuery(undefined, {
-		enabled: timeframe === "week",
-	});
+	// Load the Data with timezone support
+	const dailyData = api.usage.getDailyUsage.useQuery(
+		{ timezoneOffset: timezoneOffset.toString() },
+		{ enabled: timeframe === "daily" },
+	);
 
-	const monthData = api.usage.getMonthDailyUsage.useQuery(undefined, {
-		enabled: timeframe === "month",
-	});
+	const weekData = api.usage.getWeekDailyUsage.useQuery(
+		{ timezoneOffset: timezoneOffset.toString() },
+		{ enabled: timeframe === "week" },
+	);
+
+	const monthData = api.usage.getMonthDailyUsage.useQuery(
+		{ timezoneOffset: timezoneOffset.toString() },
+		{ enabled: timeframe === "month" },
+	);
 
 	const { data, isLoading, error } =
-		timeframe === "week" ? weekData : monthData;
+		timeframe === "daily"
+			? dailyData
+			: timeframe === "week"
+				? weekData
+				: monthData;
 
 	// Decide scale
 	const max =
@@ -82,30 +99,36 @@ export function UsageChart() {
 	const ydomain = data && [0, max ?? 0];
 
 	const dateTickFormatter = (date: string) => {
-		if (timeframe === "week") {
-			const dayOfWeek = new Date(date).toLocaleString("default", {
-				weekday: "short",
+		const dateObj = new Date(date);
+
+		if (timeframe === "daily") {
+			// Format as hour in local timezone
+			return dateObj.toLocaleString("default", {
+				hour: "numeric",
+				hour12: true,
+				timeZone: userTimezone,
 			});
+		} else if (timeframe === "week") {
+			// Format as weekday
+			return dateObj.toLocaleString("default", {
+				weekday: "short",
+				timeZone: userTimezone,
+			});
+		} else {
+			// Format as month and day
+			const [year, month, day] = date.split("-");
 
-			return dayOfWeek;
+			if (!year || !month || !day) {
+				return date;
+			}
+
+			const shortMonth = new Date(
+				parseInt(year, 10),
+				parseInt(month, 10) - 1,
+			).toLocaleString("default", { month: "short" });
+
+			return `${shortMonth}. ${parseInt(day, 10)}`;
 		}
-
-		const [year, month, day] = date.split("-");
-
-		if (!year || !month || !day) {
-			return date;
-		}
-
-		const shortMonth = new Date(
-			parseInt(year, 10),
-			parseInt(month, 10) - 1,
-		).toLocaleString("default", { month: "short" });
-
-		const out = `${shortMonth}. ${parseInt(day, 10)}`;
-
-		console.log(out, date);
-
-		return out;
 	};
 
 	return (
@@ -117,7 +140,6 @@ export function UsageChart() {
 					<div className="pb-2 font-semibold">Time Span</div>
 
 					<div className="flex gap-2">
-						{/* <Button variant={timeframe === 'year' ? "default" : 'outline'} onClick={() => setTimeframe('year')}>This Year</Button> */}
 						<Button
 							data-testid="month-button"
 							variant={timeframe === "month" ? "default" : "outline"}
@@ -125,12 +147,21 @@ export function UsageChart() {
 						>
 							This Month
 						</Button>
+
 						<Button
 							data-testid="week-button"
 							variant={timeframe === "week" ? "default" : "outline"}
 							onClick={() => setTimeframe("week")}
 						>
 							This Week
+						</Button>
+
+						<Button
+							data-testid="daily-button"
+							variant={timeframe === "daily" ? "default" : "outline"}
+							onClick={() => setTimeframe("daily")}
+						>
+							Today
 						</Button>
 					</div>
 				</div>
@@ -139,18 +170,22 @@ export function UsageChart() {
 					<div className="pb-2 font-semibold">Metric</div>
 
 					<div className="flex gap-2">
-						<Button
+						{/* Estimated Costs disabled - pay-as-you-go feature not available yet */}
+						{/* <Button
 							variant={metric === "estimatedCost" ? "default" : "outline"}
 							onClick={() => setMetric("estimatedCost")}
+							disabled
 						>
 							Estimated Costs
-						</Button>
+						</Button> */}
+
 						<Button
-							variant={metric === "count" ? "default" : "outline"}
-							onClick={() => setMetric("count")}
+							variant={metric === "botsUsed" ? "default" : "outline"}
+							onClick={() => setMetric("botsUsed")}
 						>
-							Bots Created
+							Bots Used
 						</Button>
+
 						<Button
 							variant={metric === "msEllapsed" ? "default" : "outline"}
 							onClick={() => setMetric("msEllapsed")}
@@ -163,6 +198,13 @@ export function UsageChart() {
 
 			{/* Chart */}
 			<div className="mt-6">
+				{/* Timezone indicator */}
+				{userTimezone && (
+					<div className="mb-2 text-xs text-muted-foreground">
+						Showing times in {userTimezone.replace("_", " ")}
+					</div>
+				)}
+
 				{data && data.length > 0 ? (
 					<div data-testid="chart-container" className="h-full w-full">
 						<ResponsiveContainer width="100%" height={300}>

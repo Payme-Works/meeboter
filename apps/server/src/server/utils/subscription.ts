@@ -1,8 +1,8 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, gte, lt } from "drizzle-orm";
+import { FREE_PLAN, SUBSCRIPTION_PLANS } from "@/constants/subscription-plans";
 import type { db } from "@/server/database/db";
-import { SUBSCRIPTION_PLANS, FREE_PLAN } from "@/constants/subscription-plans";
 import {
-	dailyBotUsageTable,
+	botsTable,
 	type Subscription,
 	subscriptionsTable,
 	usersTable,
@@ -70,8 +70,7 @@ export async function getUserSubscriptionInfo(
 	}
 
 	// Determine effective daily limit
-	const effectiveDailyLimit =
-		user.customDailyBotLimit ?? dailyBotLimit;
+	const effectiveDailyLimit = user.customDailyBotLimit ?? dailyBotLimit;
 
 	return {
 		userId,
@@ -88,68 +87,41 @@ export async function getDailyBotUsage(
 	db: Database,
 	userId: string,
 	date = new Date(),
+	timezoneOffset = 0,
 ): Promise<number> {
-	const dateString = date.toISOString().split("T")[0]; // YYYY-MM-DD format
+	// Calculate date range in user's timezone
+	const localDate = new Date(date.getTime() - timezoneOffset * 60000);
 
-	const usageResult = await db
-		.select({
-			botCount: dailyBotUsageTable.botCount,
-		})
-		.from(dailyBotUsageTable)
+	const startOfDay = new Date(
+		localDate.getFullYear(),
+		localDate.getMonth(),
+		localDate.getDate(),
+	);
+
+	const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
+
+	// Convert back to UTC for database query
+	const startOfDayUTC = new Date(startOfDay.getTime() + timezoneOffset * 60000);
+	const endOfDayUTC = new Date(endOfDay.getTime() + timezoneOffset * 60000);
+
+	const bots = await db
+		.select()
+		.from(botsTable)
 		.where(
 			and(
-				eq(dailyBotUsageTable.userId, userId),
-				eq(dailyBotUsageTable.date, dateString),
+				eq(botsTable.userId, userId),
+				gte(botsTable.createdAt, startOfDayUTC),
+				lt(botsTable.createdAt, endOfDayUTC),
 			),
-		)
-		.limit(1);
+		);
 
-	return usageResult[0]?.botCount ?? 0;
-}
-
-export async function incrementDailyBotUsage(
-	db: Database,
-	userId: string,
-	date = new Date(),
-): Promise<void> {
-	const dateString = date.toISOString().split("T")[0]; // YYYY-MM-DD format
-
-	// Try to insert or update daily usage
-	const existingUsage = await db
-		.select({
-			id: dailyBotUsageTable.id,
-			botCount: dailyBotUsageTable.botCount,
-		})
-		.from(dailyBotUsageTable)
-		.where(
-			and(
-				eq(dailyBotUsageTable.userId, userId),
-				eq(dailyBotUsageTable.date, dateString),
-			),
-		)
-		.limit(1);
-
-	if (existingUsage[0]) {
-		// Update existing record
-		await db
-			.update(dailyBotUsageTable)
-			.set({
-				botCount: existingUsage[0].botCount + 1,
-			})
-			.where(eq(dailyBotUsageTable.id, existingUsage[0].id));
-	} else {
-		// Insert new record
-		await db.insert(dailyBotUsageTable).values({
-			userId,
-			date: dateString,
-			botCount: 1,
-		});
-	}
+	return bots.length;
 }
 
 export async function validateBotCreation(
 	db: Database,
 	userId: string,
+	timezoneOffset = 0,
 ): Promise<{
 	allowed: boolean;
 	reason?: string;
@@ -158,7 +130,13 @@ export async function validateBotCreation(
 }> {
 	try {
 		const subscriptionInfo = await getUserSubscriptionInfo(db, userId);
-		const todayUsage = await getDailyBotUsage(db, userId);
+
+		const todayUsage = await getDailyBotUsage(
+			db,
+			userId,
+			new Date(),
+			timezoneOffset,
+		);
 
 		// Check if subscription is active
 		if (!subscriptionInfo.subscriptionActive) {
