@@ -62,6 +62,7 @@ export function MultiBotJoinDialog({ open, onClose }: MultiBotJoinDialogProps) {
 	// Fetch subscription and usage data
 	const { data: subscriptionInfo, isLoading: subLoading } =
 		api.bots.getUserSubscription.useQuery();
+
 	const { data: dailyUsage, isLoading: usageLoading } =
 		api.bots.getDailyUsage.useQuery();
 
@@ -103,6 +104,7 @@ export function MultiBotJoinDialog({ open, onClose }: MultiBotJoinDialogProps) {
 			form.setError("botCount", {
 				message: `Not enough bots remaining. You have ${remaining} bots left today.`,
 			});
+
 			return;
 		}
 
