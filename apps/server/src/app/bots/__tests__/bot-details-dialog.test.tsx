@@ -8,7 +8,7 @@ jest.mock("@/trpc/react", () => createTrpcApiMock());
 
 // Explicitly import the components *after* the mocks
 const { BotDetailsDialog } =
-	require("../components/bot-details-dialog") as typeof import("../components/bot-details-dialog");
+	require("../_components/bot-details-dialog") as typeof import("../_components/bot-details-dialog");
 
 const { api } = require("@/trpc/react") as typeof import("@/trpc/react");
 

@@ -43,7 +43,7 @@ global.ResizeObserver = ResizeObserverMock;
 
 // Explicitly import the components *after* the mocks
 const { UsageChart } =
-	require("../components/usage-chart") as typeof import("../components/usage-chart");
+	require("../_components/usage-chart") as typeof import("../_components/usage-chart");
 
 const { api } = require("@/trpc/react") as typeof import("@/trpc/react");
 

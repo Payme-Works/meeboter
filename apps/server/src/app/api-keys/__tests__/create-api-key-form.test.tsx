@@ -14,7 +14,7 @@ jest.mock("sonner", () => ({
 }));
 
 const { CreateApiKeyForm } =
-	require("../components/create-api-key-form") as typeof import("../components/create-api-key-form");
+	require("../_components/create-api-key-form") as typeof import("../_components/create-api-key-form");
 
 const { api } = require("@/trpc/react") as typeof import("@/trpc/react");
 
