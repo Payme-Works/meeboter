@@ -157,6 +157,7 @@ export const status = z.enum([
 	"DONE",
 	"FATAL",
 ]);
+
 export type Status = z.infer<typeof status>;
 
 // Event codes include all status codes plus additional event-only codes
@@ -205,6 +206,7 @@ export const botsTable = pgTable("bots", {
 
 	meetingTitle: varchar("meetingTitle", { length: 255 }).notNull(),
 	meetingInfo: json("meetingInfo").$type<MeetingInfo>().notNull(),
+
 	startTime: timestamp("startTime").notNull(),
 	endTime: timestamp("endTime").notNull(),
 
@@ -220,6 +222,7 @@ export const botsTable = pgTable("bots", {
 		.$type<Status>()
 		.notNull()
 		.default("READY_TO_DEPLOY"),
+
 	deploymentError: varchar("deploymentError", { length: 1024 }),
 
 	heartbeatInterval: integer("heartbeatInterval").notNull(),

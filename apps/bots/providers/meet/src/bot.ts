@@ -398,11 +398,10 @@ export class GoogleMeetBot extends Bot {
 			throw new WaitingRoomTimeoutError();
 		}
 
-		//Done. Log.
 		console.log("Joined Call.");
+
 		await this.onEvent(EventCode.JOINING_CALL);
 
-		//Done.
 		return 0;
 	}
 
