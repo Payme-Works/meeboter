@@ -95,35 +95,39 @@ export function UsageChart() {
 	const ydomain = data && [0, max ?? 0];
 
 	const dateTickFormatter = (date: string) => {
-		const dateObj = new Date(date);
+		// Handle different date formats from server
+		let parsedDate: Date;
+
+		if (date.includes("T")) {
+			// Full ISO timestamp like "2025-08-30T03:00:00.000Z" (daily)
+			parsedDate = new Date(date);
+		} else {
+			// Date string like "2025-08-30" (week/month) - parse as local midnight
+			// This ensures the date represents the correct day in user's timezone
+			const [year, month, day] = date.split("-").map(Number);
+			parsedDate = new Date(year, month - 1, day);
+		}
 
 		if (timeframe === "daily") {
 			// Format as hour in local timezone
-			return dateObj.toLocaleString("default", {
+			return parsedDate.toLocaleString("default", {
 				hour: "numeric",
 				hour12: true,
 				timeZone: userTimezone,
 			});
 		} else if (timeframe === "week") {
-			// Format as weekday
-			return dateObj.toLocaleString("default", {
+			// Format as weekday in user timezone
+			return parsedDate.toLocaleString("default", {
 				weekday: "short",
 				timeZone: userTimezone,
 			});
 		} else {
-			// Format as month and day
-			const [year, month, day] = date.split("-");
-
-			if (!year || !month || !day) {
-				return date;
-			}
-
-			const shortMonth = new Date(
-				parseInt(year, 10),
-				parseInt(month, 10) - 1,
-			).toLocaleString("default", { month: "short" });
-
-			return `${shortMonth}. ${parseInt(day, 10)}`;
+			// Format as month and day in user timezone
+			return parsedDate.toLocaleDateString("default", {
+				month: "short",
+				day: "numeric",
+				timeZone: userTimezone,
+			});
 		}
 	};
 

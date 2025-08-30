@@ -267,12 +267,14 @@ export const usageRouter = createTRPCRouter({
 					),
 				);
 
-			// Generate 7 day buckets in UTC (for client to handle timezone display)
+			// Generate 7 day buckets based on user's timezone days
 			const eventsByDate: Record<string, DayUsage> = {};
 
 			for (let i = 0; i < 7; i++) {
-				const dayUTC = addDays(startOfWeekUTC, i);
-				const dateString = dayUTC.toISOString().split("T")[0];
+				// Add days in user's timezone to maintain proper date boundaries
+				const dayInUserTz = addDays(startOfWeekZoned, i);
+				// Convert to UTC date string format for consistent API response
+				const dateString = dayInUserTz.toISOString().split("T")[0];
 
 				eventsByDate[dateString] = {
 					date: dateString,
@@ -364,7 +366,7 @@ export const usageRouter = createTRPCRouter({
 
 			const daysInMonth = endOfMonthZoned.getDate();
 
-			// Generate day buckets in UTC (for client to handle timezone display)
+			// Generate day buckets in UTC
 			const eventsByDate: Record<string, DayUsage> = {};
 
 			for (let i = 0; i < daysInMonth; i++) {

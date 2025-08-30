@@ -62,23 +62,43 @@ export const UsageTooltip = ({
 		return `${hours} hours ${remainingMinutes} minutes`;
 	};
 
-	// Format Date
+	// Format Date - handle both ISO timestamps and date strings
 	const formatDate = (dateString: string | undefined): string => {
 		if (!dateString) {
 			return "Unknown Date";
 		}
 
-		const date = new Date(dateString);
+		// Handle different date formats from server
+		let date: Date;
+
+		if (dateString.includes("T")) {
+			// Full ISO timestamp like "2025-08-30T03:00:00.000Z"
+			date = new Date(dateString);
+		} else {
+			// Date string like "2025-08-30" - parse as local midnight instead of UTC
+			// This ensures the date represents the correct day in user's timezone
+			const [year, month, day] = dateString.split("-").map(Number);
+			date = new Date(year, month - 1, day);
+		}
+
+		const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 		const options: Intl.DateTimeFormatOptions = {
 			year: "numeric",
 			month: "long",
 			day: "numeric",
+			timeZone: userTimezone,
 		};
 
 		const formattedDate = date.toLocaleDateString(undefined, options);
 
-		const day = date.getDate();
+		// Get day in user's timezone
+		const dayInUserTz = date.toLocaleDateString("en-CA", {
+			timeZone: userTimezone,
+			day: "numeric",
+		});
+
+		const day = parseInt(dayInUserTz, 10);
 
 		const suffix =
 			day % 10 === 1 && day !== 11
@@ -93,7 +113,7 @@ export const UsageTooltip = ({
 	};
 
 	return (
-		<div className="rounded-md border bg-white p-3 shadow-md">
+		<div className="rounded-md border bg-white p-3">
 			<p className="pb-2 font-semibold">{formatDate(label)}</p>
 
 			<p className={`text-grey-500 ${checkActive("botsUsed")}`}>
