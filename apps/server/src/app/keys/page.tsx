@@ -19,7 +19,7 @@ export default function Keys() {
 	} = api.apiKeys.listApiKeys.useQuery();
 
 	return (
-		<div className="space-y-4">
+		<div className="mx-auto container space-y-4 px-4">
 			<div className="flex items-center justify-between">
 				<div>
 					<h2 className="text-2xl font-bold tracking-tight">API Keys</h2>

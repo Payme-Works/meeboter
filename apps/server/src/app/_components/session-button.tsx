@@ -1,5 +1,5 @@
 "use client";
-import { useSession, signIn, signOut } from "@/lib/auth-client";
+import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,6 +10,7 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { signOut, useSession } from "@/lib/auth-client";
 
 export default function SessionButton() {
 	const { data: session } = useSession();
@@ -23,12 +24,8 @@ export default function SessionButton() {
 
 	if (!session?.user) {
 		return (
-			<Button 
-				variant="outline" 
-				className="gap-2"
-				onClick={() => signIn.social({ provider: "github" })}
-			>
-				Sign In
+			<Button variant="outline" className="gap-2" asChild>
+				<Link href="/auth/sign-up">Sign Up</Link>
 			</Button>
 		);
 	}
@@ -50,10 +47,7 @@ export default function SessionButton() {
 			<DropdownMenuContent>
 				<DropdownMenuLabel>My Account</DropdownMenuLabel>
 				<DropdownMenuSeparator />
-				<DropdownMenuItem 
-					className="cursor-pointer"
-					onClick={() => signOut()}
-				>
+				<DropdownMenuItem className="cursor-pointer" onClick={() => signOut()}>
 					Logout
 				</DropdownMenuItem>
 			</DropdownMenuContent>

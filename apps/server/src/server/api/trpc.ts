@@ -169,23 +169,21 @@ const getStatusCode = (e: unknown) => {
 export const protectedProcedure = t.procedure
 	.use(timingMiddleware)
 	.use(async ({ ctx, next, path, type }) => {
-		// try to authenticate using nextauth
 		if (ctx.session?.user) {
-			console.log("authenticated using nextauth");
-
 			return next({
 				ctx: {
-					// infers the `session` as non-nullable
+					// Infers the `session` as non-nullable
 					session: { ...ctx.session, user: ctx.session.user },
 				},
 			});
 		}
 
-		// try to authenticate using api key
+		// Try to authenticate using api key
 		const apiKey = ctx.headers.get("x-api-key");
 
 		if (apiKey) {
-			console.log("authenticated using api key ", apiKey);
+			console.log("Authenticated using API Key ", apiKey);
+
 			let error = null;
 			let statusCode = 200;
 			const startTime = Date.now();

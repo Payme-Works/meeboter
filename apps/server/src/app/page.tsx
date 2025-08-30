@@ -1,8 +1,8 @@
 "use client";
 
-import { useSession } from "@/lib/auth-client";
 import ErrorAlert from "@/components/custom/error-alert";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useSession } from "@/lib/auth-client";
 import { api } from "@/trpc/react";
 import Dashboard from "./_components/dashboard";
 import WelcomeDashboard from "./_components/welcome-dashboard";
@@ -22,7 +22,7 @@ export default function Home() {
 	const showWelcome = !session || apiKeyCount?.count === 0;
 
 	return (
-		<main>
+		<main className="mx-auto container px-4">
 			{isLoading ? (
 				<div className="space-y-4">
 					<div>

@@ -3,7 +3,7 @@
 import { File, LogIn, Plus } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { signIn, useSession } from "@/lib/auth-client";
+import { useSession } from "@/lib/auth-client";
 import DashboardCard from "./dashboard-card";
 
 export default function WelcomeDashboard() {
@@ -44,11 +44,11 @@ export default function WelcomeDashboard() {
 													</Button>
 												</Link>
 											) : (
-												<Button
-													onClick={() => signIn.social({ provider: "github" })}
-												>
-													Sign In <LogIn />
-												</Button>
+												<Link href="/auth/sign-up">
+													<Button>
+														Sign Up <LogIn />
+													</Button>
+												</Link>
 											)
 										}
 									/>

@@ -18,10 +18,10 @@ export default function RootLayout({
 		<html lang="en">
 			<body>
 				<TRPCReactProvider>
-					<div className="flex h-full w-full flex-col items-center gap-4 justify-center">
+					<div className="flex flex-col min-h-screen space-y-4">
 						<NavigationBar />
 
-						<div className="container h-full px-4">{children}</div>
+						{children}
 					</div>
 				</TRPCReactProvider>
 			</body>

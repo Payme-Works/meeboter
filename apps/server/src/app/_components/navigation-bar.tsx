@@ -48,25 +48,23 @@ const components: {
 
 export default function NavigationBar() {
 	return (
-		<div className="flex w-full flex-row items-center container justify-between py-6 px-4">
-			<NavigationMenu className="flex-1">
-				<div className="flex items-center gap-4">
-					<Image src="/logo.svg" alt="Logo" width={32} height={32} />
+		<div className="flex w-full flex-row items-center container mx-auto justify-between py-6 px-4">
+			<NavigationMenu className="flex-1 flex items-center gap-4">
+				<Image src="/logo.svg" alt="Logo" width={32} height={32} />
 
-					<NavigationMenuList>
-						{components.map((component) => (
-							<NavigationMenuItem key={component.href}>
-								<NavigationMenuLink
-									className={navigationMenuTriggerStyle()}
-									asChild
-									target={component.target}
-								>
-									<Link href={component.href}>{component.title}</Link>
-								</NavigationMenuLink>
-							</NavigationMenuItem>
-						))}
-					</NavigationMenuList>
-				</div>
+				<NavigationMenuList className="flex-wrap justify-start md:justify-center">
+					{components.map((component) => (
+						<NavigationMenuItem key={component.href}>
+							<NavigationMenuLink
+								className={navigationMenuTriggerStyle()}
+								asChild
+								target={component.target}
+							>
+								<Link href={component.href}>{component.title}</Link>
+							</NavigationMenuLink>
+						</NavigationMenuItem>
+					))}
+				</NavigationMenuList>
 			</NavigationMenu>
 
 			<div className="flex items-center">

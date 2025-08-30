@@ -23,7 +23,8 @@
 				"noUnusedImports": {
 					"level": "error",
 					"fix": "safe"
-				}
+				},
+				"useUniqueElementIds": "off"
 			},
 			"a11y": {
 				"useValidAnchor": "off"

@@ -20,6 +20,11 @@ export const auth = betterAuth({
 		},
 	}),
 
+	emailAndPassword: {
+		enabled: true,
+		requireEmailVerification: false,
+	},
+
 	socialProviders: {
 		github: {
 			clientId: env.AUTH_GITHUB_ID,

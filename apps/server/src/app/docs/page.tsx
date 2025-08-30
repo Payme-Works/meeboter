@@ -5,7 +5,7 @@ export default async function IndexPage() {
 	const spec = openApiDocument;
 
 	return (
-		<section className="container">
+		<section className="mx-auto container px-4">
 			<ReactSwagger spec={spec as unknown as Record<string, unknown>} />
 		</section>
 	);

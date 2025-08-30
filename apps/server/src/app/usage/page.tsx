@@ -4,7 +4,7 @@ import { UsageChart } from "./components/usage-chart";
 
 export default function Keys() {
 	return (
-		<div className="space-y-4">
+		<div className="mx-auto container space-y-4 px-4">
 			<div className="flex items-center justify-between">
 				<div>
 					<h2 className="text-2xl font-bold tracking-tight">Usage</h2>

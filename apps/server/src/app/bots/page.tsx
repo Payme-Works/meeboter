@@ -5,13 +5,13 @@ import { formatDistanceToNow } from "date-fns";
 import { ExternalLinkIcon, Plus } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useSession } from "@/lib/auth-client";
 import { useState } from "react";
 import { BotDetailsDialog } from "@/app/bots/components/bot-details-dialog";
 import { MultiBotJoinDialog } from "@/app/bots/components/multi-bot-join-dialog";
 import { DataTable } from "@/components/custom/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useSession } from "@/lib/auth-client";
 import { api } from "@/trpc/react";
 
 export default function BotsPage() {
@@ -107,7 +107,7 @@ export default function BotsPage() {
 	];
 
 	return (
-		<div className="space-y-4">
+		<div className="mx-auto container space-y-4 px-4">
 			<div className="flex items-center justify-between">
 				<div>
 					<h2 className="text-2xl font-bold tracking-tight">Bots</h2>
