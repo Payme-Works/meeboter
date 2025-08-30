@@ -26,6 +26,7 @@ export default function Usage() {
 						View your engagement bot deployment and usage patterns over time
 					</p>
 				</div>
+
 				<UsageChart />
 			</div>
 		</div>

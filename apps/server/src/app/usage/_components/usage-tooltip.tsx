@@ -78,7 +78,7 @@ export const UsageTooltip = ({
 
 		const formattedDate = date.toLocaleDateString(undefined, options);
 
-		const day = date.getDate() + 1;
+		const day = date.getDate();
 
 		const suffix =
 			day % 10 === 1 && day !== 11

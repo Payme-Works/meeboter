@@ -1,4 +1,6 @@
-import { and, eq, gte } from "drizzle-orm";
+import { addDays, addHours, startOfMonth, startOfWeek } from "date-fns";
+import { fromZonedTime, toZonedTime } from "date-fns-tz";
+import { and, eq, gte, lt } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { botsTable } from "@/server/database/schema";
@@ -73,7 +75,7 @@ export const usageRouter = createTRPCRouter({
 			const eventsByDate: Record<string, DayUsage> = {};
 
 			userBots.forEach((bot) => {
-				// Get the start date
+				// Get the start date in UTC
 				const startDate = bot.startTime.toISOString().split("T")[0];
 
 				// Initialize this date if it doesn't exist
@@ -113,9 +115,6 @@ export const usageRouter = createTRPCRouter({
 				(a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
 			);
 
-			// Passback List of values
-			console.log(outputObject);
-
 			return outputObject;
 		}),
 
@@ -125,45 +124,34 @@ export const usageRouter = createTRPCRouter({
 				method: "GET",
 				path: "/usage/daily",
 				description:
-					"Retrieve hourly bot usage for today. Empty hours will be reported as well.\n",
+					"Retrieve hourly bot usage for the last 24 hours. Empty hours will be reported as well.\n",
 			},
 		})
 		.input(
 			z
 				.object({
-					timezoneOffset: z
-						.string()
-						.transform((val) => Number(val))
-						.optional()
-						.default(0), // minutes offset from UTC
+					timeZone: z.string().default("UTC"), // IANA timezone (e.g., "America/Sao_Paulo")
 				})
 				.optional(),
 		)
 		.output(z.array(dailyUsageSchema))
 		.query(async ({ input, ctx }) => {
-			const timezoneOffset = input?.timezoneOffset || 0;
+			const timeZone = input?.timeZone || "UTC";
 
-			// Calculate start of today in user's timezone
-			const now = new Date();
+			// Get current time in user's timezone
+			const nowUTC = new Date();
+			const nowInUserTZ = toZonedTime(nowUTC, timeZone);
 
-			const localNow = new Date(now.getTime() - timezoneOffset * 60000);
-
-			const startOfDay = new Date(
-				localNow.getFullYear(),
-				localNow.getMonth(),
-				localNow.getDate(),
+			// Calculate 24 hours ago in user's timezone
+			const twentyFourHoursAgoInUserTZ = new Date(
+				nowInUserTZ.getTime() - 24 * 60 * 60 * 1000,
 			);
 
-			const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
+			// Convert back to UTC for database queries
+			const startTimeUTC = fromZonedTime(twentyFourHoursAgoInUserTZ, timeZone);
+			const endTimeUTC = fromZonedTime(nowInUserTZ, timeZone);
 
-			// Convert back to UTC for database query
-			const startOfDayUTC = new Date(
-				startOfDay.getTime() + timezoneOffset * 60000,
-			);
-
-			const endOfDayUTC = new Date(endOfDay.getTime() + timezoneOffset * 60000);
-
-			// Get all bots for today
+			// Get all bots for the last 24 hours
 			const userBots = await ctx.db
 				.select({
 					startTime: botsTable.startTime,
@@ -175,15 +163,19 @@ export const usageRouter = createTRPCRouter({
 				.where(
 					and(
 						eq(botsTable.userId, ctx.session.user.id),
-						gte(botsTable.startTime, startOfDayUTC),
+						gte(botsTable.startTime, startTimeUTC),
+						lt(botsTable.startTime, endTimeUTC),
 					),
 				);
 
-			// Populate entries for each hour of the day (24 hours)
+			// Generate 24 hour buckets starting from 24 hours ago
 			const eventsByHour: Record<string, DayUsage> = {};
+
 			for (let i = 0; i < 24; i++) {
-				const hourStart = new Date(startOfDay.getTime() + i * 60 * 60 * 1000);
-				const dateString = hourStart.toISOString().slice(0, 13) + ":00:00.000Z";
+				const hourStartUTC = addHours(startTimeUTC, i);
+
+				const dateString =
+					hourStartUTC.toISOString().slice(0, 13) + ":00:00.000Z";
 
 				eventsByHour[dateString] = {
 					date: dateString,
@@ -193,32 +185,17 @@ export const usageRouter = createTRPCRouter({
 				};
 			}
 
+			// Process each bot
 			userBots.forEach((bot) => {
-				// Convert bot start time to user's timezone
-				const botStartLocal = new Date(
-					bot.startTime.getTime() - timezoneOffset * 60000,
-				);
-
-				const hourBucket = new Date(
-					botStartLocal.getFullYear(),
-					botStartLocal.getMonth(),
-					botStartLocal.getDate(),
-					botStartLocal.getHours(),
-					0,
-					0,
-					0,
-				);
-
-				// Convert back to UTC format for the key
-				const hourBucketUTC = new Date(
-					hourBucket.getTime() + timezoneOffset * 60000,
-				);
+				// Find which hour bucket this bot belongs to
+				const botStartHour = new Date(bot.startTime);
+				botStartHour.setMinutes(0, 0, 0);
 
 				const dateString =
-					hourBucketUTC.toISOString().slice(0, 13) + ":00:00.000Z";
+					botStartHour.toISOString().slice(0, 13) + ":00:00.000Z";
 
 				// Calculate bot elapsed time
-				const endTime = bot.endTime || bot.lastHeartbeat || now;
+				const endTime = bot.endTime || bot.lastHeartbeat || nowUTC;
 				const botElapsed = endTime.getTime() - bot.startTime.getTime();
 
 				// Add to the appropriate hour bucket
@@ -246,38 +223,31 @@ export const usageRouter = createTRPCRouter({
 				method: "GET",
 				path: "/usage/week",
 				description:
-					"Retreive a list of daily bot usage over the last week. Empty days will be reported as well.\n",
+					"Retrieve a list of daily bot usage over the last week. Empty days will be reported as well.\n",
 			},
 		})
 		.input(
 			z
 				.object({
-					timezoneOffset: z
-						.string()
-						.transform((val) => Number(val))
-						.optional()
-						.default(0), // minutes offset from UTC
+					timeZone: z.string().default("UTC"), // IANA timezone
 				})
 				.optional(),
 		)
 		.output(z.array(dailyUsageSchema))
 		.query(async ({ input, ctx }) => {
-			const timezoneOffset = input?.timezoneOffset || 0;
+			const timeZone = input?.timeZone || "UTC";
 
-			// Calculate start of this week in user's timezone
+			// Get current time and convert to user's timezone
 			const now = new Date();
-			const localNow = new Date(now.getTime() - timezoneOffset * 60000);
+			const nowZoned = toZonedTime(now, timeZone);
 
-			const startOfWeek = new Date(
-				localNow.setDate(localNow.getDate() - localNow.getDay()),
-			);
+			// Get start of week in user's timezone
+			const startOfWeekZoned = startOfWeek(nowZoned, { weekStartsOn: 0 }); // Sunday start
 
 			// Convert to UTC for database query
-			const startOfWeekUTC = new Date(
-				startOfWeek.getTime() + timezoneOffset * 60000,
-			);
+			const startOfWeekUTC = fromZonedTime(startOfWeekZoned, timeZone);
 
-			// Get all bots timestamp
+			// Get all bots for this week
 			const userBots = await ctx.db
 				.select({
 					startTime: botsTable.startTime,
@@ -289,46 +259,40 @@ export const usageRouter = createTRPCRouter({
 				.where(
 					and(
 						eq(botsTable.userId, ctx.session.user.id),
-						gte(botsTable.startTime, startOfWeekUTC), // After the beginning of the week
+						gte(botsTable.startTime, startOfWeekUTC),
 					),
 				);
 
-			// Populate entries for each day of the week, even if no data
+			// Generate 7 day buckets in UTC (for client to handle timezone display)
 			const eventsByDate: Record<string, DayUsage> = {};
+
 			for (let i = 0; i < 7; i++) {
-				const currentDate = new Date(
-					startOfWeek.getTime() + i * 24 * 60 * 60 * 1000,
-				);
+				const dayUTC = addDays(startOfWeekUTC, i);
+				const dateString = dayUTC.toISOString().split("T")[0];
 
-				const dateString = currentDate.toISOString().split("T")[0];
-
-				if (dateString && !eventsByDate[dateString]) {
-					eventsByDate[dateString] = {
-						date: dateString,
-						botsUsed: 0,
-						msEllapsed: 0,
-						estimatedCost: "0",
-					};
-				}
+				eventsByDate[dateString] = {
+					date: dateString,
+					botsUsed: 0,
+					msEllapsed: 0,
+					estimatedCost: "0",
+				};
 			}
 
+			// Process each bot
 			userBots.forEach((bot) => {
-				// Convert bot start time to user's timezone for date bucketing
-				const botStartLocal = new Date(
-					bot.startTime.getTime() - timezoneOffset * 60000,
-				);
+				// Get the date in UTC for bucketing
+				const botStartDate = new Date(bot.startTime);
+				const startDate = botStartDate.toISOString().split("T")[0];
 
-				const startDate = botStartLocal.toISOString().split("T")[0];
-
-				// Calculate bot elapsed time - use endTime, lastHeartbeat, or current time
+				// Calculate bot elapsed time
 				const endTime = bot.endTime || bot.lastHeartbeat || now;
 				const botElapsed = endTime.getTime() - bot.startTime.getTime();
 
-				// Check if the date exists and elapsed time is positive
+				// Add to the appropriate day bucket
 				if (startDate && eventsByDate[startDate] && botElapsed > 0) {
 					eventsByDate[startDate].msEllapsed += botElapsed;
 					eventsByDate[startDate].botsUsed += 1;
-					// Convert to string when saving
+
 					const currentCost = parseFloat(eventsByDate[startDate].estimatedCost);
 
 					eventsByDate[startDate].estimatedCost = (
@@ -338,7 +302,6 @@ export const usageRouter = createTRPCRouter({
 				}
 			});
 
-			// Return proper format
 			return formatDayUsageDictToOutput(eventsByDate);
 		}),
 
@@ -354,42 +317,25 @@ export const usageRouter = createTRPCRouter({
 		.input(
 			z
 				.object({
-					timezoneOffset: z
-						.string()
-						.transform((val) => Number(val))
-						.optional()
-						.default(0), // minutes offset from UTC
+					timeZone: z.string().default("UTC"), // IANA timezone
 				})
 				.optional(),
 		)
 		.output(z.array(dailyUsageSchema))
 		.query(async ({ input, ctx }) => {
-			const timezoneOffset = input?.timezoneOffset || 0;
+			const timeZone = input?.timeZone || "UTC";
 
-			// Calculate start of this month in user's timezone
+			// Get current time and convert to user's timezone
 			const now = new Date();
-			const localNow = new Date(now.getTime() - timezoneOffset * 60000);
+			const nowZoned = toZonedTime(now, timeZone);
 
-			const startOfMonth = new Date(
-				localNow.getFullYear(),
-				localNow.getMonth(),
-				1,
-			);
-
-			const endOfMonth = new Date(
-				localNow.getFullYear(),
-				localNow.getMonth() + 1,
-				0,
-			);
-
-			const daysInMonth = endOfMonth.getDate();
+			// Get start of month in user's timezone
+			const startOfMonthZoned = startOfMonth(nowZoned);
 
 			// Convert to UTC for database query
-			const startOfMonthUTC = new Date(
-				startOfMonth.getTime() + timezoneOffset * 60000,
-			);
+			const startOfMonthUTC = fromZonedTime(startOfMonthZoned, timeZone);
 
-			// Get all bots timestamp
+			// Get all bots for this month
 			const userBots = await ctx.db
 				.select({
 					startTime: botsTable.startTime,
@@ -401,47 +347,49 @@ export const usageRouter = createTRPCRouter({
 				.where(
 					and(
 						eq(botsTable.userId, ctx.session.user.id),
-						gte(botsTable.startTime, startOfMonthUTC), // After the beginning of the month
+						gte(botsTable.startTime, startOfMonthUTC),
 					),
 				);
 
-			// Populate entries for each day of the month, even if no data
+			// Calculate days in month
+			const endOfMonthZoned = new Date(
+				nowZoned.getFullYear(),
+				nowZoned.getMonth() + 1,
+				0,
+			);
+
+			const daysInMonth = endOfMonthZoned.getDate();
+
+			// Generate day buckets in UTC (for client to handle timezone display)
 			const eventsByDate: Record<string, DayUsage> = {};
 
 			for (let i = 0; i < daysInMonth; i++) {
-				const currentDate = new Date(
-					startOfMonth.getTime() + i * 24 * 60 * 60 * 1000,
-				);
+				const dayUTC = addDays(startOfMonthUTC, i);
+				const dateString = dayUTC.toISOString().split("T")[0];
 
-				const dateString = currentDate.toISOString().split("T")[0];
-
-				if (dateString && !eventsByDate[dateString]) {
-					eventsByDate[dateString] = {
-						date: dateString,
-						botsUsed: 0,
-						msEllapsed: 0,
-						estimatedCost: "0",
-					};
-				}
+				eventsByDate[dateString] = {
+					date: dateString,
+					botsUsed: 0,
+					msEllapsed: 0,
+					estimatedCost: "0",
+				};
 			}
 
+			// Process each bot
 			userBots.forEach((bot) => {
-				// Convert bot start time to user's timezone for date bucketing
-				const botStartLocal = new Date(
-					bot.startTime.getTime() - timezoneOffset * 60000,
-				);
+				// Get the date in UTC for bucketing
+				const botStartDate = new Date(bot.startTime);
+				const startDate = botStartDate.toISOString().split("T")[0];
 
-				const startDate = botStartLocal.toISOString().split("T")[0];
-
-				// Calculate bot elapsed time - use endTime, lastHeartbeat, or current time
+				// Calculate bot elapsed time
 				const endTime = bot.endTime || bot.lastHeartbeat || now;
 				const botElapsed = endTime.getTime() - bot.startTime.getTime();
 
-				// Check if the date exists and elapsed time is positive
+				// Add to the appropriate day bucket
 				if (startDate && eventsByDate[startDate] && botElapsed > 0) {
 					eventsByDate[startDate].msEllapsed += botElapsed;
 					eventsByDate[startDate].botsUsed += 1;
-					// Convert to string when saving
+
 					const currentCost = parseFloat(eventsByDate[startDate].estimatedCost);
 
 					eventsByDate[startDate].estimatedCost = (

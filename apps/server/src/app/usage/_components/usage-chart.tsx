@@ -40,16 +40,10 @@ export function UsageChart() {
 	);
 
 	const [isMobile, setIsMobile] = useState(false);
-	const [timezoneOffset, setTimezoneOffset] = useState(0);
-	const [userTimezone, setUserTimezone] = useState("");
 
 	// Initialize window-dependent states safely
 	useEffect(() => {
 		setIsMobile(window.innerWidth < 768);
-
-		// Get user's timezone information
-		setTimezoneOffset(new Date().getTimezoneOffset());
-		setUserTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone);
 
 		const handleResize = () => {
 			setIsMobile(window.innerWidth < 768);
@@ -60,20 +54,22 @@ export function UsageChart() {
 		return () => window.removeEventListener("resize", handleResize);
 	}, []);
 
+	const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
 	// Load the Data with timezone support
 	const dailyData = api.usage.getDailyUsage.useQuery(
-		{ timezoneOffset: timezoneOffset.toString() },
-		{ enabled: timeframe === "daily" },
+		{ timeZone: userTimezone },
+		{ enabled: timeframe === "daily" && !!userTimezone },
 	);
 
 	const weekData = api.usage.getWeekDailyUsage.useQuery(
-		{ timezoneOffset: timezoneOffset.toString() },
-		{ enabled: timeframe === "week" },
+		{ timeZone: userTimezone },
+		{ enabled: timeframe === "week" && !!userTimezone },
 	);
 
 	const monthData = api.usage.getMonthDailyUsage.useQuery(
-		{ timezoneOffset: timezoneOffset.toString() },
-		{ enabled: timeframe === "month" },
+		{ timeZone: userTimezone },
+		{ enabled: timeframe === "month" && !!userTimezone },
 	);
 
 	const { data, isLoading, error } =
@@ -82,6 +78,8 @@ export function UsageChart() {
 			: timeframe === "week"
 				? weekData
 				: monthData;
+
+	console.log("data", data);
 
 	// Decide scale
 	const max =

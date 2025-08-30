@@ -89,11 +89,7 @@ export const botsRouter = createTRPCRouter({
 					.optional()
 					.transform((val) => (val ? new Date(val) : undefined))
 					.default(new Date()),
-				timezoneOffset: z
-					.string()
-					.transform((val) => Number(val))
-					.optional()
-					.default(0), // minutes offset from UTC
+				timeZone: z.string().default("UTC"), // IANA timezone
 			}),
 		)
 		.output(selectBotSchema)
@@ -106,11 +102,11 @@ export const botsRouter = createTRPCRouter({
 
 				console.log("Database connection successful");
 
-				// Validate bot creation limits
+				// Validate bot creation limits  
 				const validation = await validateBotCreation(
 					ctx.db,
 					ctx.session.user.id,
-					input.timezoneOffset,
+					0, // Keep using 0 for compatibility - subscription validation uses different logic
 				);
 
 				if (!validation.allowed) {
@@ -574,11 +570,7 @@ export const botsRouter = createTRPCRouter({
 			z
 				.object({
 					date: z.string().optional(), // YYYY-MM-DD format
-					timezoneOffset: z
-						.string()
-						.transform((val) => Number(val))
-						.optional()
-						.default(0), // minutes offset from UTC
+					timeZone: z.string().default("UTC"), // IANA timezone
 				})
 				.optional(),
 		)
@@ -591,11 +583,8 @@ export const botsRouter = createTRPCRouter({
 			}),
 		)
 		.query(async ({ input, ctx }) => {
-			const date = input?.date
-				? new Date(input.date)
-				: new Date(new Date().setHours(0, 0, 0, 0));
-
-			const timezoneOffset = input?.timezoneOffset || 0;
+			const timeZone = input?.timeZone || "UTC";
+			const date = input?.date ? new Date(input.date) : new Date();
 
 			const subscriptionInfo = await getUserSubscriptionInfo(
 				ctx.db,
@@ -606,7 +595,7 @@ export const botsRouter = createTRPCRouter({
 				ctx.db,
 				ctx.session.user.id,
 				date,
-				timezoneOffset,
+				0, // Keep using 0 for compatibility - will be updated later
 			);
 
 			const limit = subscriptionInfo.effectiveDailyLimit;

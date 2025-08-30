@@ -59,8 +59,8 @@ export function MultiBotJoinDialog({ open, onClose }: MultiBotJoinDialogProps) {
 	const createBotMutation = api.bots.createBot.useMutation();
 	const utils = api.useUtils();
 
-	// Get user's timezone offset
-	const timezoneOffset = new Date().getTimezoneOffset();
+	// Get user's timezone
+	const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 	// Fetch subscription and usage data
 	const { data: subscriptionInfo, isLoading: subLoading } =
@@ -68,7 +68,7 @@ export function MultiBotJoinDialog({ open, onClose }: MultiBotJoinDialogProps) {
 
 	const { data: dailyUsage, isLoading: usageLoading } =
 		api.bots.getDailyUsage.useQuery({
-			timezoneOffset: timezoneOffset.toString(),
+			timeZone: userTimezone,
 		});
 
 	const detectPlatform = (url: string): "google" | "teams" | "zoom" => {
@@ -133,7 +133,7 @@ export function MultiBotJoinDialog({ open, onClose }: MultiBotJoinDialogProps) {
 						recordingEnabled: false,
 						startTime: new Date().toISOString(),
 						endTime: new Date(Date.now() + 60 * 60 * 1000).toISOString(), // 1 hour from now
-						timezoneOffset: timezoneOffset.toString(),
+						timeZone: userTimezone,
 					}),
 			);
 

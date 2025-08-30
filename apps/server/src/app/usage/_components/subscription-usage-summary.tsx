@@ -8,15 +8,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/trpc/react";
 
 export function SubscriptionUsageSummary() {
-	// Get user's timezone offset
-	const timezoneOffset = new Date().getTimezoneOffset();
+	// Get user's timezone
+	const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 	const { data: subscriptionInfo, isLoading: subLoading } =
 		api.bots.getUserSubscription.useQuery();
 
 	const { data: dailyUsage, isLoading: usageLoading } =
 		api.bots.getDailyUsage.useQuery({
-			timezoneOffset: timezoneOffset.toString(),
+			timeZone: userTimezone,
 		});
 
 	if (subLoading || usageLoading) {
