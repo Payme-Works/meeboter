@@ -38,7 +38,7 @@ const authenticatedComponents: {
 }[] = [
 	{
 		title: "API Keys",
-		href: "/keys",
+		href: "/api-keys",
 		target: "_self",
 	},
 	{

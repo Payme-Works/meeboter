@@ -1,7 +1,7 @@
 "use client";
 
-import { SubscriptionUsageSummary } from "./components/subscription-usage-summary";
-import { UsageChart } from "./components/usage-chart";
+import { SubscriptionUsageSummary } from "./_components/subscription-usage-summary";
+import { UsageChart } from "./_components/usage-chart";
 
 export default function Usage() {
 	return (

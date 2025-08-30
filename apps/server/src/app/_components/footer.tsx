@@ -66,7 +66,7 @@ export default function Footer() {
 							</li>
 							<li>
 								<Link
-									href="/keys"
+									href="/api-keys"
 									className="text-muted-foreground hover:text-foreground transition-colors"
 								>
 									API Keys

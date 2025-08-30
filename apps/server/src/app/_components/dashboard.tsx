@@ -5,7 +5,6 @@ import ErrorAlert from "@/components/custom/error-alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSession } from "@/lib/auth-client";
 import { api } from "@/trpc/react";
-import { UsageChart } from "../usage/components/usage-chart";
 
 import DashboardCard from "./dashboard-card";
 
@@ -80,8 +79,8 @@ export default function Dashboard() {
 						icon={<Key />}
 						link={{
 							type: "INTERNAL",
-							url: "/keys",
-							text: "View Keys",
+							url: "/api-keys",
+							text: "View API Keys",
 						}}
 					/>
 
@@ -96,19 +95,6 @@ export default function Dashboard() {
 							text: "View Documentation",
 						}}
 					/>
-
-					<div className="lg:col-span-2 lg:row-span-2 lg:min-h-0">
-						<DashboardCard
-							title="Your Recent Usage"
-							className="h-full"
-							content={<UsageChart />}
-							link={{
-								type: "INTERNAL",
-								url: "/usage",
-								text: "View Usage",
-							}}
-						/>
-					</div>
 				</div>
 			</div>
 		</div>

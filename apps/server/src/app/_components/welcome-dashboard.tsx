@@ -1,7 +1,9 @@
 "use client";
 
-import { File, LogIn, Plus } from "lucide-react";
+import { File, LogIn, Plus, Users } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
+import { MultiBotJoinDialog } from "@/app/bots/_components/multi-bot-join-dialog";
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/lib/auth-client";
 import DashboardCard from "./dashboard-card";
@@ -9,6 +11,7 @@ import SubscriptionPlansSection from "./subscription-plans-section";
 
 export default function WelcomeDashboard() {
 	const { data: session } = useSession();
+	const [isMultiBotDialogOpen, setIsMultiBotDialogOpen] = useState(false);
 
 	return (
 		<div className="space-y-4">
@@ -34,16 +37,27 @@ export default function WelcomeDashboard() {
 										title="Get Started"
 										description={
 											session?.user
-												? "To start creating bots, create your first API Key!"
+												? "Deploy intelligent bots to your meetings! Create API keys for programmatic access or quickly join multiple bots to any meeting."
 												: "To get started, log-in or sign-up!"
 										}
 										content={
 											session?.user ? (
-												<Link href="/keys">
-													<Button>
-														Create API Key <Plus />
+												<div className="space-y-3">
+													<Link href="/api-keys" className="block">
+														<Button className="w-full">
+															<Plus className="mr-2 h-4 w-4" />
+															Create API Key
+														</Button>
+													</Link>
+													<Button
+														variant="outline"
+														className="w-full"
+														onClick={() => setIsMultiBotDialogOpen(true)}
+													>
+														<Users className="mr-2 h-4 w-4" />
+														Multiple Join Bots
 													</Button>
-												</Link>
+												</div>
 											) : (
 												<Link href="/auth/sign-up">
 													<Button>
@@ -78,6 +92,14 @@ export default function WelcomeDashboard() {
 			<div className="mt-12">
 				<SubscriptionPlansSection />
 			</div>
+
+			{/* Multi Bot Join Dialog */}
+			{session?.user && (
+				<MultiBotJoinDialog
+					open={isMultiBotDialogOpen}
+					onClose={() => setIsMultiBotDialogOpen(false)}
+				/>
+			)}
 		</div>
 	);
 }

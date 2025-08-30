@@ -3,9 +3,9 @@
 import { useState } from "react";
 import { DataTable } from "@/components/custom/data-table";
 import { api } from "@/trpc/react";
-import { columns } from "./components/api-key-columns";
-import { CreateApiKeyDialog } from "./components/create-api-key-dialog";
-import { ViewLogsDialog } from "./components/view-logs-dialog";
+import { columns } from "./_components/api-key-columns";
+import { CreateApiKeyDialog } from "./_components/create-api-key-dialog";
+import { ViewLogsDialog } from "./_components/view-logs-dialog";
 
 export default function Keys() {
 	const [selectedViewLogsKeyId, setSelectedViewLogsKeyId] = useState<

@@ -6,13 +6,13 @@ import { ExternalLinkIcon, Plus } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
-import { BotDetailsDialog } from "@/app/bots/components/bot-details-dialog";
-import { MultiBotJoinDialog } from "@/app/bots/components/multi-bot-join-dialog";
 import { DataTable } from "@/components/custom/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/lib/auth-client";
 import { api } from "@/trpc/react";
+import { BotDetailsDialog } from "./_components/bot-details-dialog";
+import { MultiBotJoinDialog } from "./_components/multi-bot-join-dialog";
 
 export default function BotsPage() {
 	const [selectedBot, setSelectedBot] = useState<number | null>(null);
