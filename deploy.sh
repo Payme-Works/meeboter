@@ -418,9 +418,6 @@ build_server() {
     docker push "$ECR_SERVER:latest"
 
     log_success "Server image pushed"
-    
-    # Docker cleanup
-    docker_cleanup "standard"
 }
 
 # Build, push, and remove bot images
@@ -457,9 +454,6 @@ build_bot_provider() {
     docker push "$ecr_url:latest"
 
     log_success "$bot_type bot image pushed"
-    
-    # Docker cleanup
-    docker_cleanup "standard"
 }
 
 
@@ -484,11 +478,8 @@ docker_cleanup() {
             # Remove intermediate/untagged images
             docker images --filter "dangling=true" -q | xargs -r docker rmi 2>/dev/null || true
             ;;
-        "complete")
-            log_info "Running complete Docker cleanup..."
-            ;;
         *)
-            log_info "Cleaning up Docker artifacts..."
+            log_info "Running Docker cleanup..."
             ;;
     esac
     
@@ -682,12 +673,20 @@ main() {
     
     # Build, push, and remove images one by one to save disk space
     build_server
+
+    docker_cleanup "standard"
+
     build_bot_provider "meet" "$ECR_MEET"
+
+    docker_cleanup "standard"
+
     build_bot_provider "teams" "$ECR_TEAMS"
+
+    docker_cleanup "standard"
+
     build_bot_provider "zoom" "$ECR_ZOOM"
-    
-    # Run complete Docker cleanup after all builds are complete
-    docker_cleanup "complete"
+
+    docker_cleanup "standard"
     
     # Restart services to pull latest images (unless skipped)
     if [[ "$SKIP_RESTART" != "true" ]]; then
@@ -698,10 +697,10 @@ main() {
     
     log_success "Deployment process completed!"
     log_info "Tagged images:"
-    log_info "  Server: $ECR_SERVER:$TAG"
-    log_info "  Meet Bot: $ECR_MEET:$TAG"
-    log_info "  Teams Bot: $ECR_TEAMS:$TAG"
-    log_info "  Zoom Bot: $ECR_ZOOM:$TAG"
+    log_info "- Server: $ECR_SERVER:$TAG"
+    log_info "- Meet Bot: $ECR_MEET:$TAG"
+    log_info "- Teams Bot: $ECR_TEAMS:$TAG"
+    log_info "- Zoom Bot: $ECR_ZOOM:$TAG"
 }
 
 
