@@ -293,7 +293,7 @@ async function deployMultipleBots(): Promise<Bot[]> {
 	return deployedBots;
 }
 
-async function main(): Promise<void> {
+async function _main(): Promise<void> {
 	console.log("🚀 Live Boost - Google Meet Multiple Bot Deployment");
 	console.log("==================================================");
 	console.log(`🎯 Target meeting: ${GOOGLE_MEET_URL}`);
@@ -366,6 +366,10 @@ async function main(): Promise<void> {
 
 		process.exit(1);
 	}
+}
+
+async function main(): Promise<void> {
+	console.log("Emulating main function");
 }
 
 // Run the application

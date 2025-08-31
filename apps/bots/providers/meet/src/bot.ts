@@ -14,17 +14,17 @@ import {
 	WaitingRoomTimeoutError,
 } from "../../../src/types";
 
-// Use Stealth Plugin to avoid detection
+// Use stealth plugin to avoid detection
 const stealthPlugin = StealthPlugin();
 stealthPlugin.enabledEvasions.delete("iframe.contentWindow");
 stealthPlugin.enabledEvasions.delete("media.codecs");
 chromium.use(stealthPlugin);
 
-// User Agent Constant -- set Feb 2025
+// User agent constant -- set Feb 2025
 const userAgent =
 	"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36";
 
-// Constant Selectors
+// Constant selectors
 const enterNameField = 'input[type="text"][aria-label="Your name"]';
 const askToJoinButton = '//button[.//span[text()="Ask to join"]]';
 const joinNowButton = '//button[.//span[text()="Join now"]]';
@@ -35,7 +35,7 @@ const peopleButton = `//button[@aria-label="People"]`;
 const _onePersonRemainingField =
 	'//span[.//div[text()="Contributors"]]//div[text()="1"]';
 
-const muteButton = `[aria-label*="Turn off microphone"]`; // *= -> conatins
+const muteButton = `[aria-label*="Turn off microphone"]`; // *= -> contains
 const cameraOffButton = `[aria-label*="Turn off camera"]`;
 
 const infoPopupClick = `//button[.//span[text()="Got it"]]`;
@@ -43,97 +43,80 @@ const infoPopupClick = `//button[.//span[text()="Got it"]]`;
 const SCREEN_WIDTH = 1920;
 const SCREEN_HEIGHT = 1080;
 
+/**
+ * Represents a participant in the Google Meet meeting.
+ */
 type Participant = {
+	/** Unique identifier for the participant */
 	id: string;
+	/** Display name of the participant */
 	name: string;
+	/** Optional mutation observer for monitoring participant activity */
 	observer?: MutationObserver;
 };
 
 /**
- * @param amount Milliseconds
- * @returns Random Number within 10% of the amount given, mean at amount
+ * Generates a random delay with variance to simulate human-like behavior.
+ * @param amount - Base delay amount in milliseconds
+ * @returns Random delay within 10% variance of the base amount
  */
 const randomDelay = (amount: number) =>
 	(2 * Math.random() - 1) * (amount / 10) + amount;
 
 /**
- * Ensure Typescript doesn't complain about the global exposed
- * functions that will be setup in the bot.
+ * Global window interface extensions for browser context functions.
+ * These functions are exposed to the browser page context for participant monitoring and recording.
  */
 declare global {
 	interface Window {
+		/** Saves audio chunk data during recording */
 		saveChunk: (chunk: number[]) => void;
+		/** Stops the current recording session */
 		stopRecording: () => void;
 
+		/** Returns current list of meeting participants */
 		getParticipants: () => Participant[];
+		/** Handles participant join events */
 		onParticipantJoin: (participant: Participant) => void;
+		/** Handles participant leave events */
 		onParticipantLeave: (participant: Participant) => void;
+		/** Registers when a participant is speaking */
 		registerParticipantSpeaking: (participant: Participant) => void;
+		/** Sets up speech observation for a participant */
 		observeSpeech: (node: Element, participant: Participant) => void;
+		/** Handles merged audio scenarios in Google Meet */
 		handleMergedAudio: () => void;
 
+		/** Array of all participants currently tracked */
 		participantArray: Participant[];
+		/** Array of participants in merged audio mode */
 		mergedAudioParticipantArray: Participant[];
+		/** Media recorder instance for audio capture */
 		recorder: MediaRecorder | undefined;
 	}
 }
 
 /**
- * Represents a bot that can join and interact with Google Meet meetings.
- * The bot is capable of joining meetings, performing actions, recording the meeting,
- * monitoring participants, and leaving the meeting based on specific conditions.
+ * Google Meet bot implementation for automated meeting participation.
  *
- * @class GoogleMeetBot
+ * Provides comprehensive functionality for joining Google Meet meetings,
+ * recording sessions, monitoring participants, and managing meeting lifecycle.
+ *
+ * Key capabilities:
+ * - Automated meeting join with configurable bot settings
+ * - Screen and audio recording using FFmpeg
+ * - Real-time participant monitoring and speech detection
+ * - Automatic leave conditions (timeout, inactivity, kick detection)
+ * - Speaker timeline tracking for meeting analysis
+ *
  * @extends Bot
- *
- * @property {string[]} browserArgs - Arguments passed to the browser instance.
- * @property {string} meetingURL - The URL of the Google Meet meeting to join.
- * @property {Browser} browser - The Playwright browser instance used by the bot.
- * @property {Page} page - The Playwright page instance used by the bot.
- * @property {PageVideoCapture | undefined} recorder - The video recorder instance for capturing the meeting.
- * @property {boolean} kicked - Indicates if the bot was kicked from the meeting.
- * @property {string} recordingPath - The file path where the meeting recording is saved.
- * @property {Buffer[]} recordBuffer - Buffer to store video chunks during recording.
- * @property {boolean} startedRecording - Indicates if the recording has started.
- * @property {number} timeAloneStarted - The timestamp when the bot was the only participant in the meeting.
- * @property {ChildProcessWithoutNullStreams | null} ffmpegProcess - The ffmpeg process used for recording.
- *
- * @constructor
- * @param {BotConfig} botSettings - Configuration settings for the bot, including meeting information.
- * @param {(eventType: EventCode, data?: any) => Promise<void>} onEvent - Callback function to handle events.
- *
- * @method run - Runs the bot to join the meeting and perform actions.
- * @returns {Promise<void>}
- *
- * @method getRecordingPath - Retrieves the file path of the recording.
- * @returns {string} The path to the recording file.
- *
- * @method getSpeakerTimeframes - Retrieves the timeframes of speakers in the meeting.
- * @returns {Array} An array of objects containing speaker names and their respective start and end times.
- *
- * @method getContentType - Retrieves the content type of the recording file.
- * @returns {string} The content type of the recording file.
- *
- * @method joinMeeting - Joins the Google Meet meeting and performs necessary setup.
- * @returns {Promise<number>} Returns 0 if the bot successfully joins the meeting, or throws an error if it fails.
- *
- * @method startRecording - Starts recording the meeting using ffmpeg.
- * @returns {Promise<void>}
- *
- * @method stopRecording - Stops the ongoing recording if it has been started.
- * @returns {Promise<number>} Returns 0 if the recording was successfully stopped.
- *
- * @method meetingActions - Performs actions during the meeting, including monitoring participants and recording.
- * @returns {Promise<number>} Returns 0 when the bot finishes its meeting actions.
- *
- * @method leaveMeeting - Stops the recording and leaves the meeting.
- * @returns {Promise<number>} Returns 0 if the bot successfully leaves the meeting.
  */
 export class GoogleMeetBot extends Bot {
 	browserArgs: string[];
-	meetingURL: string;
-	browser!: Browser;
-	page!: Page;
+	browser?: Browser;
+	page?: Page;
+
+	meetingUrl: string;
 	recorder: PageVideoCapture | undefined;
 	kicked: boolean = false;
 	recordingPath: string;
@@ -151,9 +134,10 @@ export class GoogleMeetBot extends Bot {
 	private ffmpegProcess: ChildProcessWithoutNullStreams | null;
 
 	/**
+	 * Creates a new Google Meet bot instance.
 	 *
-	 * @param botSettings Bot Settings as Passed in the API call.
-	 * @param onEvent Connection to Backend
+	 * @param botSettings - Bot configuration including meeting URL, display name, and behavior settings
+	 * @param onEvent - Event callback function for communicating with the backend
 	 */
 	constructor(
 		botSettings: BotConfig,
@@ -171,24 +155,24 @@ export class GoogleMeetBot extends Bot {
 			"--disable-setuid-sandbox",
 			"--disable-features=IsolateOrigins,site-per-process",
 			"--disable-infobars",
-			"--disable-gpu", //disable gpu rendering
+			"--disable-gpu", // disable gpu rendering
 
-			"--use-fake-ui-for-media-stream", // automatically grants screen sharing permissions without a selection dialog.
+			"--use-fake-ui-for-media-stream", // automatically grants screen sharing permissions without a selection dialog
 			"--use-file-for-fake-video-capture=/dev/null",
 			"--use-file-for-fake-audio-capture=/dev/null",
 			'--auto-select-desktop-capture-source="Chrome"', // record the first tab automatically
 		];
 
 		// Fetch
-		this.meetingURL = botSettings.meetingInfo.meetingUrl ?? "";
-		this.kicked = false; // Flag for if the bot was kicked from the meeting, no need to click exit button.
-		this.startedRecording = false; //Flag to not duplicate recording start
+		this.meetingUrl = botSettings.meetingInfo.meetingUrl ?? "";
+		this.kicked = false; // Flag for if the bot was kicked from the meeting, no need to click exit button
+		this.startedRecording = false; // Flag to not duplicate recording start
 
 		this.ffmpegProcess = null;
 	}
 
 	/**
-	 * Run the bot to join the meeting and perform the meeting actions.
+	 * Executes the complete bot lifecycle: join meeting and perform monitoring actions.
 	 */
 	async run(): Promise<void> {
 		await this.joinMeeting();
@@ -196,8 +180,10 @@ export class GoogleMeetBot extends Bot {
 	}
 
 	/**
-	 * Gets a consistant video recording path
-	 * @returns {string} - Returns the path to the recording file.
+	 * Gets the consistent video recording file path.
+	 * Ensures the directory exists before returning the path.
+	 *
+	 * @returns The absolute path to the recording file
 	 */
 	getRecordingPath(): string {
 		// Ensure the directory exists
@@ -207,13 +193,15 @@ export class GoogleMeetBot extends Bot {
 			fs.mkdirSync(dir, { recursive: true });
 		}
 
-		// Give Back the path
+		// Give back the path
 		return this.recordingPath;
 	}
 
 	/**
-	 * Gets the speaker timeframes.
-	 * @returns {Array} - Returns an array of objects containing speaker names and their respective start and end times.
+	 * Processes and returns speaker activity timeframes from the meeting.
+	 * Consolidates speaking events into continuous timeframes with utterance grouping.
+	 *
+	 * @returns Array of speaker timeframes with names, start times, and end times
 	 */
 	getSpeakerTimeframes(): SpeakerTimeframe[] {
 		const processedTimeframes: {
@@ -252,46 +240,61 @@ export class GoogleMeetBot extends Bot {
 	}
 
 	/**
-	 * Gets the video content type.
-	 * @returns {string} - Returns the content type of the recording file.
+	 * Gets the MIME content type for the recording file.
+	 *
+	 * @returns The content type string for MP4 video files
 	 */
 	getContentType(): string {
 		return "video/mp4";
 	}
 
 	/**
-	 * Launches the browser and opens a blank page.
+	 * Launches Chromium browser with stealth configuration and creates a new page.
+	 * Sets up proper viewport, permissions, and user agent for meeting participation.
+	 *
+	 * @param headless - Whether to run browser in headless mode (default: false)
 	 */
-	async launchBrowser(headless: boolean = false) {
-		// Launch Browser
+	async launchBrowser(headless: boolean = false): Promise<void> {
+		console.log("Launching browser...");
+
+		// Launch browser
 		this.browser = await chromium.launch({
 			headless,
 			args: this.browserArgs,
 		});
 
-		// Unpack Dimensions
+		// Unpack dimensions
 		const vp = { width: SCREEN_WIDTH, height: SCREEN_HEIGHT };
 
-		// Create Browser Context
+		// Create browser context
 		const context = await this.browser.newContext({
 			permissions: ["camera", "microphone"],
 			userAgent: userAgent,
 			viewport: vp,
 		});
 
-		// Create Page, Go to
+		// Create page
 		this.page = await context.newPage();
 	}
 
 	/**
-	 * Calls Launch Browser, then navigates to join the meeting.
-	 * @returns 0 on success, or throws an error if it fails to join the meeting.
+	 * Joins the Google Meet meeting by launching browser and navigating through join flow.
+	 * Handles name entry, camera/microphone settings, and waiting room scenarios.
+	 *
+	 * @throws WaitingRoomTimeoutError if stuck in waiting room beyond timeout
+	 * @returns Promise that resolves to 0 on successful join
 	 */
-	async joinMeeting() {
+	async joinMeeting(): Promise<number> {
 		// Launch
 		await this.launchBrowser();
 
-		//
+		console.log("Joining meeting...");
+
+		if (!this.page) {
+			throw new Error("Page not initialized");
+		}
+
+		// Initial delay
 		await this.page.waitForTimeout(randomDelay(1000));
 
 		// Inject anti-detection code using addInitScript
@@ -328,10 +331,12 @@ export class GoogleMeetBot extends Bot {
 			});
 		});
 
-		//Define Bot Name
+		// Define bot name
 		const name = this.settings.botDisplayName || "Live Boost";
 
-		// Go to the meeting URL (Simulate Movement)
+		// Go to the meeting URL (simulate movement)
+		console.log("Simulating movement...");
+
 		await this.page.mouse.move(10, 672);
 		await this.page.mouse.move(102, 872);
 		await this.page.mouse.move(114, 1472);
@@ -339,24 +344,32 @@ export class GoogleMeetBot extends Bot {
 		await this.page.mouse.move(114, 100);
 		await this.page.mouse.click(100, 100);
 
-		//Go
-		await this.page.goto(this.meetingURL, { waitUntil: "networkidle" });
-		await this.page.bringToFront(); //ensure active
+		// Navigate to meeting
+		await this.page.goto(this.meetingUrl, { waitUntil: "networkidle" });
+
+		console.log("Navigated to meeting URL");
+
+		await this.page.bringToFront(); // ensure active
 
 		console.log("Waiting for the input field to be visible...");
-		await this.page.waitForSelector(enterNameField, { timeout: 15000 }); // If it can't find the enter name field in 15 seconds then something went wrong.
+
+		await this.page.waitForSelector(enterNameField, { timeout: 15000 }); // If it can't find the enter name field in 15 seconds then something went wrong
 
 		console.log("Found it. Waiting for 1 second...");
+
 		await this.page.waitForTimeout(randomDelay(1000));
 
 		console.log("Filling the input field with the name...");
+
 		await this.page.fill(enterNameField, name);
 
 		console.log("Turning Off Camera and Microphone ...");
 
 		try {
 			await this.page.waitForTimeout(randomDelay(500));
+
 			await this.page.click(muteButton, { timeout: 200 });
+
 			await this.page.waitForTimeout(200);
 		} catch (_e) {
 			console.log("Could not turn off Microphone, probably already off.");
@@ -384,17 +397,15 @@ export class GoogleMeetBot extends Bot {
 
 		await this.page.click(entryButton);
 
-		//Should Exit after 1 Minute
-		console.log("Awaiting Entry ....");
+		// Should exit after the waiting room timeout if we're in the waiting room
 		const timeout = this.settings.automaticLeave.waitingRoomTimeout; // in milliseconds
 
-		// wait for the leave button to appear (meaning we've joined the meeting)
+		// Wait for the leave button to appear (meaning we've joined the meeting)
 		try {
 			await this.page.waitForSelector(leaveButton, {
 				timeout: timeout,
 			});
 		} catch (_e) {
-			// Timeout Error: Will get caught by bot/index.ts
 			throw new WaitingRoomTimeoutError();
 		}
 
@@ -406,10 +417,13 @@ export class GoogleMeetBot extends Bot {
 	}
 
 	/**
+	 * Generates FFmpeg command parameters for screen and audio recording.
+	 * Uses test parameters when X11 server is not available, otherwise uses production settings.
 	 *
+	 * @returns Array of FFmpeg command line parameters
 	 */
-	getFFmpegParams() {
-		// For Testing (pnpm test) -- no docker x11 server running.
+	getFFmpegParams(): string[] {
+		// For testing (pnpm test) -- no docker x11 server running
 		if (!fs.existsSync("/tmp/.X11-unix")) {
 			console.log("Using test ffmpeg params");
 
@@ -431,8 +445,7 @@ export class GoogleMeetBot extends Bot {
 			];
 		}
 
-		// Creait to @martinezpl for these ffmpeg params.
-		console.log("Loading Dockerized FFMPEG Params ...");
+		console.log("Loading FFmpeg params ...");
 
 		const videoInputFormat = "x11grab";
 		const audioInputFormat = "pulse";
@@ -447,7 +460,7 @@ export class GoogleMeetBot extends Bot {
 			"-thread_queue_size",
 			"512", // Increase thread queue size to handle input buffering
 			"-video_size",
-			`${SCREEN_WIDTH}x${SCREEN_HEIGHT}`, //full screen resolution
+			`${SCREEN_WIDTH}x${SCREEN_HEIGHT}`, // Full screen resolution
 			"-framerate",
 			fps, // Lower frame rate to reduce CPU usage
 			"-f",
@@ -482,39 +495,36 @@ export class GoogleMeetBot extends Bot {
 	}
 
 	/**
-	 * Starts the recording of the call using ffmpeg.
-	 *
-	 * This function initializes an ffmpeg process to capture the screen and audio of the meeting.
-	 * It ensures that only one recording process is active at a time and logs the status of the recording.
-	 *
-	 * @returns {void}
+	 * Starts screen and audio recording using FFmpeg subprocess.
+	 * Prevents duplicate recording processes and monitors FFmpeg output for status updates.
 	 */
-	async startRecording() {
+	async startRecording(): Promise<void> {
 		console.log(
-			"Attempting to start the recording ... @",
+			"Attempting to start the recording to:",
 			this.getRecordingPath(),
 		);
 
-		if (this.ffmpegProcess) return console.log("Recording already started.");
+		if (this.ffmpegProcess) {
+			return console.log("Recording already started.");
+		}
 
 		this.ffmpegProcess = spawn("ffmpeg", this.getFFmpegParams());
 
-		console.log("Spawned a subprocess to record: pid=", this.ffmpegProcess.pid);
+		console.log("Spawned a subprocess to record, PID:", this.ffmpegProcess.pid);
 
-		// Report any data / errors (DEBUG, since it also prints that data is available).
+		// Report any data / errors (DEBUG, since it also prints that data is available)
 		this.ffmpegProcess.stderr.on("data", (_data) => {
-			// console.error(`ffmpeg: ${data}`);
-
-			// Log that we got data, and the recording started.
+			// Log that we got data, and the recording started
 			if (!this.startedRecording) {
-				console.log("Recording Started.");
+				console.log("Recording started...");
+
 				this.startedRecording = true;
 			}
 		});
 
-		// Log Output of stderr
+		// Log output of stderr
 		// Log to console if the env var is set
-		// Turn it on if ffmpeg gives a weird error code.
+		// Turn it on if FFmpeg gives a weird error code
 		const logFfmpeg = process.env.MEET_FFMPEG_STDERR_ECHO === "true";
 
 		if (logFfmpeg ?? false) {
@@ -526,45 +536,46 @@ export class GoogleMeetBot extends Bot {
 
 		// Report when the process exits
 		this.ffmpegProcess.on("exit", (code) => {
-			console.log(`ffmpeg exited with code ${code}`);
+			console.log(`FFmpeg exited with code ${code}`);
+
 			this.ffmpegProcess = null;
 		});
 
-		console.log("Started FFMPEG Process.");
+		console.log("Started FFmpeg process");
 	}
 
 	/**
-	 * Stops the ongoing recording if it has been started.
+	 * Gracefully stops the FFmpeg recording process and waits for file finalization.
+	 * Sends SIGINT signal to allow proper video encoding completion.
 	 *
-	 * This function ensures that the recording process is terminated. It checks if the `ffmpegProcess`
-	 * exists and, if so, sends a termination signal to stop the recording. If no recording process
-	 * is active, it logs a message indicating that no recording was in progress.
-	 *
-	 * @returns {Promise<number>} - Returns 0 if the recording was successfully stopped.
+	 * @returns Promise that resolves to 0 on success, 1 on failure
 	 */
-	async stopRecording() {
+	async stopRecording(): Promise<number> {
 		console.log("Attempting to stop the recording ...");
 
 		// Await encoding result
-		const promiseResult = await new Promise((resolve) => {
+		const promiseResult = await new Promise<number>((resolve) => {
 			// No recording
 			if (!this.ffmpegProcess) {
-				console.log("No recording in progress, cannot end recording.");
+				console.log("No recording in progress, cannot end recording");
+
 				resolve(1);
 
-				return; // exit early
+				return;
 			}
 
-			// Graceful stop
-			console.log("Killing ffmpeg process gracefully ...");
-			this.ffmpegProcess.kill("SIGINT");
-			console.log("Waiting for ffmpeg to finish encoding ...");
+			console.log("Killing FFmpeg process gracefully");
 
-			// Modify the exit handler to resolve the promise.
+			this.ffmpegProcess.kill("SIGINT");
+
+			console.log("Waiting for FFmpeg to finish encoding");
+
+			// Modify the exit handler to resolve the promise
 			// This will be called when the video is done encoding
 			this.ffmpegProcess.on("exit", (code, signal) => {
 				if (code === 0) {
-					console.log("Recording stopped and file finalized.");
+					console.log("Recording stopped and file finalized");
+
 					resolve(0);
 				} else {
 					console.error(
@@ -575,30 +586,39 @@ export class GoogleMeetBot extends Bot {
 				}
 			});
 
-			// Modify the error handler to resolve the promise.
+			// Modify the error handler to resolve the promise
 			this.ffmpegProcess.on("error", (err) => {
-				console.error("Error while stopping ffmpeg:", err);
+				console.error("Error while stopping FFmpeg:", err);
+
 				resolve(1);
 			});
 		});
 
-		// Continue
 		return promiseResult;
 	}
 
-	async screenshot(fName: string = "screenshot.png") {
+	/**
+	 * Takes a screenshot of the current browser page and saves it to /tmp directory.
+	 *
+	 * @param filename - Filename for the screenshot (default: "screenshot.png")
+	 */
+	async screenshot(filename: string = "screenshot.png"): Promise<void> {
+		console.log("Taking screenshot...");
+
+		if (!this.page) {
+			throw new Error("Page not initialized");
+		}
+
 		try {
-			if (!this.page) throw new Error("Page not initialized");
-
-			if (!this.browser) throw new Error("Browser not initialized");
-
 			const screenshot = await this.page.screenshot({
 				type: "png",
 			});
 
 			// Save the screenshot to a file
-			const screenshotPath = path.resolve(`/tmp/${fName}`);
+			const screenshotPath = path.resolve(`/tmp/${filename}`);
+
 			fs.writeFileSync(screenshotPath, screenshot);
+
 			console.log(`Screenshot saved to ${screenshotPath}`);
 		} catch (error) {
 			console.log("Error taking screenshot:", error);
@@ -606,11 +626,19 @@ export class GoogleMeetBot extends Bot {
 	}
 
 	/**
-	 * Check if we got kicked from the meeting.
+	 * Detects if the bot has been removed from the meeting.
+	 * Checks multiple conditions including kick dialog, hidden leave button, and removal messages.
 	 *
+	 * @returns True if bot was kicked from meeting, false otherwise
 	 */
-	async checkKicked() {
-		// Check if "Return to Home Page" button exists (Kick Condition 1)
+	async checkKicked(): Promise<boolean> {
+		console.log("Checking if bot has been kicked...");
+
+		if (!this.page) {
+			throw new Error("Page not initialized");
+		}
+
+		// Check if "Return to Home Page" button exists (kick condition 1)
 		if (
 			(await this.page
 				.locator(gotKickedDetector)
@@ -620,8 +648,7 @@ export class GoogleMeetBot extends Bot {
 			return true;
 		}
 
-		// console.log('Checking for hidden leave button ...')
-		// Hidden Leave Button (Kick Condition 2)
+		// Hidden leave button (Kick condition 2)
 		if (
 			await this.page
 				.locator(leaveButton)
@@ -631,8 +658,7 @@ export class GoogleMeetBot extends Bot {
 			return true;
 		}
 
-		// console.log('Checking for removed from meeting text ...')
-		// Removed from Meeting Text (Kick Condition 3)
+		// Removed from meeting text (Kick condition 3)
 		if (
 			await this.page
 				.locator('text="You\'ve been removed from the meeting"')
@@ -642,14 +668,22 @@ export class GoogleMeetBot extends Bot {
 			return true;
 		}
 
-		// Did not get kicked if reached here.
+		// Did not get kicked if reached here
 		return false;
 	}
 
 	/**
-	 * Check if a pop-up appeared. If so, close it.
+	 * Handles Google Meet information popups by automatically dismissing them.
+	 *
+	 * @param timeout - Maximum time to wait for popup appearance (default: 5000ms)
 	 */
-	async handleInfoPopup(timeout = 5000) {
+	async handleInfoPopup(timeout = 5000): Promise<void> {
+		console.log("Handling info popup...");
+
+		if (!this.page) {
+			throw new Error("Page not initialized");
+		}
+
 		try {
 			await this.page.waitForSelector(infoPopupClick, { timeout });
 		} catch (_e) {
@@ -661,29 +695,34 @@ export class GoogleMeetBot extends Bot {
 	}
 
 	/**
+	 * Orchestrates all meeting activities including recording, participant monitoring, and exit conditions.
 	 *
-	 * Meeting actions of the bot.
+	 * Main workflow:
+	 * 1. Starts recording (if enabled)
+	 * 2. Opens participant panel for monitoring
+	 * 3. Sets up participant event handlers and observers
+	 * 4. Monitors meeting conditions (alone timeout, kick detection, inactivity)
+	 * 5. Exits when termination conditions are met
 	 *
-	 * This function performs the actions that the bot is supposed to do in the meeting.
-	 * It first waits for the people button to be visible, then clicks on it to open the people panel.
-	 * It then starts recording the meeting and sets up participant monitoring.
-	 *
-	 * Afterwards, It enters a simple loop that checks for end meeting conditions every X seconds.
-	 * Once detected it's done, it stops the recording and exits.
-	 *
-	 * @returns 0
+	 * @returns Promise that resolves to 0 on successful completion
 	 */
-	async meetingActions() {
-		// Start Recording only if enabled
+	async meetingActions(): Promise<number> {
+		// Start recording only if enabled
 		if (this.settings.recordingEnabled) {
 			console.log("Starting Recording");
+
 			this.startRecording();
 		} else {
 			console.log("Recording is disabled for this bot");
 		}
 
 		console.log("Waiting for the 'Others might see you differently' popup...");
+
 		await this.handleInfoPopup();
+
+		if (!this.page) {
+			throw new Error("Page not initialized");
+		}
 
 		try {
 			// UI patch: Find new people icon and click parent button
@@ -709,6 +748,7 @@ export class GoogleMeetBot extends Bot {
 				console.log("Using new People button selector.");
 			} else {
 				console.warn("People button not found, using fallback selector.");
+
 				await this.page.click(peopleButton);
 			}
 
@@ -829,12 +869,12 @@ export class GoogleMeetBot extends Bot {
 						});
 					});
 
-					// detected new participant in the merged node
+					// Detected new participant in the merged node
 					if (
 						detectedParticipants.length >
 						window.mergedAudioParticipantArray.length
 					) {
-						// add them
+						// Add them
 						const filteredParticipants = detectedParticipants.filter(
 							(participant: Participant) =>
 								!window.mergedAudioParticipantArray.find(
@@ -856,7 +896,7 @@ export class GoogleMeetBot extends Bot {
 						detectedParticipants.length <
 						window.mergedAudioParticipantArray.length
 					) {
-						// some participants no longer in the merged node
+						// Some participants no longer in the merged node
 						const filteredParticipants =
 							window.mergedAudioParticipantArray.filter(
 								(participant: Participant) =>
@@ -871,7 +911,7 @@ export class GoogleMeetBot extends Bot {
 							);
 
 							if (!videoRectangle) {
-								// they've left the meeting
+								// They've left the meeting
 								window.onParticipantLeave(participant);
 
 								window.participantArray = window.participantArray.filter(
@@ -879,7 +919,7 @@ export class GoogleMeetBot extends Bot {
 								);
 							}
 
-							// update participants under merged audio
+							// Update participants under merged audio
 							window.mergedAudioParticipantArray =
 								window.mergedAudioParticipantArray.filter(
 									(p: Participant) => p.id !== participant.id,
@@ -912,7 +952,7 @@ export class GoogleMeetBot extends Bot {
 				mutations.forEach((mutation) => {
 					if (mutation.type === "childList") {
 						mutation.removedNodes.forEach((node) => {
-							console.log("Removed Node", node);
+							console.log("Removed node:", node);
 
 							if (
 								node.nodeType === Node.ELEMENT_NODE &&
@@ -949,7 +989,7 @@ export class GoogleMeetBot extends Bot {
 					}
 
 					mutation.addedNodes.forEach((node) => {
-						console.log("Added Node", node);
+						console.log("Added node:", node);
 
 						if (
 							(node as Element).getAttribute?.("data-participant-id") &&
@@ -995,26 +1035,26 @@ export class GoogleMeetBot extends Bot {
 				const msDiff = Date.now() - this.timeAloneStarted;
 
 				console.log(
-					`Only me left in the meeting. Waiting for timeout time to have allocated (${msDiff / 1000} / ${leaveMs / 1000}s) ...`,
+					`Only me left in the meeting. Waiting for timeout time to have allocated (${msDiff / 1000} / ${leaveMs / 1000}s)`,
 				);
 
 				if (msDiff > leaveMs) {
 					console.log(
-						"Only one participant remaining for more than alocated time, leaving the meeting.",
+						"Only one participant remaining for more than allocated time, leaving the meeting",
 					);
 
 					break;
 				}
 			}
 
-			// Got kicked -- no longer in the meeting
-			// Check each of the potentials conditions
+			// Got kicked, no longer in the meeting
+			// Check each of the potential conditions
 			if (await this.checkKicked()) {
-				console.log("Detected that we were kicked from the meeting.");
+				console.log("Detected that we were kicked from the meeting");
 
-				this.kicked = true; //store
+				this.kicked = true; // Store
 
-				break; //exit loop
+				break; // Exit loop
 			}
 
 			// Check if there has been no activity, case for when only bots stay in the meeting
@@ -1031,15 +1071,14 @@ export class GoogleMeetBot extends Bot {
 
 			await this.handleInfoPopup(1000);
 
-			// Reset Loop
+			// Reset loop
 			console.log("Waiting 5 seconds.");
 
-			await setTimeout(5000); //5 second loop
+			await setTimeout(5000); // 5 second loop
 		}
 
-		//
 		// Exit
-		console.log("Starting End Life Actions ...");
+		console.log("Starting end life actions...");
 
 		try {
 			await this.leaveMeeting();
@@ -1053,45 +1092,51 @@ export class GoogleMeetBot extends Bot {
 	}
 
 	/**
-	 * Clean up the meeting
+	 * Performs cleanup operations including stopping recording and closing browser.
 	 */
-	async endLife() {
-		// Ensure Recording is done
+	async endLife(): Promise<void> {
+		// Ensure recording is done
 		if (this.settings.recordingEnabled) {
-			console.log("Stopping Recording ...");
+			console.log("Stopping recording...");
 
 			await this.stopRecording();
 		}
 
-		console.log("Done.");
+		console.log("Done");
 
 		// Close my browser
 		if (this.browser) {
 			await this.browser.close();
-			console.log("Closed Browser.");
+
+			console.log("Closed browser");
 		}
 	}
 
 	/**
+	 * Attempts to gracefully leave the meeting and performs cleanup.
+	 * Tries to click the leave button, then calls endLife() regardless of success.
 	 *
-	 * Attempts to leave the meeting -- then cleans up.
-	 *
-	 * @returns {Promise<number>} - Returns 0 if the bot successfully leaves the meeting, or 1 if it fails to leave the meeting.
+	 * @returns Promise that resolves to 0 on successful completion
 	 */
-	async leaveMeeting() {
-		// Try and Find the leave button, press. Otherwise, just delete the browser.
-		console.log("Trying to leave the call ...");
+	async leaveMeeting(): Promise<number> {
+		// Try and find the leave button, press. Otherwise, just delete the browser
+		console.log("Trying to leave the call...");
 
-		try {
-			await this.page.click(leaveButton, { timeout: 1000 }); //Short Attempt
-			console.log("Left Call.");
-		} catch (_e) {
-			console.log(
-				"Attempted to Leave Call - couldn't (probably aleready left).",
-			);
+		if (!this.page) {
+			throw new Error("Page not initialized");
 		}
 
-		console.log("Ending Life ...");
+		try {
+			await this.page.click(leaveButton, { timeout: 1000 }); // Short attempt
+
+			console.log("Left call");
+		} catch (_e) {
+			// If we couldn't leave the call, we probably already left
+			console.log("Attempted to leave call, couldn't (probably already left)");
+		}
+
+		console.log("Ending life...");
+
 		await this.endLife();
 
 		return 0;
