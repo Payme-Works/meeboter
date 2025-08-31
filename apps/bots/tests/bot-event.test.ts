@@ -70,7 +70,11 @@ describe("Meet Event Tests", () => {
 		});
 
 		// Launch a browser, don't go to any page
-		await bot.launchBrowser(true); //headless mode
+		await bot.launchBrowser(true); // Headless mode
+
+		if (!bot.page) {
+			throw new Error("Page not initialized");
+		}
 
 		// Replace implementation of page functions (we don't care about navigation)
 		jest
@@ -93,6 +97,10 @@ describe("Meet Event Tests", () => {
 		// Functions
 		addParticipant = async () => {
 			// Simulate a participant joining
+			if (!bot.page) {
+				throw new Error("Page not initialized");
+			}
+
 			await bot.page.evaluate(() => {
 				const peopleList = document.querySelector(
 					'[aria-label="Participants"]',
@@ -113,11 +121,19 @@ describe("Meet Event Tests", () => {
 				peopleList?.appendChild(participant);
 			});
 
+			if (!bot.page) {
+				throw new Error("Page not initialized");
+			}
+
 			await bot.page.waitForTimeout(30);
 		};
 
 		removeParticipant = async () => {
 			// Simulate a participant leaving
+			if (!bot.page) {
+				throw new Error("Page not initialized");
+			}
+
 			await bot.page.evaluate(() => {
 				const peopleList = document.querySelector(
 					'[aria-label="Participants"]',

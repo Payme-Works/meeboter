@@ -96,6 +96,10 @@ describe("Meet Bot Record Tests", () => {
 			// Launch a broser
 			await bot.launchBrowser();
 
+			if (!bot.page) {
+				throw new Error("Page not initialized");
+			}
+
 			// Mock page
 			await bot.page.goto("https://www.google.com", {
 				waitUntil: "networkidle",
