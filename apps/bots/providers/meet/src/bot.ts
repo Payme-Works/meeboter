@@ -125,6 +125,7 @@ export class GoogleMeetBot extends Bot {
 	private registeredActivityTimestamps: {
 		[participantName: string]: [number];
 	} = {};
+
 	private startedRecording: boolean = false;
 
 	private timeAloneStarted: number = Infinity;
@@ -147,6 +148,7 @@ export class GoogleMeetBot extends Bot {
 		) => Promise<void>,
 	) {
 		super(botSettings, onEvent);
+
 		this.recordingPath = path.resolve(__dirname, "recording.mp4");
 
 		this.browserArgs = [
@@ -440,7 +442,7 @@ export class GoogleMeetBot extends Bot {
 			throw new WaitingRoomTimeoutError();
 		}
 
-		console.log("Joined Call.");
+		console.log("Joined call");
 
 		await this.onEvent(EventCode.JOINING_CALL);
 
@@ -821,6 +823,7 @@ export class GoogleMeetBot extends Bot {
 			"registerParticipantSpeaking",
 			(participant: Participant) => {
 				this.lastActivity = Date.now();
+
 				const relativeTimestamp = Date.now() - this.recordingStartedAt;
 
 				console.log(
@@ -1095,7 +1098,9 @@ export class GoogleMeetBot extends Bot {
 				Date.now() - this.lastActivity >
 					this.settings.automaticLeave.inactivityTimeout
 			) {
-				console.log("No activity for 5 minutes");
+				console.log(
+					`No activity for ${this.settings.automaticLeave.inactivityTimeout / 1000} seconds`,
+				);
 
 				break;
 			}

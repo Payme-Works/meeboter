@@ -165,26 +165,26 @@ export const botsRouter = createTRPCRouter({
 							? {
 									waitingRoomTimeout: Math.max(
 										input.automaticLeave.waitingRoomTimeout ?? 300000,
-										60000,
-									), // Minimum 60 seconds
+										5 * 60 * 1000,
+									), // Minimum 5 minutes
 									noOneJoinedTimeout: Math.max(
 										input.automaticLeave.noOneJoinedTimeout ?? 300000,
-										60000,
+										60 * 1000,
 									), // Minimum 60 seconds
 									everyoneLeftTimeout: Math.max(
 										input.automaticLeave.everyoneLeftTimeout ?? 300000,
-										60000,
+										60 * 1000,
 									), // Minimum 60 seconds
 									inactivityTimeout: Math.max(
 										input.automaticLeave.inactivityTimeout ?? 300000,
-										60000,
-									), // Minimum 60 seconds
+										5 * 60 * 1000,
+									), // Minimum 5 minutes
 								}
 							: {
-									waitingRoomTimeout: 300000, // 5 minutes (default)
-									noOneJoinedTimeout: 300000, // 5 minutes (default)
-									everyoneLeftTimeout: 300000, // 5 minutes (default)
-									inactivityTimeout: 300000, // 5 minutes (default)
+									waitingRoomTimeout: 5 * 60 * 1000, // 5 minutes (default)
+									noOneJoinedTimeout: 60 * 1000, // 60 seconds (default)
+									everyoneLeftTimeout: 60 * 1000, // 60 seconds (default)
+									inactivityTimeout: 5 * 60 * 1000, // 5 minutes (default)
 								},
 						callbackUrl: input.callbackUrl, // Credit to @martinezpl for this line -- cannot merge at time of writing due to capstone requirements
 					};
@@ -195,7 +195,7 @@ export const botsRouter = createTRPCRouter({
 						.returning();
 
 					if (!result[0]) {
-						throw new Error("Bot creation failed - no result returned");
+						throw new Error("Bot creation failed, no result returned");
 					}
 
 					// Check if we should deploy immediately
@@ -498,9 +498,7 @@ export const botsRouter = createTRPCRouter({
 			}),
 		)
 		.mutation(async ({ input, ctx }): Promise<{ success: boolean }> => {
-			console.log("Heartbeat received for bot", input.id);
-
-			// Update bot's last heartbeat
+			// Update bot's last heartbeat (removed console.log to reduce memory usage)
 			const botUpdate = await ctx.db
 				.update(botsTable)
 				.set({ lastHeartbeat: new Date() })
