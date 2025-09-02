@@ -1,6 +1,11 @@
 /**
- * Brazilian real people names for bot display names
- * Mix of common first names and surnames from Brazil
+ * Collection of authentic Brazilian names for bot display purposes
+ * Comprehensive mix of common first names and surnames representing Brazilian demographics
+ * Used to provide realistic and culturally appropriate bot identities in the application
+ */
+/**
+ * Collection of Brazilian male names with surnames
+ * Authentic combinations following Brazilian naming conventions
  */
 export const BRAZILIAN_MALE_NAMES = [
 	"João Silva",
@@ -30,6 +35,10 @@ export const BRAZILIAN_MALE_NAMES = [
 	"Ricardo Azevedo",
 ] as const;
 
+/**
+ * Collection of Brazilian female names with surnames
+ * Authentic combinations following Brazilian naming conventions
+ */
 export const BRAZILIAN_FEMALE_NAMES = [
 	"Maria Silva",
 	"Ana Santos",
@@ -58,12 +67,19 @@ export const BRAZILIAN_FEMALE_NAMES = [
 	"Adriana Azevedo",
 ] as const;
 
+/**
+ * Combined collection of all Brazilian names (male and female)
+ * Provides complete set for random name selection without gender preference
+ */
 export const ALL_BRAZILIAN_NAMES = [
 	...BRAZILIAN_MALE_NAMES,
 	...BRAZILIAN_FEMALE_NAMES,
 ] as const;
 
-// Separate single and two-word names for randomization
+/**
+ * Collection of single-word Brazilian first names for bot display
+ * Used when simpler name format is preferred or space constraints apply
+ */
 export const SINGLE_WORD_NAMES = [
 	"João",
 	"Pedro",
@@ -173,6 +189,10 @@ export const SINGLE_WORD_NAMES = [
 	"Enza",
 ] as const;
 
+/**
+ * Collection of two-word Brazilian name combinations
+ * Includes first name + surname and first name + second first name patterns
+ */
 export const TWO_WORD_NAMES = [
 	"João Silva",
 	"Pedro Santos",
@@ -466,7 +486,12 @@ export const TWO_WORD_NAMES = [
 ] as const;
 
 /**
- * Get a random Brazilian name with randomization between single and two-word names
+ * Generates a random Brazilian name with balanced single/two-word selection
+ *
+ * Uses randomization to choose between single-word and two-word name formats
+ * Provides natural variation in bot name complexity and authenticity
+ *
+ * @returns Random Brazilian name (either single word or two words)
  */
 export function getRandomBrazilianName(): string {
 	// Randomly choose between single-word and two-word names
@@ -484,9 +509,14 @@ export function getRandomBrazilianName(): string {
 }
 
 /**
- * Get multiple unique Brazilian names with randomization between single and two-word names
- * @param count Number of names to return
- * @returns Array of unique Brazilian names
+ * Generates multiple unique Brazilian names with format randomization
+ *
+ * Combines single-word and two-word names to create diverse set of unique identities
+ * Ensures no duplicate names in the returned collection
+ * Returns all available names if count exceeds total available names
+ *
+ * @param count - Number of unique names to generate
+ * @returns Array of unique Brazilian names with mixed formatting
  */
 export function getMultipleBrazilianNames(count: number): string[] {
 	if (count <= 0) {
@@ -505,8 +535,13 @@ export function getMultipleBrazilianNames(count: number): string[] {
 }
 
 /**
- * Get a Brazilian name by gender preference with randomization between single and two-word names
- * @param gender 'male' | 'female' | 'mixed'
+ * Generates Brazilian name based on gender preference with format randomization
+ *
+ * Filters name selection by gender preference while maintaining single/two-word randomization
+ * Falls back to mixed gender selection if gender-specific filtering fails
+ *
+ * @param gender - Gender preference for name selection ('male' | 'female' | 'mixed')
+ * @returns Brazilian name matching gender preference with random formatting
  */
 export function getBrazilianNameByGender(
 	gender: "male" | "female" | "mixed" = "mixed",
@@ -551,7 +586,12 @@ export function getBrazilianNameByGender(
 }
 
 /**
- * Get a random single-word Brazilian name
+ * Generates a random single-word Brazilian first name
+ *
+ * Selects from curated collection of authentic Brazilian first names
+ * Useful for contexts requiring simpler name format or space constraints
+ *
+ * @returns Random single-word Brazilian first name
  */
 export function getRandomSingleWordName(): string {
 	const randomIndex = Math.floor(Math.random() * SINGLE_WORD_NAMES.length);
@@ -560,7 +600,12 @@ export function getRandomSingleWordName(): string {
 }
 
 /**
- * Get a random two-word Brazilian name
+ * Generates a random two-word Brazilian name combination
+ *
+ * Selects from collection of authentic first name + surname combinations
+ * Provides more formal and complete name representation for bot identities
+ *
+ * @returns Random two-word Brazilian name combination
  */
 export function getRandomTwoWordName(): string {
 	const randomIndex = Math.floor(Math.random() * TWO_WORD_NAMES.length);
@@ -569,10 +614,15 @@ export function getRandomTwoWordName(): string {
 }
 
 /**
- * Get multiple names with specific word count preference
- * @param count Number of names to return
- * @param wordCount 'single' | 'two' | 'mixed'
- * @returns Array of Brazilian names
+ * Generates multiple Brazilian names with specific word count preference
+ *
+ * Allows control over name format consistency in result set
+ * Supports single-word only, two-word only, or mixed format collections
+ * Returns all available names of specified type if count exceeds available options
+ *
+ * @param count - Number of names to generate
+ * @param wordCount - Format preference ('single' | 'two' | 'mixed')
+ * @returns Array of Brazilian names matching the specified word count preference
  */
 export function getNamesByWordCount(
 	count: number,

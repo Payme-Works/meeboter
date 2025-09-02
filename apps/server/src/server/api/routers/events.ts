@@ -10,6 +10,11 @@ import {
 } from "@/server/database/schema";
 
 export const eventsRouter = createTRPCRouter({
+	/**
+	 * Retrieves all events for bots owned by the authenticated user
+	 * Returns events with their types and descriptions for monitoring bot activity
+	 * @returns {Promise<object[]>} Array of event objects with event types and metadata
+	 */
 	getAllEvents: protectedProcedure
 		.meta({
 			openapi: {
@@ -37,7 +42,7 @@ export const eventsRouter = createTRPCRouter({
 				return [];
 			}
 
-			// Ensure botId is defined before using it in the query
+			// Ensure bot ID is defined before using it in the query
 			const botId = botIds[0];
 
 			if (botId === undefined) {
@@ -47,6 +52,13 @@ export const eventsRouter = createTRPCRouter({
 			return await ctx.db.select().from(events).where(eq(events.botId, botId));
 		}),
 
+	/**
+	 * Retrieves all events associated with a specific bot owned by the authenticated user
+	 * Includes event type descriptions for understanding bot activity patterns
+	 * @param {object} input - Input parameters
+	 * @param {string} input.botId - ID of the bot to get events for
+	 * @returns {Promise<object[]>} Array of event objects for the specified bot
+	 */
 	getEventsForBot: protectedProcedure
 		.meta({
 			openapi: {
@@ -78,6 +90,13 @@ export const eventsRouter = createTRPCRouter({
 				.where(eq(events.botId, input.botId));
 		}),
 
+	/**
+	 * Retrieves a specific event by its ID for the authenticated user
+	 * Verifies ownership through bot association before returning event details
+	 * @param {object} input - Input parameters
+	 * @param {string} input.id - ID of the event to retrieve
+	 * @returns {Promise<object>} Event object with full details
+	 */
 	getEvent: protectedProcedure
 		.meta({
 			openapi: {
@@ -106,6 +125,14 @@ export const eventsRouter = createTRPCRouter({
 			return result[0].event;
 		}),
 
+	/**
+	 * Creates a new event for a bot owned by the authenticated user
+	 * Validates bot ownership before creating the event record
+	 * @param {object} input - Input parameters with event data
+	 * @param {number} input.botId - ID of the bot this event belongs to
+	 * @param {string} input.eventType - Type of event being created
+	 * @returns {Promise<object>} Created event object
+	 */
 	createEvent: protectedProcedure
 		.meta({
 			openapi: {
@@ -136,6 +163,14 @@ export const eventsRouter = createTRPCRouter({
 			return result[0];
 		}),
 
+	/**
+	 * Updates an existing event's information for the authenticated user
+	 * Verifies ownership through bot association before allowing updates
+	 * @param {object} input - Input parameters
+	 * @param {string} input.id - ID of the event to update
+	 * @param {object} input.data - Partial event data to update
+	 * @returns {Promise<object>} Updated event object
+	 */
 	updateEvent: protectedProcedure
 		.meta({
 			openapi: {
@@ -179,6 +214,13 @@ export const eventsRouter = createTRPCRouter({
 			return result[0];
 		}),
 
+	/**
+	 * Deletes an event by its ID for the authenticated user
+	 * Verifies ownership through bot association before allowing deletion
+	 * @param {object} input - Input parameters
+	 * @param {string} input.id - ID of the event to delete
+	 * @returns {Promise<object>} Success message confirming deletion
+	 */
 	deleteEvent: protectedProcedure
 		.meta({
 			openapi: {

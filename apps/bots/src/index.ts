@@ -56,10 +56,9 @@ export const main = async () => {
 
 	// Do not start heartbeat in development
 	if (process.env.NODE_ENV !== "development") {
-		// Start heartbeat in the background
 		console.log("Starting heartbeat");
 
-		const heartbeatInterval = botData.heartbeatInterval ?? 5000; // Default to 5 seconds if not set
+		const heartbeatInterval = botData.heartbeatInterval ?? 10000; // Default to 10 seconds if not set
 
 		startHeartbeat(botId, heartbeatController.signal, heartbeatInterval);
 	}
@@ -85,11 +84,12 @@ export const main = async () => {
 
 		// Upload recording to S3 only if recording was enabled
 		if (bot.settings.recordingEnabled) {
-			console.log("Start Upload to S3...");
+			console.log("Start upload to S3...");
 
 			key = await uploadRecordingToS3(s3Client, bot);
 		} else {
 			console.log("Recording was disabled, skipping S3 upload");
+
 			key = ""; // No recording to upload
 		}
 	} catch (error) {

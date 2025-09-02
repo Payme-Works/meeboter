@@ -4,12 +4,20 @@ import {
 } from "@tanstack/react-query";
 import SuperJSON from "superjson";
 
-export const createQueryClient = () =>
+/**
+ * Creates a configured QueryClient instance for tRPC integration
+ *
+ * Sets up React Query client with SSR-optimized defaults and SuperJSON serialization
+ * Configures stale time for reduced refetching and proper hydration/dehydration handling
+ *
+ * @returns Configured QueryClient instance with tRPC-specific settings
+ */
+export const createQueryClient = (): QueryClient =>
 	new QueryClient({
 		defaultOptions: {
 			queries: {
-				// With SSR, we usually want to set some default staleTime
-				// above 0 to avoid refetching immediately on the client
+				// Set stale time above 0 to prevent immediate refetching on client hydration
+				// Optimizes SSR performance by reducing unnecessary network requests
 				staleTime: 30 * 1000,
 			},
 			dehydrate: {

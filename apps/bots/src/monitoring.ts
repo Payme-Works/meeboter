@@ -10,7 +10,7 @@ dotenv.config({ path: ".env.test" });
 export const startHeartbeat = async (
 	botId: number,
 	abortSignal: AbortSignal,
-	intervalMs: number = 5000,
+	intervalMs: number = 10000,
 ) => {
 	while (!abortSignal.aborted) {
 		try {
@@ -19,11 +19,12 @@ export const startHeartbeat = async (
 			console.log(`[${new Date().toISOString()}] Heartbeat sent`);
 		} catch (error) {
 			// Do not log the entire heartbeat error if, in local, the user has set HEARTBEAT_DEBUG to false.
-			if ((process.env?.HEARTBEAT_DEBUG ?? "true") !== "false")
+			if ((process.env?.HEARTBEAT_DEBUG ?? "true") !== "false") {
 				console.error("Failed to send heartbeat:", error);
+			}
 		}
 
-		await setTimeout(intervalMs); // Send heartbeat every 5 seconds
+		await setTimeout(intervalMs);
 	}
 };
 

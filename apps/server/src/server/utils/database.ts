@@ -1,11 +1,11 @@
 /**
- * Utility functions for database operations
+ * Utility functions for database operations and data extraction
  */
 
 /**
- * Extracts a count value from a database query result, throwing an error if the result is invalid.
+ * Extracts a count value from a database query result, throwing an error if the result is invalid
  *
- * @param countResult The database query result containing a count field
+ * @param countResult - The database query result containing a count field
  * @returns The extracted count as a number
  * @throws Error if the count result is missing, malformed, or cannot be converted to a number
  */

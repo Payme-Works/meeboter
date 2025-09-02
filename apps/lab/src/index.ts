@@ -96,7 +96,7 @@ async function createBot(
 		},
 		startTime: now.toISOString(),
 		endTime: endTime.toISOString(),
-		heartbeatInterval: 30,
+		heartbeatInterval: 10000,
 		automaticLeave: {
 			waitingRoomTimeout: 3600000,
 			noOneJoinedTimeout: 3600000,

@@ -13,10 +13,15 @@ import { env } from "@/env";
 import type * as schema from "@/server/database/schema";
 import { type BotConfig, botsTable } from "@/server/database/schema";
 
-// Get the directory path using import.meta.url
+/**
+ * Get the directory path using import.meta.url for ES modules
+ */
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+/**
+ * AWS ECS client configuration with optional credentials
+ */
 const config: ECSClientConfig = {
 	region: env.AWS_REGION,
 };
@@ -28,12 +33,17 @@ if (env.AWS_ACCESS_KEY_ID && env.AWS_SECRET_ACCESS_KEY) {
 	};
 }
 
+/**
+ * AWS ECS client instance for bot deployment operations
+ */
 const client = new ECSClient(config);
 
 /**
- * Selects the appropriate bot task definition based on meeting information
+ * Selects the appropriate bot task definition based on meeting platform information
+ *
  * @param meetingInfo - Information about the meeting, including platform
- * @returns The task definition ARN to use for deployment
+ * @returns The ECS task definition ARN to use for deployment
+ * @throws Error if the platform is unsupported
  */
 export function selectBotTaskDefinition(
 	meetingInfo: schema.MeetingInfo,
@@ -52,13 +62,30 @@ export function selectBotTaskDefinition(
 	}
 }
 
+/**
+ * Custom error implementation for bot deployment failures
+ */
 export class BotDeploymentError extends Error {
+	/**
+	 * Creates a new BotDeploymentError instance
+	 *
+	 * @param message - The error message describing the deployment failure
+	 */
 	constructor(message: string) {
 		super(message);
 		this.name = "BotDeploymentError";
 	}
 }
 
+/**
+ * Deploys a bot either locally (development) or on AWS ECS (production)
+ *
+ * @param params - Deployment parameters
+ * @param params.botId - The ID of the bot to deploy
+ * @param params.db - The database instance for bot operations
+ * @returns The updated bot record after successful deployment
+ * @throws BotDeploymentError if deployment fails
+ */
 export async function deployBot({
 	botId,
 	db,
@@ -88,8 +115,7 @@ export async function deployBot({
 		// Get the absolute path to the bots directory (parent directory)
 		const botsDir = path.resolve(__dirname, "../../../../../bots");
 
-		// Merge default config with user provided config
-
+		// Build bot configuration from database record
 		const config: BotConfig = {
 			id: botId,
 			userId: bot.userId,
@@ -106,7 +132,7 @@ export async function deployBot({
 		};
 
 		if (dev) {
-			// Spawn the bot process
+			// Spawn the bot process for local development
 			const botProcess = spawn("pnpm", ["start"], {
 				cwd: botsDir,
 				env: {
@@ -128,9 +154,9 @@ export async function deployBot({
 				console.error(`Bot ${botId} process error:`, error);
 			});
 		} else {
+			// Deploy bot on AWS ECS for production
 			const input: RunTaskRequest = {
 				cluster: env.ECS_CLUSTER_NAME,
-				// taskDefinition: env.ECS_TASK_DEFINITION_MEET,
 				taskDefinition: selectBotTaskDefinition(bot.meetingInfo),
 				launchType: "FARGATE",
 				networkConfiguration: {
@@ -161,7 +187,7 @@ export async function deployBot({
 			await client.send(command);
 		}
 
-		// Update status to joining call
+		// Update status to joining call after successful deployment
 		const result = await db
 			.update(botsTable)
 			.set({
@@ -191,6 +217,12 @@ export async function deployBot({
 	}
 }
 
+/**
+ * Determines whether a bot should be deployed immediately based on its start time
+ *
+ * @param startTime - The scheduled start time for the bot meeting
+ * @returns True if the bot should be deployed immediately, false if it should wait
+ */
 export async function shouldDeployImmediately(
 	startTime: Date | undefined | null,
 ): Promise<boolean> {

@@ -5,7 +5,14 @@ import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { botsTable } from "@/server/database/schema";
 
-// Interface matching dailyUsageSchema exactly
+/**
+ * Interface representing daily bot usage data that matches the daily usage schema
+ * @interface DayUsage
+ * @property {string} date - The date in ISO format
+ * @property {number} botsUsed - Number of bots used on this date
+ * @property {number} msEllapsed - Total milliseconds of bot usage
+ * @property {string} estimatedCost - Estimated cost in string format
+ */
 interface DayUsage {
 	date: string;
 	botsUsed: number;
@@ -22,11 +29,18 @@ export const dailyUsageSchema = z.object({
 
 export type DailyUsageType = z.infer<typeof dailyUsageSchema>;
 
-const formatDayUsageDictToOutput = (eventsByDate: Record<string, DayUsage>) => {
-	// Create Output Object (list of dates)
+/**
+ * Formats a dictionary of daily usage data into a sorted array output
+ * @param {Record<string, DayUsage>} eventsByDate - Dictionary of usage data by date
+ * @returns {DayUsage[]} Sorted array of daily usage data ordered by date
+ */
+const formatDayUsageDictToOutput = (
+	eventsByDate: Record<string, DayUsage>,
+): DayUsage[] => {
+	// Create output object (list of dates)
 	const sortedEntries = Object.values(eventsByDate);
 
-	// The estimatedCost is already a string, so we don't need to convert it
+	// The estimated cost is already a string, so we don't need to convert it
 	// Sort output keys (date)
 	return sortedEntries.sort(
 		(a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
@@ -34,19 +48,24 @@ const formatDayUsageDictToOutput = (eventsByDate: Record<string, DayUsage>) => {
 };
 
 export const usageRouter = createTRPCRouter({
+	/**
+	 * Retrieves a sorted list of daily bot usage over all time for the current user
+	 * Calculates usage statistics including bots used, elapsed time, and estimated cost
+	 * @returns {Promise<DailyUsageType[]>} Array of daily usage data sorted by date
+	 */
 	getAllUsage: protectedProcedure
 		.meta({
 			openapi: {
 				method: "GET",
 				path: "/usage",
 				description:
-					"Retreive a sorted list of daily bot usage over all time\n",
+					"Retrieve a sorted list of daily bot usage over all time\n",
 			},
 		})
 		.input(z.void())
 		.output(z.array(dailyUsageSchema))
 		.query(async ({ ctx }) => {
-			// Get all bots timestamp
+			// Get all bots timestamps
 			const userBots = await ctx.db
 				.select({
 					startTime: botsTable.startTime,
@@ -57,14 +76,14 @@ export const usageRouter = createTRPCRouter({
 				.from(botsTable)
 				.where(eq(botsTable.userId, ctx.session.user.id));
 
-			// Collect the Bot Id's.
+			// Collect the bot IDs
 			const botIds = userBots.map((bot) => bot.id);
 
 			if (botIds.length === 0) {
 				return [];
 			}
 
-			// Ensure botId is defined before using it in the query
+			// Ensure bot ID is defined before using it in the query
 			const botId = botIds[0];
 
 			if (botId === undefined) {
@@ -99,7 +118,7 @@ export const usageRouter = createTRPCRouter({
 				}
 			});
 
-			// Create Output Object (list of dates)
+			// Create output object (list of dates)
 			let entries = Object.values(eventsByDate);
 
 			// Alter to include a cost variable
@@ -118,6 +137,13 @@ export const usageRouter = createTRPCRouter({
 			return entries;
 		}),
 
+	/**
+	 * Retrieves hourly bot usage for the last 24 hours in the specified timezone
+	 * Empty hours are included with zero usage values
+	 * @param {object} input - Input parameters
+	 * @param {string} input.timeZone - IANA timezone identifier (defaults to UTC)
+	 * @returns {Promise<DailyUsageType[]>} Array of hourly usage data for the last 24 hours
+	 */
 	getDailyUsage: protectedProcedure
 		.meta({
 			openapi: {
@@ -217,6 +243,13 @@ export const usageRouter = createTRPCRouter({
 			return formatDayUsageDictToOutput(eventsByHour);
 		}),
 
+	/**
+	 * Retrieves daily bot usage for the last week in the specified timezone
+	 * Empty days are included with zero usage values, starting from Sunday
+	 * @param {object} input - Input parameters
+	 * @param {string} input.timeZone - IANA timezone identifier (defaults to UTC)
+	 * @returns {Promise<DailyUsageType[]>} Array of daily usage data for the last week
+	 */
 	getWeekDailyUsage: protectedProcedure
 		.meta({
 			openapi: {
@@ -307,13 +340,20 @@ export const usageRouter = createTRPCRouter({
 			return formatDayUsageDictToOutput(eventsByDate);
 		}),
 
+	/**
+	 * Retrieves daily bot usage for the current month in the specified timezone
+	 * Empty days are included with zero usage values
+	 * @param {object} input - Input parameters
+	 * @param {string} input.timeZone - IANA timezone identifier (defaults to UTC)
+	 * @returns {Promise<DailyUsageType[]>} Array of daily usage data for the current month
+	 */
 	getMonthDailyUsage: protectedProcedure
 		.meta({
 			openapi: {
 				method: "GET",
 				path: "/usage/month",
 				description:
-					"Retreive a list of daily bot usage over the last month. Empty days will be reported as well.\n",
+					"Retrieve a list of daily bot usage over the last month. Empty days will be reported as well.\n",
 			},
 		})
 		.input(

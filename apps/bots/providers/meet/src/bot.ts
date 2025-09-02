@@ -340,16 +340,47 @@ export class GoogleMeetBot extends Bot {
 		await this.page.mouse.move(10, 672);
 		await this.page.mouse.move(102, 872);
 		await this.page.mouse.move(114, 1472);
+
 		await this.page.waitForTimeout(300);
+
 		await this.page.mouse.move(114, 100);
 		await this.page.mouse.click(100, 100);
 
 		// Navigate to meeting
-		await this.page.goto(this.meetingUrl, { waitUntil: "networkidle" });
+		// Ensure the meeting URL is valid and normalized before navigating
+		let normalizedUrl = this.meetingUrl.trim();
+
+		// Add protocol if not http or https (default to https)
+		if (
+			!normalizedUrl.startsWith("http://") &&
+			!normalizedUrl.startsWith("https://")
+		) {
+			normalizedUrl = `https://${normalizedUrl}`;
+		}
+
+		try {
+			// Validate the URL
+			const url = new URL(normalizedUrl);
+
+			console.log(`Navigating to "${url.href}", waiting until "networkidle"`);
+
+			await this.page.goto(url.href, {
+				waitUntil: "networkidle",
+			});
+		} catch (error) {
+			console.error(
+				`Invalid meeting URL provided: "${this.meetingUrl}". Error:`,
+				error,
+			);
+
+			throw new Error(
+				`Cannot navigate to invalid meeting URL: "${this.meetingUrl}"`,
+			);
+		}
 
 		console.log("Navigated to meeting URL");
 
-		await this.page.bringToFront(); // ensure active
+		await this.page.bringToFront(); // Ensure active
 
 		console.log("Waiting for the input field to be visible...");
 
@@ -363,7 +394,7 @@ export class GoogleMeetBot extends Bot {
 
 		await this.page.fill(enterNameField, name);
 
-		console.log("Turning Off Camera and Microphone ...");
+		console.log("Turning off camera and microphone...");
 
 		try {
 			await this.page.waitForTimeout(randomDelay(500));
@@ -372,14 +403,14 @@ export class GoogleMeetBot extends Bot {
 
 			await this.page.waitForTimeout(200);
 		} catch (_e) {
-			console.log("Could not turn off Microphone, probably already off.");
+			console.log("Could not turn off microphone, probably already off.");
 		}
 
 		try {
 			await this.page.click(cameraOffButton, { timeout: 200 });
 			await this.page.waitForTimeout(200);
 		} catch (_e) {
-			console.log("Could not turn off Camera -- probably already off.");
+			console.log("Could not turn off camera, probably already off.");
 		}
 
 		console.log(

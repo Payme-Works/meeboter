@@ -52,8 +52,8 @@ RUN pnpm install --frozen-lockfile
 
 RUN echo "Install Playwright dependencies"
 
-RUN pnpm dlx playwright@1.52.0 install-deps
-RUN pnpm dlx playwright@1.52.0 install --with-deps
+RUN pnpm dlx playwright@1.52 install-deps
+RUN pnpm dlx playwright@1.52 install --with-deps
 
 RUN echo "Create Playwright directory"
 

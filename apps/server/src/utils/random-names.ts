@@ -1,5 +1,6 @@
 /**
- * Brazilian first names for bot display names
+ * Collection of Brazilian first names used for generating bot display names
+ * Includes both traditional and modern Brazilian names for diverse representation
  */
 const FIRST_NAMES = [
 	"João",
@@ -205,7 +206,8 @@ const FIRST_NAMES = [
 ];
 
 /**
- * Brazilian last names for bot display names
+ * Collection of Brazilian last names used for generating bot display names
+ * Contains common surnames from Brazilian families and demographics
  */
 const LAST_NAMES = [
 	"Silva",
@@ -281,15 +283,19 @@ const LAST_NAMES = [
 ];
 
 /**
- * Generates random Brazilian names using composite algorithm
- * Rules:
- * - First name + last name (e.g., "João Silva")
- * - First name + first name (e.g., "João Pedro")
- * - Single first name only
- * - Last name + last name combinations are NOT allowed
+ * Generates random Brazilian names using composite algorithm implementation
  *
- * @param count Number of unique names to generate
- * @returns Array of unique Brazilian names
+ * Naming rules and patterns:
+ * - First name + last name combinations (e.g., "João Silva")
+ * - First name + first name combinations (e.g., "João Pedro")
+ * - Single first name only variations
+ * - Last name + last name combinations are explicitly NOT allowed
+ *
+ * Uses uniqueness validation to prevent duplicate names in the result set
+ * Falls back to numbered bot names if unique name generation fails after maximum attempts
+ *
+ * @param count - Number of unique names to generate
+ * @returns Array of unique Brazilian names following the specified naming rules
  */
 export function getRandomBrazilianNames(count: number): string[] {
 	const names: string[] = [];

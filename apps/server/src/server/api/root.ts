@@ -5,9 +5,11 @@ import { eventsRouter } from "./routers/events";
 import { usageRouter } from "./routers/usage";
 
 /**
- * This is the primary router for your server.
+ * Primary router for the tRPC server implementation
  *
- * All routers added in /api/routers should be manually added here.
+ * All routers added in /api/routers should be manually added here
+ *
+ * @returns The main application router with all sub-routers
  */
 export const appRouter = createTRPCRouter({
 	bots: botsRouter,
@@ -16,14 +18,22 @@ export const appRouter = createTRPCRouter({
 	usage: usageRouter,
 });
 
-// export type definition of API
+/**
+ * Type definition of the complete API for client-side usage
+ */
 export type AppRouter = typeof appRouter;
 
 /**
- * Create a server-side caller for the tRPC API.
+ * Creates a server-side caller for the tRPC API implementation
+ *
  * @example
+ * ```typescript
  * const trpc = createCaller(createContext);
  * const res = await trpc.post.all();
- *       ^? Post[]
+ * //    ^? Post[]
+ * ```
+ *
+ * @param context - The tRPC context to use for the caller
+ * @returns Server-side caller for the tRPC API
  */
 export const createCaller = createCallerFactory(appRouter);

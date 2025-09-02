@@ -1,5 +1,9 @@
 import type { Subscription } from "@/server/database/schema";
 
+/**
+ * Configuration interface for subscription plan settings
+ * Defines the structure and properties for paid subscription plans
+ */
 export interface SubscriptionConfig {
 	id: Subscription;
 	displayName: string;
@@ -13,6 +17,10 @@ export interface SubscriptionConfig {
 	buttonVariant: "default" | "outline" | "secondary";
 }
 
+/**
+ * Configuration interface for the free plan tier
+ * Specialized interface with fixed properties for the free tier
+ */
 export interface FreeConfig {
 	id: "FREE";
 	displayName: string;
@@ -23,6 +31,10 @@ export interface FreeConfig {
 	buttonVariant: "outline";
 }
 
+/**
+ * Free plan configuration with basic feature set
+ * Provides limited daily bot usage and standard support
+ */
 export const FREE_PLAN: FreeConfig = {
 	id: "FREE",
 	displayName: "Free Plan",
@@ -38,6 +50,10 @@ export const FREE_PLAN: FreeConfig = {
 	buttonVariant: "outline",
 };
 
+/**
+ * Collection of all available subscription plans with their configurations
+ * Maps subscription types to their respective feature sets and pricing
+ */
 export const SUBSCRIPTION_PLANS: Record<Subscription, SubscriptionConfig> = {
 	PRO: {
 		id: "PRO",
@@ -90,6 +106,12 @@ export const SUBSCRIPTION_PLANS: Record<Subscription, SubscriptionConfig> = {
 	},
 };
 
+/**
+ * Returns all subscription plans in display order implementation
+ * Combines free plan with paid subscription options for UI presentation
+ *
+ * @returns Array of all available plans ordered from free to enterprise tier
+ */
 export const getOrderedPlans = (): (FreeConfig | SubscriptionConfig)[] => {
 	return [
 		FREE_PLAN,

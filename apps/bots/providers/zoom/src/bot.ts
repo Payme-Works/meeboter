@@ -13,7 +13,7 @@ import {
 
 // const muteButton = 'button[aria-label="Mute"]';
 // const stopVideoButton = 'button[aria-label="Stop Video"]';
-// Constant Selectors
+// Constant selectors
 
 // Replaced buttons selector with IDs to avoid possible language mismatch
 const muteButton = "#preview-audio-control-button";
@@ -23,15 +23,34 @@ const leaveButton = 'button[aria-label="Leave"]';
 const acceptCookiesButton = "#onetrust-accept-btn-handler";
 const acceptTermsButton = "#wc_agree1";
 
+/**
+ * Zoom bot implementation for managing Zoom meeting automation and recording.
+ * Extends the base Bot class to provide Zoom-specific functionality including
+ * joining meetings, recording audio/video, and handling meeting lifecycle events.
+ */
 export class ZoomBot extends Bot {
+	/** Absolute path where the meeting recording will be saved */
 	recordingPath: string;
+	/** MIME type of the recording file (video/mp4) */
 	contentType: string;
+	/** Complete Zoom meeting URL with meeting ID and password */
 	url: string;
+	/** Puppeteer browser instance for web automation */
 	browser!: Browser;
+	/** Puppeteer page instance representing the meeting tab */
 	page!: Page;
+	/** File write stream for saving the recording */
 	file!: fs.WriteStream | null;
+	/** Transform stream for processing audio/video data */
 	stream!: Transform;
 
+	/**
+	 * Creates a new ZoomBot instance.
+	 * Initializes recording path, content type, and meeting URL based on bot configuration.
+	 *
+	 * @param botSettings - Configuration settings for the bot including meeting details
+	 * @param onEvent - Callback function for handling bot events and status updates
+	 */
 	constructor(
 		botSettings: BotConfig,
 		onEvent: (
@@ -45,7 +64,14 @@ export class ZoomBot extends Bot {
 		this.url = `https://app.zoom.us/wc/${this.settings.meetingInfo.meetingId}/join?fromPWA=1&pwd=${this.settings.meetingInfo.meetingPassword}`;
 	}
 
-	async screenshot(fName: string = "screenshot.png") {
+	/**
+	 * Takes a screenshot of the current page and saves it to /tmp directory.
+	 * Used for debugging and monitoring bot behavior during meeting participation.
+	 *
+	 * @param fName - Filename for the screenshot (defaults to "screenshot.png")
+	 * @returns Promise that resolves when screenshot is saved
+	 */
+	async screenshot(fName: string = "screenshot.png"): Promise<void> {
 		try {
 			if (!this.page) throw new Error("Page not initialized");
 
@@ -65,15 +91,26 @@ export class ZoomBot extends Bot {
 		}
 	}
 
+	/**
+	 * Checks if the bot has been kicked from the meeting.
+	 * Currently returns false as implementation is pending.
+	 *
+	 * @returns Promise that resolves to true if bot was kicked, false otherwise
+	 * @todo Implement detection logic for when bot is removed from meeting
+	 */
 	async checkKicked(): Promise<boolean> {
-		//TODO: Implement this
+		// TODO: Implement this
 		return false;
 	}
 
-	/** Launch browser
+	/**
+	 * Launches a headless browser with appropriate configuration for meeting automation.
+	 * Sets up browser permissions for camera/microphone access and prepares the page context.
+	 * Uses puppeteer-stream for video/audio capture capabilities.
 	 *
+	 * @returns Promise that resolves when browser is launched and configured
 	 */
-	async launchBrowser() {
+	async launchBrowser(): Promise<void> {
 		// Launch a browser and open the meeting
 		this.browser = (await launch({
 			executablePath: puppeteer.executablePath(),
@@ -105,10 +142,15 @@ export class ZoomBot extends Bot {
 	}
 
 	/**
-	 * Opens a browser and navigatges, joins the meeting.
-	 * @returns {Promise<void>}
+	 * Opens a browser, navigates to the meeting URL, and joins the Zoom meeting.
+	 * Handles various UI interactions including cookie acceptance, terms of service,
+	 * muting audio/video, entering bot name, and waiting for successful meeting entry.
+	 *
+	 * @returns Promise that resolves when bot has successfully joined the meeting
+	 * @throws {WaitingRoomTimeoutError} When bot is stuck in waiting room beyond timeout
+	 * @throws {Error} When browser or page initialization fails
 	 */
-	async joinMeeting() {
+	async joinMeeting(): Promise<void> {
 		// Launch
 		await this.launchBrowser();
 
@@ -117,12 +159,12 @@ export class ZoomBot extends Bot {
 		const urlObj = new URL(this.url);
 
 		// Navigates to the url
-		console.log("Atempting to open link");
+		console.log("Attempting to open link");
 		await page.goto(urlObj.href);
 		console.log("Page opened");
 
 		// Waits for the page's iframe to load
-		console.log("Wating for iFrame to load");
+		console.log("Waiting for iFrame to load");
 		const iframe = await page.waitForSelector(".pwa-webclient__iframe");
 		const frame = await iframe?.contentFrame();
 		console.log("Opened iFrame");
@@ -134,7 +176,7 @@ export class ZoomBot extends Bot {
 			// Waits for mute button to be clickable and clicks it
 			await new Promise((resolve) => setTimeout(resolve, 700)); // TODO: remove this line later
 
-			// Checking if Cookies modal popped up
+			// Checking if cookies modal popped up
 			try {
 				await frame.waitForSelector(acceptCookiesButton, {
 					timeout: 700,
@@ -147,7 +189,7 @@ export class ZoomBot extends Bot {
 				console.warn("Cookies modal not found");
 			}
 
-			// Waits for the TOS button be clickable and clicks them.
+			// Waits for the TOS button be clickable and clicks them
 			await new Promise((resolve) => setTimeout(resolve, 1000));
 
 			// Checking if TOS modal popped up
@@ -163,7 +205,7 @@ export class ZoomBot extends Bot {
 				console.warn("TOS modal not found");
 			}
 
-			// Waits for the mute and video button to be clickable and clicks them.
+			// Waits for the mute and video button to be clickable and clicks them
 			// The timeout is big to make sure buttons are initialized. With smaller one click doesn't work randomly and bot joins the meeting with sound and/or video
 			await new Promise((resolve) => setTimeout(resolve, 6000));
 
@@ -212,13 +254,18 @@ export class ZoomBot extends Bot {
 	}
 
 	/**
-	 * Start Recording the meeting.
+	 * Starts recording the meeting audio and video streams.
+	 * Creates a transform stream from the page and pipes it to a file write stream.
+	 * Recording is saved to the path specified in recordingPath property.
+	 *
+	 * @returns Promise that resolves when recording has started
+	 * @throws {Error} When page is not initialized
 	 */
-	async startRecording() {
+	async startRecording(): Promise<void> {
 		// Check if the page is initialized
 		if (!this.page) throw new Error("Page not initialized");
 
-		// Create the Stream
+		// Create the stream
 		this.stream = await getStream(
 			this.page as unknown as Parameters<typeof getStream>[0],
 			{
@@ -227,21 +274,32 @@ export class ZoomBot extends Bot {
 			},
 		);
 
-		// Create and Write the recording to a file, pipe the stream to a fileWriteStream
+		// Create and write the recording to a file, pipe the stream to a fileWriteStream
 		this.file = fs.createWriteStream(this.recordingPath);
 		this.stream.pipe(this.file);
 	}
 
 	/**
-	 * Stop Recording the meeting.
+	 * Stops the meeting recording by destroying the transform stream.
+	 * This closes the recording file and releases associated resources.
+	 *
+	 * @returns Promise that resolves when recording has stopped
 	 */
-	async stopRecording() {
+	async stopRecording(): Promise<void> {
 		// End the recording and close the file
 		if (this.stream) this.stream.destroy();
 	}
 
-	async run() {
-		// Navigate and join the meeting.
+	/**
+	 * Main execution method that orchestrates the complete bot lifecycle.
+	 * Joins the meeting, starts recording (if enabled), and monitors meeting status.
+	 * Continuously polls for meeting end conditions and handles cleanup when meeting ends.
+	 *
+	 * @returns Promise that resolves when meeting ends and bot lifecycle completes
+	 * @throws {Error} When browser or page initialization fails
+	 */
+	async run(): Promise<void> {
+		// Navigate and join the meeting
 		await this.joinMeeting();
 
 		// Ensure browser exists
@@ -249,7 +307,7 @@ export class ZoomBot extends Bot {
 
 		if (!this.page) throw new Error("Page is not initialized");
 
-		// Start Recording only if enabled
+		// Start recording only if enabled
 		if (this.settings.recordingEnabled) {
 			console.log("Starting Recording");
 			await this.startRecording();
@@ -257,7 +315,7 @@ export class ZoomBot extends Bot {
 			console.log("Recording is disabled for this bot");
 		}
 
-		// Get the Frame containing the meeting
+		// Get the frame containing the meeting
 		const iframe = await this.page.waitForSelector(".pwa-webclient__iframe");
 		const frame = await iframe?.contentFrame();
 
@@ -278,10 +336,10 @@ export class ZoomBot extends Bot {
 							// Click the button to leave the meeting
 							await okButton.click();
 
-							// Stop Recording
+							// Stop recording
 							this.stopRecording();
 
-							// End Life -- Close file, browser, and websocket server
+							// End life -- close file, browser, and websocket server
 							this.endLife();
 
 							resolve();
@@ -352,36 +410,54 @@ export class ZoomBot extends Bot {
 		await Promise.race([checkMeetingEnd(), checkIfMeetingRunning()]);
 	}
 
-	// Get the path to the recording file
+	/**
+	 * Gets the absolute file path where the meeting recording is saved.
+	 *
+	 * @returns The complete file path to the recording file
+	 */
 	getRecordingPath(): string {
 		return this.recordingPath;
 	}
 
+	/**
+	 * Gets speaker timeframes for the meeting recording.
+	 * Currently returns empty array as implementation is pending.
+	 *
+	 * @returns Array of speaker timeframes (empty until implemented)
+	 * @todo Implement speaker detection and timeframe tracking
+	 */
 	getSpeakerTimeframes(): SpeakerTimeframe[] {
 		// TODO: Implement this
 		return [];
 	}
 
-	// Get the content type of the recording file
+	/**
+	 * Gets the MIME type of the recording file.
+	 *
+	 * @returns The content type string ("video/mp4")
+	 */
 	getContentType(): string {
 		return this.contentType;
 	}
 
 	/**
-	 * Clean Resources, close the browser.
-	 * Ensure the filestream is closed as well.
+	 * Cleans up all resources and terminates the bot lifecycle.
+	 * Stops recording, closes file streams, shuts down browser, and closes websocket server.
+	 * This method should be called when the meeting ends or bot needs to terminate.
+	 *
+	 * @returns Promise that resolves when all cleanup operations are complete
 	 */
-	async endLife() {
-		// Ensure Recording is stopped in unideal situations
+	async endLife(): Promise<void> {
+		// Ensure recording is stopped in unideal situations
 		this.stopRecording();
 
-		// Close File if it exists
+		// Close file if it exists
 		if (this.file) {
 			this.file.close();
 			this.file = null;
 		}
 
-		// Close Browser
+		// Close browser
 		if (this.browser) {
 			await this.browser.close();
 

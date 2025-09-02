@@ -124,8 +124,8 @@ resource "aws_ecs_task_definition" "server" {
   family                   = "${local.name}-server"
   requires_compatibilities = ["EC2"]
   network_mode             = "bridge"
-  cpu                      = 512
-  memory                   = local.prod ? 1024 : 512
+  cpu                      = local.prod ? 2048 : 1024
+  memory                   = local.prod ? 4096 : 2048
   execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
   task_role_arn            = aws_iam_role.server_role.arn
 

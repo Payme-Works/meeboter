@@ -12,6 +12,14 @@ import {
 import { extractCount } from "@/server/utils/database";
 
 export const apiKeysRouter = createTRPCRouter({
+	/**
+	 * Creates a new API key for the authenticated user
+	 * Generates a secure random key and stores it with expiration date
+	 * @param {object} input - Input parameters
+	 * @param {string} input.name - Name for the API key
+	 * @param {Date} input.expiresAt - Expiration date (defaults to 6 months from creation)
+	 * @returns {Promise<object>} Created API key with generated key value
+	 */
 	createApiKey: protectedProcedure
 		.meta({
 			openapi: {
@@ -54,6 +62,11 @@ export const apiKeysRouter = createTRPCRouter({
 			return result[0];
 		}),
 
+	/**
+	 * Retrieves all API keys owned by the authenticated user
+	 * Returns list of API keys without exposing the actual key values
+	 * @returns {Promise<object[]>} Array of user's API keys
+	 */
 	listApiKeys: protectedProcedure
 		.meta({
 			openapi: {
@@ -71,6 +84,13 @@ export const apiKeysRouter = createTRPCRouter({
 				.where(eq(apiKeysTable.userId, ctx.session.user.id));
 		}),
 
+	/**
+	 * Revokes an API key by setting its revoked status to true
+	 * Only the owner of the API key can revoke it
+	 * @param {object} input - Input parameters
+	 * @param {string} input.id - ID of the API key to revoke
+	 * @returns {Promise<object>} Updated API key with revoked status
+	 */
 	revokeApiKey: protectedProcedure
 		.meta({
 			openapi: {
@@ -115,6 +135,15 @@ export const apiKeysRouter = createTRPCRouter({
 			return result[0];
 		}),
 
+	/**
+	 * Retrieves usage logs for a specific API key with pagination
+	 * Only the owner of the API key can view its logs
+	 * @param {object} input - Input parameters
+	 * @param {string} input.id - ID of the API key
+	 * @param {number} input.limit - Maximum number of logs to return (1-100, default 50)
+	 * @param {number} input.offset - Number of logs to skip (default 0)
+	 * @returns {Promise<object>} Object containing logs array and total count
+	 */
 	getApiKeyLogs: protectedProcedure
 		.meta({
 			openapi: {
@@ -191,6 +220,14 @@ export const apiKeysRouter = createTRPCRouter({
 			};
 		}),
 
+	/**
+	 * Retrieves usage logs for all API keys owned by the authenticated user
+	 * Provides pagination support for large result sets
+	 * @param {object} input - Input parameters
+	 * @param {number} input.limit - Maximum number of logs to return (1-100, default 50)
+	 * @param {number} input.offset - Number of logs to skip (default 0)
+	 * @returns {Promise<object>} Object containing logs array and total count
+	 */
 	getAllApiKeyLogs: protectedProcedure
 		.meta({
 			openapi: {
@@ -266,6 +303,11 @@ export const apiKeysRouter = createTRPCRouter({
 			};
 		}),
 
+	/**
+	 * Retrieves the total count of non-expired API keys owned by the authenticated user
+	 * Useful for displaying statistics or enforcing limits
+	 * @returns {Promise<object>} Object containing the count of active API keys
+	 */
 	getApiKeyCount: protectedProcedure
 		.meta({
 			openapi: {

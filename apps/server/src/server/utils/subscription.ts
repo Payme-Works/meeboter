@@ -8,8 +8,14 @@ import {
 	usersTable,
 } from "@/server/database/schema";
 
+/**
+ * Database type alias for subscription operations
+ */
 type Database = typeof db;
 
+/**
+ * User subscription information interface containing plan details and limits
+ */
 export interface UserSubscriptionInfo {
 	userId: string;
 	currentPlan: Subscription | "FREE";
@@ -20,6 +26,14 @@ export interface UserSubscriptionInfo {
 	subscriptionEndDate: Date | null;
 }
 
+/**
+ * Retrieves subscription information for a user including plan details and limits
+ *
+ * @param db - The database instance
+ * @param userId - The user ID to get subscription information for
+ * @returns User subscription information including current plan and limits
+ * @throws Error if the user is not found
+ */
 export async function getUserSubscriptionInfo(
 	db: Database,
 	userId: string,
@@ -83,6 +97,15 @@ export async function getUserSubscriptionInfo(
 	};
 }
 
+/**
+ * Calculates the daily bot usage for a user within a specific timezone
+ *
+ * @param db - The database instance
+ * @param userId - The user ID to calculate usage for
+ * @param date - The date to calculate usage for (defaults to current date)
+ * @param timezoneOffset - Timezone offset in minutes (defaults to 0 for UTC)
+ * @returns The number of bots used on the specified date
+ */
 export async function getDailyBotUsage(
 	db: Database,
 	userId: string,
@@ -118,6 +141,14 @@ export async function getDailyBotUsage(
 	return bots.length;
 }
 
+/**
+ * Validates whether a user can create a new bot based on their subscription and daily limits
+ *
+ * @param db - The database instance
+ * @param userId - The user ID to validate bot creation for
+ * @param timezoneOffset - Timezone offset in minutes (defaults to 0 for UTC)
+ * @returns Validation result containing allowed status, reason, usage, and limit information
+ */
 export async function validateBotCreation(
 	db: Database,
 	userId: string,

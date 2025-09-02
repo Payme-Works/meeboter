@@ -23,7 +23,15 @@ import {
 } from "@/server/utils/subscription";
 import { deployBot, shouldDeployImmediately } from "../services/bot-deployment";
 
+/**
+ * TRPC router implementation for bot management operations.
+ * Provides endpoints for creating, updating, deleting, and managing bots.
+ */
 export const botsRouter = createTRPCRouter({
+	/**
+	 * Retrieves all bots belonging to the authenticated user.
+	 * @returns Promise<Bot[]> Array of bot objects ordered by creation date
+	 */
 	getBots: protectedProcedure
 		.meta({
 			openapi: {
@@ -34,7 +42,7 @@ export const botsRouter = createTRPCRouter({
 		})
 		.input(z.void())
 		.output(z.array(selectBotSchema))
-		.query(async ({ ctx }) => {
+		.query(async ({ ctx }): Promise<(typeof selectBotSchema._output)[]> => {
 			return await ctx.db
 				.select()
 				.from(botsTable)
@@ -42,6 +50,13 @@ export const botsRouter = createTRPCRouter({
 				.orderBy(botsTable.createdAt);
 		}),
 
+	/**
+	 * Retrieves a specific bot by its ID.
+	 * @param input - Object containing the bot ID
+	 * @param input.id - The bot ID to retrieve
+	 * @returns Promise<Bot> The bot object if found and belongs to the user
+	 * @throws Error if bot is not found or doesn't belong to the user
+	 */
 	getBot: protectedProcedure
 		.meta({
 			openapi: {
@@ -56,7 +71,7 @@ export const botsRouter = createTRPCRouter({
 			}),
 		)
 		.output(selectBotSchema)
-		.query(async ({ input, ctx }) => {
+		.query(async ({ input, ctx }): Promise<typeof selectBotSchema._output> => {
 			const result = await ctx.db
 				.select()
 				.from(botsTable)
@@ -69,6 +84,23 @@ export const botsRouter = createTRPCRouter({
 			return result[0];
 		}),
 
+	/**
+	 * Creates a new bot with the specified configuration.
+	 * Validates subscription limits and deploys the bot immediately if scheduled for immediate start.
+	 * @param input - Bot configuration data
+	 * @param input.botDisplayName - Display name for the bot
+	 * @param input.botImage - Optional bot image URL
+	 * @param input.meetingTitle - Title of the meeting the bot will join
+	 * @param input.meetingInfo - Meeting connection information
+	 * @param input.startTime - Scheduled start time for the bot
+	 * @param input.endTime - Scheduled end time for the bot
+	 * @param input.recordingEnabled - Whether recording should be enabled
+	 * @param input.heartbeatInterval - Heartbeat interval in milliseconds
+	 * @param input.automaticLeave - Configuration for automatic leave behavior
+	 * @param input.callbackUrl - Optional URL to call when bot completes
+	 * @returns Promise<Bot> The created bot object
+	 * @throws Error if bot creation is not allowed or fails
+	 */
 	createBot: protectedProcedure
 		.meta({
 			openapi: {
@@ -93,97 +125,106 @@ export const botsRouter = createTRPCRouter({
 			}),
 		)
 		.output(selectBotSchema)
-		.mutation(async ({ input, ctx }) => {
-			console.log("Starting bot creation...");
+		.mutation(
+			async ({ input, ctx }): Promise<typeof selectBotSchema._output> => {
+				console.log("Starting bot creation...");
 
-			try {
-				// Test database connection
-				await ctx.db.execute(sql`SELECT 1`);
+				try {
+					// Test database connection
+					await ctx.db.execute(sql`SELECT 1`);
 
-				console.log("Database connection successful");
+					console.log("Database connection successful");
 
-				// Validate bot creation limits
-				const validation = await validateBotCreation(
-					ctx.db,
-					ctx.session.user.id,
-					0, // Keep using 0 for compatibility - subscription validation uses different logic
-				);
+					// Validate bot creation limits
+					const validation = await validateBotCreation(
+						ctx.db,
+						ctx.session.user.id,
+						0, // Keep using 0 for compatibility - subscription validation uses different logic
+					);
 
-				if (!validation.allowed) {
-					throw new Error(validation.reason || "Bot creation not allowed");
+					if (!validation.allowed) {
+						throw new Error(validation.reason || "Bot creation not allowed");
+					}
+
+					console.log(
+						`Bot creation allowed. Current usage: ${validation.usage}/${validation.limit ?? "unlimited"}`,
+					);
+
+					// Extract database fields from input
+					const dbInput = {
+						botDisplayName: input.botDisplayName ?? "Live Boost",
+						botImage: input.botImage,
+						userId: ctx.session.user.id,
+						meetingTitle: input.meetingTitle ?? "Meeting",
+						meetingInfo: input.meetingInfo,
+						startTime: input.startTime,
+						endTime: input.endTime,
+						recordingEnabled: input.recordingEnabled ?? false,
+						heartbeatInterval: input.heartbeatInterval ?? 10000,
+						automaticLeave: input.automaticLeave
+							? {
+									waitingRoomTimeout: Math.max(
+										input.automaticLeave.waitingRoomTimeout ?? 300000,
+										60000,
+									), // Minimum 60 seconds
+									noOneJoinedTimeout: Math.max(
+										input.automaticLeave.noOneJoinedTimeout ?? 300000,
+										60000,
+									), // Minimum 60 seconds
+									everyoneLeftTimeout: Math.max(
+										input.automaticLeave.everyoneLeftTimeout ?? 300000,
+										60000,
+									), // Minimum 60 seconds
+									inactivityTimeout: Math.max(
+										input.automaticLeave.inactivityTimeout ?? 300000,
+										60000,
+									), // Minimum 60 seconds
+								}
+							: {
+									waitingRoomTimeout: 300000, // 5 minutes (default)
+									noOneJoinedTimeout: 300000, // 5 minutes (default)
+									everyoneLeftTimeout: 300000, // 5 minutes (default)
+									inactivityTimeout: 300000, // 5 minutes (default)
+								},
+						callbackUrl: input.callbackUrl, // Credit to @martinezpl for this line -- cannot merge at time of writing due to capstone requirements
+					};
+
+					const result = await ctx.db
+						.insert(botsTable)
+						.values(dbInput)
+						.returning();
+
+					if (!result[0]) {
+						throw new Error("Bot creation failed - no result returned");
+					}
+
+					// Check if we should deploy immediately
+					if (await shouldDeployImmediately(input.startTime)) {
+						console.log("Deploying bot immediately...");
+
+						return await deployBot({
+							botId: result[0].id,
+							db: ctx.db,
+						});
+					}
+
+					return result[0];
+				} catch (error) {
+					console.error("Error creating bot:", error);
+
+					throw error;
 				}
+			},
+		),
 
-				console.log(
-					`Bot creation allowed. Current usage: ${validation.usage}/${validation.limit ?? "unlimited"}`,
-				);
-
-				// Extract database fields from input
-
-				const dbInput = {
-					botDisplayName: input.botDisplayName ?? "Live Boost",
-					botImage: input.botImage,
-					userId: ctx.session.user.id,
-					meetingTitle: input.meetingTitle ?? "Meeting",
-					meetingInfo: input.meetingInfo,
-					startTime: input.startTime,
-					endTime: input.endTime,
-					recordingEnabled: input.recordingEnabled ?? false,
-					heartbeatInterval: input.heartbeatInterval ?? 5000,
-					automaticLeave: input.automaticLeave
-						? {
-								waitingRoomTimeout: Math.max(
-									input.automaticLeave.waitingRoomTimeout ?? 300000,
-									60000,
-								), // minimum 60 seconds
-								noOneJoinedTimeout: Math.max(
-									input.automaticLeave.noOneJoinedTimeout ?? 300000,
-									60000,
-								), // minimum 60 seconds
-								everyoneLeftTimeout: Math.max(
-									input.automaticLeave.everyoneLeftTimeout ?? 300000,
-									60000,
-								), // minimum 60 seconds
-								inactivityTimeout: Math.max(
-									input.automaticLeave.inactivityTimeout ?? 300000,
-									60000,
-								), // minimum 60 seconds
-							}
-						: {
-								waitingRoomTimeout: 300000, // 5 minutes (default)
-								noOneJoinedTimeout: 300000, // 5 minutes (default)
-								everyoneLeftTimeout: 300000, // 5 minutes (default)
-								inactivityTimeout: 300000, // 5 minutes (default)
-							},
-					callbackUrl: input.callbackUrl, // Credit to @martinezpl for this line -- cannot merge at time of writing due to capstone requirements
-				};
-
-				const result = await ctx.db
-					.insert(botsTable)
-					.values(dbInput)
-					.returning();
-
-				if (!result[0]) {
-					throw new Error("Bot creation failed - no result returned");
-				}
-
-				// Check if we should deploy immediately
-				if (await shouldDeployImmediately(input.startTime)) {
-					console.log("Deploying bot immediately...");
-
-					return await deployBot({
-						botId: result[0].id,
-						db: ctx.db,
-					});
-				}
-
-				return result[0];
-			} catch (error) {
-				console.error("Error creating bot:", error);
-
-				throw error;
-			}
-		}),
-
+	/**
+	 * Updates an existing bot's configuration.
+	 * @param input - Object containing bot ID and update data
+	 * @param input.id - The ID of the bot to update
+	 * @param input.data - Partial bot data to update
+	 * @returns Promise<Bot> The updated bot object
+	 * @throws Error if bot is not found or doesn't belong to the user
+	 */
 	updateBot: protectedProcedure
 		.meta({
 			openapi: {
@@ -203,30 +244,43 @@ export const botsRouter = createTRPCRouter({
 			}),
 		)
 		.output(selectBotSchema)
-		.mutation(async ({ input, ctx }) => {
-			// Check if the bot belongs to the user
-			const bot = await ctx.db
-				.select()
-				.from(botsTable)
-				.where(eq(botsTable.id, input.id));
+		.mutation(
+			async ({ input, ctx }): Promise<typeof selectBotSchema._output> => {
+				// Check if the bot belongs to the user
+				const bot = await ctx.db
+					.select()
+					.from(botsTable)
+					.where(eq(botsTable.id, input.id));
 
-			if (!bot[0] || bot[0].userId !== ctx.session.user.id) {
-				throw new Error("Bot not found");
-			}
+				if (!bot[0] || bot[0].userId !== ctx.session.user.id) {
+					throw new Error("Bot not found");
+				}
 
-			const result = await ctx.db
-				.update(botsTable)
-				.set(input.data)
-				.where(eq(botsTable.id, input.id))
-				.returning();
+				const result = await ctx.db
+					.update(botsTable)
+					.set(input.data)
+					.where(eq(botsTable.id, input.id))
+					.returning();
 
-			if (!result[0]) {
-				throw new Error("Bot not found");
-			}
+				if (!result[0]) {
+					throw new Error("Bot not found");
+				}
 
-			return result[0];
-		}),
+				return result[0];
+			},
+		),
 
+	/**
+	 * Updates the status of a bot and handles completion logic.
+	 * When status is set to DONE, processes recording data and triggers callback URL if configured.
+	 * @param input - Object containing bot status update data
+	 * @param input.id - The ID of the bot to update
+	 * @param input.status - The new status to set
+	 * @param input.recording - Optional recording URL (required when status is DONE and recording is enabled)
+	 * @param input.speakerTimeframes - Optional speaker timeframe data
+	 * @returns Promise<Bot> The updated bot object
+	 * @throws Error if bot is not found or recording is required but missing
+	 */
 	updateBotStatus: publicProcedure
 		.meta({
 			openapi: {
@@ -244,83 +298,92 @@ export const botsRouter = createTRPCRouter({
 			}),
 		)
 		.output(selectBotSchema)
-		.mutation(async ({ input, ctx }) => {
-			// First get the bot to check if recording is enabled
-			const botRecord = await ctx.db
-				.select({ recordingEnabled: botsTable.recordingEnabled })
-				.from(botsTable)
-				.where(eq(botsTable.id, input.id))
-				.limit(1);
-
-			if (!botRecord[0]) {
-				throw new Error("Bot not found");
-			}
-
-			// Validate recording requirement only if recording is enabled
-			if (
-				input.status === "DONE" &&
-				botRecord[0].recordingEnabled &&
-				!input.recording
-			) {
-				throw new Error(
-					"Recording is required when status is DONE and recording is enabled",
-				);
-			}
-
-			const result = await ctx.db
-				.update(botsTable)
-				.set({ status: input.status })
-				.where(eq(botsTable.id, input.id))
-				.returning();
-
-			if (!result[0]) {
-				throw new Error("Bot not found");
-			}
-
-			// Get the bot to check for callback URL
-			const bot = (
-				await ctx.db
-					.select({
-						callbackUrl: botsTable.callbackUrl,
-						id: botsTable.id,
-					})
+		.mutation(
+			async ({ input, ctx }): Promise<typeof selectBotSchema._output> => {
+				// First get the bot to check if recording is enabled
+				const botRecord = await ctx.db
+					.select({ recordingEnabled: botsTable.recordingEnabled })
 					.from(botsTable)
 					.where(eq(botsTable.id, input.id))
-			)[0];
+					.limit(1);
 
-			if (!bot) {
-				throw new Error("Bot not found");
-			}
+				if (!botRecord[0]) {
+					throw new Error("Bot not found");
+				}
 
-			if (input.status === "DONE") {
-				// add the recording to the bot
-				await ctx.db
+				// Validate recording requirement only if recording is enabled
+				if (
+					input.status === "DONE" &&
+					botRecord[0].recordingEnabled &&
+					!input.recording
+				) {
+					throw new Error(
+						"Recording is required when status is DONE and recording is enabled",
+					);
+				}
+
+				const result = await ctx.db
 					.update(botsTable)
-					.set({
-						recording: input.recording,
-						speakerTimeframes: input.speakerTimeframes,
-					})
-					.where(eq(botsTable.id, bot.id));
+					.set({ status: input.status })
+					.where(eq(botsTable.id, input.id))
+					.returning();
 
-				if (bot.callbackUrl) {
-					// call the callback url
-					try {
-						await fetch(bot.callbackUrl, {
-							method: "POST",
-							body: JSON.stringify({
-								botId: bot.id,
-								status: input.status,
-							}),
-						});
-					} catch (error) {
-						console.error("Error calling callback URL:", error);
+				if (!result[0]) {
+					throw new Error("Bot not found");
+				}
+
+				// Get the bot to check for callback URL
+				const bot = (
+					await ctx.db
+						.select({
+							callbackUrl: botsTable.callbackUrl,
+							id: botsTable.id,
+						})
+						.from(botsTable)
+						.where(eq(botsTable.id, input.id))
+				)[0];
+
+				if (!bot) {
+					throw new Error("Bot not found");
+				}
+
+				if (input.status === "DONE") {
+					// Add the recording to the bot
+					await ctx.db
+						.update(botsTable)
+						.set({
+							recording: input.recording,
+							speakerTimeframes: input.speakerTimeframes,
+						})
+						.where(eq(botsTable.id, bot.id));
+
+					if (bot.callbackUrl) {
+						// Call the callback url
+						try {
+							await fetch(bot.callbackUrl, {
+								method: "POST",
+								body: JSON.stringify({
+									botId: bot.id,
+									status: input.status,
+								}),
+							});
+						} catch (error) {
+							console.error("Error calling callback URL:", error);
+						}
 					}
 				}
-			}
 
-			return result[0];
-		}),
+				return result[0];
+			},
+		),
 
+	/**
+	 * Deletes a bot by its ID.
+	 * @param input - Object containing the bot ID
+	 * @param input.id - The ID of the bot to delete
+	 * @returns Promise<{message: string}> Success message
+	 * @throws Error if bot is not found or doesn't belong to the user
+	 */
 	deleteBot: protectedProcedure
 		.meta({
 			openapi: {
@@ -339,7 +402,7 @@ export const botsRouter = createTRPCRouter({
 				message: z.string(),
 			}),
 		)
-		.mutation(async ({ input, ctx }) => {
+		.mutation(async ({ input, ctx }): Promise<{ message: string }> => {
 			// Check if the bot belongs to the user
 			const bot = await ctx.db
 				.select()
@@ -362,6 +425,13 @@ export const botsRouter = createTRPCRouter({
 			return { message: "Bot deleted successfully" };
 		}),
 
+	/**
+	 * Generates a signed URL for accessing a bot's recording.
+	 * @param input - Object containing the bot ID
+	 * @param input.id - The ID of the bot whose recording URL is requested
+	 * @returns Promise<{recordingUrl: string | null}> The signed recording URL or null if no recording exists
+	 * @throws Error if bot is not found
+	 */
 	getSignedRecordingUrl: protectedProcedure
 		.meta({
 			openapi: {
@@ -381,7 +451,7 @@ export const botsRouter = createTRPCRouter({
 				recordingUrl: z.string().nullable(),
 			}),
 		)
-		.query(async ({ input, ctx }) => {
+		.query(async ({ input, ctx }): Promise<{ recordingUrl: string | null }> => {
 			const result = await ctx.db
 				.select({ recording: botsTable.recording })
 				.from(botsTable)
@@ -400,6 +470,14 @@ export const botsRouter = createTRPCRouter({
 			return { recordingUrl: signedUrl };
 		}),
 
+	/**
+	 * Processes heartbeat signals from bot scripts to indicate the bot is still running.
+	 * Updates the bot's last heartbeat timestamp.
+	 * @param input - Object containing the bot ID
+	 * @param input.id - The ID of the bot sending the heartbeat
+	 * @returns Promise<{success: boolean}> Success indicator
+	 * @throws Error if bot is not found
+	 */
 	heartbeat: publicProcedure
 		.meta({
 			openapi: {
@@ -419,7 +497,7 @@ export const botsRouter = createTRPCRouter({
 				success: z.boolean(),
 			}),
 		)
-		.mutation(async ({ input, ctx }) => {
+		.mutation(async ({ input, ctx }): Promise<{ success: boolean }> => {
 			console.log("Heartbeat received for bot", input.id);
 
 			// Update bot's last heartbeat
@@ -436,6 +514,13 @@ export const botsRouter = createTRPCRouter({
 			return { success: true };
 		}),
 
+	/**
+	 * Records events that occur during a bot session.
+	 * @param input - Object containing bot ID and event data
+	 * @param input.id - The ID of the bot reporting the event
+	 * @param input.event - The event data to record
+	 * @returns Promise<{success: boolean}> Success indicator
+	 */
 	reportEvent: publicProcedure
 		.meta({
 			openapi: {
@@ -456,7 +541,7 @@ export const botsRouter = createTRPCRouter({
 				success: z.boolean(),
 			}),
 		)
-		.mutation(async ({ input, ctx }) => {
+		.mutation(async ({ input, ctx }): Promise<{ success: boolean }> => {
 			// Insert the event
 			await ctx.db.insert(events).values({
 				...input.event,
@@ -466,6 +551,13 @@ export const botsRouter = createTRPCRouter({
 			return { success: true };
 		}),
 
+	/**
+	 * Deploys a bot by provisioning necessary resources and starting it up.
+	 * @param input - Object containing the bot ID
+	 * @param input.id - The ID of the bot to deploy
+	 * @returns Promise<Bot> The deployed bot object
+	 * @throws Error if bot is not found or doesn't belong to the user
+	 */
 	deployBot: protectedProcedure
 		.meta({
 			openapi: {
@@ -477,23 +569,30 @@ export const botsRouter = createTRPCRouter({
 		})
 		.input(z.object({ id: z.string().transform((val) => Number(val)) }))
 		.output(selectBotSchema)
-		.mutation(async ({ input, ctx }) => {
-			// Check if the bot belongs to the user
-			const bot = await ctx.db
-				.select()
-				.from(botsTable)
-				.where(eq(botsTable.id, input.id));
+		.mutation(
+			async ({ input, ctx }): Promise<typeof selectBotSchema._output> => {
+				// Check if the bot belongs to the user
+				const bot = await ctx.db
+					.select()
+					.from(botsTable)
+					.where(eq(botsTable.id, input.id));
 
-			if (!bot[0] || bot[0].userId !== ctx.session.user.id) {
-				throw new Error("Bot not found");
-			}
+				if (!bot[0] || bot[0].userId !== ctx.session.user.id) {
+					throw new Error("Bot not found");
+				}
 
-			return await deployBot({
-				botId: input.id,
-				db: ctx.db,
-			});
-		}),
+				return await deployBot({
+					botId: input.id,
+					db: ctx.db,
+				});
+			},
+		),
 
+	/**
+	 * Retrieves the count of currently active bots for the authenticated user.
+	 * Active bots are those not in DONE or FATAL status.
+	 * @returns Promise<{count: number}> The count of active bots
+	 */
 	getActiveBotCount: protectedProcedure
 		.meta({
 			openapi: {
@@ -509,7 +608,7 @@ export const botsRouter = createTRPCRouter({
 				count: z.number(),
 			}),
 		)
-		.query(async ({ ctx }) => {
+		.query(async ({ ctx }): Promise<{ count: number }> => {
 			const result = await ctx.db
 				.select({ count: sql<number>`count(*)` })
 				.from(botsTable)
@@ -523,6 +622,10 @@ export const botsRouter = createTRPCRouter({
 			return { count: extractCount(result) };
 		}),
 
+	/**
+	 * Retrieves the current user's subscription information including plan details and limits.
+	 * @returns Promise<SubscriptionInfo> User subscription information
+	 */
 	getUserSubscription: protectedProcedure
 		.meta({
 			openapi: {
@@ -542,22 +645,40 @@ export const botsRouter = createTRPCRouter({
 				subscriptionEndDate: z.date().nullable(),
 			}),
 		)
-		.query(async ({ ctx }) => {
-			const subscriptionInfo = await getUserSubscriptionInfo(
-				ctx.db,
-				ctx.session.user.id,
-			);
+		.query(
+			async ({
+				ctx,
+			}): Promise<{
+				currentPlan: string;
+				dailyBotLimit: number | null;
+				customDailyBotLimit: number | null;
+				effectiveDailyLimit: number | null;
+				subscriptionActive: boolean;
+				subscriptionEndDate: Date | null;
+			}> => {
+				const subscriptionInfo = await getUserSubscriptionInfo(
+					ctx.db,
+					ctx.session.user.id,
+				);
 
-			return {
-				currentPlan: subscriptionInfo.currentPlan,
-				dailyBotLimit: subscriptionInfo.dailyBotLimit,
-				customDailyBotLimit: subscriptionInfo.customDailyBotLimit,
-				effectiveDailyLimit: subscriptionInfo.effectiveDailyLimit,
-				subscriptionActive: subscriptionInfo.subscriptionActive,
-				subscriptionEndDate: subscriptionInfo.subscriptionEndDate,
-			};
-		}),
+				return {
+					currentPlan: subscriptionInfo.currentPlan,
+					dailyBotLimit: subscriptionInfo.dailyBotLimit,
+					customDailyBotLimit: subscriptionInfo.customDailyBotLimit,
+					effectiveDailyLimit: subscriptionInfo.effectiveDailyLimit,
+					subscriptionActive: subscriptionInfo.subscriptionActive,
+					subscriptionEndDate: subscriptionInfo.subscriptionEndDate,
+				};
+			},
+		),
 
+	/**
+	 * Retrieves the user's daily bot usage statistics for a specific date.
+	 * @param input - Optional input parameters
+	 * @param input.date - Optional date in YYYY-MM-DD format (defaults to current date)
+	 * @param input.timeZone - IANA timezone for date calculation (defaults to UTC)
+	 * @returns Promise<UsageInfo> Daily usage information including current usage, limits, and remaining quota
+	 */
 	getDailyUsage: protectedProcedure
 		.meta({
 			openapi: {
@@ -582,29 +703,39 @@ export const botsRouter = createTRPCRouter({
 				remaining: z.number().nullable(),
 			}),
 		)
-		.query(async ({ input, ctx }) => {
-			const date = input?.date ? new Date(input.date) : new Date();
+		.query(
+			async ({
+				input,
+				ctx,
+			}): Promise<{
+				usage: number;
+				limit: number | null;
+				date: string;
+				remaining: number | null;
+			}> => {
+				const date = input?.date ? new Date(input.date) : new Date();
 
-			const subscriptionInfo = await getUserSubscriptionInfo(
-				ctx.db,
-				ctx.session.user.id,
-			);
+				const subscriptionInfo = await getUserSubscriptionInfo(
+					ctx.db,
+					ctx.session.user.id,
+				);
 
-			const usage = await getDailyBotUsage(
-				ctx.db,
-				ctx.session.user.id,
-				date,
-				0, // Keep using 0 for compatibility - will be updated later
-			);
+				const usage = await getDailyBotUsage(
+					ctx.db,
+					ctx.session.user.id,
+					date,
+					0, // Keep using 0 for compatibility - will be updated later
+				);
 
-			const limit = subscriptionInfo.effectiveDailyLimit;
-			const remaining = limit !== null ? Math.max(0, limit - usage) : null;
+				const limit = subscriptionInfo.effectiveDailyLimit;
+				const remaining = limit !== null ? Math.max(0, limit - usage) : null;
 
-			return {
-				usage,
-				limit,
-				date: date.toISOString().split("T")[0],
-				remaining,
-			};
-		}),
+				return {
+					usage,
+					limit,
+					date: date.toISOString().split("T")[0],
+					remaining,
+				};
+			},
+		),
 });
