@@ -35,4 +35,7 @@ fi
 CONTAINER_MEMORY_MB=$((CONTAINER_MEMORY_BYTES / 1024 / 1024))
 NODE_HEAP_SIZE=$(((CONTAINER_MEMORY_MB * 80) / 100))
 
+echo "Container memory: ${CONTAINER_MEMORY_MB}MB"
+echo "Node.js heap size: ${NODE_HEAP_SIZE}MB"
+
 exec node --max-old-space-size=${NODE_HEAP_SIZE} /app/apps/server/server.js
