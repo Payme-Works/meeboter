@@ -1,8 +1,8 @@
 /**
- * Collection of Brazilian first names used for generating bot display names
- * Includes both traditional and modern Brazilian names for diverse representation
+ * Collection of Brazilian male first names used for generating bot display names
+ * Includes both traditional and modern Brazilian male names for diverse representation
  */
-const FIRST_NAMES = [
+const MALE_FIRST_NAMES = [
 	"João",
 	"Pedro",
 	"Carlos",
@@ -83,6 +83,16 @@ const FIRST_NAMES = [
 	"Martin",
 	"Asafe",
 	"Calebe",
+	"Sebastião",
+	"Manoel",
+	"Raimundo",
+];
+
+/**
+ * Collection of Brazilian female first names used for generating bot display names
+ * Includes both traditional and modern Brazilian female names for diverse representation
+ */
+const FEMALE_FIRST_NAMES = [
 	"Alice",
 	"Sophia",
 	"Helena",
@@ -200,9 +210,6 @@ const FIRST_NAMES = [
 	"Raimunda",
 	"Benedita",
 	"Edna",
-	"Sebastião",
-	"Manoel",
-	"Raimundo",
 ];
 
 /**
@@ -287,9 +294,10 @@ const LAST_NAMES = [
  *
  * Naming rules and patterns:
  * - First name + last name combinations (e.g., "João Silva")
- * - First name + first name combinations (e.g., "João Pedro")
+ * - First name + first name combinations with gender consistency (e.g., "João Pedro", "Maria Alice")
  * - Single first name only variations
  * - Last name + last name combinations are explicitly NOT allowed
+ * - Composed first names maintain gender consistency (male+male or female+female only)
  *
  * Uses uniqueness validation to prevent duplicate names in the result set
  * Falls back to numbered bot names if unique name generation fails after maximum attempts
@@ -310,14 +318,17 @@ export function getRandomBrazilianNames(count: number): string[] {
 			const useComposite = Math.random() < 0.7;
 
 			if (useComposite) {
+				const isMale = Math.random() < 0.5;
+				const firstNameArray = isMale ? MALE_FIRST_NAMES : FEMALE_FIRST_NAMES;
+
 				const firstName =
-					FIRST_NAMES[Math.floor(Math.random() * FIRST_NAMES.length)];
+					firstNameArray[Math.floor(Math.random() * firstNameArray.length)];
 
 				const isFirstPlusFirst = Math.random() < 0.3;
 
 				if (isFirstPlusFirst) {
 					const secondFirstName =
-						FIRST_NAMES[Math.floor(Math.random() * FIRST_NAMES.length)];
+						firstNameArray[Math.floor(Math.random() * firstNameArray.length)];
 
 					newName = `${firstName} ${secondFirstName}`;
 				} else {
@@ -327,7 +338,11 @@ export function getRandomBrazilianNames(count: number): string[] {
 					newName = `${firstName} ${lastName}`;
 				}
 			} else {
-				newName = FIRST_NAMES[Math.floor(Math.random() * FIRST_NAMES.length)];
+				const isMale = Math.random() < 0.5;
+				const firstNameArray = isMale ? MALE_FIRST_NAMES : FEMALE_FIRST_NAMES;
+
+				newName =
+					firstNameArray[Math.floor(Math.random() * firstNameArray.length)];
 			}
 
 			attempts++;
