@@ -1,5 +1,6 @@
 import {
 	boolean,
+	index,
 	integer,
 	json,
 	pgTableCreator,
@@ -365,60 +366,85 @@ export type EventCode = z.infer<typeof eventCode>;
  * Database implementation for meeting bots
  * Stores bot configuration, status, and recording information
  */
-export const botsTable = pgTable("bots", {
-	/** Unique identifier for the bot */
-	id: serial("id").primaryKey(),
-	/** Display name shown for the bot in meetings */
-	botDisplayName: varchar("botDisplayName", { length: 255 }).notNull(),
-	/** URL to bot's avatar image */
-	botImage: varchar("botImage", { length: 255 }),
+export const botsTable = pgTable(
+	"bots",
+	{
+		/** Unique identifier for the bot */
+		id: serial("id").primaryKey(),
+		/** Display name shown for the bot in meetings */
+		botDisplayName: varchar("botDisplayName", { length: 255 }).notNull(),
+		/** URL to bot's avatar image */
+		botImage: varchar("botImage", { length: 255 }),
 
-	/** Reference to the user who owns this bot */
-	userId: text("userId")
-		.references(() => usersTable.id)
-		.notNull(),
+		/** Reference to the user who owns this bot */
+		userId: text("userId")
+			.references(() => usersTable.id)
+			.notNull(),
 
-	/** Title of the meeting this bot will join */
-	meetingTitle: varchar("meetingTitle", { length: 255 }).notNull(),
-	/** Platform-specific meeting connection details */
-	meetingInfo: json("meetingInfo").$type<MeetingInfo>().notNull(),
+		/** Title of the meeting this bot will join */
+		meetingTitle: varchar("meetingTitle", { length: 255 }).notNull(),
+		/** Platform-specific meeting connection details */
+		meetingInfo: json("meetingInfo").$type<MeetingInfo>().notNull(),
 
-	/** Scheduled start time for the meeting */
-	startTime: timestamp("startTime").notNull(),
-	/** Scheduled end time for the meeting */
-	endTime: timestamp("endTime").notNull(),
+		/** Scheduled start time for the meeting */
+		startTime: timestamp("startTime").notNull(),
+		/** Scheduled end time for the meeting */
+		endTime: timestamp("endTime").notNull(),
 
-	/** Path to the recorded audio file */
-	recording: varchar("recording", { length: 255 }),
-	/** Whether recording is enabled for this bot */
-	recordingEnabled: boolean("recordingEnabled").notNull().default(false),
-	/** Timeline of when each speaker was active */
-	speakerTimeframes: json("speakerTimeframes")
-		.$type<SpeakerTimeframe[]>()
-		.notNull()
-		.default([]),
-	/** Last time the bot sent a heartbeat signal */
-	lastHeartbeat: timestamp("lastHeartbeat"),
+		/** Path to the recorded audio file */
+		recording: varchar("recording", { length: 255 }),
+		/** Whether recording is enabled for this bot */
+		recordingEnabled: boolean("recordingEnabled").notNull().default(false),
+		/** Timeline of when each speaker was active */
+		speakerTimeframes: json("speakerTimeframes")
+			.$type<SpeakerTimeframe[]>()
+			.notNull()
+			.default([]),
+		/** Last time the bot sent a heartbeat signal */
+		lastHeartbeat: timestamp("lastHeartbeat"),
 
-	/** Current status of the bot */
-	status: varchar("status", { length: 255 })
-		.$type<Status>()
-		.notNull()
-		.default("READY_TO_DEPLOY"),
+		/** Current status of the bot */
+		status: varchar("status", { length: 255 })
+			.$type<Status>()
+			.notNull()
+			.default("READY_TO_DEPLOY"),
 
-	/** Error message if bot deployment failed */
-	deploymentError: varchar("deploymentError", { length: 1024 }),
+		/** Error message if bot deployment failed */
+		deploymentError: varchar("deploymentError", { length: 1024 }),
 
-	/** How often the bot sends heartbeat signals (milliseconds) */
-	heartbeatInterval: integer("heartbeatInterval").notNull(),
-	/** Configuration for automatic leave conditions */
-	automaticLeave: json("automaticLeave").$type<AutomaticLeave>().notNull(),
-	/** URL to send bot event notifications to */
-	callbackUrl: varchar("callbackUrl", { length: 1024 }),
+		/** How often the bot sends heartbeat signals (milliseconds) */
+		heartbeatInterval: integer("heartbeatInterval").notNull(),
+		/** Configuration for automatic leave conditions */
+		automaticLeave: json("automaticLeave").$type<AutomaticLeave>().notNull(),
+		/** URL to send bot event notifications to */
+		callbackUrl: varchar("callbackUrl", { length: 1024 }),
 
-	/** When this bot was created */
-	createdAt: timestamp("createdAt").defaultNow(),
-});
+		/** When this bot was created */
+		createdAt: timestamp("createdAt").defaultNow(),
+	},
+	(table) => {
+		return {
+			// Performance indexes for common query patterns
+			userIdIdx: index("bots_user_id_idx").on(table.userId),
+			statusIdx: index("bots_status_idx").on(table.status),
+			startTimeIdx: index("bots_start_time_idx").on(table.startTime),
+			endTimeIdx: index("bots_end_time_idx").on(table.endTime),
+			lastHeartbeatIdx: index("bots_last_heartbeat_idx").on(
+				table.lastHeartbeat,
+			),
+			// Compound indexes for common queries
+			userIdStatusIdx: index("bots_user_id_status_idx").on(
+				table.userId,
+				table.status,
+			),
+			userIdCreatedAtIdx: index("bots_user_id_created_at_idx").on(
+				table.userId,
+				table.createdAt,
+			),
+			createdAtIdx: index("bots_created_at_idx").on(table.createdAt),
+		};
+	},
+);
 
 /**
  * Validation schema for creating new bots
@@ -530,22 +556,46 @@ export type EventData = z.infer<typeof eventData>;
  * Database implementation for bot events
  * Stores all events that occur during bot lifecycle and meeting participation
  */
-export const events = pgTable("events", {
-	/** Unique identifier for this event */
-	id: serial("id").primaryKey(),
-	/** Reference to the bot that generated this event */
-	botId: integer("botId")
-		.references(() => botsTable.id)
-		.notNull(),
-	/** Type of event that occurred */
-	eventType: varchar("eventType", { length: 255 }).$type<EventCode>().notNull(),
-	/** When the event occurred */
-	eventTime: timestamp("eventTime").notNull(),
-	/** Additional data specific to the event type */
-	data: json("data").$type<EventData | null>(),
-	/** When this event record was created */
-	createdAt: timestamp("createdAt").defaultNow(),
-});
+export const events = pgTable(
+	"events",
+	{
+		/** Unique identifier for this event */
+		id: serial("id").primaryKey(),
+		/** Reference to the bot that generated this event */
+		botId: integer("botId")
+			.references(() => botsTable.id)
+			.notNull(),
+		/** Type of event that occurred */
+		eventType: varchar("eventType", { length: 255 })
+			.$type<EventCode>()
+			.notNull(),
+		/** When the event occurred */
+		eventTime: timestamp("eventTime").notNull(),
+		/** Additional data specific to the event type */
+		data: json("data").$type<EventData | null>(),
+		/** When this event record was created */
+		createdAt: timestamp("createdAt").defaultNow(),
+	},
+	(table) => {
+		return {
+			// Critical performance indexes for INSERT and query optimization
+			botIdIdx: index("events_bot_id_idx").on(table.botId),
+			eventTimeIdx: index("events_event_time_idx").on(table.eventTime),
+			eventTypeIdx: index("events_event_type_idx").on(table.eventType),
+			// Compound indexes for common query patterns
+			botIdEventTimeIdx: index("events_bot_id_event_time_idx").on(
+				table.botId,
+				table.eventTime,
+			),
+			botIdEventTypeIdx: index("events_bot_id_event_type_idx").on(
+				table.botId,
+				table.eventType,
+			),
+			// Created at index for chronological queries
+			createdAtIdx: index("events_created_at_idx").on(table.createdAt),
+		};
+	},
+);
 
 /**
  * Validation schema for creating new events

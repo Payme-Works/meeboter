@@ -1,8 +1,8 @@
 import dotenv from "dotenv";
 import { createBot } from "./bot";
-import { reportEvent, startHeartbeat } from "./monitoring";
+import { safeReportEvent, startHeartbeat } from "./monitoring";
 import { createS3Client, uploadRecordingToS3 } from "./s3";
-import { type BotConfig, EventCode } from "./types";
+import { type BotConfig, EventCode, type SpeakerTimeframe } from "./types";
 
 dotenv.config({ path: "../.env.test" }); // Load .env.test for testing
 dotenv.config();
@@ -63,23 +63,32 @@ export const main = async () => {
 		startHeartbeat(botId, heartbeatController.signal, heartbeatInterval);
 	}
 
-	// Report READY_TO_DEPLOY event
-	await reportEvent(botId, EventCode.READY_TO_DEPLOY);
+	// Report READY_TO_DEPLOY event (use safe reporting to prevent startup crashes)
+	await safeReportEvent(botId, EventCode.READY_TO_DEPLOY);
 
 	try {
 		// Run the bot
 		await bot.run().catch(async (error) => {
 			console.error("Error running bot:", error);
 
-			await reportEvent(botId, EventCode.FATAL, {
+			// Use safe reporting to prevent cascading failures
+			await safeReportEvent(botId, EventCode.FATAL, {
 				description: (error as Error).message,
 			});
 
 			// Check what's on the screen in case of an error
-			bot.screenshot();
+			try {
+				await bot.screenshot();
+			} catch (screenshotError) {
+				console.warn("Failed to take screenshot:", screenshotError);
+			}
 
 			// **Ensure** the bot cleans up its resources after a breaking error
-			await bot.endLife();
+			try {
+				await bot.endLife();
+			} catch (cleanupError) {
+				console.warn("Error during bot cleanup:", cleanupError);
+			}
 		});
 
 		// Upload recording to S3 only if recording was enabled
@@ -97,7 +106,8 @@ export const main = async () => {
 
 		console.error("Error running bot:", error);
 
-		await reportEvent(botId, EventCode.FATAL, {
+		// Use safe reporting to prevent secondary crashes
+		await safeReportEvent(botId, EventCode.FATAL, {
 			description: (error as Error).message,
 		});
 	}
@@ -110,13 +120,20 @@ export const main = async () => {
 	// Only report DONE if no error occurred
 	if (!hasErrorOccurred) {
 		// Report final DONE event
-		const speakerTimeframes = bot.settings.recordingEnabled
-			? bot.getSpeakerTimeframes()
-			: [];
+		let speakerTimeframes: SpeakerTimeframe[] = [];
+
+		try {
+			speakerTimeframes = bot.settings.recordingEnabled
+				? bot.getSpeakerTimeframes()
+				: [];
+		} catch (error) {
+			console.warn("Failed to get speaker timeframes:", error);
+		}
 
 		console.debug("Speaker timeframes:", speakerTimeframes);
 
-		await reportEvent(botId, EventCode.DONE, {
+		// Use safe reporting for final event
+		await safeReportEvent(botId, EventCode.DONE, {
 			recording: key || undefined,
 			speakerTimeframes,
 		});

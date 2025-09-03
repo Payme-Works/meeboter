@@ -71,9 +71,9 @@ resource "aws_launch_template" "ecs_instance" {
 resource "aws_autoscaling_group" "ecs_instances" {
   name                = "${local.name}-ecs-instances"
   vpc_zone_identifier = aws_subnet.public[*].id
-  min_size            = 1
+  min_size            = local.prod ? 2 : 1  # Keep 2 instances minimum in production for stability
   max_size            = local.prod ? 3 : 2  # Production can scale up to 3, dev/staging up to 2
-  desired_capacity    = 1
+  desired_capacity    = local.prod ? 2 : 1  # Start with 2 instances in production
 
   launch_template {
     id      = aws_launch_template.ecs_instance.id
@@ -110,7 +110,7 @@ resource "aws_ecs_capacity_provider" "ec2" {
       maximum_scaling_step_size = 1
       minimum_scaling_step_size = 1
       status                    = "ENABLED"
-      target_capacity           = 100
+      target_capacity           = 70  # Reduced from 100 to 70 to prevent aggressive scaling
     }
   }
 }

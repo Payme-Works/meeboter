@@ -128,7 +128,6 @@ export class GoogleMeetBot extends Bot {
 
 	private startedRecording: boolean = false;
 
-	private timeAloneStarted: number = Infinity;
 	private lastActivity: number | undefined = undefined;
 	private recordingStartedAt: number = 0;
 
@@ -672,22 +671,32 @@ export class GoogleMeetBot extends Bot {
 		}
 
 		// Check if "Return to Home Page" button exists (kick condition 1)
-		if (
-			(await this.page
-				.locator(gotKickedDetector)
-				.count()
-				.catch(() => 0)) > 0
-		) {
+		const returnHomeButtonCount = await this.page
+			.locator(gotKickedDetector)
+			.count()
+			.catch(() => 0);
+
+		console.log(
+			`Kick condition 1: "Return home" button count: ${returnHomeButtonCount}`,
+		);
+
+		if (returnHomeButtonCount > 0) {
+			console.log("Kick detected: Found 'Return to home screen' button");
+
 			return true;
 		}
 
 		// Hidden leave button (Kick condition 2)
-		if (
-			await this.page
-				.locator(leaveButton)
-				.isHidden({ timeout: 500 })
-				.catch(() => true)
-		) {
+		const leaveButtonHidden = await this.page
+			.locator(leaveButton)
+			.isHidden({ timeout: 500 })
+			.catch(() => true);
+
+		console.log(`Kick condition 2: Leave button hidden: ${leaveButtonHidden}`);
+
+		if (leaveButtonHidden) {
+			console.log("Kick detected: Leave button is hidden");
+
 			return true;
 		}
 
@@ -814,8 +823,8 @@ export class GoogleMeetBot extends Bot {
 					(p) => p.id !== participant.id,
 				);
 
-				this.timeAloneStarted =
-					this.participants.length === 1 ? Date.now() : Infinity;
+				// this.timeAloneStarted =
+				// 	this.participants.length === 1 ? Date.now() : Infinity;
 			},
 		);
 
@@ -1061,30 +1070,46 @@ export class GoogleMeetBot extends Bot {
 		console.log("Waiting until a leave condition is fulfilled..");
 
 		while (true) {
-			// Check if it's only me in the meeting
+			// DISABLED: Check if it's only me in the meeting
+			// This functionality has been temporarily disabled due to false positives
+			// where the bot incorrectly detects it's alone when other participants are present
+			/*
 			if (this.participants.length === 1) {
 				const leaveMs =
-					this.settings?.automaticLeave?.everyoneLeftTimeout ?? 30000; // Default to 30 seconds if not set
+					this.settings?.automaticLeave?.everyoneLeftTimeout ?? 60000;
 
 				const msDiff = Date.now() - this.timeAloneStarted;
 
 				console.log(
-					`Only me left in the meeting. Waiting for timeout time to have allocated (${msDiff / 1000} / ${leaveMs / 1000}s)`,
+					`[DEBUG] Only me left check - Participants: ${this.participants.length}, Time alone: ${msDiff / 1000}s / ${leaveMs / 1000}s`,
+				);
+				console.log(
+					`[DEBUG] Current participants: ${JSON.stringify(this.participants.map(p => ({ id: p.id, name: p.name })))}`,
 				);
 
 				if (msDiff > leaveMs) {
 					console.log(
-						"Only one participant remaining for more than allocated time, leaving the meeting",
+						"[DEBUG] LEAVING: Only one participant remaining for more than allocated time",
+					);
+					console.log(
+						`[DEBUG] LEAVE REASON: EVERYONE_LEFT_TIMEOUT - Was alone for ${msDiff / 1000}s (threshold: ${leaveMs / 1000}s)`,
 					);
 
 					break;
 				}
 			}
+			*/
+
+			console.log(
+				`Participants check: ${this.participants.length} participants detected (everyone-left detection DISABLED)`,
+			);
 
 			// Got kicked, no longer in the meeting
 			// Check each of the potential conditions
 			if (await this.checkKicked()) {
-				console.log("Detected that we were kicked from the meeting");
+				console.log("Leaving: Detected that we were kicked from the meeting");
+
+				console.log("Leave reason: KICKED");
 
 				this.kicked = true; // Store
 
@@ -1098,8 +1123,14 @@ export class GoogleMeetBot extends Bot {
 				Date.now() - this.lastActivity >
 					this.settings.automaticLeave.inactivityTimeout
 			) {
+				const inactiveTime = Date.now() - this.lastActivity;
+
 				console.log(
-					`No activity for ${this.settings.automaticLeave.inactivityTimeout / 1000} seconds`,
+					`Leave reason: INACTIVITY_TIMEOUT - No speaking detected for ${inactiveTime / 1000}s (threshold: ${this.settings.automaticLeave.inactivityTimeout / 1000}s)`,
+				);
+
+				console.log(
+					`Participants present: ${this.participants.length}, Last activity: ${new Date(this.lastActivity).toISOString()}`,
 				);
 
 				break;

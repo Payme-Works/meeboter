@@ -35,9 +35,9 @@ resource "aws_db_instance" "this" {
   identifier            = local.name
   engine                = "postgres"
   engine_version        = "17"
-  instance_class        = "db.t4g.micro"
-  allocated_storage     = 10
-  max_allocated_storage = 100
+  instance_class        = local.prod ? "db.t4g.small" : "db.t4g.micro"  # Upgrade production to small for better performance
+  allocated_storage     = local.prod ? 20 : 10  # Increase storage for production
+  max_allocated_storage = local.prod ? 200 : 100  # Allow more auto-scaling in production
 
   db_name  = "postgres"
   username = "postgres"
@@ -53,6 +53,41 @@ resource "aws_db_instance" "this" {
   backup_window           = "03:00-06:00"
   maintenance_window      = "Mon:00:00-Mon:03:00"
 
+  # Performance optimizations
+  parameter_group_name = local.prod ? aws_db_parameter_group.performance[0].name : null
+
   skip_final_snapshot = !local.prod
   deletion_protection = local.prod
+}
+
+// Database parameter group for production performance optimization
+resource "aws_db_parameter_group" "performance" {
+  count  = local.prod ? 1 : 0
+  family = "postgres17"
+  name   = "${local.name}-performance-pg"
+
+  # Optimize for high concurrent INSERT workload - using only dynamic parameters
+  parameter {
+    name  = "work_mem" 
+    value = "8192"   # 8MB in KB - improves sort/hash operations
+  }
+
+  parameter {
+    name  = "random_page_cost"
+    value = "1.1"    # Optimize for SSD storage - improves query planning
+  }
+
+  parameter {
+    name  = "checkpoint_completion_target"
+    value = "0.9"    # Smooth out checkpoint I/O - reduces spikes
+  }
+
+  parameter {
+    name  = "effective_cache_size"
+    value = "262144" # 256MB in KB - better query planner estimates for t4g.small
+  }
+
+  tags = {
+    Name = "${local.name}-performance-pg"
+  }
 }

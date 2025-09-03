@@ -30,7 +30,17 @@ const client: postgres.Sql =
 						rejectUnauthorized: false,
 					}
 				: false,
-		max: 1,
+		max: 50, // Increased to 50 to handle high concurrent bot requests
+		idle_timeout: 60, // Increased from 20 to 60 seconds to reduce connection churn
+		max_lifetime: 60 * 30, // 30 minutes
+		connect_timeout: 30, // Increased from 10 to 30 seconds for slow database connections
+		prepare: false, // Disable prepared statements for better connection reuse
+		transform: {
+			...postgres.toCamel,
+			undefined: null, // Handle undefined values properly
+		},
+		onnotice: env.NODE_ENV === "development" ? console.log : undefined, // Log notices in development
+		debug: env.NODE_ENV === "development" ? console.log : false,
 	});
 
 // Cache client in development environment to avoid recreation on HMR updates

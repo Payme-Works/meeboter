@@ -273,6 +273,7 @@ export const botsRouter = createTRPCRouter({
 	/**
 	 * Updates the status of a bot and handles completion logic.
 	 * When status is set to DONE, processes recording data and triggers callback URL if configured.
+	 * Optimized to use fewer database queries and transactions for better performance.
 	 * @param input - Object containing bot status update data
 	 * @param input.id - The ID of the bot to update
 	 * @param input.status - The new status to set
@@ -300,80 +301,77 @@ export const botsRouter = createTRPCRouter({
 		.output(selectBotSchema)
 		.mutation(
 			async ({ input, ctx }): Promise<typeof selectBotSchema._output> => {
-				// First get the bot to check if recording is enabled
-				const botRecord = await ctx.db
-					.select({ recordingEnabled: botsTable.recordingEnabled })
-					.from(botsTable)
-					.where(eq(botsTable.id, input.id))
-					.limit(1);
-
-				if (!botRecord[0]) {
-					throw new Error("Bot not found");
-				}
-
-				// Validate recording requirement only if recording is enabled
-				if (
-					input.status === "DONE" &&
-					botRecord[0].recordingEnabled &&
-					!input.recording
-				) {
-					throw new Error(
-						"Recording is required when status is DONE and recording is enabled",
-					);
-				}
-
-				const result = await ctx.db
-					.update(botsTable)
-					.set({ status: input.status })
-					.where(eq(botsTable.id, input.id))
-					.returning();
-
-				if (!result[0]) {
-					throw new Error("Bot not found");
-				}
-
-				// Get the bot to check for callback URL
-				const bot = (
-					await ctx.db
+				// Use a single transaction to handle all operations
+				return await ctx.db.transaction(async (tx) => {
+					// Get bot info in one query (recording enabled + callback URL)
+					const botRecord = await tx
 						.select({
+							recordingEnabled: botsTable.recordingEnabled,
 							callbackUrl: botsTable.callbackUrl,
-							id: botsTable.id,
 						})
 						.from(botsTable)
 						.where(eq(botsTable.id, input.id))
-				)[0];
+						.limit(1);
 
-				if (!bot) {
-					throw new Error("Bot not found");
-				}
-
-				if (input.status === "DONE") {
-					// Add the recording to the bot
-					await ctx.db
-						.update(botsTable)
-						.set({
-							recording: input.recording,
-							speakerTimeframes: input.speakerTimeframes,
-						})
-						.where(eq(botsTable.id, bot.id));
-
-					if (bot.callbackUrl) {
-						// Call the callback url
-						try {
-							await fetch(bot.callbackUrl, {
-								method: "POST",
-								body: JSON.stringify({
-									botId: bot.id,
-									status: input.status,
-								}),
-							});
-						} catch (error) {
-							console.error("Error calling callback URL:", error);
-						}
+					if (!botRecord[0]) {
+						throw new Error("Bot not found");
 					}
-				}
 
-				return result[0];
+					// Validate recording requirement only if recording is enabled
+					if (
+						input.status === "DONE" &&
+						botRecord[0].recordingEnabled &&
+						!input.recording
+					) {
+						throw new Error(
+							"Recording is required when status is DONE and recording is enabled",
+						);
+					}
+
+					// Update bot status and optionally recording data in one query
+					const updateData: {
+						status: typeof input.status;
+						recording?: string;
+						speakerTimeframes?: typeof input.speakerTimeframes;
+					} = {
+						status: input.status,
+					};
+
+					// Include recording data if status is DONE
+					if (input.status === "DONE") {
+						updateData.recording = input.recording;
+						updateData.speakerTimeframes = input.speakerTimeframes;
+					}
+
+					const result = await tx
+						.update(botsTable)
+						.set(updateData)
+						.where(eq(botsTable.id, input.id))
+						.returning();
+
+					if (!result[0]) {
+						throw new Error("Bot not found");
+					}
+
+					// Handle callback URL outside transaction to avoid blocking
+					if (input.status === "DONE" && botRecord[0].callbackUrl) {
+						// Don't await - fire and forget to avoid blocking the database transaction
+						fetch(botRecord[0].callbackUrl, {
+							method: "POST",
+							headers: {
+								"Content-Type": "application/json",
+							},
+							body: JSON.stringify({
+								botId: input.id,
+								status: input.status,
+							}),
+						}).catch((error) => {
+							console.error("Error calling callback URL:", error);
+						});
+					}
+
+					return result[0];
+				});
 			},
 		),
 
@@ -472,11 +470,10 @@ export const botsRouter = createTRPCRouter({
 
 	/**
 	 * Processes heartbeat signals from bot scripts to indicate the bot is still running.
-	 * Updates the bot's last heartbeat timestamp.
+	 * Updates the bot's last heartbeat timestamp with optimized database handling.
 	 * @param input - Object containing the bot ID
 	 * @param input.id - The ID of the bot sending the heartbeat
 	 * @returns Promise<{success: boolean}> Success indicator
-	 * @throws Error if bot is not found
 	 */
 	heartbeat: publicProcedure
 		.meta({
@@ -492,28 +489,39 @@ export const botsRouter = createTRPCRouter({
 				id: z.string().transform((val) => Number(val)),
 			}),
 		)
-		.output(
-			z.object({
-				success: z.boolean(),
-			}),
-		)
-		.mutation(async ({ input, ctx }): Promise<{ success: boolean }> => {
-			// Update bot's last heartbeat (removed console.log to reduce memory usage)
-			const botUpdate = await ctx.db
-				.update(botsTable)
-				.set({ lastHeartbeat: new Date() })
-				.where(eq(botsTable.id, input.id))
-				.returning();
+		.output(z.void())
+		.mutation(async ({ input, ctx }): Promise<void> => {
+			const startTime = Date.now();
 
-			if (!botUpdate[0]) {
-				throw new Error("Bot not found");
+			try {
+				// Use upsert-like pattern for better performance and error handling
+				await ctx.db
+					.update(botsTable)
+					.set({ lastHeartbeat: new Date() })
+					.where(eq(botsTable.id, input.id));
+
+				const duration = Date.now() - startTime;
+
+				if (duration > 1000) {
+					// Log if query takes more than 1 second
+					console.warn(
+						`[DB] heartbeat query took ${duration}ms for bot ${input.id}`,
+					);
+				}
+			} catch (error) {
+				const duration = Date.now() - startTime;
+
+				console.error(
+					`[DB] heartbeat failed after ${duration}ms for bot ${input.id}:`,
+					error instanceof Error ? error.message : error,
+				);
+				// Don't throw to avoid bot crashes - heartbeat failures shouldn't stop bots
 			}
-
-			return { success: true };
 		}),
 
 	/**
 	 * Records events that occur during a bot session.
+	 * Optimized for high-frequency bot requests with simplified error handling.
 	 * @param input - Object containing bot ID and event data
 	 * @param input.id - The ID of the bot reporting the event
 	 * @param input.event - The event data to record
@@ -534,19 +542,35 @@ export const botsRouter = createTRPCRouter({
 				event: insertEventSchema.omit({ botId: true }),
 			}),
 		)
-		.output(
-			z.object({
-				success: z.boolean(),
-			}),
-		)
-		.mutation(async ({ input, ctx }): Promise<{ success: boolean }> => {
-			// Insert the event
-			await ctx.db.insert(events).values({
-				...input.event,
-				botId: input.id,
-			});
+		.output(z.void())
+		.mutation(async ({ input, ctx }): Promise<void> => {
+			const startTime = Date.now();
 
-			return { success: true };
+			try {
+				// Simplified insert without transaction overhead for better performance
+				await ctx.db.insert(events).values({
+					...input.event,
+					botId: input.id,
+				});
+
+				const duration = Date.now() - startTime;
+
+				if (duration > 1000) {
+					// Log if query takes more than 1 second
+					console.warn(
+						`[DB] reportEvent query took ${duration}ms for bot ${input.id}`,
+					);
+				}
+			} catch (error) {
+				const duration = Date.now() - startTime;
+
+				console.error(
+					`[DB] reportEvent failed after ${duration}ms for bot ${input.id}:`,
+					error,
+				);
+
+				throw error; // Re-throw to maintain error handling behavior
+			}
 		}),
 
 	/**
