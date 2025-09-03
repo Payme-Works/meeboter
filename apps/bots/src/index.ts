@@ -1,6 +1,10 @@
 import dotenv from "dotenv";
 import { createBot } from "./bot";
-import { safeReportEvent, startHeartbeat } from "./monitoring";
+import {
+	safeReportEvent,
+	startDurationMonitor,
+	startHeartbeat,
+} from "./monitoring";
 import { createS3Client, uploadRecordingToS3 } from "./s3";
 import { type BotConfig, EventCode, type SpeakerTimeframe } from "./types";
 
@@ -51,16 +55,21 @@ export const main = async () => {
 	// Create the appropriate bot instance based on platform
 	const bot = await createBot(botData);
 
-	// Create AbortController for heartbeat
-	const heartbeatController = new AbortController();
+	// Create AbortController for heartbeat and duration monitor
+	const monitoringController = new AbortController();
+
+	// Record bot start time for duration monitoring
+	const botStartTime = new Date();
 
 	// Do not start heartbeat in development
 	if (process.env.NODE_ENV !== "development") {
-		console.log("Starting heartbeat");
+		console.log("Starting heartbeat and duration monitor");
 
 		const heartbeatInterval = botData.heartbeatInterval ?? 10000; // Default to 10 seconds if not set
 
-		startHeartbeat(botId, heartbeatController.signal, heartbeatInterval);
+		// Start both heartbeat and duration monitoring
+		startHeartbeat(botId, monitoringController.signal, heartbeatInterval);
+		startDurationMonitor(botId, botStartTime, monitoringController.signal);
 	}
 
 	// Report READY_TO_DEPLOY event (use safe reporting to prevent startup crashes)
@@ -112,10 +121,10 @@ export const main = async () => {
 		});
 	}
 
-	// After S3 upload and cleanup, stop the heartbeat
-	heartbeatController.abort();
+	// After S3 upload and cleanup, stop the monitoring
+	monitoringController.abort();
 
-	console.log("Bot execution completed, heartbeat stopped.");
+	console.log("Bot execution completed, monitoring stopped.");
 
 	// Only report DONE if no error occurred
 	if (!hasErrorOccurred) {

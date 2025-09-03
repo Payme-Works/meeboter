@@ -4,6 +4,11 @@ import { trpc } from "./trpc";
 import { EventCode, Status } from "./types";
 
 /**
+ * Maximum allowed bot duration in milliseconds (1 hour)
+ */
+const MAX_BOT_DURATION_MS = 1 * 60 * 60 * 1000; // 1 hour
+
+/**
  * Retry configuration for backend communication
  */
 const RETRY_CONFIG = {
@@ -172,6 +177,61 @@ export const reportEvent = async (
 		console.warn(
 			`[${new Date().toISOString()}] Event reporting failed after all retries: ${eventType} - Bot will continue operation`,
 		);
+	}
+};
+
+/**
+ * Monitors bot duration and terminates if it exceeds the maximum allowed time
+ * @param botId - ID of the bot to monitor
+ * @param startTime - When the bot started
+ * @param abortSignal - Signal to stop monitoring
+ */
+export const startDurationMonitor = async (
+	botId: number,
+	startTime: Date,
+	abortSignal: AbortSignal,
+) => {
+	// Check duration every minute
+	const checkInterval = 60000; // 1 minute
+
+	while (!abortSignal.aborted) {
+		const elapsedTime = Date.now() - startTime.getTime();
+
+		if (elapsedTime >= MAX_BOT_DURATION_MS) {
+			console.error(
+				`[${new Date().toISOString()}] Bot ${botId} exceeded maximum duration of 1 hour, terminating...`,
+			);
+
+			// Report FATAL event and exit
+			await safeReportEvent(botId, EventCode.FATAL, {
+				message: "Bot terminated: Exceeded maximum duration of 1 hour",
+				description:
+					"Bot automatically terminated due to 1-hour duration limit",
+				sub_code: "DURATION_LIMIT_EXCEEDED",
+			});
+
+			// Exit the process to terminate the bot
+			process.exit(1);
+		}
+
+		const remainingTime = MAX_BOT_DURATION_MS - elapsedTime;
+		const remainingMinutes = Math.floor(remainingTime / 1000 / 60);
+
+		// Log warning when 15 minutes remaining
+		if (remainingMinutes === 15) {
+			console.warn(
+				`[${new Date().toISOString()}] Bot ${botId} has 15 minutes remaining before automatic termination`,
+			);
+		}
+
+		// Log warning when 5 minutes remaining
+		if (remainingMinutes === 5) {
+			console.warn(
+				`[${new Date().toISOString()}] Bot ${botId} has 5 minutes remaining before automatic termination`,
+			);
+		}
+
+		await setTimeout(checkInterval);
 	}
 };
 
