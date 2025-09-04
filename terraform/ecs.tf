@@ -209,6 +209,10 @@ resource "aws_ecs_task_definition" "server" {
         {
           name  = "ECS_NETWORK_CONFIG_ASSIGN_PUBLIC_IP"
           value = "true"
+        },
+        {
+          name  = "APP_ORIGIN_URL"
+          value = "https://${local.workspace_domain}"
         }
       ]
 

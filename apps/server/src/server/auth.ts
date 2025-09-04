@@ -71,4 +71,10 @@ export const auth = betterAuth({
 	 * Retrieved from environment variables for security.
 	 */
 	secret: env.AUTH_SECRET,
+
+	/**
+	 * Trusted origins configuration for CORS and security.
+	 * Allows authentication requests from the specified domain.
+	 */
+	trustedOrigins: [env.APP_ORIGIN_URL],
 });

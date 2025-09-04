@@ -54,6 +54,8 @@ export const env = createEnv({
 					z.array(z.string()),
 				)
 			: z.array(z.string()).default([]),
+		
+		APP_ORIGIN_URL: z.string().url(),
 	},
 
 	/**
@@ -85,6 +87,7 @@ export const env = createEnv({
 		ECS_CLUSTER_NAME: process.env.ECS_CLUSTER_NAME,
 		ECS_SUBNETS: process.env.ECS_SUBNETS,
 		ECS_SECURITY_GROUPS: process.env.ECS_SECURITY_GROUPS,
+		APP_ORIGIN_URL: process.env.APP_ORIGIN_URL,
 	},
 
 	/**
