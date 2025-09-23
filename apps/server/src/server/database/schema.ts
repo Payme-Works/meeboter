@@ -582,15 +582,6 @@ export const events = pgTable(
 			botIdIdx: index("events_bot_id_idx").on(table.botId),
 			eventTimeIdx: index("events_event_time_idx").on(table.eventTime),
 			eventTypeIdx: index("events_event_type_idx").on(table.eventType),
-			// Compound indexes for common query patterns
-			botIdEventTimeIdx: index("events_bot_id_event_time_idx").on(
-				table.botId,
-				table.eventTime,
-			),
-			botIdEventTypeIdx: index("events_bot_id_event_type_idx").on(
-				table.botId,
-				table.eventType,
-			),
 			// Created at index for chronological queries
 			createdAtIdx: index("events_created_at_idx").on(table.createdAt),
 		};

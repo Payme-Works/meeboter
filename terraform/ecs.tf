@@ -211,7 +211,7 @@ resource "aws_ecs_task_definition" "server" {
           value = "true"
         },
         {
-          name  = "APP_ORIGIN_URL"
+          name  = "NEXT_PUBLIC_APP_ORIGIN_URL"
           value = "https://${local.workspace_domain}"
         }
       ]

@@ -30,17 +30,20 @@ const client: postgres.Sql =
 						rejectUnauthorized: false,
 					}
 				: false,
-		max: 50, // Increased to 50 to handle high concurrent bot requests
-		idle_timeout: 60, // Increased from 20 to 60 seconds to reduce connection churn
-		max_lifetime: 60 * 30, // 30 minutes
-		connect_timeout: 30, // Increased from 10 to 30 seconds for slow database connections
-		prepare: false, // Disable prepared statements for better connection reuse
+		max: 30, // Reduce from 50 to leave headroom for database max_connections
+		idle_timeout: 30, // Reduce from 60 to recycle connections faster
+		max_lifetime: 60 * 10, // Reduce from 30 to 10 minutes
+		connect_timeout: 10, // Reduce from 30 to fail fast
+		prepare: true, // Enable prepared statements for better performance
 		transform: {
 			...postgres.toCamel,
 			undefined: null, // Handle undefined values properly
 		},
+		connection: {
+			application_name: 'live-boost-server',
+		},
 		onnotice: env.NODE_ENV === "development" ? console.log : undefined, // Log notices in development
-		debug: env.NODE_ENV === "development" ? console.log : false,
+		debug: false, // Disable debug in all environments for performance
 	});
 
 // Cache client in development environment to avoid recreation on HMR updates

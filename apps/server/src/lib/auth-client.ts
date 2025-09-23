@@ -1,4 +1,5 @@
 import { createAuthClient } from "better-auth/react";
+import { env } from "@/env";
 
 /**
  * Authentication client implementation using Better Auth
@@ -8,7 +9,9 @@ import { createAuthClient } from "better-auth/react";
  *
  * @returns {AuthClient} The configured Better Auth client instance
  */
-export const authClient = createAuthClient();
+export const authClient = createAuthClient({
+	baseURL: env.NEXT_PUBLIC_APP_ORIGIN_URL,
+});
 
 /**
  * Destructured authentication methods and hooks from the auth client

@@ -76,5 +76,5 @@ export const auth = betterAuth({
 	 * Trusted origins configuration for CORS and security.
 	 * Allows authentication requests from the specified domain.
 	 */
-	trustedOrigins: [env.APP_ORIGIN_URL],
+	trustedOrigins: [env.NEXT_PUBLIC_APP_ORIGIN_URL],
 });

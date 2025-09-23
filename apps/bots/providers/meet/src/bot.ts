@@ -1116,25 +1116,7 @@ export class GoogleMeetBot extends Bot {
 				break; // Exit loop
 			}
 
-			// Check if there has been no activity, case for when only bots stay in the meeting
-			if (
-				this.participants.length > 1 &&
-				this.lastActivity &&
-				Date.now() - this.lastActivity >
-					this.settings.automaticLeave.inactivityTimeout
-			) {
-				const inactiveTime = Date.now() - this.lastActivity;
-
-				console.log(
-					`Leave reason: INACTIVITY_TIMEOUT - No speaking detected for ${inactiveTime / 1000}s (threshold: ${this.settings.automaticLeave.inactivityTimeout / 1000}s)`,
-				);
-
-				console.log(
-					`Participants present: ${this.participants.length}, Last activity: ${new Date(this.lastActivity).toISOString()}`,
-				);
-
-				break;
-			}
+			// Inactivity timeout disabled - bots will remain in meetings regardless of speaking activity
 
 			await this.handleInfoPopup(1000);
 
