@@ -41,7 +41,10 @@ export const chatRouter = createTRPCRouter({
 		.output(z.array(selectMessageTemplateSchema))
 		.query(async ({ ctx }) => {
 			try {
-				console.log('Attempting to query message_templates table for user:', ctx.session.user.id);
+				console.log(
+					"Attempting to query message_templates table for user:",
+					ctx.session.user.id,
+				);
 
 				const result = await ctx.db
 					.select()
@@ -49,18 +52,20 @@ export const chatRouter = createTRPCRouter({
 					.where(eq(messageTemplatesTable.userId, ctx.session.user.id))
 					.orderBy(messageTemplatesTable.createdAt);
 
-				console.log('Successfully retrieved message templates:', result.length);
+				console.log("Successfully retrieved message templates:", result.length);
 
 				return result;
 			} catch (error) {
-				console.error('Database query failed for message_templates:', {
+				console.error("Database query failed for message_templates:", {
 					error: error instanceof Error ? error.message : error,
 					stack: error instanceof Error ? error.stack : undefined,
 					userId: ctx.session.user.id,
-					tableName: 'message_templates'
+					tableName: "message_templates",
 				});
 
-				throw new Error(`Database query failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+				throw new Error(
+					`Database query failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+				);
 			}
 		}),
 

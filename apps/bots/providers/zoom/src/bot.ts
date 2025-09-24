@@ -1,6 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { Transform } from "node:stream";
+import type { AppRouter } from "@live-boost/server";
+import type { TRPCClient } from "@trpc/client";
 import puppeteer, { type Browser, type Page } from "puppeteer";
 import { getStream, launch, wss } from "puppeteer-stream";
 import { Bot } from "../../../src/bot";
@@ -10,8 +12,6 @@ import {
 	type SpeakerTimeframe,
 	WaitingRoomTimeoutError,
 } from "../../../src/types";
-import type { TRPCClient } from "@trpc/client";
-import type { AppRouter } from "@live-boost/server";
 
 // const muteButton = 'button[aria-label="Mute"]';
 // const stopVideoButton = 'button[aria-label="Stop Video"]';

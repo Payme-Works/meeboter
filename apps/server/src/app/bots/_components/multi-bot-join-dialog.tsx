@@ -35,7 +35,7 @@ const multiBotSchema = z.object({
 	botCount: z
 		.number()
 		.min(1, "At least 1 bot is required")
-		.max(128, "Maximum 128 bots allowed"),
+		.max(256, "Maximum 256 bots allowed"),
 });
 
 type MultiBotFormData = z.infer<typeof multiBotSchema>;
@@ -252,8 +252,8 @@ export function MultiBotJoinDialog({ open, onClose }: MultiBotJoinDialogProps) {
 											min="1"
 											max={
 												isUnlimited
-													? "128"
-													: Math.min(128, remaining).toString()
+													? "256"
+													: Math.min(256, remaining).toString()
 											}
 											placeholder="1"
 											{...field}
@@ -265,8 +265,8 @@ export function MultiBotJoinDialog({ open, onClose }: MultiBotJoinDialogProps) {
 									</FormControl>
 									<FormDescription>
 										{isUnlimited
-											? "Number of bots to join the meeting (1-128)"
-											: `Number of bots to join (1-${Math.min(128, remaining)} remaining today)`}
+											? "Number of bots to join the meeting (1-256)"
+											: `Number of bots to join (1-${Math.min(256, remaining)} remaining today)`}
 									</FormDescription>
 									<FormMessage />
 								</FormItem>

@@ -2,6 +2,8 @@ import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import * as fs from "node:fs";
 import path from "node:path";
 import { setTimeout } from "node:timers/promises";
+import type { AppRouter } from "@live-boost/server";
+import type { TRPCClient } from "@trpc/client";
 import type { Browser, Page } from "playwright";
 import { chromium } from "playwright-extra";
 import type { PageVideoCapture } from "playwright-video";
@@ -13,8 +15,6 @@ import {
 	type SpeakerTimeframe,
 	WaitingRoomTimeoutError,
 } from "../../../src/types";
-import type { TRPCClient } from "@trpc/client";
-import type { AppRouter } from "@live-boost/server";
 
 // Use stealth plugin to avoid detection
 const stealthPlugin = StealthPlugin();
@@ -732,7 +732,11 @@ export class GoogleMeetBot extends Bot {
 	 * Gets the next queued message for this bot using tRPC.
 	 * @returns Promise that resolves to the next queued message or null if none
 	 */
-	async getNextQueuedMessage(): Promise<{ messageText: string; templateId?: number; userId: string } | null> {
+	async getNextQueuedMessage(): Promise<{
+		messageText: string;
+		templateId?: number;
+		userId: string;
+	} | null> {
 		if (!this.chatEnabled) {
 			return null;
 		}

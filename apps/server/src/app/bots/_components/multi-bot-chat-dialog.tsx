@@ -107,7 +107,7 @@ export function MultiBotChatDialog({
 
 	const selectAllActiveBots = () => {
 		const activeBots = bots.filter(
-			(bot) => bot.chatEnabled && !["DONE", "FATAL"].includes(bot.status),
+			(bot) => bot.chatEnabled && bot.status === "IN_CALL",
 		);
 
 		setSelectedBotIds(activeBots.map((bot) => bot.id));
@@ -156,7 +156,7 @@ export function MultiBotChatDialog({
 	};
 
 	const activeBots = bots.filter(
-		(bot) => bot.chatEnabled && !["DONE", "FATAL"].includes(bot.status),
+		(bot) => bot.chatEnabled && bot.status === "IN_CALL",
 	);
 
 	const isPending = sendTemplate.isPending || sendMessage.isPending;

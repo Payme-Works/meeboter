@@ -1,8 +1,8 @@
+import type { AppRouter } from "@live-boost/server";
+import type { TRPCClient } from "@trpc/client";
 import { reportEvent } from "./monitoring";
 import { trpc } from "./trpc";
 import type { BotConfig, EventCode, SpeakerTimeframe } from "./types";
-import type { TRPCClient } from "@trpc/client";
-import type { AppRouter } from "@live-boost/server";
 
 /**
  * Interface defining the contract for all bot implementations.
@@ -232,7 +232,7 @@ export class Bot implements BotInterface {
 		throw new Error("Method not implemented.");
 	}
 
-	async sendChatMessage(message: string): Promise<boolean> {
+	async sendChatMessage(_message: string): Promise<boolean> {
 		throw new Error("Method not implemented.");
 	}
 }

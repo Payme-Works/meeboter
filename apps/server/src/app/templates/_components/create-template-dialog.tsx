@@ -122,10 +122,7 @@ export function CreateTemplateDialog({
 
 						<div className="space-y-3">
 							{messages.map((message, index) => (
-								<div
-									key={`msg-${index}`}
-									className="flex gap-2"
-								>
+								<div key={message + Math.random()} className="flex gap-2">
 									<div className="flex-1 space-y-1">
 										<Label className="text-xs text-muted-foreground">
 											Variation {index + 1}
