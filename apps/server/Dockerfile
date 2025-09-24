@@ -31,7 +31,7 @@ RUN test -f pnpm-workspace.yaml || (echo "ERROR: Must build from monorepo root d
 RUN echo "Copy essential package.json files for dependency resolution"
 
 COPY ./apps/server/package.json /app/apps/server/
-COPY ./packages/config-typescript/package.json /app/packages/config-typescript/
+COPY ./packages/ /app/packages/
 
 RUN echo "Fetch dependencies to pnpm store"
 
@@ -42,14 +42,22 @@ RUN echo "Install dependencies  (skip postinstall scripts)"
 
 RUN --mount=type=cache,target=/app/.pnpm-store pnpm install --frozen-lockfile --ignore-scripts
 
-RUN echo "Copy scripts"
+RUN echo "Install dependencies specifically for server app"
+
+RUN --mount=type=cache,target=/app/.pnpm-store pnpm install --filter @live-boost/server --frozen-lockfile --ignore-scripts
+
+RUN echo "Force install missing Radix UI dependencies"
+
+RUN --mount=type=cache,target=/app/.pnpm-store pnpm add -w @radix-ui/react-avatar @radix-ui/react-checkbox @radix-ui/react-dialog @radix-ui/react-dropdown-menu @radix-ui/react-label @radix-ui/react-menubar @radix-ui/react-navigation-menu @radix-ui/react-popover @radix-ui/react-scroll-area @radix-ui/react-select @radix-ui/react-separator @radix-ui/react-slot @trpc/react-query better-auth next-auth
+
+RUN echo "Verify critical dependencies are installed"
+
+RUN ls -la /app/node_modules/@radix-ui/ && echo "Radix UI packages found:" && ls /app/node_modules/@radix-ui/ || echo "Radix UI still not found in node_modules"
+
+RUN echo "Copy scripts and remaining server app source code"
 
 COPY ./scripts/ /app/scripts/
-
-RUN echo "Copy server app and packages source code"
-
 COPY ./apps/server/ /app/apps/server/
-COPY ./packages/ /app/packages/
 
 
 # Builder
@@ -107,6 +115,10 @@ RUN echo "Copy server app and packages source code"
 
 COPY --from=deps /app/apps/server/ /app/apps/server/
 COPY --from=deps /app/packages/ /app/packages/
+
+RUN echo "Verify dependencies are available in builder stage"
+
+RUN ls -la /app/node_modules/@radix-ui/ && echo "Radix UI packages found:" && ls /app/node_modules/@radix-ui/ || echo "Radix UI not found in builder node_modules"
 
 RUN echo "Build the server app using pnpm workspace filtering"
 
