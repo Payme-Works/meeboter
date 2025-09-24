@@ -21,8 +21,7 @@
 		"test:e2e": "turbo run test:e2e",
 		"test:e2e:coverage": "turbo run test:e2e:coverage",
 		"turbos": "node scripts/turbos.js",
-		"filter": "node scripts/filter.js",
-		"postinstall": "pnpm run build"
+		"filter": "node scripts/filter.js"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.2.2",

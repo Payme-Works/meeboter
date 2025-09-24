@@ -40,7 +40,7 @@ const client: postgres.Sql =
 			undefined: null, // Handle undefined values properly
 		},
 		connection: {
-			application_name: 'live-boost-server',
+			application_name: "live-boost-server",
 		},
 		onnotice: env.NODE_ENV === "development" ? console.log : undefined, // Log notices in development
 		debug: false, // Disable debug in all environments for performance
@@ -58,3 +58,5 @@ if (env.NODE_ENV !== "production") {
  * Includes the complete database schema for type-safe queries
  */
 export const db = drizzle(client, { schema });
+
+export type Db = typeof db;

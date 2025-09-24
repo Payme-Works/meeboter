@@ -418,6 +418,8 @@ export const botsTable = pgTable(
 		automaticLeave: json("automaticLeave").$type<AutomaticLeave>().notNull(),
 		/** URL to send bot event notifications to */
 		callbackUrl: varchar("callbackUrl", { length: 1024 }),
+		/** Whether chat messaging is enabled for this bot */
+		chatEnabled: boolean("chatEnabled").notNull().default(false),
 
 		/** When this bot was created */
 		createdAt: timestamp("createdAt").defaultNow(),
@@ -465,6 +467,7 @@ export const insertBotSchema = z.object({
 		.url()
 		.optional()
 		.describe("URL to receive bot event notifications"),
+	chatEnabled: z.boolean().optional().default(false),
 });
 export type InsertBotType = z.infer<typeof insertBotSchema>;
 
@@ -500,6 +503,7 @@ export const botConfigSchema = z.object({
 		.url()
 		.optional()
 		.describe("URL to receive bot event notifications"),
+	chatEnabled: z.boolean(),
 });
 export type BotConfig = z.infer<typeof botConfigSchema>;
 
@@ -622,3 +626,130 @@ export const insertSubscriptionSchema = createInsertSchema(subscriptionsTable);
  * Validation schema for subscription selection queries
  */
 export const selectSubscriptionSchema = createSelectSchema(subscriptionsTable);
+
+/**
+ * Database implementation for message templates
+ * Stores reusable message templates with arrays of message variations
+ */
+export const messageTemplatesTable = pgTable(
+	"message_templates",
+	{
+		/** Unique identifier for the template */
+		id: serial("id").primaryKey(),
+		/** Reference to the user who owns this template */
+		userId: text("userId")
+			.references(() => usersTable.id, { onDelete: "cascade" })
+			.notNull(),
+		/** User-friendly name for the template */
+		templateName: varchar("templateName", { length: 255 }).notNull(),
+		/** Array of message variations for randomized selection */
+		messages: json("messages").$type<string[]>().notNull(),
+		/** When this template was created */
+		createdAt: timestamp("createdAt").notNull().defaultNow(),
+		/** When this template was last updated */
+		updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+	},
+	(table) => {
+		return {
+			userIdIdx: index("message_templates_user_id_idx").on(table.userId),
+			createdAtIdx: index("message_templates_created_at_idx").on(
+				table.createdAt,
+			),
+		};
+	},
+);
+
+/**
+ * Validation schema for creating new message templates
+ */
+export const insertMessageTemplateSchema = createInsertSchema(
+	messageTemplatesTable,
+)
+	.omit({
+		id: true,
+		userId: true,
+		createdAt: true,
+		updatedAt: true,
+	})
+	.extend({
+		messages: z.array(z.string().min(1)).min(1),
+	});
+
+/**
+ * Validation schema for message template selection queries
+ */
+export const selectMessageTemplateSchema = createSelectSchema(
+	messageTemplatesTable,
+	{
+		messages: z.array(z.string()),
+	},
+);
+
+export type SelectMessageTemplateType = z.infer<
+	typeof selectMessageTemplateSchema
+>;
+
+/**
+ * Database implementation for bot chat messages
+ * Stores history of all messages sent through bots
+ */
+export const botChatMessagesTable = pgTable(
+	"bot_chat_messages",
+	{
+		/** Unique identifier for the message */
+		id: serial("id").primaryKey(),
+		/** Reference to the bot that sent this message */
+		botId: integer("botId")
+			.references(() => botsTable.id, { onDelete: "cascade" })
+			.notNull(),
+		/** Reference to the user who initiated this message */
+		userId: text("userId")
+			.references(() => usersTable.id, { onDelete: "cascade" })
+			.notNull(),
+		/** The actual message text that was sent */
+		messageText: text("messageText").notNull(),
+		/** Reference to the template used (null for manual messages) */
+		templateId: integer("templateId").references(
+			() => messageTemplatesTable.id,
+			{
+				onDelete: "set null",
+			},
+		),
+		/** When the message was sent */
+		sentAt: timestamp("sentAt").notNull().defaultNow(),
+		/** Status of message delivery */
+		status: varchar("status", { length: 50 }).notNull().default("pending"),
+		/** Error message if delivery failed */
+		error: text("error"),
+	},
+	(table) => {
+		return {
+			botIdIdx: index("bot_chat_messages_bot_id_idx").on(table.botId),
+			userIdIdx: index("bot_chat_messages_user_id_idx").on(table.userId),
+			sentAtIdx: index("bot_chat_messages_sent_at_idx").on(table.sentAt),
+			templateIdIdx: index("bot_chat_messages_template_id_idx").on(
+				table.templateId,
+			),
+		};
+	},
+);
+
+/**
+ * Validation schema for creating new bot chat messages
+ */
+export const insertBotChatMessageSchema = createInsertSchema(
+	botChatMessagesTable,
+).omit({
+	id: true,
+	sentAt: true,
+});
+
+/**
+ * Validation schema for bot chat message selection queries
+ */
+export const selectBotChatMessageSchema =
+	createSelectSchema(botChatMessagesTable);
+
+export type SelectBotChatMessageType = z.infer<
+	typeof selectBotChatMessageSchema
+>;

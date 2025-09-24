@@ -54,7 +54,7 @@ export const env = createEnv({
 					z.array(z.string()),
 				)
 			: z.array(z.string()).default([]),
-		
+
 		NEXT_PUBLIC_APP_ORIGIN_URL: z.string().url(),
 	},
 

@@ -1,6 +1,7 @@
 import { createCallerFactory, createTRPCRouter } from "@/server/api/trpc";
 import { apiKeysRouter } from "./routers/api-keys";
 import { botsRouter } from "./routers/bots";
+import { chatRouter } from "./routers/chat";
 import { eventsRouter } from "./routers/events";
 import { usageRouter } from "./routers/usage";
 
@@ -16,6 +17,7 @@ export const appRouter = createTRPCRouter({
 	events: eventsRouter,
 	apiKeys: apiKeysRouter,
 	usage: usageRouter,
+	chat: chatRouter,
 });
 
 /**

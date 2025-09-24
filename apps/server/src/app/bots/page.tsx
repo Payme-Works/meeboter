@@ -2,7 +2,7 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 import { formatDistanceToNow } from "date-fns";
-import { ExternalLinkIcon, Plus } from "lucide-react";
+import { ExternalLinkIcon, MessageSquare, Plus } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
@@ -12,11 +12,13 @@ import { Button } from "@/components/ui/button";
 import { useSession } from "@/lib/auth-client";
 import { api } from "@/trpc/react";
 import { BotDetailsDialog } from "./_components/bot-details-dialog";
+import { MultiBotChatDialog } from "./_components/multi-bot-chat-dialog";
 import { MultiBotJoinDialog } from "./_components/multi-bot-join-dialog";
 
 export default function BotsPage() {
 	const [selectedBot, setSelectedBot] = useState<number | null>(null);
 	const [multiBotDialogOpen, setMultiBotDialogOpen] = useState(false);
+	const [multiBotChatDialogOpen, setMultiBotChatDialogOpen] = useState(false);
 
 	const { data: session } = useSession();
 
@@ -116,13 +118,23 @@ export default function BotsPage() {
 					</p>
 				</div>
 
-				<Button
-					onClick={() => setMultiBotDialogOpen(true)}
-					disabled={!session?.user}
-				>
-					<Plus className="h-4 w-4 mr-2" />
-					Join Multiple Bots
-				</Button>
+				<div className="flex gap-2">
+					<Button
+						variant="outline"
+						onClick={() => setMultiBotChatDialogOpen(true)}
+						disabled={!session?.user}
+					>
+						<MessageSquare className="h-4 w-4 mr-2" />
+						Multi-Bot Chat
+					</Button>
+					<Button
+						onClick={() => setMultiBotDialogOpen(true)}
+						disabled={!session?.user}
+					>
+						<Plus className="h-4 w-4 mr-2" />
+						Join Multiple Bots
+					</Button>
+				</div>
 			</div>
 
 			<DataTable
@@ -140,6 +152,12 @@ export default function BotsPage() {
 			<MultiBotJoinDialog
 				open={multiBotDialogOpen}
 				onClose={() => setMultiBotDialogOpen(false)}
+			/>
+
+			<MultiBotChatDialog
+				open={multiBotChatDialogOpen}
+				onClose={() => setMultiBotChatDialogOpen(false)}
+				bots={bots}
 			/>
 		</div>
 	);

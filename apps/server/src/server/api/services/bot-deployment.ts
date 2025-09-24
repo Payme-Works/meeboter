@@ -127,6 +127,7 @@ export async function deployBot({
 			botImage: bot.botImage ?? undefined,
 			recordingEnabled: bot.recordingEnabled,
 			heartbeatInterval: bot.heartbeatInterval,
+			chatEnabled: bot.chatEnabled,
 			automaticLeave: bot.automaticLeave,
 			callbackUrl: bot.callbackUrl ?? undefined,
 		};

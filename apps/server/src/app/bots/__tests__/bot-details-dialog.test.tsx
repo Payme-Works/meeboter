@@ -36,6 +36,7 @@ const fakeBotData: SelectBotType = {
 	deploymentError: null,
 	heartbeatInterval: 1000,
 	callbackUrl: "https://example.com/callback",
+	chatEnabled: false,
 	automaticLeave: {
 		waitingRoomTimeout: 1000,
 		noOneJoinedTimeout: 1000,

@@ -51,6 +51,7 @@ export type AutomaticLeave = {
  * @property {number} heartbeatInterval - Interval in milliseconds for bot status updates
  * @property {AutomaticLeave} automaticLeave - Timeout configuration for automatic leaving
  * @property {string} [callbackUrl] - Optional webhook URL for bot events
+ * @property {boolean} chatEnabled - Whether chat messaging functionality is enabled
  */
 export type BotConfig = {
 	id: number;
@@ -65,6 +66,7 @@ export type BotConfig = {
 	heartbeatInterval: number;
 	automaticLeave: AutomaticLeave;
 	callbackUrl?: string;
+	chatEnabled: boolean;
 };
 
 /**

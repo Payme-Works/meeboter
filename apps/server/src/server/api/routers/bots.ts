@@ -5,6 +5,7 @@ import {
 	protectedProcedure,
 	publicProcedure,
 } from "@/server/api/trpc";
+import type { Db } from "@/server/database/db";
 import {
 	botsTable,
 	events,
@@ -26,11 +27,14 @@ import { deployBot, shouldDeployImmediately } from "../services/bot-deployment";
 // Event batching configuration
 const EVENT_BATCH_SIZE = 50;
 const EVENT_BATCH_INTERVAL = 100; // ms
-const eventQueue = new Map<number, any[]>(); // botId -> events[]
+
+type QueuedEvent = z.infer<typeof insertEventSchema>;
+
+const eventQueue = new Map<number, QueuedEvent[]>(); // botId -> events[]
 const batchTimers = new Map<number, NodeJS.Timeout>();
 
 // Batch processor function
-async function processBatchedEvents(db: any, botId: number) {
+async function processBatchedEvents(db: Db, botId: number) {
 	const eventList = eventQueue.get(botId);
 
 	if (!eventList || eventList.length === 0) return;
@@ -230,6 +234,7 @@ export const botsRouter = createTRPCRouter({
 									inactivityTimeout: 5 * 60 * 1000, // 5 minutes (default)
 								},
 						callbackUrl: input.callbackUrl, // Credit to @martinezpl for this line -- cannot merge at time of writing due to capstone requirements
+						chatEnabled: input.chatEnabled ?? false,
 					};
 
 					const result = await ctx.db
@@ -592,18 +597,20 @@ export const botsRouter = createTRPCRouter({
 			}
 
 			// Add event to queue
-			eventQueue.get(input.id)!.push({
+			eventQueue.get(input.id)?.push({
 				...input.event,
 				botId: input.id,
 			});
 
 			// Clear existing timer if any
 			if (batchTimers.has(input.id)) {
-				clearTimeout(batchTimers.get(input.id)!);
+				const timer = batchTimers.get(input.id);
+
+				if (timer) clearTimeout(timer);
 			}
 
 			// Process immediately if batch size reached
-			if (eventQueue.get(input.id)!.length >= EVENT_BATCH_SIZE) {
+			if ((eventQueue.get(input.id)?.length ?? 0) >= EVENT_BATCH_SIZE) {
 				await processBatchedEvents(ctx.db, input.id);
 			} else {
 				// Otherwise, set timer for batch interval

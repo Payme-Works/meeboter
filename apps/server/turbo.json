@@ -1,4 +1,9 @@
 {
 	"$schema": "https://turbo.build/schema.json",
-	"extends": ["//"]
+	"extends": ["//"],
+	"tasks": {
+		"db:generate": {},
+		"db:migrate": {},
+		"db:push": {}
+	}
 }

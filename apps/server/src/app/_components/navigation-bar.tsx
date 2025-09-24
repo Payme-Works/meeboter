@@ -47,6 +47,11 @@ const authenticatedComponents: {
 		target: "_self",
 	},
 	{
+		title: "Templates",
+		href: "/templates",
+		target: "_self",
+	},
+	{
 		title: "Usage",
 		href: "/usage",
 		target: "_self",

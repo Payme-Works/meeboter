@@ -31,6 +31,10 @@ const joinNowButton = '//button[.//span[text()="Join now"]]';
 const gotKickedDetector = '//button[.//span[text()="Return to home screen"]]';
 const leaveButton = `//button[@aria-label="Leave call"]`;
 const peopleButton = `//button[@aria-label="People"]`;
+const chatButton = `//button[@aria-label="Chat with everyone"]`;
+const chatToggleButton = `//button[@aria-label="Toggle chat"]`;
+const chatInput = `//input[@aria-label="Send a message to everyone"]`;
+const chatSendButton = `//button[@aria-label="Send message"]`;
 
 const _onePersonRemainingField =
 	'//span[.//div[text()="Contributors"]]//div[text()="1"]';
@@ -128,10 +132,13 @@ export class GoogleMeetBot extends Bot {
 
 	private startedRecording: boolean = false;
 
-	private lastActivity: number | undefined = undefined;
 	private recordingStartedAt: number = 0;
 
 	private ffmpegProcess: ChildProcessWithoutNullStreams | null;
+
+	private chatEnabled: boolean = false;
+	private chatPanelOpen: boolean = false;
+	private messageCheckInterval: NodeJS.Timeout | null = null;
 
 	/**
 	 * Creates a new Google Meet bot instance.
@@ -170,6 +177,9 @@ export class GoogleMeetBot extends Bot {
 		this.startedRecording = false; // Flag to not duplicate recording start
 
 		this.ffmpegProcess = null;
+		this.chatEnabled = botSettings.chatEnabled ?? false;
+		this.chatPanelOpen = false;
+		this.messageCheckInterval = null;
 	}
 
 	/**
@@ -737,6 +747,173 @@ export class GoogleMeetBot extends Bot {
 	}
 
 	/**
+	 * Opens the chat panel if chat is enabled and not already open.
+	 */
+	async openChatPanel(): Promise<void> {
+		if (!this.chatEnabled || !this.page) {
+			return;
+		}
+
+		console.log("Attempting to open chat panel...");
+
+		try {
+			// Try to find the chat button with multiple possible selectors
+			const chatButtonSelectors = [
+				chatButton,
+				chatToggleButton,
+				'//button[contains(@aria-label, "Chat")]',
+				'//button[contains(@aria-label, "chat")]',
+			];
+
+			let chatButtonFound = false;
+			for (const selector of chatButtonSelectors) {
+				try {
+					const buttonCount = await this.page.locator(selector).count();
+
+					if (buttonCount > 0) {
+						await this.page.click(selector, { timeout: 2000 });
+						console.log(`Chat panel opened using selector: ${selector}`);
+						chatButtonFound = true;
+						this.chatPanelOpen = true;
+
+						break;
+					}
+				} catch (_error) {}
+			}
+
+			if (!chatButtonFound) {
+				console.log("Chat button not found, chat may not be available");
+			}
+		} catch (error) {
+			console.log("Error opening chat panel:", error);
+		}
+	}
+
+	/**
+	 * Sends a message to the Google Meet chat.
+	 * @param message - The message text to send
+	 */
+	async sendChatMessage(message: string): Promise<boolean> {
+		if (!this.chatEnabled || !this.page) {
+			return false;
+		}
+
+		console.log(`Attempting to send chat message: "${message}"`);
+
+		try {
+			// Ensure chat panel is open
+			if (!this.chatPanelOpen) {
+				await this.openChatPanel();
+				await this.page.waitForTimeout(1000); // Wait for panel to fully open
+			}
+
+			// Find and click the chat input field
+			const inputSelectors = [
+				chatInput,
+				'//input[contains(@aria-label, "message")]',
+				'//textarea[contains(@aria-label, "message")]',
+				'//div[contains(@aria-label, "message")]',
+			];
+
+			let inputFound = false;
+			for (const selector of inputSelectors) {
+				try {
+					const inputCount = await this.page.locator(selector).count();
+
+					if (inputCount > 0) {
+						await this.page.click(selector, { timeout: 2000 });
+
+						// Type the message with natural delays
+						await this.page.type(selector, message, { delay: 50 });
+
+						// Press Enter to send or look for send button
+						try {
+							await this.page.keyboard.press("Enter");
+							console.log("Message sent using Enter key");
+						} catch (_e) {
+							// Try to find and click send button
+							const sendButtonSelectors = [
+								chatSendButton,
+								'//button[contains(@aria-label, "Send")]',
+								'//button[contains(@aria-label, "send")]',
+							];
+
+							for (const sendSelector of sendButtonSelectors) {
+								try {
+									const sendButtonCount = await this.page
+										.locator(sendSelector)
+										.count();
+
+									if (sendButtonCount > 0) {
+										await this.page.click(sendSelector, { timeout: 1000 });
+										console.log("Message sent using send button");
+
+										break;
+									}
+								} catch (_sendError) {}
+							}
+						}
+
+						inputFound = true;
+
+						break;
+					}
+				} catch (_error) {}
+			}
+
+			if (!inputFound) {
+				console.log("Chat input field not found");
+
+				return false;
+			}
+
+			// Small delay to ensure message is sent
+			await this.page.waitForTimeout(500);
+			console.log(`Successfully sent chat message: "${message}"`);
+
+			return true;
+		} catch (error) {
+			console.log("Error sending chat message:", error);
+
+			return false;
+		}
+	}
+
+	/**
+	 * Starts the message checking loop to process queued messages.
+	 */
+	async startMessageProcessing(): Promise<void> {
+		if (!this.chatEnabled) {
+			return;
+		}
+
+		console.log("Starting message processing for chat...");
+
+		// Check for messages every 5 seconds
+		this.messageCheckInterval = setInterval(async () => {
+			try {
+				// In a real implementation, this would call the backend API
+				// to get queued messages for this bot
+				// For now, this is a placeholder for the message processing logic
+				console.log("Checking for queued messages...");
+			} catch (error) {
+				console.log("Error processing messages:", error);
+			}
+		}, 5000);
+	}
+
+	/**
+	 * Stops the message processing loop.
+	 */
+	stopMessageProcessing(): void {
+		if (this.messageCheckInterval) {
+			clearInterval(this.messageCheckInterval);
+			this.messageCheckInterval = null;
+			console.log("Message processing stopped");
+		}
+	}
+
+	/**
 	 * Orchestrates all meeting activities including recording, participant monitoring, and exit conditions.
 	 *
 	 * Main workflow:
@@ -831,8 +1008,6 @@ export class GoogleMeetBot extends Bot {
 		await this.page.exposeFunction(
 			"registerParticipantSpeaking",
 			(participant: Participant) => {
-				this.lastActivity = Date.now();
-
 				const relativeTimestamp = Date.now() - this.recordingStartedAt;
 
 				console.log(
@@ -1066,6 +1241,19 @@ export class GoogleMeetBot extends Bot {
 			peopleObserver.observe(peopleList, { childList: true, subtree: true });
 		});
 
+		// Initialize chat functionality if enabled
+		if (this.chatEnabled) {
+			console.log("Initializing chat functionality...");
+
+			try {
+				await this.openChatPanel();
+				await this.startMessageProcessing();
+				console.log("Chat functionality initialized successfully");
+			} catch (error) {
+				console.log("Error initializing chat functionality:", error);
+			}
+		}
+
 		// Loop -- check for end meeting conditions every second
 		console.log("Waiting until a leave condition is fulfilled..");
 
@@ -1144,6 +1332,12 @@ export class GoogleMeetBot extends Bot {
 	 * Performs cleanup operations including stopping recording and closing browser.
 	 */
 	async endLife(): Promise<void> {
+		// Stop message processing if enabled
+		if (this.chatEnabled) {
+			console.log("Stopping message processing...");
+			this.stopMessageProcessing();
+		}
+
 		// Ensure recording is done
 		if (this.settings.recordingEnabled) {
 			console.log("Stopping recording...");

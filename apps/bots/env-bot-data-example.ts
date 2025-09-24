@@ -39,6 +39,7 @@ const botData: BotConfig = {
 	},
 	callbackUrl: "<CALLBACK_URL>",
 	recordingEnabled: false,
+	chatEnabled: false,
 };
 
 // ============================================================================
