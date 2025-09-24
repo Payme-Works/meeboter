@@ -139,6 +139,7 @@ export async function deployBot({
 				env: {
 					...process.env,
 					BOT_DATA: JSON.stringify(config),
+					BOT_AUTH_TOKEN: process.env.BOT_AUTH_TOKEN,
 				},
 			});
 
@@ -176,6 +177,10 @@ export async function deployBot({
 								{
 									name: "BOT_DATA",
 									value: JSON.stringify(config),
+								},
+								{
+									name: "BOT_AUTH_TOKEN",
+									value: env.BOT_AUTH_TOKEN,
 								},
 							],
 						},

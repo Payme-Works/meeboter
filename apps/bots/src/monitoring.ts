@@ -120,9 +120,11 @@ export const reportEvent = async (
 	} | null = null,
 ) => {
 	// do not report events in development
-	if (process.env.NODE_ENV === "development") {
-		return;
-	}
+	console.log("Reporting event:", {
+		botId,
+		eventType,
+		eventData,
+	});
 
 	// Report event with retry logic
 	const reportResult = await retryOperation(async () => {

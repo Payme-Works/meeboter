@@ -1,15 +1,66 @@
 import dotenv from "dotenv";
-import { createBot } from "./bot";
+import { type BotInterface, createBot } from "./bot";
 import {
 	safeReportEvent,
 	startDurationMonitor,
 	startHeartbeat,
 } from "./monitoring";
 import { createS3Client, uploadRecordingToS3 } from "./s3";
+import { trpc } from "./trpc";
 import { type BotConfig, EventCode, type SpeakerTimeframe } from "./types";
 
 dotenv.config({ path: "../.env.test" }); // Load .env.test for testing
 dotenv.config();
+
+/**
+ * Starts message processing for a bot with chat functionality enabled.
+ * Polls the backend API for queued messages and sends them via the bot.
+ */
+async function startMessageProcessing(
+	bot: BotInterface,
+	botId: number,
+): Promise<void> {
+	if (!bot.settings.chatEnabled) {
+		console.log("Chat functionality is disabled for this bot");
+
+		return;
+	}
+
+	console.log("Starting message processing for bot", botId);
+
+	// Check for messages every 5 seconds
+	const messageInterval = setInterval(async () => {
+		try {
+			// Call the backend API to get next queued message using tRPC
+			const queuedMessage = await trpc.chat.getNextQueuedMessage.query({
+				botId: botId.toString(),
+			});
+
+			if (queuedMessage && queuedMessage.messageText) {
+				console.log(`Sending queued message: ${queuedMessage.messageText}`);
+
+				const success = await bot.sendChatMessage(queuedMessage.messageText);
+
+				if (success) {
+					console.log("Message sent successfully");
+				} else {
+					console.log("Failed to send message");
+				}
+			}
+		} catch (error) {
+			console.log("Error processing messages:", error);
+		}
+	}, 5000);
+
+	// Clean up interval when bot process ends
+	process.on("SIGTERM", () => {
+		clearInterval(messageInterval);
+	});
+
+	process.on("SIGINT", () => {
+		clearInterval(messageInterval);
+	});
+}
 
 export const main = async () => {
 	let hasErrorOccurred = false;
@@ -76,6 +127,12 @@ export const main = async () => {
 	await safeReportEvent(botId, EventCode.READY_TO_DEPLOY);
 
 	try {
+		// Start message processing if chat is enabled
+		if (botData.chatEnabled) {
+			// Start message processing in the background
+			startMessageProcessing(bot, botId);
+		}
+
 		// Run the bot
 		await bot.run().catch(async (error) => {
 			console.error("Error running bot:", error);

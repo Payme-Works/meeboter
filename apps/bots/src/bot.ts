@@ -1,5 +1,8 @@
 import { reportEvent } from "./monitoring";
+import { trpc } from "./trpc";
 import type { BotConfig, EventCode, SpeakerTimeframe } from "./types";
+import type { TRPCClient } from "@trpc/client";
+import type { AppRouter } from "@live-boost/server";
 
 /**
  * Interface defining the contract for all bot implementations.
@@ -64,6 +67,13 @@ export interface BotInterface {
 	 * @returns Promise that resolves to true if the bot was kicked, false otherwise
 	 */
 	checkKicked(): Promise<boolean>;
+
+	/**
+	 * Sends a chat message in the meeting (if supported by the platform).
+	 * @param message - The message text to send
+	 * @returns Promise that resolves to true if message was sent successfully, false otherwise
+	 */
+	sendChatMessage(message: string): Promise<boolean>;
 }
 
 /**
@@ -85,10 +95,16 @@ export class Bot implements BotInterface {
 	) => Promise<void>;
 
 	/**
+	 * tRPC client instance for making API calls to the backend
+	 */
+	protected trpc: TRPCClient<AppRouter>;
+
+	/**
 	 * Creates a new Bot instance with the provided configuration and event handler.
 	 *
 	 * @param settings - Bot configuration containing meeting info and other parameters
 	 * @param onEvent - Event handler function for reporting bot events
+	 * @param trpcInstance - tRPC client instance for backend API calls
 	 */
 	constructor(
 		settings: BotConfig,
@@ -96,9 +112,11 @@ export class Bot implements BotInterface {
 			eventType: EventCode,
 			data?: Record<string, unknown>,
 		) => Promise<void>,
+		trpcInstance?: TRPCClient<AppRouter>,
 	) {
 		this.settings = settings;
 		this.onEvent = onEvent;
+		this.trpc = trpcInstance || trpc;
 	}
 
 	/**
@@ -213,6 +231,10 @@ export class Bot implements BotInterface {
 	async checkKicked(): Promise<boolean> {
 		throw new Error("Method not implemented.");
 	}
+
+	async sendChatMessage(message: string): Promise<boolean> {
+		throw new Error("Method not implemented.");
+	}
 }
 
 /**
@@ -281,6 +303,7 @@ export const createBot = async (botData: BotConfig): Promise<Bot> => {
 				async (eventType: EventCode, data?: Record<string, unknown>) => {
 					await reportEvent(botId, eventType, data);
 				},
+				trpc,
 			);
 		}
 
@@ -292,6 +315,7 @@ export const createBot = async (botData: BotConfig): Promise<Bot> => {
 				async (eventType: EventCode, data?: Record<string, unknown>) => {
 					await reportEvent(botId, eventType, data);
 				},
+				trpc,
 			);
 		}
 
@@ -303,6 +327,7 @@ export const createBot = async (botData: BotConfig): Promise<Bot> => {
 				async (eventType: EventCode, data?: Record<string, unknown>) => {
 					await reportEvent(botId, eventType, data);
 				},
+				trpc,
 			);
 		}
 

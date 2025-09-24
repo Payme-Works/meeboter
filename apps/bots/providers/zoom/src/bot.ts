@@ -10,6 +10,8 @@ import {
 	type SpeakerTimeframe,
 	WaitingRoomTimeoutError,
 } from "../../../src/types";
+import type { TRPCClient } from "@trpc/client";
+import type { AppRouter } from "@live-boost/server";
 
 // const muteButton = 'button[aria-label="Mute"]';
 // const stopVideoButton = 'button[aria-label="Stop Video"]';
@@ -57,8 +59,9 @@ export class ZoomBot extends Bot {
 			eventType: EventCode,
 			data?: Record<string, unknown>,
 		) => Promise<void>,
+		trpcInstance?: TRPCClient<AppRouter>,
 	) {
-		super(botSettings, onEvent);
+		super(botSettings, onEvent, trpcInstance);
 		this.recordingPath = path.resolve(__dirname, "recording.mp4");
 		this.contentType = "video/mp4";
 		this.url = `https://app.zoom.us/wc/${this.settings.meetingInfo.meetingId}/join?fromPWA=1&pwd=${this.settings.meetingInfo.meetingPassword}`;

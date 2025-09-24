@@ -27,7 +27,7 @@ setup("authenticate", async ({ page }) => {
 	await page.getByLabel("Password").fill(process.env.TEST_PASSWORD ?? "");
 	await page.getByRole("button", { name: "Sign in", exact: true }).click();
 
-	const { otp } = TOTP.generate(process.env.TEST_AUTH_SECRET ?? "");
+	const { otp } = await TOTP.generate(process.env.TEST_AUTH_SECRET ?? "");
 	await page.getByRole("textbox", { name: "Authentication code" }).fill(otp);
 
 	// wait for the page to load

@@ -42,7 +42,7 @@ export default function TemplatesPage() {
 			),
 		},
 		{
-			accessorKey: "messages",
+			accessorKey: "messageCount",
 			header: "Message Variations",
 			cell: ({ row }) => (
 				<div className="text-sm text-muted-foreground">
@@ -52,7 +52,7 @@ export default function TemplatesPage() {
 			),
 		},
 		{
-			accessorKey: "messages",
+			accessorKey: "messagePreview",
 			header: "Preview",
 			cell: ({ row }) => (
 				<div className="max-w-md">

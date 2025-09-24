@@ -38,9 +38,9 @@ RUN echo "Fetch dependencies to pnpm store"
 RUN --mount=type=cache,target=/app/.pnpm-store pnpm config set store-dir /app/.pnpm-store
 RUN --mount=type=cache,target=/app/.pnpm-store pnpm fetch
 
-RUN echo "Install dependencies from cache (skip postinstall scripts)"
+RUN echo "Install dependencies  (skip postinstall scripts)"
 
-RUN --mount=type=cache,target=/app/.pnpm-store pnpm install --frozen-lockfile --offline --ignore-scripts
+RUN --mount=type=cache,target=/app/.pnpm-store pnpm install --frozen-lockfile --ignore-scripts
 
 RUN echo "Copy scripts"
 

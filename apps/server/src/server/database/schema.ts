@@ -467,7 +467,7 @@ export const insertBotSchema = z.object({
 		.url()
 		.optional()
 		.describe("URL to receive bot event notifications"),
-	chatEnabled: z.boolean().optional().default(false),
+	chatEnabled: z.boolean().optional().default(true),
 });
 export type InsertBotType = z.infer<typeof insertBotSchema>;
 

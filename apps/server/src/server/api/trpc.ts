@@ -85,6 +85,14 @@ const t = initTRPC
 	.create({
 		transformer: superjson,
 		errorFormatter({ shape, error }) {
+			// Enhanced logging for better debugging
+			console.error("tRPC Error Details:", {
+				code: error.code,
+				message: error.message,
+				cause: error.cause,
+				stack: error.stack,
+			});
+
 			return {
 				...shape,
 				data: {
@@ -203,7 +211,6 @@ const getStatusCode = (e: unknown): number => {
  * @returns Protected procedure with authentication middleware
  */
 export const protectedProcedure = t.procedure
-
 	.use(timingMiddleware)
 	.use(async ({ ctx, next, path, type }) => {
 		if (ctx.session?.user) {
@@ -294,6 +301,34 @@ export const protectedProcedure = t.procedure
 					}
 				}
 			}
+		}
+
+		// Try to authenticate using bot token
+		const botToken = ctx.headers.get("x-bot-token");
+
+		if (
+			botToken &&
+			process.env.BOT_AUTH_TOKEN &&
+			botToken === process.env.BOT_AUTH_TOKEN
+		) {
+			console.log("Authenticated using Bot Token");
+
+			// Create a minimal session for bot operations
+			const botSession: Session = {
+				user: {
+					id: "bot-system",
+					name: "Bot System",
+					email: "bot@system.local",
+				},
+				expires: new Date(Date.now() + 1000 * 60 * 60 * 24).toISOString(), // 24 hours
+			};
+
+			return next({
+				ctx: {
+					...ctx,
+					session: botSession,
+				},
+			});
 		}
 
 		throw new TRPCError({ code: "UNAUTHORIZED" });

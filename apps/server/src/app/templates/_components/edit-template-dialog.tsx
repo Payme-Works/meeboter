@@ -141,7 +141,7 @@ export function EditTemplateDialog({
 						<div className="space-y-3">
 							{messages.map((message, index) => (
 								<div
-									key={`msg-${index}-${message.length}`}
+									key={`msg-${index}`}
 									className="flex gap-2"
 								>
 									<div className="flex-1 space-y-1">

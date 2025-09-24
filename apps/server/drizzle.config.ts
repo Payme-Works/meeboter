@@ -14,5 +14,5 @@ export default {
 					}
 				: false,
 	},
-	tablesFilter: ["server_*"],
+	out: "./drizzle",
 } satisfies Config;

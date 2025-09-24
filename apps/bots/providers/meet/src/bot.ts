@@ -13,6 +13,8 @@ import {
 	type SpeakerTimeframe,
 	WaitingRoomTimeoutError,
 } from "../../../src/types";
+import type { TRPCClient } from "@trpc/client";
+import type { AppRouter } from "@live-boost/server";
 
 // Use stealth plugin to avoid detection
 const stealthPlugin = StealthPlugin();
@@ -138,13 +140,13 @@ export class GoogleMeetBot extends Bot {
 
 	private chatEnabled: boolean = false;
 	private chatPanelOpen: boolean = false;
-	private messageCheckInterval: NodeJS.Timeout | null = null;
 
 	/**
 	 * Creates a new Google Meet bot instance.
 	 *
 	 * @param botSettings - Bot configuration including meeting URL, display name, and behavior settings
 	 * @param onEvent - Event callback function for communicating with the backend
+	 * @param trpcInstance - tRPC client instance for backend API calls
 	 */
 	constructor(
 		botSettings: BotConfig,
@@ -152,8 +154,9 @@ export class GoogleMeetBot extends Bot {
 			eventType: EventCode,
 			data?: Record<string, unknown>,
 		) => Promise<void>,
+		trpcInstance?: TRPCClient<AppRouter>,
 	) {
-		super(botSettings, onEvent);
+		super(botSettings, onEvent, trpcInstance);
 
 		this.recordingPath = path.resolve(__dirname, "recording.mp4");
 
@@ -179,7 +182,6 @@ export class GoogleMeetBot extends Bot {
 		this.ffmpegProcess = null;
 		this.chatEnabled = botSettings.chatEnabled ?? false;
 		this.chatPanelOpen = false;
-		this.messageCheckInterval = null;
 	}
 
 	/**
@@ -298,6 +300,8 @@ export class GoogleMeetBot extends Bot {
 	async joinMeeting(): Promise<number> {
 		// Launch
 		await this.launchBrowser();
+
+		await this.onEvent(EventCode.JOINING_CALL);
 
 		console.log("Joining meeting...");
 
@@ -453,7 +457,7 @@ export class GoogleMeetBot extends Bot {
 
 		console.log("Joined call");
 
-		await this.onEvent(EventCode.JOINING_CALL);
+		await this.onEvent(EventCode.IN_CALL);
 
 		return 0;
 	}
@@ -725,6 +729,28 @@ export class GoogleMeetBot extends Bot {
 	}
 
 	/**
+	 * Gets the next queued message for this bot using tRPC.
+	 * @returns Promise that resolves to the next queued message or null if none
+	 */
+	async getNextQueuedMessage(): Promise<{ messageText: string; templateId?: number; userId: string } | null> {
+		if (!this.chatEnabled) {
+			return null;
+		}
+
+		try {
+			const queuedMessage = await this.trpc.chat.getNextQueuedMessage.query({
+				botId: this.settings.id.toString(),
+			});
+
+			return queuedMessage;
+		} catch (error) {
+			console.log("Error fetching queued message via tRPC:", error);
+
+			return null;
+		}
+	}
+
+	/**
 	 * Handles Google Meet information popups by automatically dismissing them.
 	 *
 	 * @param timeout - Maximum time to wait for popup appearance (default: 5000ms)
@@ -876,40 +902,6 @@ export class GoogleMeetBot extends Bot {
 			console.log("Error sending chat message:", error);
 
 			return false;
-		}
-	}
-
-	/**
-	 * Starts the message checking loop to process queued messages.
-	 */
-	async startMessageProcessing(): Promise<void> {
-		if (!this.chatEnabled) {
-			return;
-		}
-
-		console.log("Starting message processing for chat...");
-
-		// Check for messages every 5 seconds
-		this.messageCheckInterval = setInterval(async () => {
-			try {
-				// In a real implementation, this would call the backend API
-				// to get queued messages for this bot
-				// For now, this is a placeholder for the message processing logic
-				console.log("Checking for queued messages...");
-			} catch (error) {
-				console.log("Error processing messages:", error);
-			}
-		}, 5000);
-	}
-
-	/**
-	 * Stops the message processing loop.
-	 */
-	stopMessageProcessing(): void {
-		if (this.messageCheckInterval) {
-			clearInterval(this.messageCheckInterval);
-			this.messageCheckInterval = null;
-			console.log("Message processing stopped");
 		}
 	}
 
@@ -1247,7 +1239,6 @@ export class GoogleMeetBot extends Bot {
 
 			try {
 				await this.openChatPanel();
-				await this.startMessageProcessing();
 				console.log("Chat functionality initialized successfully");
 			} catch (error) {
 				console.log("Error initializing chat functionality:", error);
@@ -1335,7 +1326,6 @@ export class GoogleMeetBot extends Bot {
 		// Stop message processing if enabled
 		if (this.chatEnabled) {
 			console.log("Stopping message processing...");
-			this.stopMessageProcessing();
 		}
 
 		// Ensure recording is done

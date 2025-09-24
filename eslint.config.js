@@ -6,8 +6,21 @@ import { defineConfig } from "eslint/config";
 
 export default defineConfig([
 	{
+		ignores: [
+			"**/node_modules/**",
+			"**/.next/**",
+			"**/.trigger/**",
+			"**/.turbo/**",
+			"**/out/**",
+			"**/build/**",
+			"**/dist/**",
+			"**/coverage/**",
+			"**/next-env.d.ts",
+		],
+	},
+
+	{
 		files: ["**/*.{ts,tsx,js,jsx}"],
-		ignores: ["node_modules", ".next", "dist"],
 
 		languageOptions: {
 			parser: tsParser,

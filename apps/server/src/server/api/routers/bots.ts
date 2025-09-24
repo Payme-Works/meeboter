@@ -234,7 +234,7 @@ export const botsRouter = createTRPCRouter({
 									inactivityTimeout: 5 * 60 * 1000, // 5 minutes (default)
 								},
 						callbackUrl: input.callbackUrl, // Credit to @martinezpl for this line -- cannot merge at time of writing due to capstone requirements
-						chatEnabled: input.chatEnabled ?? false,
+						chatEnabled: input.chatEnabled ?? true,
 					};
 
 					const result = await ctx.db
@@ -351,6 +351,11 @@ export const botsRouter = createTRPCRouter({
 			async ({ input, ctx }): Promise<typeof selectBotSchema._output> => {
 				// Use a single transaction to handle all operations
 				return await ctx.db.transaction(async (tx) => {
+					console.log("Updating bot status:", {
+						id: input.id,
+						status: input.status,
+					});
+
 					// Get bot info in one query (recording enabled + callback URL)
 					const botRecord = await tx
 						.select({

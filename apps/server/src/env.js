@@ -55,6 +55,8 @@ export const env = createEnv({
 				)
 			: z.array(z.string()).default([]),
 
+		BOT_AUTH_TOKEN: z.string().optional(),
+
 		NEXT_PUBLIC_APP_ORIGIN_URL: z.string().url(),
 	},
 
@@ -87,6 +89,7 @@ export const env = createEnv({
 		ECS_CLUSTER_NAME: process.env.ECS_CLUSTER_NAME,
 		ECS_SUBNETS: process.env.ECS_SUBNETS,
 		ECS_SECURITY_GROUPS: process.env.ECS_SECURITY_GROUPS,
+		BOT_AUTH_TOKEN: process.env.BOT_AUTH_TOKEN,
 		NEXT_PUBLIC_APP_ORIGIN_URL: process.env.NEXT_PUBLIC_APP_ORIGIN_URL,
 	},
 

@@ -7,7 +7,7 @@ export const trpc = {
 	links: [
 		{
 			url: jest.fn(() => {
-				return "http://localhost:3001/api/trpc";
+				return "http://localhost:3000/api/trpc";
 			}),
 		},
 	],

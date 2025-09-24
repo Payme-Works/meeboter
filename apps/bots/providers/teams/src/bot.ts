@@ -10,6 +10,8 @@ import {
 	type SpeakerTimeframe,
 	WaitingRoomTimeoutError,
 } from "../../../src/types";
+import type { TRPCClient } from "@trpc/client";
+import type { AppRouter } from "@live-boost/server";
 
 /** CSS selector for the leave button that appears when in a Microsoft Teams meeting */
 const leaveButtonSelector =
@@ -57,8 +59,9 @@ export class MicrosoftTeamsBot extends Bot {
 			eventType: EventCode,
 			data?: Record<string, unknown>,
 		) => Promise<void>,
+		trpcInstance?: TRPCClient<AppRouter>,
 	) {
-		super(botSettings, onEvent);
+		super(botSettings, onEvent, trpcInstance);
 		this.recordingPath = "./recording.webm";
 		this.contentType = "video/webm";
 		this.url = `https://teams.microsoft.com/v2/?meetingjoin=true#/l/meetup-join/19:meeting_${this.settings.meetingInfo.meetingId}@thread.v2/0?context=%7b%22Tid%22%3a%22${this.settings.meetingInfo.tenantId}%22%2c%22Oid%22%3a%22${this.settings.meetingInfo.organizerId}%22%7d&anon=true`;
