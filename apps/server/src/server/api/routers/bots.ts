@@ -1,4 +1,4 @@
-import { and, eq, notInArray, sql } from "drizzle-orm";
+import { and, desc, eq, notInArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import {
 	createTRPCRouter,
@@ -94,7 +94,7 @@ export const botsRouter = createTRPCRouter({
 				.select()
 				.from(botsTable)
 				.where(eq(botsTable.userId, ctx.session.user.id))
-				.orderBy(botsTable.createdAt);
+				.orderBy(desc(botsTable.createdAt));
 		}),
 
 	/**

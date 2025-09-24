@@ -9,7 +9,7 @@ echo "Set NODE_TLS_REJECT_UNAUTHORIZED=0 to ignore SSL certificate errors"
 # Run database migrations
 echo "Running database migrations..."
 
-node /app/apps/server/drizzle-migrate.js
+cd /app && node /app/apps/server/drizzle-migrate.cjs
 
 # Start the Next.js server
 echo "Starting server..."

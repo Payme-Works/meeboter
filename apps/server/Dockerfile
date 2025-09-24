@@ -1,177 +1,67 @@
-# Dependencies
+# Turborepo-optimized Dockerfile for Next.js Server App
+# Build from monorepo root: docker build -f apps/server/Dockerfile -t live-boost-server .
 
-FROM --platform=linux/amd64 node:20-alpine AS deps
-
-RUN echo "Use Node.js 20 Alpine as the base stage"
-
-RUN echo "Install npm and pnpm"
-
-RUN npm install -g npm@latest
+FROM node:20-alpine AS base
+RUN apk update && apk add --no-cache libc6-compat
 RUN npm install -g pnpm@latest
 
-RUN echo "Install system dependencies"
+# =============================================================================
+# PRUNER: Generate a partial monorepo with pruned dependencies
+# =============================================================================
+FROM base AS pruner
+WORKDIR /app
+RUN npm install -g turbo@latest
+COPY . .
+RUN turbo prune @live-boost/server --docker
 
-RUN apk add --no-cache libc6-compat openssl
-
-RUN echo "Set working directory"
-
+# =============================================================================
+# INSTALLER: Install dependencies for build
+# =============================================================================
+FROM base AS installer
 WORKDIR /app
 
-RUN echo "Copy workspace configuration and files"
+# First install dependencies (as they change less often)
+COPY --from=pruner /app/out/json/ .
+COPY --from=pruner /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
+RUN pnpm install --frozen-lockfile --ignore-scripts
 
-COPY ./package.json /app/
-COPY ./turbo.json /app/
-COPY ./pnpm-workspace.yaml /app/
-COPY ./pnpm-lock.yaml /app/
+# Build the project
+COPY --from=pruner /app/out/full/ .
+RUN pnpm turbo build --filter=@live-boost/server
 
-RUN echo "Ensure we're building from monorepo root"
-
-RUN test -f pnpm-workspace.yaml || (echo "ERROR: Must build from monorepo root directory" && exit 1)
-
-RUN echo "Copy essential package.json files for dependency resolution"
-
-COPY ./apps/server/package.json /app/apps/server/
-COPY ./packages/ /app/packages/
-
-RUN echo "Fetch dependencies to pnpm store"
-
-RUN --mount=type=cache,target=/app/.pnpm-store pnpm config set store-dir /app/.pnpm-store
-RUN --mount=type=cache,target=/app/.pnpm-store pnpm fetch
-
-RUN echo "Install dependencies  (skip postinstall scripts)"
-
-RUN --mount=type=cache,target=/app/.pnpm-store pnpm install --frozen-lockfile --ignore-scripts
-
-RUN echo "Install dependencies specifically for server app"
-
-RUN --mount=type=cache,target=/app/.pnpm-store pnpm install --filter @live-boost/server --frozen-lockfile --ignore-scripts
-
-RUN echo "Force install missing Radix UI dependencies"
-
-RUN --mount=type=cache,target=/app/.pnpm-store pnpm add -w @radix-ui/react-avatar @radix-ui/react-checkbox @radix-ui/react-dialog @radix-ui/react-dropdown-menu @radix-ui/react-label @radix-ui/react-menubar @radix-ui/react-navigation-menu @radix-ui/react-popover @radix-ui/react-scroll-area @radix-ui/react-select @radix-ui/react-separator @radix-ui/react-slot @trpc/react-query better-auth next-auth
-
-RUN echo "Verify critical dependencies are installed"
-
-RUN ls -la /app/node_modules/@radix-ui/ && echo "Radix UI packages found:" && ls /app/node_modules/@radix-ui/ || echo "Radix UI still not found in node_modules"
-
-RUN echo "Copy scripts and remaining server app source code"
-
-COPY ./scripts/ /app/scripts/
-COPY ./apps/server/ /app/apps/server/
-
-
-# Builder
-
-FROM --platform=linux/amd64 node:20-alpine AS builder
-
-RUN echo "Use Node.js 20 Alpine as the builder stage"
-
-RUN echo "Install npm and pnpm"
-
-RUN npm install -g npm@latest
-RUN npm install -g pnpm@latest
-
-RUN echo "Install system dependencies"
-
-RUN apk add --no-cache libc6-compat openssl
-
-RUN echo "Set environment variables"
-
-ARG AUTH_SECRET
-ARG AUTH_GITHUB_ID
-ARG AUTH_GITHUB_SECRET
-ARG DATABASE_URL
-ARG AWS_ACCESS_KEY_ID
-ARG AWS_SECRET_ACCESS_KEY
-ARG AWS_BUCKET_NAME
-ARG AWS_REGION
-ARG ECS_TASK_DEFINITION_MEET
-ARG ECS_TASK_DEFINITION_TEAMS
-ARG ECS_TASK_DEFINITION_ZOOM
-ARG ECS_CLUSTER_NAME
-ARG ECS_SUBNETS
-ARG ECS_SECURITY_GROUPS
-
-RUN echo "Set working directory"
-
+# =============================================================================
+# RUNNER: Final production image
+# =============================================================================
+FROM base AS runner
 WORKDIR /app
 
-RUN echo "Copy node_modules"
+# Don't run production as root
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+USER nextjs
 
-COPY --from=deps /app/node_modules/ /app/node_modules/
+# Automatically leverage output traces to reduce image size
+# https://nextjs.org/docs/advanced-features/output-file-tracing
+COPY --from=installer --chown=nextjs:nodejs /app/apps/server/.next/standalone ./
+COPY --from=installer --chown=nextjs:nodejs /app/apps/server/.next/static ./apps/server/.next/static
+COPY --from=installer --chown=nextjs:nodejs /app/apps/server/public ./apps/server/public
 
-RUN echo "Copy workspace configuration and files"
+# Copy node_modules with all dependencies (including dev deps needed for migrations)
+COPY --from=installer --chown=nextjs:nodejs /app/node_modules ./node_modules
 
-COPY --from=deps /app/package.json /app/
-COPY --from=deps /app/turbo.json /app/
-COPY --from=deps /app/pnpm-workspace.yaml /app/
-COPY --from=deps /app/pnpm-lock.yaml /app/
+# Copy drizzle migration files and script
+COPY --from=installer --chown=nextjs:nodejs /app/apps/server/drizzle ./apps/server/drizzle
+COPY --from=installer --chown=nextjs:nodejs /app/apps/server/drizzle-migrate.cjs ./apps/server/drizzle-migrate.cjs
 
-RUN echo "Copy scripts"
+# Copy and make entrypoint script executable
+COPY --chown=nextjs:nodejs apps/server/entrypoint.sh ./apps/server/entrypoint.sh
+RUN chmod +x ./apps/server/entrypoint.sh
 
-COPY --from=deps /app/scripts/ /app/scripts/
-
-RUN echo "Copy server app and packages source code"
-
-COPY --from=deps /app/apps/server/ /app/apps/server/
-COPY --from=deps /app/packages/ /app/packages/
-
-RUN echo "Verify dependencies are available in builder stage"
-
-RUN ls -la /app/node_modules/@radix-ui/ && echo "Radix UI packages found:" && ls /app/node_modules/@radix-ui/ || echo "Radix UI not found in builder node_modules"
-
-RUN echo "Build the server app using pnpm workspace filtering"
-
-ENV SKIP_ENV_VALIDATION=1
-
-RUN pnpm turbos server build
-
-
-# Runner
-
-FROM --platform=linux/amd64 node:20-alpine AS runner
-
-RUN echo "Use Node.js 20 Alpine as the runner stage"
-
-RUN echo "Install npm and pnpm"
-
-RUN npm install -g npm@latest
-RUN npm install -g pnpm@latest
-
-RUN echo "Set working directory"
-
-WORKDIR /app
-
-ENV NODE_ENV production
-ENV PORT 3000
-
-RUN echo "Copy dependencies"
-
-COPY --from=builder /app/node_modules/ /app/node_modules/
-
-RUN echo "Copy server app"
-
-COPY --from=builder /app/apps/server/ /app/apps/server/
-COPY --from=builder /app/apps/server/.next/standalone/apps/server/ /app/apps/server/
-
-RUN echo "Copy drizzle"
-
-COPY --from=builder /app/apps/server/drizzle/ /app/apps/server/drizzle/
-COPY --from=builder /app/apps/server/drizzle.config.ts /app/apps/server/
-COPY --from=builder /app/apps/server/drizzle-migrate.js /app/apps/server/
-
-RUN echo "Copy entrypoint"
-
-COPY apps/server/entrypoint.sh /app/apps/server/entrypoint.sh
-
-RUN echo "Make entrypoint executable"
-
-RUN chmod +x /app/apps/server/entrypoint.sh
-
-RUN echo "Expose port"
+# Set environment variables
+ENV NODE_ENV=production
+ENV PORT=3000
 
 EXPOSE 3000
 
-RUN echo "Command to run the application"
-
-CMD ["/app/apps/server/entrypoint.sh"]
+# Use entrypoint script that runs migrations before starting the server
+CMD ["./apps/server/entrypoint.sh"]

@@ -39,6 +39,11 @@ async function startMessageProcessing(
 			if (queuedMessage && queuedMessage.messageText) {
 				console.log(`Sending queued message: ${queuedMessage.messageText}`);
 
+				// Add random delay between 1-3 seconds before sending message
+				const delay = Math.random() * 2000 + 1000; // 1000ms to 3000ms
+				console.log(`Waiting ${Math.round(delay)}ms before sending message...`);
+				await new Promise(resolve => setTimeout(resolve, delay));
+
 				const success = await bot.sendChatMessage(queuedMessage.messageText);
 
 				if (success) {
