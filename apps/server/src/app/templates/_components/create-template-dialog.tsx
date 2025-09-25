@@ -1,7 +1,7 @@
 "use client";
 
 import { Plus, X } from "lucide-react";
-import { useState } from "react";
+import { useState, useId } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,7 +28,9 @@ export function CreateTemplateDialog({
 	onTemplateCreated,
 }: CreateTemplateDialogProps) {
 	const [templateName, setTemplateName] = useState("");
-	const [messages, setMessages] = useState<string[]>([""]);
+	const [messages, setMessages] = useState<{ id: string; value: string }[]>([
+		{ id: crypto.randomUUID(), value: "" }
+	]);
 
 	const createTemplate = api.chat.createMessageTemplate.useMutation({
 		onSuccess: () => {
@@ -43,7 +45,7 @@ export function CreateTemplateDialog({
 
 	const resetForm = () => {
 		setTemplateName("");
-		setMessages([""]);
+		setMessages([{ id: crypto.randomUUID(), value: "" }]);
 	};
 
 	const handleClose = () => {
@@ -52,25 +54,25 @@ export function CreateTemplateDialog({
 	};
 
 	const addMessage = () => {
-		setMessages([...messages, ""]);
+		setMessages([...messages, { id: crypto.randomUUID(), value: "" }]);
 	};
 
-	const removeMessage = (index: number) => {
+	const removeMessage = (id: string) => {
 		if (messages.length > 1) {
-			setMessages(messages.filter((_, i) => i !== index));
+			setMessages(messages.filter((msg) => msg.id !== id));
 		}
 	};
 
-	const updateMessage = (index: number, value: string) => {
-		const newMessages = [...messages];
-		newMessages[index] = value;
-		setMessages(newMessages);
+	const updateMessage = (id: string, value: string) => {
+		setMessages(messages.map((msg) =>
+			msg.id === id ? { ...msg, value } : msg
+		));
 	};
 
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
 
-		const validMessages = messages.filter((msg) => msg.trim().length > 0);
+		const validMessages = messages.filter((msg) => msg.value.trim().length > 0).map((msg) => msg.value);
 
 		if (!templateName.trim()) {
 			toast.error("Template name is required");
@@ -122,14 +124,14 @@ export function CreateTemplateDialog({
 
 						<div className="space-y-3">
 							{messages.map((message, index) => (
-								<div key={message + Math.random()} className="flex gap-2">
+								<div key={message.id} className="flex gap-2">
 									<div className="flex-1 space-y-1">
 										<Label className="text-xs text-muted-foreground">
 											Variation {index + 1}
 										</Label>
 										<Input
-											value={message}
-											onChange={(e) => updateMessage(index, e.target.value)}
+											value={message.value}
+											onChange={(e) => updateMessage(message.id, e.target.value)}
 											placeholder={`Enter message variation ${index + 1}...`}
 											className="min-h-[40px]"
 										/>
@@ -140,7 +142,7 @@ export function CreateTemplateDialog({
 											type="button"
 											variant="ghost"
 											size="sm"
-											onClick={() => removeMessage(index)}
+											onClick={() => removeMessage(message.id)}
 											className="mt-6 text-destructive hover:text-destructive"
 										>
 											<X className="h-4 w-4" />
