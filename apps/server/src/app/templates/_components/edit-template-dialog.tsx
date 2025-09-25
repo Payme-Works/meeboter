@@ -29,8 +29,9 @@ export function EditTemplateDialog({
 	onTemplateUpdated,
 }: EditTemplateDialogProps) {
 	const [templateName, setTemplateName] = useState("");
+
 	const [messages, setMessages] = useState<{ id: string; value: string }[]>([
-		{ id: crypto.randomUUID(), value: "" }
+		{ id: crypto.randomUUID(), value: "" },
 	]);
 
 	const updateTemplate = api.chat.updateMessageTemplate.useMutation({
@@ -53,10 +54,14 @@ export function EditTemplateDialog({
 	useEffect(() => {
 		if (template) {
 			setTemplateName(template.templateName);
+
 			setMessages(
 				template.messages.length > 0
-					? template.messages.map(msg => ({ id: crypto.randomUUID(), value: msg }))
-					: [{ id: crypto.randomUUID(), value: "" }]
+					? template.messages.map((msg) => ({
+							id: crypto.randomUUID(),
+							value: msg,
+						}))
+					: [{ id: crypto.randomUUID(), value: "" }],
 			);
 		} else {
 			resetForm();
@@ -79,9 +84,9 @@ export function EditTemplateDialog({
 	};
 
 	const updateMessage = (id: string, value: string) => {
-		setMessages(messages.map((msg) =>
-			msg.id === id ? { ...msg, value } : msg
-		));
+		setMessages(
+			messages.map((msg) => (msg.id === id ? { ...msg, value } : msg)),
+		);
 	};
 
 	const handleSubmit = (e: React.FormEvent) => {
@@ -89,7 +94,9 @@ export function EditTemplateDialog({
 
 		if (!template) return;
 
-		const validMessages = messages.filter((msg) => msg.value.trim().length > 0).map((msg) => msg.value);
+		const validMessages = messages
+			.filter((msg) => msg.value.trim().length > 0)
+			.map((msg) => msg.value);
 
 		if (!templateName.trim()) {
 			toast.error("Template name is required");
@@ -153,7 +160,9 @@ export function EditTemplateDialog({
 										</Label>
 										<Input
 											value={message.value}
-											onChange={(e) => updateMessage(message.id, e.target.value)}
+											onChange={(e) =>
+												updateMessage(message.id, e.target.value)
+											}
 											placeholder={`Enter message variation ${index + 1}...`}
 											className="min-h-[40px]"
 										/>

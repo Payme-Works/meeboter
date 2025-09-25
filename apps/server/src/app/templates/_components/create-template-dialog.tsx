@@ -1,7 +1,7 @@
 "use client";
 
 import { Plus, X } from "lucide-react";
-import { useState, useId } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,8 +28,9 @@ export function CreateTemplateDialog({
 	onTemplateCreated,
 }: CreateTemplateDialogProps) {
 	const [templateName, setTemplateName] = useState("");
+
 	const [messages, setMessages] = useState<{ id: string; value: string }[]>([
-		{ id: crypto.randomUUID(), value: "" }
+		{ id: crypto.randomUUID(), value: "" },
 	]);
 
 	const createTemplate = api.chat.createMessageTemplate.useMutation({
@@ -64,15 +65,17 @@ export function CreateTemplateDialog({
 	};
 
 	const updateMessage = (id: string, value: string) => {
-		setMessages(messages.map((msg) =>
-			msg.id === id ? { ...msg, value } : msg
-		));
+		setMessages(
+			messages.map((msg) => (msg.id === id ? { ...msg, value } : msg)),
+		);
 	};
 
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
 
-		const validMessages = messages.filter((msg) => msg.value.trim().length > 0).map((msg) => msg.value);
+		const validMessages = messages
+			.filter((msg) => msg.value.trim().length > 0)
+			.map((msg) => msg.value);
 
 		if (!templateName.trim()) {
 			toast.error("Template name is required");
@@ -131,7 +134,9 @@ export function CreateTemplateDialog({
 										</Label>
 										<Input
 											value={message.value}
-											onChange={(e) => updateMessage(message.id, e.target.value)}
+											onChange={(e) =>
+												updateMessage(message.id, e.target.value)
+											}
 											placeholder={`Enter message variation ${index + 1}...`}
 											className="min-h-[40px]"
 										/>
