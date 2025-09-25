@@ -31,3 +31,9 @@ variable "github_token" {
   description = "GitHub token for API access"
   sensitive   = true
 }
+
+variable "bot_auth_token" {
+  type        = string
+  description = "Authentication token for bot communication with backend"
+  sensitive   = true
+}

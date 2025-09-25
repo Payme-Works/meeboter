@@ -325,6 +325,10 @@ resource "aws_ecs_task_definition" "meet_bot" {
         {
           name  = "NODE_ENV"
           value = "production"
+        },
+        {
+          name  = "BOT_AUTH_TOKEN"
+          value = var.bot_auth_token
         }
       ]
       readonlyRootFilesystem = false
@@ -371,6 +375,10 @@ resource "aws_ecs_task_definition" "zoom_bot" {
         {
           name  = "NODE_ENV"
           value = "production"
+        },
+        {
+          name  = "BOT_AUTH_TOKEN"
+          value = var.bot_auth_token
         }
       ]
       readonlyRootFilesystem = false
@@ -417,6 +425,10 @@ resource "aws_ecs_task_definition" "teams_bot" {
         {
           name  = "NODE_ENV"
           value = "production"
+        },
+        {
+          name  = "BOT_AUTH_TOKEN"
+          value = var.bot_auth_token
         }
       ]
       readonlyRootFilesystem = false
