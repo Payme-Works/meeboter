@@ -18,7 +18,7 @@ Alternativley, you can modify your example application to point to a hosted back
 
 ```bash
 cd apps/example-app
-pnpm install
+bun install
 ```
 
 ### Setup environment variables
@@ -36,7 +36,7 @@ Fill in the necessary values.
 
 ```bash
 cd apps/example-app
-pnpm run dev
+bun run dev
 ```
 
 It will run on port 3002.

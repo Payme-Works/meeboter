@@ -34,11 +34,11 @@ newArgs.push(
 );
 
 // Log the command in blue
-console.log("\x1b[34m%s\x1b[0m", `Executing: pnpm ${newArgs.join(" ")}`);
+console.log("\x1b[34m%s\x1b[0m", `Executing: bun ${newArgs.join(" ")}`);
 console.log();
 
 // Execute the command
-const child = spawn("pnpm", newArgs, {
+const child = spawn("bun", newArgs, {
 	stdio: "inherit",
 	shell: true,
 });

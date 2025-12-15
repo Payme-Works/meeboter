@@ -46,8 +46,8 @@ src/
 1. **Install dependencies**:
 
    ```bash
-   cd /Users/andrevictor/www/HAT-CREW/live-boost
-   pnpm install
+   cd /Users/andrevictor/www/Payme-Works/meeboter
+   bun install
    ```
 
 2. **Install Playwright browsers**:
@@ -59,7 +59,7 @@ src/
 
 3. **Run the orchestrator**:
    ```bash
-   pnpm run dev
+   bun run dev
    ```
 
 The orchestrator will automatically:

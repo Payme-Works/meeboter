@@ -469,7 +469,7 @@ export class GoogleMeetBot extends Bot {
 	 * @returns Array of FFmpeg command line parameters
 	 */
 	getFFmpegParams(): string[] {
-		// For testing (pnpm test) -- no docker x11 server running
+		// For testing (bun test) -- no docker x11 server running
 		if (!fs.existsSync("/tmp/.X11-unix")) {
 			console.log("Using test ffmpeg params");
 

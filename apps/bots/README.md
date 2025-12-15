@@ -20,7 +20,7 @@ These bots are integral to the Live Boost application, ensuring seamless and aut
 src/bots/
 ├── .env.example            # Example environment template file
 ├── package.json            # Global dependencies
-├── pnpm-workspace.yaml     # Specifies sub-workspaces
+├── package.json            # Workspace configuration
 ├── tsconfig.json           # Global ts configurations
 ├── jest.config.js          # Jest configuration for tests
 
@@ -33,7 +33,7 @@ src/bots/
 ├── team|zoom|meet/
 │   ├── Dockerfile          # Bot-specific docker file
 │   ├── package.json        # Bot-specific dependencies
-│   ├── pnpm-lock.yaml
+│   ├── bun.lockb
 │   ├── tsconfig.json       # Bot-specific ts configurations
 │   ├── src/
 │   │   ├── bot.ts          # Platform-specific bot class
@@ -56,8 +56,8 @@ Refer to the `.env.example` file for the required environment variables. Duplica
 4. Run the script using the following command (this will modify your `.env` file)
 
 ```bash
-cd src/bots
-pnpm tsx env-bot-data.ts
+cd apps/bots
+bun tsx env-bot-data.ts
 ```
 
 ### Environment Setup
@@ -109,9 +109,9 @@ Where Meeting Link is the full URL to the meeting.
 The following code is used to run the bots locally in your own environment. Bot code should work as intended on your environment, but we make no guarentees about this. Instead, you should aim to test and develop your code in the docker environment.
 
 ```bash
-cd src/bots
-pnpm install
-pnpm run dev
+cd apps/bots
+bun install
+bun run dev
 ```
 
 ## Building
@@ -147,6 +147,6 @@ Where `<PLATFORM>` is one of either `meet | teams | zoom`.
 If you get an strange erorr while running (eg. Browser not found at file specified), upgrade puppeteer to the latest version in the specific platform's `node_modules` folder.
 
 ```bash
-cd zoom
-pnpm install puppeteer@latest
+cd apps/bots/providers/zoom
+bun install puppeteer@latest
 ```

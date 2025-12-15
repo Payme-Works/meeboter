@@ -3,26 +3,24 @@
 const fs = require("node:fs");
 const path = require("node:path");
 
-// Dynamic module resolution for pnpm workspace
-function resolvePnpmModule(moduleName) {
-	const pnpmDir = "/app/node_modules/.pnpm";
+// Dynamic module resolution for bun workspace
+function resolveBunModule(moduleName) {
+	const nodeModulesDir = "/app/node_modules";
+	const modulePath = path.join(nodeModulesDir, moduleName);
 	try {
-		const dirs = fs
-			.readdirSync(pnpmDir)
-			.filter((dir) => dir.startsWith(`${moduleName}@`));
-		if (dirs.length > 0) {
-			return path.join(pnpmDir, dirs[0], "node_modules", moduleName);
+		if (fs.existsSync(modulePath)) {
+			return modulePath;
 		}
 	} catch (error) {
 		// Fallback to regular node_modules
-		console.error("Error resolving pnpm module:", error);
+		console.error("Error resolving bun module:", error);
 	}
 	return moduleName;
 }
 
 // Resolve modules dynamically
-const drizzlePath = resolvePnpmModule("drizzle-orm");
-const pgPath = resolvePnpmModule("pg");
+const drizzlePath = resolveBunModule("drizzle-orm");
+const pgPath = resolveBunModule("pg");
 
 const { drizzle } = require(path.join(drizzlePath, "node-postgres"));
 const { migrate } = require(path.join(drizzlePath, "node-postgres/migrator"));

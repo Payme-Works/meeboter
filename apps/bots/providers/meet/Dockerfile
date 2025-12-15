@@ -19,14 +19,13 @@ WORKDIR /app/
 
 RUN echo "Copy workspace configuration and files"
 
-COPY ./pnpm-workspace.yaml ./
-COPY ./turbo.json ./
 COPY ./package.json ./
-COPY ./pnpm-lock.yaml ./
+COPY ./turbo.json ./
+COPY ./bun.lockb ./
 
 RUN echo "Ensure we're building from monorepo root"
 
-RUN test -f pnpm-workspace.yaml || (echo "ERROR: Must build from monorepo root directory" && exit 1)
+RUN test -f package.json || (echo "ERROR: Must build from monorepo root directory" && exit 1)
 
 RUN echo "Copy node_modules if they exist"
 
@@ -41,19 +40,19 @@ RUN echo "Convert entrypoint.sh to use Unix line endings"
 
 RUN sed -i 's/\r$//' /app/apps/bots/providers/meet/entrypoint.sh
 
-RUN echo "Install npm and pnpm"
+RUN echo "Install bun"
 
-RUN npm install -g npm@latest
-RUN npm install -g pnpm@latest
+RUN curl -fsSL https://bun.sh/install | bash
+ENV PATH="/root/.bun/bin:${PATH}"
 
 RUN echo "Install dependencies"
 
-RUN pnpm install --frozen-lockfile
+RUN bun install --frozen-lockfile
 
 RUN echo "Install Playwright dependencies"
 
-RUN pnpm dlx playwright@1.52 install-deps
-RUN pnpm dlx playwright@1.52 install --with-deps
+RUN bunx playwright@1.52 install-deps
+RUN bunx playwright@1.52 install --with-deps
 
 RUN echo "Create Playwright directory"
 
@@ -85,14 +84,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     pulseaudio \
     && rm -rf /var/lib/apt/lists/*
 
-RUN echo "Install npm and pnpm"
+RUN echo "Install bun"
 
-RUN npm install -g npm@latest
-RUN npm install -g pnpm@latest
-
-RUN echo "Enable corepack"
-
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN curl -fsSL https://bun.sh/install | bash
+ENV PATH="/root/.bun/bin:${PATH}"
 
 RUN echo "Copy node_modules and Playwright directory"
 

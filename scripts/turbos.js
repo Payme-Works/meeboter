@@ -25,12 +25,12 @@ filters.forEach((filter) => {
 newArgs.push(...args.slice(1));
 
 // Log the command in blue
-console.log("\x1b[34m%s\x1b[0m", `Executing: pnpm turbo ${newArgs.join(" ")}`);
+console.log("\x1b[34m%s\x1b[0m", `Executing: bun turbo ${newArgs.join(" ")}`);
 console.log();
 console.log();
 
 // Execute the command
-const child = spawn("pnpm", ["turbo", ...newArgs], {
+const child = spawn("bun", ["turbo", ...newArgs], {
 	stdio: "inherit",
 	shell: true,
 });

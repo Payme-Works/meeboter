@@ -1,9 +1,8 @@
 # Turborepo-optimized Dockerfile for Next.js Server App
 # Build from monorepo root: docker build -f apps/server/Dockerfile -t live-boost-server .
 
-FROM node:20-alpine AS base
+FROM oven/bun:1-alpine AS base
 RUN apk update && apk add --no-cache libc6-compat
-RUN npm install -g pnpm@latest
 
 # =============================================================================
 # PRUNER: Generate a partial monorepo with pruned dependencies
@@ -22,12 +21,20 @@ WORKDIR /app
 
 # First install dependencies (as they change less often)
 COPY --from=pruner /app/out/json/ .
-COPY --from=pruner /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
-RUN pnpm install --frozen-lockfile --ignore-scripts
+# Copy lockfile directory temporarily to check for bun.lockb
+COPY --from=pruner /app/out /tmp/pruner-out
+# Copy lockfile if it exists, then install dependencies
+RUN if [ -f /tmp/pruner-out/bun.lockb ]; then \
+        cp /tmp/pruner-out/bun.lockb ./bun.lockb && \
+        bun install --frozen-lockfile --ignore-scripts; \
+    else \
+        bun install --ignore-scripts; \
+    fi && \
+    rm -rf /tmp/pruner-out
 
 # Build the project
 COPY --from=pruner /app/out/full/ .
-RUN pnpm turbo build --filter=@live-boost/server
+RUN bun turbo build --filter=@live-boost/server
 
 # =============================================================================
 # RUNNER: Final production image

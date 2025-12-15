@@ -13,14 +13,13 @@ WORKDIR /home/pptruser/
 
 RUN echo "Copy workspace configuration and files"
 
-COPY ./pnpm-workspace.yaml ./
-COPY ./turbo.json ./
 COPY ./package.json ./
-COPY ./pnpm-lock.yaml ./
+COPY ./turbo.json ./
+COPY ./bun.lockb ./
 
 RUN echo "Ensure we're building from monorepo root"
 
-RUN test -f pnpm-workspace.yaml || (echo "ERROR: Must build from monorepo root directory" && exit 1)
+RUN test -f package.json || (echo "ERROR: Must build from monorepo root directory" && exit 1)
 
 RUN echo "Copy node_modules if they exist"
 
@@ -56,10 +55,10 @@ RUN echo "Tell Puppeteer to skip installing Chrome. We'll be using the installed
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
 
-RUN echo "Install npm and pnpm"
+RUN echo "Install bun"
 
-RUN npm install -g npm@latest
-RUN npm install -g pnpm@latest
+RUN curl -fsSL https://bun.sh/install | bash
+ENV PATH="/root/.bun/bin:${PATH}"
 
 RUN echo "Convert entrypoint.sh to use Unix line endings"
 
@@ -67,7 +66,7 @@ RUN sed -i 's/\r$//' ./apps/bots/providers/teams/entrypoint.sh
 
 RUN echo "Install dependencies as root with workspace context"
 
-RUN pnpm install --frozen-lockfile
+RUN bun install --frozen-lockfile
 
 RUN echo "Change ownership of all files after installation"
 

@@ -11,7 +11,7 @@ import type { BotConfig } from "./src/types";
  * 1. Copy this script to env-bot-data.ts (will be git-ignored)
  * 2. Fill in the <...> placeholders with actual values
  * 3. Ensure .env file exists in this directory without BOT_DATA variable
- * 4. Run: pnpm tsx env-bot-data.ts
+ * 4. Run: bun tsx env-bot-data.ts
  */
 
 // ============================================================================

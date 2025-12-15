@@ -87,7 +87,7 @@ describe("Meet Bot Record Tests", () => {
 			 *
 			 * Ideally, you would run a command like
 			 *
-			 *      "docker run --rm meet pnpm run test meet"
+			 *      "docker run --rm meet bun run test meet"
 			 *
 			 * Which would run only meet specific test cases.
 			 *

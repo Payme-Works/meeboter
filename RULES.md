@@ -13,9 +13,9 @@
 - Before coding, write a short plan
 - When implementing new features, always consider email notifications and user communication flows
 - Research latest documentation when working with third-party libraries (especially authentication libraries like better-auth)
-- **VERY IMPORTANT: When you have completed a task, you MUST run the lint and typecheck commands** (eg. `pnpm run lint`, `pnpm tsc --noEmit`, `pnpm run check`) with Bash if they were provided to you to ensure your code is correct. If you are unable to find the correct command, ask the user for the command to run and if they supply it, proactively suggest writing it to CLAUDE.md so that you will know to run it next time.
+- **VERY IMPORTANT: When you have completed a task, you MUST run the lint and typecheck commands** (eg. `bun run lint`, `bun tsc --noEmit`, `bun run check`) with Bash if they were provided to you to ensure your code is correct. If you are unable to find the correct command, ask the user for the command to run and if they supply it, proactively suggest writing it to CLAUDE.md so that you will know to run it next time.
 - **NEVER commit changes unless the user explicitly asks you to** - It is VERY IMPORTANT to only commit when explicitly asked, otherwise the user will feel that you are being too proactive
-- **Run build verification** - Always run `pnpm run build` or equivalent build command to ensure the application compiles successfully before completing tasks
+- **Run build verification** - Always run `bun run build` or equivalent build command to ensure the application compiles successfully before completing tasks
 
 ## AWS Configuration
 
@@ -69,8 +69,8 @@ provider "aws" {
 
 - **Always build from monorepo root**: Use `docker build -f apps/<app>/Dockerfile .` 
 - **Never build from subdirectories**: Workspace dependencies won't resolve correctly
-- **Include workspace context**: Copy `pnpm-workspace.yaml`, root `package.json`, and `packages/` directory
-- **Use workspace filtering**: For builds, use `pnpm --filter @package/name build`
+- **Include workspace context**: Copy root `package.json`, `bun.lockb`, and `packages/` directory
+- **Use workspace filtering**: For builds, use `bun --filter @package/name build`
 - **Protection checks**: All Dockerfiles include root directory validation
 - **Disk cleanup**: Run `docker system prune -f --volumes` after builds to manage disk space
 

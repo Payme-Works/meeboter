@@ -103,7 +103,7 @@ check_prerequisites() {
     fi
     
     # Check required tools
-    local required_tools=("docker" "aws" "git" "pnpm")
+    local required_tools=("docker" "aws" "git" "bun")
     for tool in "${required_tools[@]}"; do
         if ! command -v "$tool" &> /dev/null; then
             log_error "$tool is required but not installed"
@@ -344,10 +344,10 @@ prepare_build() {
     log_info "Installing dependencies and running typecheck..."
     
     # Install root dependencies
-    pnpm install
+    bun install
     
     # Run typecheck
-    if pnpm run typecheck; then
+    if bun run typecheck; then
         log_success "Typecheck passed"
     else
         log_error "Typecheck failed"
@@ -802,7 +802,7 @@ Examples:
 Prerequisites:
   - Docker installed and running
   - AWS CLI configured with appropriate permissions
-  - pnpm package manager
+  - bun package manager
   - git repository
   - Terraform installed and configured
   - S3 bucket for Terraform state will be created automatically if needed

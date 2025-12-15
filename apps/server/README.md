@@ -18,13 +18,13 @@ cp .env.example .env
 Install dependencies:
 
 ```bash
-pnpm install
+bun install
 ```
 
 Run the development server:
 
 ```bash
-pnpm dev
+bun dev
 ```
 
 ---
@@ -60,7 +60,7 @@ src/server
 ├── jest.setup.js
 ├── next.config.js
 ├── playwright.config.ts
-├── pnpm-workspace.yaml
+├── package.json (with workspaces)
 ├── postcss.config.js
 ├── prettier.config.js
 ├── drizzle
@@ -173,6 +173,6 @@ In essense:
 
 ## **Development Notes**
 
-- Use `pnpm` for managing dependencies. The workspace is defined in `pnpm-workspace.yaml`.
+- Use `bun` for managing dependencies. The workspace is defined in the root `package.json`.
 - Jest is configured for testing with `jest.setup.js`.
 - Follow the folder structure and naming conventions for consistency.

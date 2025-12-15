@@ -5,7 +5,7 @@
 		"start": "tsx src/index.ts",
 		"dev": "tsx src/index.ts",
 		"typecheck": "tsc --noEmit",
-		"test": "pnpm exec jest"
+		"test": "bun exec jest"
 	},
 	"dependencies": {
 		"@aws-sdk/client-s3": "^3.749.0",

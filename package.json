@@ -2,10 +2,10 @@
 	"name": "live-boost",
 	"private": true,
 	"type": "module",
-	"packageManager": "pnpm@10.15.0",
+	"packageManager": "bun@latest",
 	"engines": {
 		"node": ">=18",
-		"pnpm": ">=8"
+		"bun": ">=1.0.0"
 	},
 	"prisma": {
 		"schema": "packages/database/prisma/schema.prisma",
@@ -33,9 +33,12 @@
 		"turbo": "^2.5.7",
 		"typescript": "^5"
 	},
-	"pnpm": {
-		"overrides": {
-			"@types/react": "^18.3.3"
-		}
-	}
+	"overrides": {
+		"@types/react": "^18.3.3"
+	},
+	"workspaces": [
+		"apps/**",
+		"apps/bots/providers/**",
+		"packages/**"
+	]
 }

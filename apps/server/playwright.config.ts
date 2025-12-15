@@ -88,7 +88,7 @@ export default defineConfig({
 
 	/* Run your local dev server before starting the tests */
 	webServer: {
-		command: "SKIP_ENV_VALIDATION=1 pnpm run start -p 3000",
+		command: "SKIP_ENV_VALIDATION=1 bun run start -p 3000",
 		url: "http://localhost:3000",
 		reuseExistingServer: !process.env.CI,
 	},
