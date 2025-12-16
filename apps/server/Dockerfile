@@ -34,6 +34,8 @@ RUN if [ -f /tmp/pruner-out/bun.lock ]; then \
 
 # Build the project
 COPY --from=pruner /app/out/full/ .
+# Skip env validation during build - secrets are injected at runtime
+ENV SKIP_ENV_VALIDATION=1
 RUN bun turbo build --filter=@live-boost/server
 
 # =============================================================================
