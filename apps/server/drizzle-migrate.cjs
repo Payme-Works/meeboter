@@ -28,13 +28,21 @@ const { Client } = require(pgPath);
 
 async function runMigrations() {
 	const databaseUrl = process.env.DATABASE_URL;
+	const databaseSsl = process.env.DATABASE_SSL;
 
 	if (!databaseUrl) {
 		throw new Error("DATABASE_URL is not set");
 	}
 
+	// Configure SSL based on DATABASE_SSL env var (default: true for backwards compatibility)
+	const sslEnabled = databaseSsl !== "false";
+	const sslConfig = sslEnabled ? { rejectUnauthorized: false } : false;
+
+	console.log(`Connecting to database (SSL: ${sslEnabled ? "enabled" : "disabled"})...`);
+
 	const client = new Client({
 		connectionString: databaseUrl,
+		ssl: sslConfig,
 	});
 
 	try {
