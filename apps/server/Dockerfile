@@ -36,7 +36,7 @@ RUN if [ -f /tmp/pruner-out/bun.lock ]; then \
 COPY --from=pruner /app/out/full/ .
 # Skip env validation during build - secrets are injected at runtime
 ENV SKIP_ENV_VALIDATION=1
-RUN bun turbo build --filter=@meeboter/server
+RUN SKIP_ENV_VALIDATION=1 bun turbo build --filter=@meeboter/server
 
 # =============================================================================
 # RUNNER: Final production image
