@@ -3,9 +3,9 @@ version: '3.8'
 services:
   postgres:
     image: postgres:15-alpine
-    container_name: live-boost-postgres
+    container_name: meeboter-postgres
     environment:
-      POSTGRES_DB: live-boost
+      POSTGRES_DB: meeboter
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:

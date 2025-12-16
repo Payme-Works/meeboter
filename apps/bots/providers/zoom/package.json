@@ -1,5 +1,5 @@
 {
-	"name": "@live-boost/bots-zoom",
+	"name": "@meeboter/bots-zoom",
 	"version": "1.0.0",
 	"private": true,
 	"dependencies": {

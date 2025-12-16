@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { Transform } from "node:stream";
-import type { AppRouter } from "@live-boost/server";
+import type { AppRouter } from "@meeboter/server";
 import type { TRPCClient } from "@trpc/client";
 import puppeteer, { type Browser, type Page } from "puppeteer";
 import { getStream, launch, wss } from "puppeteer-stream";

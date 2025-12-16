@@ -2,17 +2,17 @@ terraform {
   required_version = ">= 1.0"
 
   backend "s3" {
-    bucket  = "tf-state-live-boost"
-    key     = "live-boost/terraform.tfstate"
+    bucket  = "tf-state-meeboter"
+    key     = "meeboter/terraform.tfstate"
     region  = "us-east-2"
-    profile = "live-boost"
+    profile = "meeboter"
     encrypt = true
   }
 }
 
 provider "aws" {
   region  = "us-east-2"
-  profile = "live-boost"
+  profile = "meeboter"
 
   default_tags {
     tags = {
@@ -27,7 +27,7 @@ provider "aws" {
 data "aws_availability_zones" "available" {}
 
 locals {
-  name = "live-boost-${terraform.workspace}"
+  name = "meeboter-${terraform.workspace}"
 
   azs = slice(data.aws_availability_zones.available.names, 0, 3)
 

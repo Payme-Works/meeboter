@@ -37,13 +37,13 @@ This guide provides instructions for building and running meeting bot Docker ima
 cd apps/bots
 
 # Build Google Meet bot
-docker build -f providers/meet/Dockerfile -t live-boost-meet .
+docker build -f providers/meet/Dockerfile -t meeboter-meet .
 
 # Build Microsoft Teams bot
-docker build -f providers/teams/Dockerfile -t live-boost-teams .
+docker build -f providers/teams/Dockerfile -t meeboter-teams .
 
 # Build Zoom bot
-docker build -f providers/zoom/Dockerfile -t live-boost-zoom .
+docker build -f providers/zoom/Dockerfile -t meeboter-zoom .
 ```
 
 ### Multi-Platform Builds
@@ -77,7 +77,7 @@ docker run --rm \\
   -e BOT_DATA='{"id":1,"userId":"user-id","meetingInfo":{"platform":"google","meetingUrl":"https://meet.google.com/abc-defg-hij"},"meetingTitle":"Test Meeting","startTime":"2025-01-01T00:00:00Z","endTime":"2025-01-01T01:00:00Z","botDisplayName":"Test Bot","heartbeatInterval":10000,"automaticLeave":{"waitingRoomTimeout":3600000,"noOneJoinedTimeout":3600000,"everyoneLeftTimeout":3600000,"inactivityTimeout":3600000},"recordingEnabled":false}' \\
   -e AWS_BUCKET_NAME="your-bucket" \\
   -e AWS_REGION="us-east-1" \\
-  live-boost-meet
+  meeboter-meet
 ```
 
 ### Microsoft Teams Bot
@@ -88,7 +88,7 @@ docker run --rm \\
   -e BOT_DATA='{"id":1,"userId":"user-id","meetingInfo":{"platform":"teams","meetingUrl":"https://teams.microsoft.com/l/meetup-join/..."},"meetingTitle":"Test Meeting","startTime":"2025-01-01T00:00:00Z","endTime":"2025-01-01T01:00:00Z","botDisplayName":"Test Bot","heartbeatInterval":10000,"automaticLeave":{"waitingRoomTimeout":3600000,"noOneJoinedTimeout":3600000,"everyoneLeftTimeout":3600000,"inactivityTimeout":3600000},"recordingEnabled":false}' \\
   -e AWS_BUCKET_NAME="your-bucket" \\
   -e AWS_REGION="us-east-1" \\
-  live-boost-teams
+  meeboter-teams
 ```
 
 ### Zoom Bot
@@ -99,7 +99,7 @@ docker run --rm \\
   -e BOT_DATA='{"id":1,"userId":"user-id","meetingInfo":{"platform":"zoom","meetingUrl":"https://zoom.us/j/123456789"},"meetingTitle":"Test Meeting","startTime":"2025-01-01T00:00:00Z","endTime":"2025-01-01T01:00:00Z","botDisplayName":"Test Bot","heartbeatInterval":10000,"automaticLeave":{"waitingRoomTimeout":3600000,"noOneJoinedTimeout":3600000,"everyoneLeftTimeout":3600000,"inactivityTimeout":3600000},"recordingEnabled":false}' \\
   -e AWS_BUCKET_NAME="your-bucket" \\
   -e AWS_REGION="us-east-1" \\
-  live-boost-zoom
+  meeboter-zoom
 ```
 
 ## BOT_DATA Configuration
@@ -172,13 +172,13 @@ The `BOT_DATA` environment variable must be a JSON string with the following str
 
 ```bash
 # Test Google Meet bot (10 second run)
-docker run --rm -e DISPLAY=:99 -e NODE_ENV=development -e BOT_DATA='{"id":1,"userId":"test","meetingInfo":{"platform":"google","meetingUrl":"https://meet.google.com/test"},"meetingTitle":"Test","startTime":"2025-01-01T00:00:00Z","endTime":"2025-01-01T01:00:00Z","botDisplayName":"Test","heartbeatInterval":10000,"automaticLeave":{"waitingRoomTimeout":3600000,"noOneJoinedTimeout":3600000,"everyoneLeftTimeout":3600000,"inactivityTimeout":3600000},"recordingEnabled":false}' -e AWS_BUCKET_NAME="test" -e AWS_REGION="us-east-1" live-boost-meet & sleep 10 && docker kill $(docker ps -q --filter ancestor=live-boost-meet) 2>/dev/null
+docker run --rm -e DISPLAY=:99 -e NODE_ENV=development -e BOT_DATA='{"id":1,"userId":"test","meetingInfo":{"platform":"google","meetingUrl":"https://meet.google.com/test"},"meetingTitle":"Test","startTime":"2025-01-01T00:00:00Z","endTime":"2025-01-01T01:00:00Z","botDisplayName":"Test","heartbeatInterval":10000,"automaticLeave":{"waitingRoomTimeout":3600000,"noOneJoinedTimeout":3600000,"everyoneLeftTimeout":3600000,"inactivityTimeout":3600000},"recordingEnabled":false}' -e AWS_BUCKET_NAME="test" -e AWS_REGION="us-east-1" meeboter-meet & sleep 10 && docker kill $(docker ps -q --filter ancestor=meeboter-meet) 2>/dev/null
 
 # Test Teams bot (8 second run)
-docker run --rm -e NODE_ENV=development -e BOT_DATA='{"id":1,"userId":"test","meetingInfo":{"platform":"teams","meetingUrl":"https://teams.microsoft.com/test"},"meetingTitle":"Test","startTime":"2025-01-01T00:00:00Z","endTime":"2025-01-01T01:00:00Z","botDisplayName":"Test","heartbeatInterval":10000,"automaticLeave":{"waitingRoomTimeout":3600000,"noOneJoinedTimeout":3600000,"everyoneLeftTimeout":3600000,"inactivityTimeout":3600000},"recordingEnabled":false}' -e AWS_BUCKET_NAME="test" -e AWS_REGION="us-east-1" live-boost-teams & sleep 8 && docker kill $(docker ps -q --filter ancestor=live-boost-teams) 2>/dev/null
+docker run --rm -e NODE_ENV=development -e BOT_DATA='{"id":1,"userId":"test","meetingInfo":{"platform":"teams","meetingUrl":"https://teams.microsoft.com/test"},"meetingTitle":"Test","startTime":"2025-01-01T00:00:00Z","endTime":"2025-01-01T01:00:00Z","botDisplayName":"Test","heartbeatInterval":10000,"automaticLeave":{"waitingRoomTimeout":3600000,"noOneJoinedTimeout":3600000,"everyoneLeftTimeout":3600000,"inactivityTimeout":3600000},"recordingEnabled":false}' -e AWS_BUCKET_NAME="test" -e AWS_REGION="us-east-1" meeboter-teams & sleep 8 && docker kill $(docker ps -q --filter ancestor=meeboter-teams) 2>/dev/null
 
 # Test Zoom bot (8 second run)
-docker run --rm -e NODE_ENV=development -e BOT_DATA='{"id":1,"userId":"test","meetingInfo":{"platform":"zoom","meetingUrl":"https://zoom.us/j/123456789"},"meetingTitle":"Test","startTime":"2025-01-01T00:00:00Z","endTime":"2025-01-01T01:00:00Z","botDisplayName":"Test","heartbeatInterval":10000,"automaticLeave":{"waitingRoomTimeout":3600000,"noOneJoinedTimeout":3600000,"everyoneLeftTimeout":3600000,"inactivityTimeout":3600000},"recordingEnabled":false}' -e AWS_BUCKET_NAME="test" -e AWS_REGION="us-east-1" live-boost-zoom & sleep 8 && docker kill $(docker ps -q --filter ancestor=live-boost-zoom) 2>/dev/null
+docker run --rm -e NODE_ENV=development -e BOT_DATA='{"id":1,"userId":"test","meetingInfo":{"platform":"zoom","meetingUrl":"https://zoom.us/j/123456789"},"meetingTitle":"Test","startTime":"2025-01-01T00:00:00Z","endTime":"2025-01-01T01:00:00Z","botDisplayName":"Test","heartbeatInterval":10000,"automaticLeave":{"waitingRoomTimeout":3600000,"noOneJoinedTimeout":3600000,"everyoneLeftTimeout":3600000,"inactivityTimeout":3600000},"recordingEnabled":false}' -e AWS_BUCKET_NAME="test" -e AWS_REGION="us-east-1" meeboter-zoom & sleep 8 && docker kill $(docker ps -q --filter ancestor=meeboter-zoom) 2>/dev/null
 ```
 
 ## Troubleshooting
@@ -195,7 +195,7 @@ docker run --rm -e NODE_ENV=development -e BOT_DATA='{"id":1,"userId":"test","me
 To see detailed build logs:
 
 ```bash
-docker build -f providers/meet/Dockerfile -t live-boost-meet . --progress=plain
+docker build -f providers/meet/Dockerfile -t meeboter-meet . --progress=plain
 ```
 
 ### Container Debugging

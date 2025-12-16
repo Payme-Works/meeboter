@@ -2,7 +2,7 @@ import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import * as fs from "node:fs";
 import path from "node:path";
 import { setTimeout } from "node:timers/promises";
-import type { AppRouter } from "@live-boost/server";
+import type { AppRouter } from "@meeboter/server";
 import type { TRPCClient } from "@trpc/client";
 import type { Browser, Page } from "playwright";
 import { chromium } from "playwright-extra";

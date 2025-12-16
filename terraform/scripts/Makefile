@@ -6,6 +6,6 @@ reconfigure:
 	terraform init -reconfigure
 
 login:
-	aws configure --profile live-boost
+	aws configure --profile meeboter
 sso:
-	aws configure sso --profile live-boost
+	aws configure sso --profile meeboter

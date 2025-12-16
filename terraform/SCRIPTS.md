@@ -98,7 +98,7 @@ terraform apply
 All scripts support these environment variables:
 
 ```bash
-export AWS_PROFILE=live-boost      # AWS profile to use
+export AWS_PROFILE=meeboter      # AWS profile to use
 export AWS_REGION=us-east-2        # AWS region
 ```
 

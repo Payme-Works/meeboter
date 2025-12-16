@@ -1,5 +1,5 @@
 {
-	"name": "@live-boost/bots-teams",
+	"name": "@meeboter/bots-teams",
 	"version": "1.0.0",
 	"private": true,
 	"dependencies": {

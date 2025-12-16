@@ -1,5 +1,5 @@
 # Turborepo-optimized Dockerfile for Next.js Server App
-# Build from monorepo root: docker build -f apps/server/Dockerfile -t live-boost-server .
+# Build from monorepo root: docker build -f apps/server/Dockerfile -t meeboter-server .
 
 FROM oven/bun:1-alpine AS base
 RUN apk update && apk add --no-cache libc6-compat
@@ -11,7 +11,7 @@ FROM base AS pruner
 WORKDIR /app
 RUN bun add -g turbo
 COPY . .
-RUN turbo prune @live-boost/server --docker
+RUN turbo prune @meeboter/server --docker
 
 # =============================================================================
 # INSTALLER: Install dependencies for build
@@ -36,7 +36,7 @@ RUN if [ -f /tmp/pruner-out/bun.lock ]; then \
 COPY --from=pruner /app/out/full/ .
 # Skip env validation during build - secrets are injected at runtime
 ENV SKIP_ENV_VALIDATION=1
-RUN bun turbo build --filter=@live-boost/server
+RUN bun turbo build --filter=@meeboter/server
 
 # =============================================================================
 # RUNNER: Final production image

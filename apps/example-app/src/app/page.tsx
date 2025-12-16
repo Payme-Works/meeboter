@@ -33,7 +33,7 @@ export default function Home() {
 						variant="outline"
 						size="sm"
 						onClick={() =>
-							window.open("https://github.com/live-boost/live-boost")
+							window.open("https://github.com/meeboter/meeboter")
 						}
 					>
 						GitHub

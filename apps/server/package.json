@@ -1,5 +1,5 @@
 {
-	"name": "@live-boost/server",
+	"name": "@meeboter/server",
 	"version": "0.1.0",
 	"private": true,
 	"type": "module",
@@ -75,7 +75,7 @@
 		"zod": "^4.1.4"
 	},
 	"devDependencies": {
-		"@live-boost/typescript-config": "workspace:*",
+		"@meeboter/typescript-config": "workspace:*",
 		"@playwright/test": "^1.51.1",
 		"@tailwindcss/postcss": "^4.0.15",
 		"@testing-library/jest-dom": "^6.6.3",

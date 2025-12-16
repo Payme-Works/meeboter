@@ -15,9 +15,9 @@
 set -euo pipefail
 
 # Configuration
-PROJECT_NAME="live-boost"
+PROJECT_NAME="meeboter"
 
-AWS_PROFILE=${AWS_PROFILE:-"live-boost"}
+AWS_PROFILE=${AWS_PROFILE:-"meeboter"}
 AWS_REGION=${AWS_REGION:-"us-east-2"}
 
 TERRAFORM_WORKSPACE=${TERRAFORM_WORKSPACE:-"development"}  # Default to development
@@ -156,7 +156,7 @@ get_aws_account_id() {
 
 # Create S3 bucket for Terraform state if it doesn't exist
 create_s3_bucket() {
-    local bucket_name="tf-state-live-boost"
+    local bucket_name="tf-state-meeboter"
     
     log_info "Checking if S3 bucket '$bucket_name' exists..."
     

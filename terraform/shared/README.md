@@ -20,15 +20,15 @@ shared/
 
 ## Resources Managed
 
-1. **Route53 Hosted Zone**: `live-boost.andredezzy.com`
-2. **ACM Certificate**: Wildcard certificate for `*.live-boost.andredezzy.com`
+1. **Route53 Hosted Zone**: `meeboter.andredezzy.com`
+2. **ACM Certificate**: Wildcard certificate for `*.meeboter.andredezzy.com`
 3. **GitHub OIDC Provider**: For GitHub Actions authentication with AWS
 
 ## Important Notes
 
 - **Always uses `default` workspace**: Shared resources don't use environment-specific workspaces
 - **Single source of truth**: All environments reference these shared resources via remote state
-- **Separate state file**: `live-boost/shared/terraform.tfstate` in S3 bucket
+- **Separate state file**: `meeboter/shared/terraform.tfstate` in S3 bucket
 - **Deploy once**: These resources need to be deployed only once, regardless of how many environments you have
 
 ## Usage
@@ -60,10 +60,10 @@ Environment-specific Terraform configurations reference these shared resources v
 data "terraform_remote_state" "shared" {
   backend = "s3"
   config = {
-    bucket  = "tf-state-live-boost"
-    key     = "live-boost/shared/terraform.tfstate"
+    bucket  = "tf-state-meeboter"
+    key     = "meeboter/shared/terraform.tfstate"
     region  = "us-east-2"
-    profile = "live-boost"
+    profile = "meeboter"
   }
 }
 

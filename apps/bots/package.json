@@ -1,5 +1,5 @@
 {
-	"name": "@live-boost/bots",
+	"name": "@meeboter/bots",
 	"private": true,
 	"scripts": {
 		"start": "tsx src/index.ts",
@@ -10,7 +10,7 @@
 	"dependencies": {
 		"@aws-sdk/client-s3": "^3.749.0",
 		"@ffmpeg/ffmpeg": "^0.12.15",
-		"@live-boost/server": "workspace:*",
+		"@meeboter/server": "workspace:*",
 		"@trpc/client": "^11.5.0",
 		"dotenv": "^16.4.7",
 		"superjson": "^2.2.2",
@@ -18,7 +18,7 @@
 		"typescript": "^5.9.2"
 	},
 	"devDependencies": {
-		"@live-boost/typescript-config": "workspace:*",
+		"@meeboter/typescript-config": "workspace:*",
 		"@babel/preset-typescript": "^7.27.0",
 		"@jest/globals": "^29.7.0",
 		"@types/jest": "^29.5.14",

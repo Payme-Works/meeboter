@@ -40,10 +40,10 @@ terraform/
 
 ### Prerequisites
 
-1. **AWS CLI configured** with the `live-boost` profile:
+1. **AWS CLI configured** with the `meeboter` profile:
 
    ```bash
-   aws configure --profile live-boost
+   aws configure --profile meeboter
    ```
 
 2. **Terraform installed** (>= 1.0):
@@ -52,7 +52,7 @@ terraform/
    terraform version
    ```
 
-3. **Domain ownership**: You must own `live-boost.andredezzy.com` and be able to configure its nameservers
+3. **Domain ownership**: You must own `meeboter.andredezzy.com` and be able to configure its nameservers
 
 ### Initial Setup (Recommended)
 
@@ -91,8 +91,8 @@ cd ..
 
 ### Shared Resources (Single Instance)
 
-- **Route53 Hosted Zone**: `live-boost.andredezzy.com`
-- **ACM Certificate**: Wildcard `*.live-boost.andredezzy.com`
+- **Route53 Hosted Zone**: `meeboter.andredezzy.com`
+- **ACM Certificate**: Wildcard `*.meeboter.andredezzy.com`
 - **GitHub OIDC Provider**: For GitHub Actions authentication
 
 ### Environment-Specific Resources
@@ -103,15 +103,15 @@ cd ..
 - **RDS**: PostgreSQL database
 - **ECR**: Container image repositories
 - **S3**: Bot data storage
-- **DNS**: Environment subdomain (e.g., `development.live-boost.andredezzy.com`)
+- **DNS**: Environment subdomain (e.g., `development.meeboter.andredezzy.com`)
 
 ## 🌍 Environment Management
 
 ### Available Environments
 
-- **development**: `development.live-boost.andredezzy.com`
-- **staging**: `staging.live-boost.andredezzy.com`
-- **production**: `live-boost.andredezzy.com`
+- **development**: `development.meeboter.andredezzy.com`
+- **staging**: `staging.meeboter.andredezzy.com`
+- **production**: `meeboter.andredezzy.com`
 
 ### Workspace Usage
 
@@ -182,7 +182,7 @@ Create `terraform.tfvars` with:
 
 ```hcl
 # Domain configuration
-domain_name = "live-boost.andredezzy.com"
+domain_name = "meeboter.andredezzy.com"
 
 # Database configuration
 db_instance_class = "db.t3.micro"  # or db.t3.small for production
@@ -196,7 +196,7 @@ github_repository = "your-org/your-repo"
 Set these for deployment:
 
 ```bash
-export AWS_PROFILE=live-boost
+export AWS_PROFILE=meeboter
 export AWS_REGION=us-east-2
 ```
 
@@ -288,10 +288,10 @@ terraform force-unlock LOCK-ID
 
 ```bash
 # Check AWS credentials
-aws sts get-caller-identity --profile live-boost
+aws sts get-caller-identity --profile meeboter
 
 # Verify S3 backend
-aws s3 ls s3://tf-state-live-boost --profile live-boost
+aws s3 ls s3://tf-state-meeboter --profile meeboter
 
 # Check terraform state
 terraform state list

@@ -1,5 +1,5 @@
 {
-	"name": "@live-boost/lab",
+	"name": "@meeboter/lab",
 	"private": true,
 	"version": "0.0.0",
 	"type": "module",
@@ -9,7 +9,7 @@
 	},
 	"dependencies": {},
 	"devDependencies": {
-		"@live-boost/typescript-config": "workspace:*",
+		"@meeboter/typescript-config": "workspace:*",
 		"tsx": "^4.20.3"
 	}
 }

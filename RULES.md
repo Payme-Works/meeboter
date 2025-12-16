@@ -19,22 +19,22 @@
 
 ## AWS Configuration
 
-- **Default Profile**: `live-boost`
+- **Default Profile**: `meeboter`
 - **Default Region**: `us-east-2`
-- Always use the live-boost profile for AWS operations
-- S3 bucket for Terraform state: `tf-state-live-boost`
+- Always use the meeboter profile for AWS operations
+- S3 bucket for Terraform state: `tf-state-meeboter`
 
 ### AWS CLI Commands
 
 Always include the profile and region when running AWS CLI commands:
 
 ```bash
-aws <service> <command> --profile live-boost --region us-east-2
+aws <service> <command> --profile meeboter --region us-east-2
 ```
 
 ## Terraform Guidelines
 
-- **State Backend**: Store Terraform state in S3 bucket `tf-state-live-boost`
+- **State Backend**: Store Terraform state in S3 bucket `tf-state-meeboter`
 - **Region**: All resources should be deployed to `us-east-2` unless specified otherwise
 - Use proper Terraform formatting with `terraform fmt`
 - Always run `terraform plan` before `terraform apply`
@@ -46,10 +46,10 @@ aws <service> <command> --profile live-boost --region us-east-2
 ```hcl
 terraform {
   backend "s3" {
-    bucket  = "tf-state-live-boost"
+    bucket  = "tf-state-meeboter"
     key     = "terraform.tfstate"
     region  = "us-east-2"
-    profile = "live-boost"
+    profile = "meeboter"
   }
 }
 ```
@@ -59,7 +59,7 @@ terraform {
 ```hcl
 provider "aws" {
   region  = "us-east-2"
-  profile = "live-boost"
+  profile = "meeboter"
 }
 ```
 
@@ -78,12 +78,12 @@ provider "aws" {
 
 ```bash
 # Server
-docker build -f apps/server/Dockerfile -t live-boost-server .
+docker build -f apps/server/Dockerfile -t meeboter-server .
 
 # Bots  
-docker build -f apps/bots/providers/meet/Dockerfile -t live-boost-meet .
-docker build -f apps/bots/providers/teams/Dockerfile -t live-boost-teams .
-docker build -f apps/bots/providers/zoom/Dockerfile -t live-boost-zoom .
+docker build -f apps/bots/providers/meet/Dockerfile -t meeboter-meet .
+docker build -f apps/bots/providers/teams/Dockerfile -t meeboter-teams .
+docker build -f apps/bots/providers/zoom/Dockerfile -t meeboter-zoom .
 ```
 
 ## Development Workflow

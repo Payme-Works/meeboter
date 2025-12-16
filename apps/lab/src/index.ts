@@ -8,8 +8,8 @@ const API_KEYS = {
 };
 
 const API_BASE_URLS = {
-	production: "https://live-boost.andredezzy.com/api",
-	development: "https://development.live-boost.andredezzy.com/api",
+	production: "https://meeboter.andredezzy.com/api",
+	development: "https://development.meeboter.andredezzy.com/api",
 };
 
 const ENV: "production" | "development" = "production";

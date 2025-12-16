@@ -1,4 +1,4 @@
-import type { AppRouter } from "@live-boost/server";
+import type { AppRouter } from "@meeboter/server";
 import {
 	createTRPCProxyClient,
 	httpBatchLink,

@@ -1,5 +1,5 @@
 {
-	"name": "@live-boost/typescript-config",
+	"name": "@meeboter/typescript-config",
 	"version": "0.0.0",
 	"private": true,
 	"publishConfig": {
