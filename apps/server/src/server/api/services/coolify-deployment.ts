@@ -87,6 +87,9 @@ export async function createCoolifyApplication(
 				docker_registry_image_tag: image.tag,
 				name: applicationName,
 				description: `Bot ${botId} for ${botConfig.meetingInfo.platform} meeting`,
+				// Bots are worker processes that don't serve HTTP traffic,
+				// but Coolify requires this field. Use placeholder port.
+				ports_exposes: "3000",
 				instant_deploy: true,
 			}),
 		},
