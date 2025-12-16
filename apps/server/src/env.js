@@ -23,7 +23,9 @@ export const env = createEnv({
 		AUTH_GITHUB_ID: z.string(),
 		AUTH_GITHUB_SECRET: z.string(),
 
-		DATABASE_URL: z.string().startsWith("postgresql://"),
+		DATABASE_URL: z.string().regex(/^postgres(ql)?:\/\//, {
+			message: "DATABASE_URL must start with postgresql:// or postgres://",
+		}),
 
 		// Coolify API Configuration
 		COOLIFY_API_URL: !isProductionDeployment
