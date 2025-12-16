@@ -93,10 +93,37 @@ export async function createCoolifyApplication(
 	);
 
 	if (!response.ok) {
-		const errorData = (await response.json()) as CoolifyErrorResponse;
+		const responseText = await response.text();
+		let errorMessage = response.statusText;
+
+		try {
+			const errorData = JSON.parse(responseText) as Record<string, unknown>;
+			// Log full error details for debugging
+			console.error("Coolify API error response:", {
+				status: response.status,
+				statusText: response.statusText,
+				body: errorData,
+			});
+			console.error("Request body was:", {
+				project_uuid: env.COOLIFY_PROJECT_UUID,
+				server_uuid: env.COOLIFY_SERVER_UUID,
+				environment_name: env.COOLIFY_ENVIRONMENT_NAME,
+				destination_uuid: env.COOLIFY_DESTINATION_UUID,
+				docker_registry_image_name: image.name,
+				docker_registry_image_tag: image.tag,
+				name: applicationName,
+			});
+			errorMessage =
+				(errorData.message as string) ||
+				JSON.stringify(errorData) ||
+				response.statusText;
+		} catch {
+			console.error("Coolify API raw response:", responseText);
+			errorMessage = responseText || response.statusText;
+		}
 
 		throw new CoolifyDeploymentError(
-			`Failed to create Coolify application: ${errorData.message || response.statusText}`,
+			`Failed to create Coolify application: ${errorMessage}`,
 		);
 	}
 
