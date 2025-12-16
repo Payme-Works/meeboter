@@ -28,6 +28,7 @@ COPY ./node_modules* /app/node_modules
 RUN echo "Copy workspace configuration and files"
 
 COPY ./apps/bots/ ./apps/bots/
+COPY ./apps/server/ ./apps/server/
 COPY ./packages/ ./packages/
 
 RUN echo "Configure default locale (important for chrome-headless-shell)"
