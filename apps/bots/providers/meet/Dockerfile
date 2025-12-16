@@ -48,7 +48,7 @@ ENV PATH="/root/.bun/bin:${PATH}"
 
 RUN echo "Install dependencies"
 
-RUN bun install --frozen-lockfile
+RUN bun install
 
 RUN echo "Install Playwright dependencies"
 

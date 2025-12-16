@@ -71,7 +71,7 @@ RUN sed -i 's/\r$//' ./apps/bots/providers/zoom/entrypoint.sh
 
 RUN echo "Install dependencies as root with workspace context"
 
-RUN bun install --frozen-lockfile
+RUN bun install
 
 RUN echo "Change ownership of all files after installation"
 
