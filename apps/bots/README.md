@@ -33,7 +33,7 @@ src/bots/
 ├── team|zoom|meet/
 │   ├── Dockerfile          # Bot-specific docker file
 │   ├── package.json        # Bot-specific dependencies
-│   ├── bun.lockb
+│   ├── bun.lock
 │   ├── tsconfig.json       # Bot-specific ts configurations
 │   ├── src/
 │   │   ├── bot.ts          # Platform-specific bot class

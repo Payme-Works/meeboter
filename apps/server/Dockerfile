@@ -21,11 +21,11 @@ WORKDIR /app
 
 # First install dependencies (as they change less often)
 COPY --from=pruner /app/out/json/ .
-# Copy lockfile directory temporarily to check for bun.lockb
+# Copy lockfile directory temporarily to check for bun.lock
 COPY --from=pruner /app/out /tmp/pruner-out
 # Copy lockfile if it exists, then install dependencies
-RUN if [ -f /tmp/pruner-out/bun.lockb ]; then \
-        cp /tmp/pruner-out/bun.lockb ./bun.lockb && \
+RUN if [ -f /tmp/pruner-out/bun.lock ]; then \
+        cp /tmp/pruner-out/bun.lock ./bun.lock && \
         bun install --frozen-lockfile --ignore-scripts; \
     else \
         bun install --ignore-scripts; \

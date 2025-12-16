@@ -17,7 +17,7 @@ RUN echo "Copy workspace configuration and files"
 
 COPY ./package.json ./
 COPY ./turbo.json ./
-COPY ./bun.lockb ./
+COPY ./bun.lock ./
 
 RUN echo "Ensure we're building from monorepo root"
 

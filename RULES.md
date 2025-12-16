@@ -69,7 +69,7 @@ provider "aws" {
 
 - **Always build from monorepo root**: Use `docker build -f apps/<app>/Dockerfile .` 
 - **Never build from subdirectories**: Workspace dependencies won't resolve correctly
-- **Include workspace context**: Copy root `package.json`, `bun.lockb`, and `packages/` directory
+- **Include workspace context**: Copy root `package.json`, `bun.lock`, and `packages/` directory
 - **Use workspace filtering**: For builds, use `bun --filter @package/name build`
 - **Protection checks**: All Dockerfiles include root directory validation
 - **Disk cleanup**: Run `docker system prune -f --volumes` after builds to manage disk space
