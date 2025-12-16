@@ -2,7 +2,7 @@
 	"name": "live-boost",
 	"private": true,
 	"type": "module",
-	"packageManager": "bun@latest",
+	"packageManager": "bun@1.2.5",
 	"engines": {
 		"node": ">=18",
 		"bun": ">=1.0.0"

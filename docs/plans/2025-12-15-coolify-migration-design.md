@@ -1,7 +1,7 @@
 # Meeboter: AWS to Coolify Migration Design
 
 **Date:** 2025-12-15
-**Status:** Approved
+**Status:** Implementation Complete - Ready for Infrastructure Setup
 **Author:** AI-assisted design session
 
 ---
@@ -78,7 +78,7 @@ Access: HTTPS required (Coolify handles SSL)
 
 ```
 Type: Docker Image
-Image: ghcr.io/your-org/meeboter-server:latest
+Image: ghcr.io/payme-works/meeboter-server:latest
 Port: 3000
 Domain: meeboter.yourdomain.com
 ```
@@ -91,7 +91,7 @@ Bots are **not** pre-deployed. They're created on-demand via Coolify API when a 
 
 ```
 Type: Docker Image (created dynamically)
-Images: ghcr.io/your-org/meeboter-{meet,teams,zoom}-bot:latest
+Images: ghcr.io/payme-works/meeboter-{meet,teams,zoom}-bot:latest
 Lifecycle: Created → Runs → Deleted after completion
 ```
 
@@ -417,11 +417,11 @@ Each push creates two tags:
 
 After workflow runs:
 ```
-ghcr.io/your-org/meeboter-server:latest
-ghcr.io/your-org/meeboter-server:sha-abc1234
-ghcr.io/your-org/meeboter-meet-bot:latest
-ghcr.io/your-org/meeboter-teams-bot:latest
-ghcr.io/your-org/meeboter-zoom-bot:latest
+ghcr.io/payme-works/meeboter-server:latest
+ghcr.io/payme-works/meeboter-server:sha-abc1234
+ghcr.io/payme-works/meeboter-meet-bot:latest
+ghcr.io/payme-works/meeboter-teams-bot:latest
+ghcr.io/payme-works/meeboter-zoom-bot:latest
 ```
 
 ---
@@ -654,15 +654,17 @@ bun db:migrate
 
 #### 1. Configure GitHub Container Registry Access
 
+Coolify doesn't have a UI for Docker registries. SSH into the server and login directly:
+
 ```bash
 # SSH into your Coolify server
 ssh user@your-server
 
-# Login to ghcr.io with a Personal Access Token (PAT)
-# PAT needs: read:packages scope
-docker login ghcr.io -u YOUR_GITHUB_USERNAME
-# Enter your PAT when prompted
+# Create a GitHub PAT with read:packages scope, then login
+echo "YOUR_GITHUB_PAT" | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin
 ```
+
+Once logged in, Coolify automatically detects and uses these credentials when pulling images.
 
 #### 2. Create Project in Coolify
 
@@ -698,7 +700,7 @@ docker login ghcr.io -u YOUR_GITHUB_USERNAME
 
 1. **New Resource** → **Application** → **Docker Image**
 2. Configure:
-   - Image: `ghcr.io/YOUR_ORG/meeboter-server:latest`
+   - Image: `ghcr.io/payme-works/meeboter-server:latest`
    - Port: `3000`
    - Domain: `meeboter.yourdomain.com`
 3. Add environment variables (from Section 4)
@@ -717,8 +719,8 @@ You need these UUIDs for the server's environment variables:
 
 #### 7. Create API Token
 
-1. Coolify Dashboard → **Settings** → **API Tokens**
-2. Create new token with description: `meeboter-bot-spawning`
+1. Coolify Dashboard → **Settings** → **Keys & Tokens** → **API tokens**
+2. Click **Add** and create new token with description: `meeboter-bot-spawning`
 3. Copy token → save as `COOLIFY_API_TOKEN`
 
 #### 8. Configure GitHub Secrets
@@ -808,6 +810,236 @@ gh workflow run deploy.yml
 
 ---
 
+## 10. Next Steps (Post-Implementation)
+
+The code implementation is complete. Follow these steps to complete the migration:
+
+### Step 1: Generate Database Migration
+
+```bash
+# Generate migration for the new coolifyServiceUuid column
+bun drizzle-kit generate
+
+# Apply migration to your database
+bun drizzle-kit migrate
+```
+
+### Step 2: Set Up MinIO in Coolify
+
+1. Go to Coolify Dashboard → **Projects** → Your Project → **New Resource**
+2. Select **Service** → **MinIO**
+3. Configure:
+   - **Domain (API)**: `minio.yourdomain.com`
+   - **Console Domain**: `minio-console.yourdomain.com` (optional)
+4. Deploy and wait for healthy status
+5. Access MinIO Console:
+   - Create bucket: `meeboter-recordings`
+   - Create Access Key + Secret Key (save these as `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY`)
+
+### Step 3: Configure GHCR Registry Access on Coolify Server
+
+Coolify doesn't have a UI for Docker registries. Instead, you SSH into the server and login directly.
+
+**For Organization Repositories (Payme-Works/meeboter):**
+
+#### 3.1 Create a GitHub Personal Access Token (PAT)
+
+**Recommended: Use Classic Token** (simpler for GHCR):
+
+1. Go to: **https://github.com/settings/tokens/new**
+   - Or: GitHub → Avatar → Settings → Developer settings → Personal access tokens → Tokens (classic) → Generate new token
+2. Configure:
+   - **Note**: `coolify-ghcr-access`
+   - **Expiration**: Choose appropriate duration (or no expiration)
+   - **Select scopes**:
+     - ✅ `read:packages` - Download packages from GHCR
+     - ✅ `write:packages` - (optional, only if pushing from server)
+3. Click **"Generate token"** and copy it immediately
+
+**Alternative (Fine-grained Token):**
+1. Go to: https://github.com/settings/tokens?type=beta
+2. Resource owner: `Payme-Works`
+3. Repository access: Select repositories
+4. Under **"Repositories"** tab (not Organizations) → **"Packages"** → Read
+
+#### 3.2 Configure Organization Package Access (after first push)
+
+1. Go to: **https://github.com/orgs/Payme-Works/packages**
+2. Click on each package (e.g., `meeboter-server`)
+3. Click **"Package settings"** (right side)
+4. Scroll to **"Manage Actions access"** → Add `Payme-Works/meeboter` repository
+5. Or under **"Manage repository access"** → Add repository with read access
+
+#### 3.3 Login on Coolify Server
+
+```bash
+# SSH into your Coolify server
+ssh user@your-coolify-server
+
+# Login to GHCR (use your GitHub username, not org name)
+echo "YOUR_GITHUB_PAT" | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin
+
+# Verify login succeeded
+cat ~/.docker/config.json | grep ghcr
+```
+
+Once logged in, Coolify automatically detects and uses these credentials when pulling images.
+
+**Image paths for this project:**
+```
+ghcr.io/payme-works/meeboter-server:latest
+ghcr.io/payme-works/meeboter-meet-bot:latest
+ghcr.io/payme-works/meeboter-teams-bot:latest
+ghcr.io/payme-works/meeboter-zoom-bot:latest
+```
+
+**Environment variable:** `GHCR_ORG=payme-works` (lowercase)
+
+**Alternative Method:** Connect a GitHub App in Coolify's **Sources** section, which allows pulling from ghcr.io without explicit docker login.
+
+### Step 4: Collect Coolify UUIDs
+
+Navigate to these locations in Coolify (replace `coolify.yourdomain.com` with your actual Coolify URL):
+
+#### 4.1 API URL
+- **Value**: `https://coolify.yourdomain.com/api/v1`
+- Just append `/api/v1` to your Coolify dashboard URL
+
+#### 4.2 API Token
+- **Navigate to**: `https://coolify.yourdomain.com/settings/tokens`
+- Or: Coolify Dashboard → Settings (gear icon, bottom left) → Keys & Tokens → API tokens
+- Click **"Add"** → Give it a name like `meeboter-bot-spawning` → Copy the token
+
+#### 4.3 Project UUID
+- **Navigate to**: `https://coolify.yourdomain.com/projects`
+- Click on your project (e.g., "meeboter")
+- Look at the URL: `https://coolify.yourdomain.com/project/abc12345-...`
+- Copy the UUID after `/project/`
+
+#### 4.4 Server UUID
+- **Navigate to**: `https://coolify.yourdomain.com/servers`
+- Or: Settings → Servers
+- Click on your server
+- Look at the URL: `https://coolify.yourdomain.com/server/def67890-...`
+- Copy the UUID after `/server/`
+
+#### 4.5 Destination UUID
+- **Navigate to**: Your server page → Destinations tab
+- Or from server URL, add `/destinations`
+- Click on the Docker destination (usually "Local Docker Engine")
+- Look at the URL: `https://coolify.yourdomain.com/destination/ghi11111-...`
+- Copy the UUID after `/destination/`
+
+| Variable | Example Value |
+|----------|---------------|
+| `COOLIFY_API_URL` | `https://coolify.yourdomain.com/api/v1` |
+| `COOLIFY_API_TOKEN` | `1|abc123...` (generated token) |
+| `COOLIFY_PROJECT_UUID` | `abc12345-1234-5678-9012-abcdef123456` |
+| `COOLIFY_SERVER_UUID` | `def67890-1234-5678-9012-abcdef123456` |
+| `COOLIFY_DESTINATION_UUID` | `ghi11111-1234-5678-9012-abcdef123456` |
+
+### Step 5: Deploy Meeboter Server Application
+
+1. In Coolify: **New Resource** → **Application** → **Docker Image**
+2. Configure:
+   - **Image**: `ghcr.io/payme-works/meeboter-server:latest`
+   - **Port**: `3000`
+   - **Domain**: `meeboter.yourdomain.com`
+3. Add all environment variables:
+
+```bash
+# Database
+DATABASE_URL=postgresql://user:pass@postgres-service:5432/meeboter
+
+# Auth
+AUTH_SECRET=your-auth-secret
+AUTH_GITHUB_ID=your-github-oauth-id
+AUTH_GITHUB_SECRET=your-github-oauth-secret
+
+# Coolify (for bot spawning)
+COOLIFY_API_URL=https://coolify.yourdomain.com/api/v1
+COOLIFY_API_TOKEN=your-coolify-api-token
+COOLIFY_PROJECT_UUID=your-project-uuid
+COOLIFY_SERVER_UUID=your-server-uuid
+COOLIFY_DESTINATION_UUID=your-destination-uuid
+COOLIFY_ENVIRONMENT_NAME=production
+
+# GHCR (for bot images)
+GHCR_ORG=payme-works
+BOT_IMAGE_TAG=latest
+
+# MinIO
+MINIO_ENDPOINT=http://minio-service:9000
+MINIO_ACCESS_KEY=your-minio-access-key
+MINIO_SECRET_KEY=your-minio-secret-key
+MINIO_BUCKET_NAME=meeboter-recordings
+MINIO_REGION=us-east-1
+
+# App
+NEXT_PUBLIC_APP_ORIGIN_URL=https://meeboter.yourdomain.com
+NODE_ENV=production
+```
+
+4. Deploy the application
+5. After deployment, go to the application → **Webhooks** menu → Copy the webhook URL (for GitHub Actions)
+
+### Step 6: Configure GitHub Repository
+
+#### 6.1 Enable Packages Write Permission
+
+1. Go to: **https://github.com/Payme-Works/meeboter/settings/actions**
+2. Scroll down to **"Workflow permissions"**
+3. Select **"Read and write permissions"**
+4. Click **"Save"**
+
+#### 6.2 (Optional) Add Coolify Webhook for Auto-Deploy
+
+1. Go to: **https://github.com/Payme-Works/meeboter/settings/variables/actions**
+   - Or: Repository → Settings → Secrets and variables → Actions → Variables tab
+2. Click **"New repository variable"**
+3. Add:
+   - **Name**: `COOLIFY_WEBHOOK_URL`
+   - **Value**: The webhook URL from Step 5 (from your deployed application's Webhooks menu)
+
+### Step 7: First Deployment
+
+```bash
+# Commit all changes
+git add .
+git commit -m "Migrate to Coolify infrastructure"
+git push origin main
+```
+
+Monitor the GitHub Actions workflow at: **https://github.com/Payme-Works/meeboter/actions**
+
+### Step 8: Verification
+
+After deployment, verify:
+
+- [ ] **GitHub Actions completed**: https://github.com/Payme-Works/meeboter/actions
+- [ ] **Server application is healthy** in Coolify dashboard
+- [ ] **All 4 images published to GHCR**: https://github.com/orgs/Payme-Works/packages
+  - `ghcr.io/payme-works/meeboter-server`
+  - `ghcr.io/payme-works/meeboter-meet-bot`
+  - `ghcr.io/payme-works/meeboter-teams-bot`
+  - `ghcr.io/payme-works/meeboter-zoom-bot`
+- [ ] **Create a test bot** → verify it appears in Coolify UI as a new application
+- [ ] **Bot completes** → verify Coolify service is automatically deleted
+- [ ] **Recording uploads** to MinIO successfully (check MinIO console)
+- [ ] **Signed URLs work** for recording playback
+
+### Step 9: Decommission AWS (After Verification)
+
+Once everything is verified working for 24-48 hours:
+
+1. Stop ECS services
+2. Export any remaining S3 data
+3. Delete RDS instance (after final backup)
+4. Remove Terraform resources or manually delete AWS infrastructure
+5. Revoke AWS credentials
+
+---
+
 ## Architecture Diagram
 
 ```
@@ -825,10 +1057,10 @@ gh workflow run deploy.yml
 │  ┌────────────────────────────────────────────────────────────────┐ │
 │  │              ghcr.io (Private Registry)                         │ │
 │  │                                                                 │ │
-│  │  - ghcr.io/your-org/meeboter-server:latest                     │ │
-│  │  - ghcr.io/your-org/meeboter-meet-bot:latest                   │ │
-│  │  - ghcr.io/your-org/meeboter-teams-bot:latest                  │ │
-│  │  - ghcr.io/your-org/meeboter-zoom-bot:latest                   │ │
+│  │  - ghcr.io/payme-works/meeboter-server:latest                  │ │
+│  │  - ghcr.io/payme-works/meeboter-meet-bot:latest                │ │
+│  │  - ghcr.io/payme-works/meeboter-teams-bot:latest               │ │
+│  │  - ghcr.io/payme-works/meeboter-zoom-bot:latest                │ │
 │  │                                                                 │ │
 │  └────────────────────────────┬───────────────────────────────────┘ │
 └───────────────────────────────┼─────────────────────────────────────┘

@@ -1,9 +1,13 @@
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
 
-const isProduction =
+// Check if we're in a real production deployment (not just a build)
+// During builds, NODE_ENV is "production" but we still want development defaults
+const isProductionDeployment =
 	process.env.VERCEL_ENV === "production" ||
-	process.env.NODE_ENV === "production";
+	(process.env.NODE_ENV === "production" &&
+		!process.env.SKIP_ENV_VALIDATION &&
+		process.env.COOLIFY_API_URL !== undefined);
 
 export const env = createEnv({
 	/**
@@ -21,39 +25,44 @@ export const env = createEnv({
 
 		DATABASE_URL: z.string().startsWith("postgresql://"),
 
-		AWS_ACCESS_KEY_ID: z.string().optional(),
-		AWS_SECRET_ACCESS_KEY: z.string().optional(),
-		AWS_BUCKET_NAME: !isProduction
-			? z.preprocess(() => "fake_aws_bucket_name", z.string())
+		// Coolify API Configuration
+		COOLIFY_API_URL: !isProductionDeployment
+			? z.preprocess(() => "http://localhost:8000/api/v1", z.string().url())
+			: z.string().url(),
+		COOLIFY_API_TOKEN: !isProductionDeployment
+			? z.preprocess(() => "fake_coolify_token", z.string())
 			: z.string(),
-		AWS_REGION: !isProduction
-			? z.preprocess(() => "fake_aws_region", z.string())
+		COOLIFY_PROJECT_UUID: !isProductionDeployment
+			? z.preprocess(() => "fake_project_uuid", z.string())
+			: z.string(),
+		COOLIFY_SERVER_UUID: !isProductionDeployment
+			? z.preprocess(() => "fake_server_uuid", z.string())
+			: z.string(),
+		COOLIFY_ENVIRONMENT_NAME: z.string().default("production"),
+		COOLIFY_DESTINATION_UUID: !isProductionDeployment
+			? z.preprocess(() => "fake_destination_uuid", z.string())
 			: z.string(),
 
-		ECS_TASK_DEFINITION_MEET: !isProduction
-			? z.preprocess(() => "fake_task_definition_meet", z.string())
+		// GitHub Container Registry
+		GHCR_ORG: !isProductionDeployment
+			? z.preprocess(() => "fake_ghcr_org", z.string())
 			: z.string(),
-		ECS_TASK_DEFINITION_TEAMS: !isProduction
-			? z.preprocess(() => "fake_task_definition_teams", z.string())
+		BOT_IMAGE_TAG: z.string().default("latest"),
+
+		// MinIO Configuration (S3-compatible)
+		MINIO_ENDPOINT: !isProductionDeployment
+			? z.preprocess(() => "http://localhost:9000", z.string().url())
+			: z.string().url(),
+		MINIO_ACCESS_KEY: !isProductionDeployment
+			? z.preprocess(() => "fake_minio_access_key", z.string())
 			: z.string(),
-		ECS_TASK_DEFINITION_ZOOM: !isProduction
-			? z.preprocess(() => "fake_task_definition_zoom", z.string())
+		MINIO_SECRET_KEY: !isProductionDeployment
+			? z.preprocess(() => "fake_minio_secret_key", z.string())
 			: z.string(),
-		ECS_CLUSTER_NAME: !isProduction
-			? z.preprocess(() => "fake_cluster_name", z.string())
+		MINIO_BUCKET_NAME: !isProductionDeployment
+			? z.preprocess(() => "meeboter-recordings", z.string())
 			: z.string(),
-		ECS_SUBNETS: isProduction
-			? z.preprocess(
-					(val) => (typeof val === "string" ? val.split(",") : []),
-					z.array(z.string()),
-				)
-			: z.array(z.string()).default([]),
-		ECS_SECURITY_GROUPS: isProduction
-			? z.preprocess(
-					(val) => (typeof val === "string" ? val.split(",") : []),
-					z.array(z.string()),
-				)
-			: z.array(z.string()).default([]),
+		MINIO_REGION: z.string().default("us-east-1"),
 
 		BOT_AUTH_TOKEN: z.string().optional(),
 
@@ -79,16 +88,26 @@ export const env = createEnv({
 		AUTH_GITHUB_SECRET: process.env.AUTH_GITHUB_SECRET,
 		DATABASE_URL: process.env.DATABASE_URL,
 		NODE_ENV: process.env.NODE_ENV,
-		AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID,
-		AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY,
-		AWS_BUCKET_NAME: process.env.AWS_BUCKET_NAME,
-		AWS_REGION: process.env.AWS_REGION,
-		ECS_TASK_DEFINITION_MEET: process.env.ECS_TASK_DEFINITION_MEET,
-		ECS_TASK_DEFINITION_TEAMS: process.env.ECS_TASK_DEFINITION_TEAMS,
-		ECS_TASK_DEFINITION_ZOOM: process.env.ECS_TASK_DEFINITION_ZOOM,
-		ECS_CLUSTER_NAME: process.env.ECS_CLUSTER_NAME,
-		ECS_SUBNETS: process.env.ECS_SUBNETS,
-		ECS_SECURITY_GROUPS: process.env.ECS_SECURITY_GROUPS,
+
+		// Coolify
+		COOLIFY_API_URL: process.env.COOLIFY_API_URL,
+		COOLIFY_API_TOKEN: process.env.COOLIFY_API_TOKEN,
+		COOLIFY_PROJECT_UUID: process.env.COOLIFY_PROJECT_UUID,
+		COOLIFY_SERVER_UUID: process.env.COOLIFY_SERVER_UUID,
+		COOLIFY_ENVIRONMENT_NAME: process.env.COOLIFY_ENVIRONMENT_NAME,
+		COOLIFY_DESTINATION_UUID: process.env.COOLIFY_DESTINATION_UUID,
+
+		// GHCR
+		GHCR_ORG: process.env.GHCR_ORG,
+		BOT_IMAGE_TAG: process.env.BOT_IMAGE_TAG,
+
+		// MinIO
+		MINIO_ENDPOINT: process.env.MINIO_ENDPOINT,
+		MINIO_ACCESS_KEY: process.env.MINIO_ACCESS_KEY,
+		MINIO_SECRET_KEY: process.env.MINIO_SECRET_KEY,
+		MINIO_BUCKET_NAME: process.env.MINIO_BUCKET_NAME,
+		MINIO_REGION: process.env.MINIO_REGION,
+
 		BOT_AUTH_TOKEN: process.env.BOT_AUTH_TOKEN,
 		NEXT_PUBLIC_APP_ORIGIN_URL: process.env.NEXT_PUBLIC_APP_ORIGIN_URL,
 	},

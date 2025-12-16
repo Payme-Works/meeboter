@@ -5,7 +5,7 @@ import {
 	startDurationMonitor,
 	startHeartbeat,
 } from "./monitoring";
-import { createS3Client, uploadRecordingToS3 } from "./s3";
+import { createS3ClientFromEnv, uploadRecordingToS3 } from "./s3";
 import { trpc } from "./trpc";
 import { type BotConfig, EventCode, type SpeakerTimeframe } from "./types";
 
@@ -70,12 +70,7 @@ async function startMessageProcessing(
 export const main = async () => {
 	let hasErrorOccurred = false;
 
-	const requiredEnvVars = [
-		"BOT_DATA",
-		"AWS_BUCKET_NAME",
-		"AWS_REGION",
-		"NODE_ENV",
-	] as const;
+	const requiredEnvVars = ["BOT_DATA", "NODE_ENV"] as const;
 
 	// Check all required environment variables are present
 	for (const envVar of requiredEnvVars) {
@@ -97,15 +92,13 @@ export const main = async () => {
 	// Declare key variable at the top level of the function
 	let key: string = "";
 
-	// Initialize S3 client
-	const s3Client = createS3Client(
-		process.env.AWS_REGION ?? "us-east-2",
-		process.env.AWS_ACCESS_KEY_ID,
-		process.env.AWS_SECRET_ACCESS_KEY,
-	);
+	// Initialize S3 client (supports both MinIO and AWS S3)
+	const s3Client = createS3ClientFromEnv();
 
 	if (!s3Client) {
-		throw new Error("Failed to create S3 client");
+		throw new Error(
+			"Failed to create S3 client - check MINIO_* or AWS_* environment variables",
+		);
 	}
 
 	// Create the appropriate bot instance based on platform

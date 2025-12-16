@@ -20,7 +20,11 @@ describe("Bot S3 Startup Tests", () => {
 		const mockAccessKeyId = "mockAccessKeyId";
 		const mockSecretKey = "mockSecretKey";
 
-		createS3Client(mockRegion, mockAccessKeyId, mockSecretKey);
+		createS3Client({
+			region: mockRegion,
+			accessKeyId: mockAccessKeyId,
+			secretAccessKey: mockSecretKey,
+		});
 
 		expect(S3Client).toHaveBeenCalledWith({
 			region: mockRegion,
@@ -36,7 +40,7 @@ describe("Bot S3 Startup Tests", () => {
 	it("create an S3 client without credentials when not provided", () => {
 		const mockRegion = "us-east-1";
 
-		createS3Client(mockRegion, undefined, undefined);
+		createS3Client({ region: mockRegion });
 
 		expect(S3Client).toHaveBeenCalledWith({
 			region: mockRegion,
@@ -44,7 +48,7 @@ describe("Bot S3 Startup Tests", () => {
 	});
 
 	it("Bot exits immediately if s3 config passed in is invalid", () => {
-		const result = createS3Client(undefined, undefined, undefined);
+		const result = createS3Client({ region: "" });
 		expect(result).toBeNull();
 	});
 });

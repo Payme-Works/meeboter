@@ -356,11 +356,12 @@ export const botsRouter = createTRPCRouter({
 						status: input.status,
 					});
 
-					// Get bot info in one query (recording enabled + callback URL)
+					// Get bot info in one query (recording enabled + callback URL + coolify UUID)
 					const botRecord = await tx
 						.select({
 							recordingEnabled: botsTable.recordingEnabled,
 							callbackUrl: botsTable.callbackUrl,
+							coolifyServiceUuid: botsTable.coolifyServiceUuid,
 						})
 						.from(botsTable)
 						.where(eq(botsTable.id, input.id))
@@ -421,6 +422,26 @@ export const botsRouter = createTRPCRouter({
 						}).catch((error) => {
 							console.error("Error calling callback URL:", error);
 						});
+					}
+
+					// Cleanup Coolify service when bot completes or fails
+					if (
+						(input.status === "DONE" || input.status === "FATAL") &&
+						botRecord[0].coolifyServiceUuid
+					) {
+						// Fire and forget - don't block the response
+						import("../services/coolify-deployment")
+							.then(({ deleteCoolifyApplication }) =>
+								deleteCoolifyApplication(
+									botRecord[0].coolifyServiceUuid as string,
+								),
+							)
+							.catch((error) => {
+								console.error(
+									`Failed to cleanup Coolify service ${botRecord[0].coolifyServiceUuid}:`,
+									error,
+								);
+							});
 					}
 
 					return result[0];

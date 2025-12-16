@@ -43,6 +43,7 @@ const fakeBotData: SelectBotType = {
 		everyoneLeftTimeout: 1000,
 		inactivityTimeout: 1000,
 	},
+	coolifyServiceUuid: null,
 };
 
 const fakeEventsData: SelectEventType[] = [

@@ -412,6 +412,9 @@ export const botsTable = pgTable(
 		/** Error message if bot deployment failed */
 		deploymentError: varchar("deploymentError", { length: 1024 }),
 
+		/** Coolify service UUID for cleanup when bot finishes */
+		coolifyServiceUuid: varchar("coolifyServiceUuid", { length: 255 }),
+
 		/** How often the bot sends heartbeat signals (milliseconds) */
 		heartbeatInterval: integer("heartbeatInterval").notNull(),
 		/** Configuration for automatic leave conditions */

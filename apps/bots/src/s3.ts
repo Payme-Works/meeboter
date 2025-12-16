@@ -4,45 +4,91 @@ import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import type { Bot } from "./bot";
 
 /**
- * Creates an S3 Connection to the bucket.
- *
- * @returns S3Client
+ * Configuration for S3/MinIO client
  */
-export function createS3Client(
-	region: string | undefined,
-	accessKeyId: string | undefined,
-	secretKey: string | undefined,
-): S3Client | null {
+interface S3Config {
+	endpoint?: string;
+	region: string;
+	accessKeyId?: string;
+	secretAccessKey?: string;
+}
+
+/**
+ * Creates an S3/MinIO Connection.
+ * Supports both AWS S3 and MinIO (S3-compatible) storage.
+ *
+ * @param config - S3/MinIO configuration
+ * @returns S3Client or null if configuration is invalid
+ */
+export function createS3Client(config: S3Config): S3Client | null {
 	try {
-		if (!region) throw new Error("Region is required");
+		if (!config.region) throw new Error("Region is required");
 
-		// Create an S3 client with credentials if they are provided
-		// Local Development requires AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.
-		if (accessKeyId && secretKey) {
-			return new S3Client({
-				region,
-				credentials: {
-					accessKeyId: accessKeyId,
-					secretAccessKey: secretKey ?? "",
-				},
-			});
+		const clientConfig: ConstructorParameters<typeof S3Client>[0] = {
+			region: config.region,
+		};
 
-			// Production
-			// Credientials is not required on AWS, so we can use the default constructor.
-		} else {
-			return new S3Client({
-				region,
-			});
+		// Add endpoint for MinIO (S3-compatible storage)
+		if (config.endpoint) {
+			clientConfig.endpoint = config.endpoint;
+			clientConfig.forcePathStyle = true; // Required for MinIO
 		}
+
+		// Add credentials if provided (required for MinIO, optional for AWS with IAM roles)
+		if (config.accessKeyId && config.secretAccessKey) {
+			clientConfig.credentials = {
+				accessKeyId: config.accessKeyId,
+				secretAccessKey: config.secretAccessKey,
+			};
+		}
+
+		return new S3Client(clientConfig);
 	} catch (_error) {
 		return null;
 	}
 }
 
 /**
+ * Creates an S3/MinIO client from environment variables.
+ * Supports both AWS S3 (legacy) and MinIO configuration.
  *
- * @param s3Client
- * @param filePath
+ * @returns S3Client or null if configuration is invalid
+ */
+export function createS3ClientFromEnv(): S3Client | null {
+	// Check for MinIO configuration first (preferred)
+	if (process.env.MINIO_ENDPOINT) {
+		return createS3Client({
+			endpoint: process.env.MINIO_ENDPOINT,
+			region: process.env.MINIO_REGION || "us-east-1",
+			accessKeyId: process.env.MINIO_ACCESS_KEY,
+			secretAccessKey: process.env.MINIO_SECRET_KEY,
+		});
+	}
+
+	// Fallback to AWS S3 configuration (legacy support)
+	return createS3Client({
+		region: process.env.AWS_REGION || "us-east-2",
+		accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+		secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+	});
+}
+
+/**
+ * Gets the bucket name from environment variables.
+ * Supports both MinIO and AWS S3 bucket names.
+ *
+ * @returns The bucket name
+ */
+export function getBucketName(): string {
+	return process.env.MINIO_BUCKET_NAME || process.env.AWS_BUCKET_NAME || "";
+}
+
+/**
+ * Uploads a recording to S3/MinIO storage.
+ *
+ * @param s3Client - The S3 client instance
+ * @param bot - The bot instance with recording data
+ * @returns The storage key of the uploaded recording
  */
 export async function uploadRecordingToS3(
 	s3Client: S3Client,
@@ -93,8 +139,14 @@ export async function uploadRecordingToS3(
 	}-recording.${contentType.split("/")[1]}`;
 
 	try {
+		const bucketName = getBucketName();
+
+		if (!bucketName) {
+			throw new Error("Bucket name not configured");
+		}
+
 		const commandObjects = {
-			Bucket: process.env.AWS_BUCKET_NAME ?? "",
+			Bucket: bucketName,
 			Key: key,
 			Body: fileContent,
 			ContentType: contentType,
@@ -102,7 +154,7 @@ export async function uploadRecordingToS3(
 
 		const putCommand = new PutObjectCommand(commandObjects);
 		await s3Client.send(putCommand);
-		console.log(`Successfully uploaded recording to S3: ${key}`);
+		console.log(`Successfully uploaded recording to S3/MinIO: ${key}`);
 
 		// Clean up local file
 		await fsPromises.unlink(filePath);
@@ -110,7 +162,7 @@ export async function uploadRecordingToS3(
 		// Return the Upload Key
 		return key;
 	} catch (error) {
-		console.error("Error uploading to S3:", error);
+		console.error("Error uploading to S3/MinIO:", error);
 	}
 
 	// No Upload

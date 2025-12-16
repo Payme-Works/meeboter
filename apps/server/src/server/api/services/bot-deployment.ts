@@ -1,17 +1,16 @@
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import {
-	ECSClient,
-	type ECSClientConfig,
-	RunTaskCommand,
-	type RunTaskRequest,
-} from "@aws-sdk/client-ecs";
 import { eq } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { env } from "@/env";
 import type * as schema from "@/server/database/schema";
 import { type BotConfig, botsTable } from "@/server/database/schema";
+import {
+	CoolifyDeploymentError,
+	createCoolifyApplication,
+	selectBotImage,
+} from "./coolify-deployment";
 
 /**
  * Get the directory path using import.meta.url for ES modules
@@ -20,57 +19,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 /**
- * AWS ECS client configuration with optional credentials
- */
-const config: ECSClientConfig = {
-	region: env.AWS_REGION,
-};
-
-if (env.AWS_ACCESS_KEY_ID && env.AWS_SECRET_ACCESS_KEY) {
-	config.credentials = {
-		accessKeyId: env.AWS_ACCESS_KEY_ID,
-		secretAccessKey: env.AWS_SECRET_ACCESS_KEY,
-	};
-}
-
-/**
- * AWS ECS client instance for bot deployment operations
- */
-const client = new ECSClient(config);
-
-/**
- * Selects the appropriate bot task definition based on meeting platform information
- *
- * @param meetingInfo - Information about the meeting, including platform
- * @returns The ECS task definition ARN to use for deployment
- * @throws Error if the platform is unsupported
- */
-export function selectBotTaskDefinition(
-	meetingInfo: schema.MeetingInfo,
-): string {
-	const platform = meetingInfo.platform;
-
-	switch (platform?.toLowerCase()) {
-		case "google":
-			return env.ECS_TASK_DEFINITION_MEET;
-		case "teams":
-			return env.ECS_TASK_DEFINITION_TEAMS;
-		case "zoom":
-			return env.ECS_TASK_DEFINITION_ZOOM;
-		default:
-			throw new Error(`Unsupported platform: ${platform}`);
-	}
-}
-
-/**
  * Custom error implementation for bot deployment failures
  */
 export class BotDeploymentError extends Error {
-	/**
-	 * Creates a new BotDeploymentError instance
-	 *
-	 * @param message - The error message describing the deployment failure
-	 */
 	constructor(message: string) {
 		super(message);
 		this.name = "BotDeploymentError";
@@ -78,7 +29,7 @@ export class BotDeploymentError extends Error {
 }
 
 /**
- * Deploys a bot either locally (development) or on AWS ECS (production)
+ * Deploys a bot either locally (development) or via Coolify API (production)
  *
  * @param params - Deployment parameters
  * @param params.botId - The ID of the bot to deploy
@@ -99,7 +50,7 @@ export async function deployBot({
 		.where(eq(botsTable.id, botId));
 
 	if (!botResult[0]) {
-		throw new Error("Bot not found");
+		throw new BotDeploymentError("Bot not found");
 	}
 
 	const bot = botResult[0];
@@ -134,7 +85,7 @@ export async function deployBot({
 
 		if (dev) {
 			// Spawn the bot process for local development
-			const botProcess = spawn("bun", ["start"], {
+			const botProcess = spawn("pnpm", ["start"], {
 				cwd: botsDir,
 				env: {
 					...process.env,
@@ -156,41 +107,24 @@ export async function deployBot({
 				console.error(`Bot ${botId} process error:`, error);
 			});
 		} else {
-			// Deploy bot on AWS ECS for production
-			const input: RunTaskRequest = {
-				cluster: env.ECS_CLUSTER_NAME,
-				taskDefinition: selectBotTaskDefinition(bot.meetingInfo),
-				launchType: "FARGATE",
-				networkConfiguration: {
-					awsvpcConfiguration: {
-						// Read subnets from environment variables
-						subnets: env.ECS_SUBNETS,
-						securityGroups: env.ECS_SECURITY_GROUPS,
-						assignPublicIp: "ENABLED",
-					},
-				},
-				overrides: {
-					containerOverrides: [
-						{
-							name: "bot",
-							environment: [
-								{
-									name: "BOT_DATA",
-									value: JSON.stringify(config),
-								},
-								{
-									name: "BOT_AUTH_TOKEN",
-									value: env.BOT_AUTH_TOKEN,
-								},
-							],
-						},
-					],
-				},
-			};
+			// Deploy bot via Coolify API for production
+			const image = selectBotImage(bot.meetingInfo);
 
-			const command = new RunTaskCommand(input);
+			const coolifyServiceUuid = await createCoolifyApplication(
+				botId,
+				image,
+				config,
+			);
 
-			await client.send(command);
+			// Store the Coolify service UUID for cleanup later
+			await db
+				.update(botsTable)
+				.set({ coolifyServiceUuid })
+				.where(eq(botsTable.id, botId));
+
+			console.log(
+				`Bot ${botId} deployed to Coolify with service UUID: ${coolifyServiceUuid}`,
+			);
 		}
 
 		// Update status to joining call after successful deployment
@@ -210,12 +144,18 @@ export async function deployBot({
 		return result[0];
 	} catch (error) {
 		// Update status to fatal and store error message
+		const errorMessage =
+			error instanceof CoolifyDeploymentError
+				? error.message
+				: error instanceof Error
+					? error.message
+					: "Unknown error";
+
 		await db
 			.update(botsTable)
 			.set({
 				status: "FATAL",
-				deploymentError:
-					error instanceof Error ? error.message : "Unknown error",
+				deploymentError: errorMessage,
 			})
 			.where(eq(botsTable.id, botId));
 
@@ -241,3 +181,6 @@ export async function shouldDeployImmediately(
 
 	return startTime.getTime() - now.getTime() <= deploymentBuffer;
 }
+
+// Re-export for backward compatibility
+export { CoolifyDeploymentError, selectBotImage } from "./coolify-deployment";
