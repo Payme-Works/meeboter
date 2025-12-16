@@ -33,6 +33,13 @@ import {
  */
 export const auth = betterAuth({
 	/**
+	 * Base URL for constructing OAuth callback URLs.
+	 * Required when running behind a reverse proxy (like Traefik in Coolify)
+	 * to ensure OAuth redirects use the public domain instead of internal hostname.
+	 */
+	baseURL: env.NEXT_PUBLIC_APP_ORIGIN_URL,
+
+	/**
 	 * Database adapter configuration using Drizzle ORM.
 	 * Maps authentication tables to the corresponding database schema.
 	 */

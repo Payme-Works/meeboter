@@ -1,7 +1,8 @@
 # Meeboter: AWS to Coolify Migration Design
 
 **Date:** 2025-12-15
-**Status:** Implementation Complete - Ready for Infrastructure Setup
+**Updated:** 2025-12-16
+**Status:** Server Deployed - Bot Spawning Testing Pending
 **Author:** AI-assisted design session
 
 ---
@@ -756,34 +757,34 @@ gh workflow run deploy.yml
 
 ### Code Changes
 
-- [ ] Update `apps/server/src/env.js` - new environment variable schema
-- [ ] Create `apps/server/src/server/api/services/coolify-deployment.ts` - new deployment service
-- [ ] Update `apps/server/src/server/api/services/bot-deployment.ts` - use Coolify instead of ECS
-- [ ] Update `apps/server/src/server/utils/s3.ts` - MinIO configuration
-- [ ] Update `apps/server/src/server/database/schema.ts` - add `coolifyServiceUuid` column
-- [ ] Update `apps/server/src/server/api/routers/bots.ts` - add cleanup on bot completion
-- [ ] Update bot apps S3 configuration (meet, teams, zoom)
+- [x] Update `apps/server/src/env.js` - new environment variable schema
+- [x] Create `apps/server/src/server/api/services/coolify-deployment.ts` - new deployment service
+- [x] Update `apps/server/src/server/api/services/bot-deployment.ts` - use Coolify instead of ECS
+- [x] Update `apps/server/src/server/utils/s3.ts` - MinIO configuration
+- [x] Update `apps/server/src/server/database/schema.ts` - add `coolifyServiceUuid` column
+- [x] Update `apps/server/src/server/api/routers/bots.ts` - add cleanup on bot completion
+- [x] Update bot apps S3 configuration (meet, teams, zoom)
 - [ ] Remove AWS ECS SDK dependencies (optional cleanup)
 
 ### GitHub Setup
 
-- [ ] Create `.github/workflows/deploy.yml`
-- [ ] Create GitHub PAT with `read:packages` and `write:packages` scope
-- [ ] Add `COOLIFY_WEBHOOK` secret to repository
-- [ ] Add `COOLIFY_TOKEN` secret to repository
+- [x] Create `.github/workflows/deploy.yml`
+- [x] Create GitHub PAT with `read:packages` and `write:packages` scope
+- [ ] Add `COOLIFY_WEBHOOK` secret to repository (optional - can use Coolify UI)
+- [ ] Add `COOLIFY_TOKEN` secret to repository (optional - can use Coolify UI)
 
 ### Coolify Setup
 
-- [ ] Create `meeboter` project with `production` environment
-- [ ] Deploy PostgreSQL one-click service
-- [ ] Deploy MinIO one-click service
-- [ ] Create MinIO bucket `meeboter-recordings`
-- [ ] Create MinIO access credentials
-- [ ] Deploy Meeboter Server as Docker Image application
-- [ ] Configure all environment variables in Coolify
-- [ ] Login to ghcr.io on Coolify server
-- [ ] Create Coolify API token
-- [ ] Note all required UUIDs (project, server, destination)
+- [x] Create `meeboter` project with `production` environment
+- [x] Deploy PostgreSQL one-click service
+- [x] Deploy MinIO one-click service
+- [x] Create MinIO bucket (`meeboter`)
+- [x] Create MinIO access credentials (using root credentials)
+- [x] Deploy Meeboter Server as Docker Image application
+- [x] Configure all environment variables in Coolify
+- [x] Login to ghcr.io on Coolify server
+- [x] Create Coolify API token
+- [x] Note all required UUIDs (project, server, destination)
 
 ### Database Migration
 
@@ -793,8 +794,8 @@ gh workflow run deploy.yml
 
 ### Testing
 
-- [ ] Verify server deploys and starts correctly
-- [ ] Test GitHub Actions workflow triggers deployment
+- [x] Verify server deploys and starts correctly
+- [x] Test GitHub Actions workflow triggers deployment
 - [ ] Test bot spawning via Coolify API
 - [ ] Test recording upload to MinIO
 - [ ] Test signed URL generation for recordings
@@ -826,15 +827,70 @@ bun drizzle-kit migrate
 
 ### Step 2: Set Up MinIO in Coolify
 
+#### 2.1 Deploy MinIO Service
+
 1. Go to Coolify Dashboard → **Projects** → Your Project → **New Resource**
 2. Select **Service** → **MinIO**
 3. Configure:
-   - **Domain (API)**: `minio.yourdomain.com`
-   - **Console Domain**: `minio-console.yourdomain.com` (optional)
+   - **Domain (API)**: `minio.yourdomain.com` (port 9000)
+   - **Console Domain**: `minio-console.yourdomain.com` (port 9001, optional)
 4. Deploy and wait for healthy status
-5. Access MinIO Console:
-   - Create bucket: `meeboter-recordings`
-   - Create Access Key + Secret Key (save these as `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY`)
+
+#### 2.2 Get Root Credentials
+
+After deployment, find the auto-generated root credentials:
+
+1. In Coolify, go to your MinIO service
+2. Click **Environment Variables** or **Secrets** tab
+3. Find and copy:
+   - `MINIO_ROOT_USER` (or `MINIO_ACCESS_KEY`)
+   - `MINIO_ROOT_PASSWORD` (or `MINIO_SECRET_KEY`)
+
+#### 2.3 Access MinIO Console
+
+1. Open the MinIO Console URL (port 9001):
+   - Via domain: `https://minio-console.yourdomain.com`
+   - Or direct: `http://your-server-ip:9001`
+2. Login with root credentials from step 2.2
+
+#### 2.4 Create Dedicated Access Keys (Recommended)
+
+Instead of using root credentials in your app, create dedicated access keys:
+
+1. In MinIO Console, navigate to: **Access Keys** (left sidebar)
+2. Click **Create Access Key**
+3. **Important:** Copy both values immediately (secret is shown only once!)
+   - **Access Key**: e.g., `minio_meeboter_abc123`
+   - **Secret Key**: e.g., `minio_secret_xyz789...`
+
+#### 2.5 Create the Recordings Bucket
+
+1. In MinIO Console, go to **Buckets** (left sidebar)
+2. Click **Create Bucket**
+3. Bucket name: `meeboter-recordings`
+4. Click **Create Bucket**
+
+#### 2.6 MinIO Environment Variables Summary
+
+```bash
+# S3 API endpoint (NOT the console URL)
+# Use internal hostname if on same Coolify network:
+MINIO_ENDPOINT=http://minio-service-name:9000
+# Or external URL if accessible via domain:
+MINIO_ENDPOINT=https://minio.yourdomain.com
+
+# Credentials (from step 2.4)
+MINIO_ACCESS_KEY=your-access-key
+MINIO_SECRET_KEY=your-secret-key
+
+# Bucket name
+MINIO_BUCKET_NAME=meeboter-recordings
+
+# Region (MinIO ignores this, but AWS SDK requires it)
+MINIO_REGION=us-east-1
+```
+
+> **Note:** `MINIO_REGION` can be any string. MinIO doesn't use regions like AWS S3 - it's only required because the AWS S3 SDK needs a region parameter.
 
 ### Step 3: Configure GHCR Registry Access on Coolify Server
 
@@ -862,13 +918,17 @@ Coolify doesn't have a UI for Docker registries. Instead, you SSH into the serve
 3. Repository access: Select repositories
 4. Under **"Repositories"** tab (not Organizations) → **"Packages"** → Read
 
-#### 3.2 Configure Organization Package Access (after first push)
+#### 3.2 Verify Package Access (after first push)
+
+When packages are pushed via GitHub Actions using `GITHUB_TOKEN`, they are **automatically linked** to the source repository. You can verify this:
 
 1. Go to: **https://github.com/orgs/Payme-Works/packages**
-2. Click on each package (e.g., `meeboter-server`)
-3. Click **"Package settings"** (right side)
-4. Scroll to **"Manage Actions access"** → Add `Payme-Works/meeboter` repository
-5. Or under **"Manage repository access"** → Add repository with read access
+2. Click on any package (e.g., `meeboter-server`)
+3. Look for **"Linked to Payme-Works/meeboter"** in the package details
+
+**If packages are NOT linked** (rare, only if pushed manually):
+1. Click **"Package settings"** (gear icon or right side)
+2. Under **"Repository access"** or **"Manage Actions access"** → Add `Payme-Works/meeboter` repository with read access
 
 #### 3.3 Login on Coolify Server
 
@@ -910,11 +970,13 @@ Navigate to these locations in Coolify (replace `coolify.yourdomain.com` with yo
 - Or: Coolify Dashboard → Settings (gear icon, bottom left) → Keys & Tokens → API tokens
 - Click **"Add"** → Give it a name like `meeboter-bot-spawning` → Copy the token
 
+= 2|r98UrbnzXJjEpbZljw2ECWINkwgooX1IRegAMUer15f936d0
+
 #### 4.3 Project UUID
 - **Navigate to**: `https://coolify.yourdomain.com/projects`
 - Click on your project (e.g., "meeboter")
 - Look at the URL: `https://coolify.yourdomain.com/project/abc12345-...`
-- Copy the UUID after `/project/`
+- Copy the UUID after `/project/` 
 
 #### 4.4 Server UUID
 - **Navigate to**: `https://coolify.yourdomain.com/servers`
@@ -923,12 +985,16 @@ Navigate to these locations in Coolify (replace `coolify.yourdomain.com` with yo
 - Look at the URL: `https://coolify.yourdomain.com/server/def67890-...`
 - Copy the UUID after `/server/`
 
+= /project/c4s84os8csko8c0o4s0coo88/environment/a8c4og80sswswgc8o4wocoko/application/bwoc44o48kcwcgwcg4kog84k
+
 #### 4.5 Destination UUID
 - **Navigate to**: Your server page → Destinations tab
 - Or from server URL, add `/destinations`
 - Click on the Docker destination (usually "Local Docker Engine")
 - Look at the URL: `https://coolify.yourdomain.com/destination/ghi11111-...`
 - Copy the UUID after `/destination/`
+
+= osko4k8g4ko0cw84ws4wokks
 
 | Variable | Example Value |
 |----------|---------------|
@@ -1086,6 +1152,155 @@ Once everything is verified working for 24-48 hours:
 │  │ Meet Bot  │  │ Teams Bot │  │ Zoom Bot  │  (pulled from ghcr.io) │
 │  └───────────┘  └───────────┘  └───────────┘                        │
 └─────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 11. Troubleshooting Guide
+
+Issues encountered during deployment and their solutions:
+
+### Docker Build Issues
+
+#### `latest` tag not being pushed to GHCR
+
+**Symptom:** Only SHA tags like `sha-abc123` are pushed, not `latest`.
+
+**Cause:** The metadata-action uses `enable={{is_default_branch}}` which only applies `latest` when pushing to the repository's default branch (usually `main`).
+
+**Solution:** Remove the condition to always push `latest`:
+```yaml
+# Before
+type=raw,value=latest,enable={{is_default_branch}}
+
+# After
+type=raw,value=latest
+```
+
+#### Puppeteer download failing during `bun install`
+
+**Symptom:** Error "Failed to set up chrome-headless-shell" during Docker build.
+
+**Cause:** Puppeteer tries to download Chrome during `npm/bun install` postinstall script.
+
+**Solution:** Add `PUPPETEER_SKIP_DOWNLOAD=true` before `bun install` in Dockerfiles:
+```dockerfile
+ENV PUPPETEER_SKIP_DOWNLOAD=true
+RUN bun install
+```
+
+#### Turbo not passing environment variables
+
+**Symptom:** `SKIP_ENV_VALIDATION` set in Dockerfile but Next.js still validates env vars.
+
+**Cause:** Turbo isolates environment variables by default for caching consistency.
+
+**Solution:** Add `passThroughEnv` to `turbo.json`:
+```json
+{
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "passThroughEnv": ["SKIP_ENV_VALIDATION"]
+    }
+  }
+}
+```
+
+#### Workspace dependency not found
+
+**Symptom:** `error: Workspace dependency "@meeboter/server" not found` during bot Docker builds.
+
+**Cause:** Bot Dockerfiles copy `apps/bots/` and `packages/` but not `apps/server/` which is a workspace dependency.
+
+**Solution:** Add the server package to bot Dockerfiles:
+```dockerfile
+COPY ./apps/bots/ ./apps/bots/
+COPY ./apps/server/ ./apps/server/  # Add this line
+COPY ./packages/ ./packages/
+```
+
+### Runtime Issues
+
+#### 502 Bad Gateway after deployment
+
+**Symptom:** Application shows "Running" in Coolify but returns 502 error.
+
+**Diagnosis steps:**
+1. Check container logs: `docker logs CONTAINER_ID`
+2. Check if process is listening: `docker exec CONTAINER_ID netstat -tlnp`
+3. Test internal connectivity: `curl http://CONTAINER_IP:3000`
+
+**Common causes and solutions:**
+
+1. **Next.js binding to IPv6 only**
+   - Symptom: `netstat` shows listening on `:::3000` (IPv6) but not `0.0.0.0:3000` (IPv4)
+   - Solution: Add `HOSTNAME=0.0.0.0` to Dockerfile:
+     ```dockerfile
+     ENV HOSTNAME=0.0.0.0
+     ```
+
+2. **Health check failing**
+   - Symptom: Status shows "Running (unknown)"
+   - Solution: Disable health check or set correct path/port
+
+3. **SSL certificate provisioning failing**
+   - Symptom: ACME challenge returns 502 in Traefik logs
+   - Solution: Fix the underlying routing issue first, then restart Traefik
+
+#### DATABASE_URL validation failing
+
+**Symptom:** `Invalid string: must start with "postgresql://"` but URL starts with `postgres://`.
+
+**Cause:** Coolify's PostgreSQL uses `postgres://` prefix (older but valid format).
+
+**Solution:** Update env.js validation to accept both:
+```javascript
+DATABASE_URL: z.string().regex(/^postgres(ql)?:\/\//, {
+  message: "DATABASE_URL must start with postgresql:// or postgres://",
+}),
+```
+
+#### OAuth redirect_uri mismatch
+
+**Symptom:** GitHub OAuth fails with "redirect_uri is not associated with this application" error. The redirect URI shows `https://0.0.0.0:3000` instead of the actual domain.
+
+**Cause:** When running behind a reverse proxy (Traefik), the authentication library doesn't know the public URL. It derives the callback URL from the server's internal hostname (`0.0.0.0`) instead of the public domain.
+
+**Solution:** Add `baseURL` to the better-auth configuration in `apps/server/src/server/auth.ts`:
+```typescript
+export const auth = betterAuth({
+  baseURL: env.NEXT_PUBLIC_APP_ORIGIN_URL,  // Add this line
+  // ... rest of config
+});
+```
+
+Then ensure `NEXT_PUBLIC_APP_ORIGIN_URL` is set correctly in Coolify environment variables (e.g., `https://meeboter.HOSTNAME_PLACEHOLDER`).
+
+### Debugging Commands
+
+```bash
+# Check container status
+docker ps -a | grep meeboter
+
+# View container logs
+docker logs CONTAINER_ID --tail 100
+
+# Check what's listening inside container
+docker exec CONTAINER_ID netstat -tlnp
+
+# Test internal connectivity
+docker inspect CONTAINER_ID --format '{{.NetworkSettings.Networks.coolify.IPAddress}}'
+curl http://CONTAINER_IP:3000
+
+# Check Traefik logs
+docker logs $(docker ps -q -f name=coolify-proxy) --tail 50
+
+# Verify container is on coolify network
+docker network inspect coolify | grep -A5 meeboter
+
+# Check Traefik labels on container
+docker inspect CONTAINER_ID --format '{{json .Config.Labels}}' | jq
 ```
 
 ---
