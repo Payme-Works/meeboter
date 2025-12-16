@@ -48,6 +48,10 @@ RUN echo "Install bun"
 RUN curl -fsSL https://bun.sh/install | bash
 ENV PATH="/root/.bun/bin:${PATH}"
 
+RUN echo "Skip Puppeteer browser download - using Playwright browsers instead"
+
+ENV PUPPETEER_SKIP_DOWNLOAD=true
+
 RUN echo "Install dependencies"
 
 RUN bun install
