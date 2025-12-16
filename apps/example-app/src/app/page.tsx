@@ -32,9 +32,7 @@ export default function Home() {
 					<Button
 						variant="outline"
 						size="sm"
-						onClick={() =>
-							window.open("https://github.com/meeboter/meeboter")
-						}
+						onClick={() => window.open("https://github.com/meeboter/meeboter")}
 					>
 						GitHub
 					</Button>
