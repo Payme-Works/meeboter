@@ -48,6 +48,9 @@ RUN apk add --no-cache \
     harfbuzz \
     ca-certificates \
     ttf-freefont \
+    curl \
+    unzip \
+    bash \
     && rm -rf /var/cache/apk/*
 
 RUN echo "Tell Puppeteer to skip installing Chrome. We'll be using the installed package"
