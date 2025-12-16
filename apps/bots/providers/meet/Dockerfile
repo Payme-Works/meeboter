@@ -13,6 +13,8 @@ RUN apt-get update && apt-get install -y \
     pulseaudio \
     x11-xserver-utils \
     fluxbox \
+    curl \
+    unzip \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app/
@@ -82,6 +84,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     xserver-xephyr \
     x11-xserver-utils \
     fluxbox \
+    curl \
     unzip \
     && rm -rf /var/lib/apt/lists/*
 
