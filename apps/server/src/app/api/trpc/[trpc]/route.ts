@@ -10,9 +10,16 @@ import { createTRPCContext } from "@/server/api/trpc";
  * handling a HTTP request (e.g. when you make requests from Client Components).
  */
 const createContext = async (req: NextRequest) => {
-	return createTRPCContext({
-		headers: req.headers,
-	});
+	try {
+		return await createTRPCContext({
+			headers: req.headers,
+		});
+	} catch (error) {
+		// Log context creation errors (these happen before tRPC's error handler)
+		console.error("❌ Failed to create tRPC context:", error);
+
+		throw error;
+	}
 };
 
 const handler = (req: NextRequest) =>
@@ -21,14 +28,15 @@ const handler = (req: NextRequest) =>
 		req,
 		router: appRouter,
 		createContext: () => createContext(req),
-		onError:
-			env.NODE_ENV === "development"
-				? ({ path, error }) => {
-						console.error(
-							`❌ tRPC failed on ${path ?? "<no-path>"}: ${error.message}`,
-						);
-					}
-				: undefined,
+		onError: ({ path, error }) => {
+			// Always log errors (don't expose details to clients, but log them server-side)
+			console.error(`❌ tRPC failed on ${path ?? "<no-path>"}:`, {
+				message: error.message,
+				code: error.code,
+				cause: error.cause,
+				stack: env.NODE_ENV === "development" ? error.stack : undefined,
+			});
+		},
 	});
 
 export { handler as GET, handler as POST };
