@@ -24,12 +24,11 @@ const globalForDb = globalThis as unknown as {
 const client: postgres.Sql =
 	globalForDb.client ??
 	postgres(env.DATABASE_URL, {
-		ssl:
-			env.NODE_ENV === "production"
-				? {
-						rejectUnauthorized: false,
-					}
-				: false,
+		ssl: env.DATABASE_SSL
+			? {
+					rejectUnauthorized: false,
+				}
+			: false,
 		max: 30, // Reduce from 50 to leave headroom for database max_connections
 		idle_timeout: 30, // Reduce from 60 to recycle connections faster
 		max_lifetime: 60 * 10, // Reduce from 30 to 10 minutes
