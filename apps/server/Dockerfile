@@ -9,7 +9,7 @@ RUN apk update && apk add --no-cache libc6-compat
 # =============================================================================
 FROM base AS pruner
 WORKDIR /app
-RUN npm install -g turbo@latest
+RUN bun add -g turbo
 COPY . .
 RUN turbo prune @live-boost/server --docker
 
