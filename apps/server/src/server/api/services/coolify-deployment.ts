@@ -10,13 +10,6 @@ interface CoolifyCreateResponse {
 }
 
 /**
- * Coolify API error response
- */
-interface CoolifyErrorResponse {
-	message: string;
-}
-
-/**
  * Bot image configuration
  */
 interface BotImage {
@@ -287,4 +280,187 @@ export async function getCoolifyApplicationStatus(
 	const data = (await response.json()) as { status: string };
 
 	return data.status;
+}
+
+/**
+ * Deployment status result
+ */
+interface DeploymentStatusResult {
+	success: boolean;
+	status: string;
+	error?: string;
+}
+
+/**
+ * Waits for a Coolify application deployment to complete
+ *
+ * @param applicationUuid - The application UUID to monitor
+ * @param timeoutMs - Maximum time to wait (default: 5 minutes)
+ * @param pollIntervalMs - Time between status checks (default: 10 seconds)
+ * @returns Deployment result with success status
+ */
+export async function waitForDeployment(
+	applicationUuid: string,
+	timeoutMs: number = 5 * 60 * 1000,
+	pollIntervalMs: number = 10 * 1000,
+): Promise<DeploymentStatusResult> {
+	const startTime = Date.now();
+
+	// Healthy/running statuses
+	const successStatuses = ["running", "healthy"];
+	// Failed statuses that indicate deployment failed
+	const failedStatuses = ["exited", "error", "stopped", "degraded"];
+
+	while (Date.now() - startTime < timeoutMs) {
+		try {
+			const status = await getCoolifyApplicationStatus(applicationUuid);
+			console.log(`[Coolify] Application ${applicationUuid} status: ${status}`);
+
+			if (successStatuses.includes(status.toLowerCase())) {
+				return { success: true, status };
+			}
+
+			if (failedStatuses.includes(status.toLowerCase())) {
+				return {
+					success: false,
+					status,
+					error: `Deployment failed with status: ${status}`,
+				};
+			}
+
+			// Still deploying/starting, wait and poll again
+			await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+		} catch (error) {
+			console.error(`[Coolify] Error polling deployment status:`, error);
+			// Continue polling on transient errors
+			await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+		}
+	}
+
+	return {
+		success: false,
+		status: "timeout",
+		error: `Deployment timed out after ${timeoutMs / 1000} seconds`,
+	};
+}
+
+/**
+ * Restarts a Coolify application (triggers redeployment)
+ */
+export async function restartCoolifyApplication(
+	applicationUuid: string,
+): Promise<void> {
+	const response = await fetch(
+		`${env.COOLIFY_API_URL}/applications/${applicationUuid}/restart`,
+		{
+			method: "GET",
+			headers: {
+				Authorization: `Bearer ${env.COOLIFY_API_TOKEN}`,
+			},
+		},
+	);
+
+	if (!response.ok) {
+		throw new CoolifyDeploymentError(
+			`Failed to restart Coolify application: ${response.statusText}`,
+		);
+	}
+
+	console.log(`Restarted Coolify application: ${applicationUuid}`);
+}
+
+/**
+ * Deploys a bot with retry logic
+ *
+ * Creates the application, waits for deployment, and retries on failure.
+ * Cleans up the application if all retries fail.
+ *
+ * @param botId - The bot ID
+ * @param image - Docker image to deploy
+ * @param botConfig - Bot configuration
+ * @param maxRetries - Maximum number of deployment attempts (default: 3)
+ * @returns The Coolify service UUID on success
+ * @throws CoolifyDeploymentError if all retries fail
+ */
+export async function deployWithRetry(
+	botId: number,
+	image: BotImage,
+	botConfig: schema.BotConfig,
+	maxRetries: number = 3,
+): Promise<string> {
+	let applicationUuid: string | null = null;
+	let lastError: string | null = null;
+
+	for (let attempt = 1; attempt <= maxRetries; attempt++) {
+		console.log(
+			`[Coolify] Deployment attempt ${attempt}/${maxRetries} for bot ${botId}`,
+		);
+
+		try {
+			// Create application on first attempt, restart on retries
+			if (!applicationUuid) {
+				applicationUuid = await createCoolifyApplication(
+					botId,
+					image,
+					botConfig,
+				);
+				console.log(
+					`[Coolify] Created application ${applicationUuid} for bot ${botId}`,
+				);
+			} else {
+				// Restart existing application for retry
+				console.log(
+					`[Coolify] Restarting application ${applicationUuid} (retry ${attempt})`,
+				);
+				await restartCoolifyApplication(applicationUuid);
+			}
+
+			// Wait for deployment to complete
+			const result = await waitForDeployment(applicationUuid);
+
+			if (result.success) {
+				console.log(
+					`[Coolify] Bot ${botId} deployed successfully on attempt ${attempt}`,
+				);
+				return applicationUuid;
+			}
+
+			lastError =
+				result.error ?? `Deployment failed with status: ${result.status}`;
+			console.warn(
+				`[Coolify] Deployment attempt ${attempt} failed: ${lastError}`,
+			);
+
+			// Add exponential backoff between retries
+			if (attempt < maxRetries) {
+				const backoffMs = Math.min(1000 * 2 ** attempt, 30000);
+				console.log(`[Coolify] Waiting ${backoffMs}ms before retry...`);
+				await new Promise((resolve) => setTimeout(resolve, backoffMs));
+			}
+		} catch (error) {
+			lastError = error instanceof Error ? error.message : "Unknown error";
+			console.error(`[Coolify] Deployment attempt ${attempt} error:`, error);
+
+			if (attempt < maxRetries) {
+				const backoffMs = Math.min(1000 * 2 ** attempt, 30000);
+				await new Promise((resolve) => setTimeout(resolve, backoffMs));
+			}
+		}
+	}
+
+	// All retries failed - cleanup the application
+	if (applicationUuid) {
+		console.log(
+			`[Coolify] All ${maxRetries} deployment attempts failed. Cleaning up application ${applicationUuid}`,
+		);
+		try {
+			await deleteCoolifyApplication(applicationUuid);
+		} catch (cleanupError) {
+			console.error(`[Coolify] Failed to cleanup application:`, cleanupError);
+		}
+	}
+
+	throw new CoolifyDeploymentError(
+		`Bot deployment failed after ${maxRetries} attempts: ${lastError}`,
+	);
 }

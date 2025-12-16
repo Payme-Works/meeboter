@@ -8,7 +8,7 @@ import type * as schema from "@/server/database/schema";
 import { type BotConfig, botsTable } from "@/server/database/schema";
 import {
 	CoolifyDeploymentError,
-	createCoolifyApplication,
+	deployWithRetry,
 	selectBotImage,
 } from "./coolify-deployment";
 
@@ -107,14 +107,15 @@ export async function deployBot({
 				console.error(`Bot ${botId} process error:`, error);
 			});
 		} else {
-			// Deploy bot via Coolify API for production
+			// Deploy bot via Coolify API for production with retry logic
 			const image = selectBotImage(bot.meetingInfo);
 
-			const coolifyServiceUuid = await createCoolifyApplication(
-				botId,
-				image,
-				config,
-			);
+			// deployWithRetry will:
+			// 1. Create the Coolify application
+			// 2. Wait for deployment to be healthy
+			// 3. Retry up to 3 times on failure
+			// 4. Cleanup the application if all retries fail
+			const coolifyServiceUuid = await deployWithRetry(botId, image, config);
 
 			// Store the Coolify service UUID for cleanup later
 			await db
