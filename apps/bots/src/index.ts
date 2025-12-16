@@ -79,11 +79,14 @@ export const main = async () => {
 		}
 	}
 
-	// Parse bot data
+	// Parse bot data (base64 encoded to avoid escaping issues through Coolify)
 	if (!process.env.BOT_DATA)
 		throw new Error("BOT_DATA environment variable is required");
 
-	const botData: BotConfig = JSON.parse(process.env.BOT_DATA);
+	const botDataJson = Buffer.from(process.env.BOT_DATA, "base64").toString(
+		"utf-8",
+	);
+	const botData: BotConfig = JSON.parse(botDataJson);
 
 	console.log("Received bot data:", botData);
 

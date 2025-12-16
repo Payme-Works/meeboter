@@ -146,8 +146,13 @@ async function setCoolifyEnvironmentVariables(
 	botId: number,
 	botConfig: schema.BotConfig,
 ): Promise<void> {
+	// Base64 encode to avoid JSON escaping issues through Coolify → Docker → Container
+	const botDataBase64 = Buffer.from(JSON.stringify(botConfig)).toString(
+		"base64",
+	);
+
 	const envVars = [
-		{ key: "BOT_DATA", value: JSON.stringify(botConfig) },
+		{ key: "BOT_DATA", value: botDataBase64 },
 		{ key: "BOT_AUTH_TOKEN", value: env.BOT_AUTH_TOKEN || "" },
 		{
 			key: "BACKEND_URL",
