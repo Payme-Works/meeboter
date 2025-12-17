@@ -5,6 +5,7 @@ import { AlertTriangle, Bot, Loader2, Rocket, Sparkles } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 import { z } from "zod";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -28,9 +29,9 @@ const quickBotSchema = z.object({
 
 type QuickBotFormData = z.infer<typeof quickBotSchema>;
 
-function detectPlatform(
-	url: string,
-): "google" | "teams" | "zoom" | "unknown" | null {
+type Platform = "google" | "teams" | "zoom" | "unknown" | null;
+
+function detectPlatform(url: string): Platform {
 	if (!url) return null;
 
 	if (url.includes("meet.google.com")) return "google";
@@ -41,6 +42,19 @@ function detectPlatform(
 	if (url.includes("zoom.us")) return "zoom";
 
 	return "unknown";
+}
+
+function getPlatformDisplayName(platform: Platform): string {
+	switch (platform) {
+		case "google":
+			return "Google Meet";
+		case "teams":
+			return "Microsoft Teams";
+		case "zoom":
+			return "Zoom";
+		default:
+			return "Unknown";
+	}
 }
 
 interface UsageStatsProps {
@@ -197,12 +211,32 @@ export function QuickBotJoin() {
 			await utils.bots.getBots.invalidate();
 			await utils.bots.getDailyUsage.invalidate();
 
+			const platformName = getPlatformDisplayName(platform);
+
+			toast.success("Bots deployed successfully", {
+				description:
+					data.botCount === 1
+						? `Your bot is joining the ${platformName} meeting`
+						: `${data.botCount} bots are joining the ${platformName} meeting`,
+			});
+
 			form.reset();
 		} catch (error) {
 			console.error("Failed to create bots:", error);
 
-			if (error instanceof Error && error.message.includes("Daily bot limit")) {
-				form.setError("botCount", { message: error.message });
+			const errorMessage =
+				error instanceof Error ? error.message : "An unexpected error occurred";
+
+			if (errorMessage.includes("Daily bot limit")) {
+				form.setError("botCount", { message: errorMessage });
+
+				toast.error("Daily limit exceeded", {
+					description: errorMessage,
+				});
+			} else {
+				toast.error("Failed to deploy bots", {
+					description: errorMessage,
+				});
 			}
 		} finally {
 			setIsSubmitting(false);

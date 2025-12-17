@@ -3,6 +3,7 @@ import "./globals.css";
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import { headers } from "next/headers";
+import { Toaster } from "sonner";
 import { auth } from "@/server/auth";
 import { TRPCReactProvider } from "@/trpc/react";
 import Footer from "./_components/footer";
@@ -37,6 +38,7 @@ export default async function RootLayout({
 
 						<Footer />
 					</div>
+					<Toaster position="bottom-right" richColors closeButton />
 				</TRPCReactProvider>
 			</body>
 		</html>
