@@ -26,6 +26,9 @@
 				},
 				"useUniqueElementIds": "off"
 			},
+			"suspicious": {
+				"noUnknownAtRules": "off"
+			},
 			"a11y": {
 				"useValidAnchor": "off"
 			}

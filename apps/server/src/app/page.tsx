@@ -26,14 +26,14 @@ export default function Home() {
 			{isLoading ? (
 				<div className="space-y-4">
 					<div>
-						<h1 className="text-3xl font-bold">
-							Welcome to Live Boost
+						<h1 className="text-3xl font-bold tracking-tight">
+							Welcome to Meeboter
 							<Skeleton className="ml-2 inline-block h-8 w-80" />
 						</h1>
 
-						<p className="mt-2 text-gray-600">
-							Easily create automated applications that leverage recordings
-							across popular video meeting platforms.
+						<p className="mt-2 text-muted-foreground">
+							Deploy intelligent bots to boost engagement and participation
+							across video meetings.
 						</p>
 					</div>
 

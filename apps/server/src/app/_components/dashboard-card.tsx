@@ -8,6 +8,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 interface DashboardCardProps {
 	title?: string | React.ReactNode;
@@ -36,7 +37,12 @@ export default function DashboardCard({
 	className,
 }: DashboardCardProps) {
 	return (
-		<Card className={`flex h-full flex-col justify-between ${className}`}>
+		<Card
+			className={cn(
+				"flex h-full flex-col justify-between transition-colors hover:border-foreground/20",
+				className,
+			)}
+		>
 			{!!title || !!description || !!icon ? (
 				<CardHeader className="relative">
 					<div className="flex items-center justify-between">

@@ -24,15 +24,14 @@ export default function Dashboard() {
 	} = api.apiKeys.getApiKeyCount.useQuery();
 
 	return (
-		<div className="space-y-4">
+		<div className="space-y-8">
 			<div>
-				<h1 className="text-3xl font-bold">
-					Welcome to Live Boost
-					{session?.user?.name ? `, ${session.user.name}` : ""}
+				<h1 className="text-3xl font-bold tracking-tight">
+					Welcome back{session?.user?.name ? `, ${session.user.name}` : ""}
 				</h1>
-				<p className="mt-2 text-gray-600">
-					Easily create automated applications that leverage recordings across
-					popular video meeting platforms.
+				<p className="mt-2 text-muted-foreground">
+					Deploy intelligent bots to boost engagement and participation across
+					video meetings.
 				</p>
 			</div>
 

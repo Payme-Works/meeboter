@@ -2,93 +2,75 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import type * as React from "react";
-
-import {
-	NavigationMenu,
-	NavigationMenuItem,
-	NavigationMenuLink,
-	NavigationMenuList,
-	navigationMenuTriggerStyle,
-} from "@/components/ui/navigation-menu";
+import { usePathname } from "next/navigation";
 import { useSession } from "@/lib/auth-client";
+import { cn } from "@/lib/utils";
 import SessionButton from "./session-button";
 
-const publicComponents: {
-	title: string | React.ReactNode;
-	href: string;
-	target: string;
-}[] = [
-	{
-		title: "Dashboard",
-		href: "/",
-		target: "_self",
-	},
-	{
-		title: "Docs",
-		href: "/docs",
-		target: "_self",
-	},
+const publicLinks = [
+	{ title: "Dashboard", href: "/" },
+	{ title: "Docs", href: "/docs" },
 ];
 
-const authenticatedComponents: {
-	title: string | React.ReactNode;
-	href: string;
-	target: string;
-}[] = [
-	{
-		title: "API Keys",
-		href: "/api-keys",
-		target: "_self",
-	},
-	{
-		title: "Bots",
-		href: "/bots",
-		target: "_self",
-	},
-	{
-		title: "Templates",
-		href: "/templates",
-		target: "_self",
-	},
-	{
-		title: "Usage",
-		href: "/usage",
-		target: "_self",
-	},
+const authenticatedLinks = [
+	{ title: "API Keys", href: "/api-keys" },
+	{ title: "Bots", href: "/bots" },
+	{ title: "Templates", href: "/templates" },
+	{ title: "Usage", href: "/usage" },
 ];
 
 export default function NavigationBar() {
 	const { data: session } = useSession();
+	const pathname = usePathname();
 
-	// Combine public components with authenticated components if user is signed in
-	const visibleComponents = session?.user
-		? [...publicComponents, ...authenticatedComponents]
-		: publicComponents;
+	const visibleLinks = session?.user
+		? [...publicLinks, ...authenticatedLinks]
+		: publicLinks;
 
 	return (
-		<div className="flex w-full flex-row items-center container mx-auto justify-between py-8 px-4">
-			<NavigationMenu className="flex-1 flex items-center gap-4">
-				<Image src="/logo.svg" alt="Logo" width={32} height={32} />
+		<header className="border-b border-border/50">
+			<div className="container mx-auto px-4">
+				<nav className="flex items-center justify-between h-16">
+					{/* Logo + Wordmark */}
+					<Link
+						href="/"
+						className="flex items-center gap-2.5 transition-opacity hover:opacity-80"
+					>
+						<Image src="/logo.svg" alt="Meeboter" width={28} height={28} />
+						<span className="text-lg font-semibold tracking-tight">
+							Meeboter
+						</span>
+					</Link>
 
-				<NavigationMenuList className="flex-wrap justify-start md:justify-center">
-					{visibleComponents.map((component) => (
-						<NavigationMenuItem key={component.href}>
-							<NavigationMenuLink
-								className={navigationMenuTriggerStyle()}
-								asChild
-								target={component.target}
-							>
-								<Link href={component.href}>{component.title}</Link>
-							</NavigationMenuLink>
-						</NavigationMenuItem>
-					))}
-				</NavigationMenuList>
-			</NavigationMenu>
+					{/* Navigation Links */}
+					<div className="hidden md:flex items-center gap-1">
+						{visibleLinks.map((link) => {
+							const isActive = pathname === link.href;
 
-			<div className="flex items-center">
-				<SessionButton />
+							return (
+								<Link
+									key={link.href}
+									href={link.href}
+									className={cn(
+										"px-3 py-2 text-sm font-medium transition-colors relative",
+										isActive
+											? "text-foreground"
+											: "text-muted-foreground hover:text-foreground",
+									)}
+								>
+									{link.title}
+									{isActive && (
+										<span className="absolute bottom-0 left-3 right-3 h-0.5 bg-accent" />
+									)}
+								</Link>
+							);
+						})}
+					</div>
+
+					{/* Session Button */}
+					<SessionButton />
+				</nav>
 			</div>
-		</div>
+		</header>
 	);
 }
