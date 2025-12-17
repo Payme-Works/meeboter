@@ -27,7 +27,8 @@
 				"useUniqueElementIds": "off"
 			},
 			"suspicious": {
-				"noUnknownAtRules": "off"
+				"noUnknownAtRules": "off",
+				"noArrayIndexKey": "off"
 			},
 			"a11y": {
 				"useValidAnchor": "off"

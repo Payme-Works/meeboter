@@ -48,7 +48,7 @@ export function DataTable<TData, TValue>({
 				<ErrorAlert errorMessage={errorMessage} />
 			) : (
 				<>
-					<div className="rounded-md border">
+					<div className="border">
 						<Table>
 							<TableHeader>
 								{table &&

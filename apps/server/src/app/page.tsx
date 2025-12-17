@@ -7,6 +7,31 @@ import { api } from "@/trpc/react";
 import Dashboard from "./_components/dashboard";
 import WelcomeDashboard from "./_components/welcome-dashboard";
 
+function DashboardSkeleton() {
+	return (
+		<div className="space-y-8">
+			<div className="space-y-2">
+				<Skeleton className="h-9 w-64" />
+				<Skeleton className="h-5 w-96" />
+			</div>
+
+			<div className="grid gap-6 lg:grid-cols-3">
+				{Array.from({ length: 3 }, (_, i) => (
+					<div key={i} className="border p-6 space-y-4">
+						<div className="flex items-center justify-between">
+							<Skeleton className="h-5 w-24" />
+							<Skeleton className="h-5 w-5" />
+						</div>
+						<Skeleton className="h-10 w-16" />
+						<Skeleton className="h-4 w-full" />
+						<Skeleton className="h-4 w-20" />
+					</div>
+				))}
+			</div>
+		</div>
+	);
+}
+
 export default function Home() {
 	const { data: session, isPending } = useSession();
 
@@ -24,37 +49,7 @@ export default function Home() {
 	return (
 		<main className="mx-auto container px-4">
 			{isLoading ? (
-				<div className="space-y-4">
-					<div>
-						<h1 className="text-3xl font-bold tracking-tight">
-							Welcome to Meeboter
-							<Skeleton className="ml-2 inline-block h-8 w-80" />
-						</h1>
-
-						<p className="mt-2 text-muted-foreground">
-							Deploy intelligent bots to boost engagement and participation
-							across video meetings.
-						</p>
-					</div>
-
-					<div className="grid gap-6 lg:grid-cols-3">
-						<div className="min-h-0">
-							<Skeleton className="h-60 w-full" />
-						</div>
-
-						<div className="min-h-0">
-							<Skeleton className="h-60 w-full" />
-						</div>
-
-						<div className="min-h-0">
-							<Skeleton className="h-60 w-full" />
-						</div>
-
-						<div className="h-full min-h-0 lg:col-span-3">
-							<Skeleton className="h-80 w-full" />
-						</div>
-					</div>
-				</div>
+				<DashboardSkeleton />
 			) : apiKeyCountError ? (
 				<ErrorAlert errorMessage={apiKeyCountError.message} />
 			) : showWelcome ? (
