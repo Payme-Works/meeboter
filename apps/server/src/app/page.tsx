@@ -21,8 +21,8 @@ function DashboardSkeleton() {
 				<Skeleton className="mt-2 h-5 w-[32rem]" />
 			</div>
 
-			<div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-				{Array.from({ length: 3 }, (_, i) => (
+			<div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+				{Array.from({ length: 4 }, (_, i) => (
 					<Card key={i} className="min-h-56">
 						<CardHeader>
 							<div className="flex items-center justify-between">

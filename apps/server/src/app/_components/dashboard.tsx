@@ -1,7 +1,8 @@
 "use client";
 
-import { Bot, File, Key } from "lucide-react";
+import { Activity, Bot, File, Key } from "lucide-react";
 import ErrorAlert from "@/components/custom/error-alert";
+import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSession } from "@/lib/auth-client";
 import { api } from "@/trpc/react";
@@ -10,6 +11,7 @@ import DashboardCard from "./dashboard-card";
 
 export default function Dashboard() {
 	const { data: session } = useSession();
+	const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 	const {
 		data: activeBotCount,
@@ -23,6 +25,16 @@ export default function Dashboard() {
 		error: keyCountError,
 	} = api.apiKeys.getApiKeyCount.useQuery();
 
+	const { data: dailyUsage, isLoading: usageLoading } =
+		api.bots.getDailyUsage.useQuery({
+			timeZone: userTimezone,
+		});
+
+	const usagePercentage =
+		dailyUsage?.limit && dailyUsage?.usage
+			? Math.min((dailyUsage.usage / dailyUsage.limit) * 100, 100)
+			: 0;
+
 	return (
 		<div className="space-y-8">
 			<div>
@@ -35,7 +47,7 @@ export default function Dashboard() {
 				</p>
 			</div>
 
-			<div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+			<div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
 				<DashboardCard
 					title="Active Bots"
 					className="h-full min-h-56"
@@ -81,14 +93,52 @@ export default function Dashboard() {
 				/>
 
 				<DashboardCard
-					title="View our Docs"
+					title="Today's Usage"
 					className="h-full min-h-56"
-					content="To learn more about how to create bots, pull meeting recordings, pull transcriptions and more, view our Documentation!"
-					icon={<File className="text-slate-500" />}
+					content={
+						usageLoading ? (
+							<div className="space-y-2">
+								<Skeleton className="h-10 w-20" />
+								<Skeleton className="h-2 w-full" />
+							</div>
+						) : (
+							<div className="space-y-2">
+								<div className="text-4xl font-bold">
+									{dailyUsage?.usage ?? 0}
+									<span className="text-lg text-muted-foreground font-normal">
+										/{dailyUsage?.limit ?? "∞"}
+									</span>
+								</div>
+
+								{dailyUsage?.limit && (
+									<div>
+										<Progress value={usagePercentage} className="h-2" />
+
+										<p className="text-xs text-muted-foreground mt-1">
+											{Math.round(usagePercentage)}% of daily limit
+										</p>
+									</div>
+								)}
+							</div>
+						)
+					}
+					icon={<Activity />}
+					link={{
+						type: "INTERNAL",
+						url: "/usage",
+						text: "View Usage",
+					}}
+				/>
+
+				<DashboardCard
+					title="Documentation"
+					className="h-full min-h-56"
+					content="Learn how to create bots, integrate with meetings, and boost engagement."
+					icon={<File className="text-muted-foreground" />}
 					link={{
 						type: "INTERNAL",
 						url: "/docs",
-						text: "View Documentation",
+						text: "View Docs",
 					}}
 				/>
 			</div>
