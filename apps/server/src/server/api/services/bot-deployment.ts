@@ -150,14 +150,15 @@ export async function deployBot({
 				.where(eq(botsTable.id, botId));
 
 			// Configure and start the slot with bot config
-			await configureAndStartSlot(slot, config, db);
+			// Note: activeSlot may have a different UUID if the Coolify app was recreated
+			const activeSlot = await configureAndStartSlot(slot, config, db);
 
-			// Update bot with slot info and status
+			// Update bot with slot info and status (use activeSlot which may have new UUID)
 			const result = await db
 				.update(botsTable)
 				.set({
 					status: "JOINING_CALL",
-					coolifyServiceUuid: slot.coolifyServiceUuid,
+					coolifyServiceUuid: activeSlot.coolifyServiceUuid,
 					deploymentError: null,
 				})
 				.where(eq(botsTable.id, botId))
@@ -171,12 +172,12 @@ export async function deployBot({
 				);
 			}
 
-			console.log(`Bot ${botId} deployed to pool slot ${slot.slotName}`);
+			console.log(`Bot ${botId} deployed to pool slot ${activeSlot.slotName}`);
 
 			return { bot: deployedBot, queued: false };
 		}
 
-		// No slot available - add to queue
+		// No slot available, add to queue
 		console.log(`Bot ${botId} added to queue (pool exhausted)`);
 		const queuePosition = await addToQueue(botId, queueTimeoutMs, 100, db);
 		const estimatedWaitMs = await getEstimatedWaitMs(queuePosition);

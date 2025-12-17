@@ -288,6 +288,28 @@ export async function getCoolifyApplicationStatus(
 }
 
 /**
+ * Checks if a Coolify application exists
+ *
+ * @param applicationUuid - The application UUID to check
+ * @returns true if the application exists, false if it was deleted
+ */
+export async function coolifyApplicationExists(
+	applicationUuid: string,
+): Promise<boolean> {
+	const response = await fetch(
+		`${env.COOLIFY_API_URL}/applications/${applicationUuid}`,
+		{
+			method: "GET",
+			headers: {
+				Authorization: `Bearer ${env.COOLIFY_API_TOKEN}`,
+			},
+		},
+	);
+
+	return response.ok;
+}
+
+/**
  * Deployment status result
  */
 interface DeploymentStatusResult {
@@ -457,7 +479,7 @@ export async function deployWithRetry(
 		}
 	}
 
-	// All retries failed - cleanup the application
+	// All retries failed, cleanup the application
 	if (applicationUuid) {
 		console.log(
 			`[Coolify] All ${maxRetries} deployment attempts failed. Cleaning up application ${applicationUuid}`,

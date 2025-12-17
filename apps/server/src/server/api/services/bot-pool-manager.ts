@@ -9,6 +9,7 @@ import {
 	botsTable,
 } from "@/server/database/schema";
 import {
+	coolifyApplicationExists,
 	createCoolifyApplication,
 	selectBotImage,
 	startCoolifyApplication,
@@ -78,7 +79,7 @@ export async function acquireOrCreateSlot(
 		return null;
 	}
 
-	// 3. Create a new slot (slow - involves image pull)
+	// 3. Create a new slot (slow, involves image pull)
 	console.log(
 		`[Pool] Creating new slot for bot ${botId} (current size: ${currentPoolSize})`,
 	);
@@ -190,7 +191,7 @@ async function createAndAcquireNewSlot(
 		callbackUrl: bot.callbackUrl ?? undefined,
 	};
 
-	// Create Coolify application (this pulls the image - slow)
+	// Create Coolify application (this pulls the image, slow)
 	console.log(`[Pool] Creating Coolify application ${slotName}...`);
 
 	const coolifyServiceUuid = await createCoolifyApplication(
@@ -303,28 +304,95 @@ export async function releaseSlot(
 /**
  * Updates environment variables and starts a pool slot for a bot
  *
+ * If the Coolify application has been deleted externally, this function
+ * will automatically recreate it and update the slot in the database.
+ *
  * @param slot - The pool slot to configure
  * @param botConfig - Bot configuration
- * @param _db - Database instance (reserved for future use)
+ * @param db - Database instance
+ * @returns The (potentially updated) pool slot
  */
 export async function configureAndStartSlot(
 	slot: PoolSlot,
 	botConfig: BotConfig,
-	_db: PostgresJsDatabase<typeof schema>,
-): Promise<void> {
+	db: PostgresJsDatabase<typeof schema>,
+): Promise<PoolSlot> {
 	console.log(
 		`[Pool] Configuring slot ${slot.slotName} for bot ${botConfig.id}`,
 	);
 
+	// Check if the Coolify application still exists
+	const appExists = await coolifyApplicationExists(slot.coolifyServiceUuid);
+
+	let activeSlot = slot;
+
+	if (!appExists) {
+		console.warn(
+			`[Pool] Coolify application ${slot.coolifyServiceUuid} not found for slot ${slot.slotName}. Recreating...`,
+		);
+
+		// Recreate the Coolify application
+		activeSlot = await recreateSlotApplication(slot, botConfig, db);
+
+		console.log(
+			`[Pool] Recreated slot ${activeSlot.slotName} with new UUID ${activeSlot.coolifyServiceUuid}`,
+		);
+	}
+
 	// Update environment variables
-	await updateSlotEnvVars(slot.coolifyServiceUuid, botConfig);
+	await updateSlotEnvVars(activeSlot.coolifyServiceUuid, botConfig);
 
 	// Start the container
-	console.log(`[Pool] Starting container for slot ${slot.slotName}`);
-	await startCoolifyApplication(slot.coolifyServiceUuid);
+	console.log(`[Pool] Starting container for slot ${activeSlot.slotName}`);
+	await startCoolifyApplication(activeSlot.coolifyServiceUuid);
 
 	// Update description
-	await updateSlotDescription(slot.coolifyServiceUuid, "busy", botConfig.id);
+	await updateSlotDescription(
+		activeSlot.coolifyServiceUuid,
+		"busy",
+		botConfig.id,
+	);
+
+	return activeSlot;
+}
+
+/**
+ * Recreates a Coolify application for a slot whose app was deleted externally
+ *
+ * @param slot - The pool slot with the deleted application
+ * @param botConfig - Bot configuration for the new application
+ * @param db - Database instance
+ * @returns The updated pool slot with new Coolify UUID
+ */
+async function recreateSlotApplication(
+	slot: PoolSlot,
+	botConfig: BotConfig,
+	db: PostgresJsDatabase<typeof schema>,
+): Promise<PoolSlot> {
+	const image = selectBotImage(botConfig.meetingInfo);
+
+	// Create a new Coolify application with the same slot name
+	const newCoolifyUuid = await createCoolifyApplication(
+		botConfig.id,
+		image,
+		botConfig,
+		slot.slotName,
+	);
+
+	// Update the slot in the database with the new UUID
+	await db
+		.update(botPoolSlotsTable)
+		.set({
+			coolifyServiceUuid: newCoolifyUuid,
+			errorMessage: null,
+			recoveryAttempts: sql`${botPoolSlotsTable.recoveryAttempts} + 1`,
+		})
+		.where(eq(botPoolSlotsTable.id, slot.id));
+
+	return {
+		...slot,
+		coolifyServiceUuid: newCoolifyUuid,
+	};
 }
 
 /**
