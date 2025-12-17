@@ -200,12 +200,15 @@ export async function deployBot({
 			estimatedWaitMs,
 		};
 	} catch (error) {
-		const errorMessage =
-			error instanceof CoolifyDeploymentError
-				? error.message
-				: error instanceof Error
-					? error.message
-					: "Unknown error";
+		const getErrorMessage = () => {
+			if (error instanceof CoolifyDeploymentError) return error.message;
+
+			if (error instanceof Error) return error.message;
+
+			return "Unknown error";
+		};
+
+		const errorMessage = getErrorMessage();
 
 		await db
 			.update(botsTable)

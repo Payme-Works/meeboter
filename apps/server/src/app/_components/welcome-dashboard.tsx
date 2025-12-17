@@ -6,7 +6,7 @@ import { useState } from "react";
 import { MultiBotJoinDialog } from "@/app/bots/_components/multi-bot-join-dialog";
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/lib/auth-client";
-import DashboardCard from "./dashboard-card";
+import { DashboardCard } from "./dashboard-card";
 import SubscriptionPlansSection from "./subscription-plans-section";
 
 export default function WelcomeDashboard() {
@@ -33,15 +33,19 @@ export default function WelcomeDashboard() {
 						<div className="grid h-full min-h-0 grid-rows-[auto_1fr] gap-6">
 							<div className="grid min-h-0 gap-6 md:grid-cols-2">
 								<div className="min-h-0">
-									<DashboardCard
-										title="Get Started"
-										description={
-											session?.user
-												? "Deploy intelligent bots to your meetings! Create API keys for programmatic access or quickly join multiple bots to any meeting."
-												: "To get started, log-in or sign-up!"
-										}
-										content={
-											session?.user ? (
+									<DashboardCard.Root>
+										<DashboardCard.Header>
+											<DashboardCard.TitleRow>
+												Get Started
+											</DashboardCard.TitleRow>
+											<DashboardCard.Description>
+												{session?.user
+													? "Deploy intelligent bots to your meetings! Create API keys for programmatic access or quickly join multiple bots to any meeting."
+													: "To get started, log-in or sign-up!"}
+											</DashboardCard.Description>
+										</DashboardCard.Header>
+										<DashboardCard.Content>
+											{session?.user ? (
 												<div className="space-y-3">
 													<Link href="/api-keys" className="block">
 														<Button className="w-full">
@@ -64,23 +68,29 @@ export default function WelcomeDashboard() {
 														Sign Up <LogIn />
 													</Button>
 												</Link>
-											)
-										}
-									/>
+											)}
+										</DashboardCard.Content>
+									</DashboardCard.Root>
 								</div>
 
 								<div className="min-h-0">
-									<DashboardCard
-										title="View our Docs"
-										className="h-full"
-										content="Learn how to deploy engagement bots, configure meeting interactions, access recordings, and more in our comprehensive documentation!"
-										icon={<File className="text-slate-500" />}
-										link={{
-											type: "EXTERNAL",
-											url: "/docs",
-											text: "View Documentation",
-										}}
-									/>
+									<DashboardCard.Root className="h-full">
+										<DashboardCard.Header>
+											<DashboardCard.TitleRow
+												icon={<File className="text-slate-500" />}
+											>
+												View our Docs
+											</DashboardCard.TitleRow>
+										</DashboardCard.Header>
+										<DashboardCard.Content>
+											Learn how to deploy engagement bots, configure meeting
+											interactions, access recordings, and more in our
+											comprehensive documentation!
+										</DashboardCard.Content>
+										<DashboardCard.Link href="/docs" external>
+											View Documentation
+										</DashboardCard.Link>
+									</DashboardCard.Root>
 								</div>
 							</div>
 						</div>

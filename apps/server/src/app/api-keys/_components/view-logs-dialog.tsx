@@ -64,18 +64,16 @@ export function ViewLogsDialog({
 			cell: ({ row }) => {
 				const status = row.getValue<number>("statusCode");
 
+				function getStatusColor() {
+					if (status >= 200 && status < 300) return "text-green-600";
+
+					if (status >= 400) return "text-red-600";
+
+					return "text-yellow-600";
+				}
+
 				return (
-					<span
-						className={`font-mono ${
-							status >= 200 && status < 300
-								? "text-green-600"
-								: status >= 400
-									? "text-red-600"
-									: "text-yellow-600"
-						}`}
-					>
-						{status}
-					</span>
+					<span className={`font-mono ${getStatusColor()}`}>{status}</span>
 				);
 			},
 		},

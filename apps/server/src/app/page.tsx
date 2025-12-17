@@ -45,7 +45,7 @@ function DashboardSkeleton() {
 	);
 }
 
-export default function Home() {
+function HomeContent() {
 	const { data: session, isPending } = useSession();
 
 	const {
@@ -57,19 +57,28 @@ export default function Home() {
 	});
 
 	const isLoading = isPending || apiKeyCountIsLoading;
+
+	if (isLoading) {
+		return <DashboardSkeleton />;
+	}
+
+	if (apiKeyCountError) {
+		return <ErrorAlert errorMessage={apiKeyCountError.message} />;
+	}
+
 	const showWelcome = !session || apiKeyCount?.count === 0;
 
+	if (showWelcome) {
+		return <WelcomeDashboard />;
+	}
+
+	return <Dashboard />;
+}
+
+export default function Home() {
 	return (
 		<main className="mx-auto container px-4">
-			{isLoading ? (
-				<DashboardSkeleton />
-			) : apiKeyCountError ? (
-				<ErrorAlert errorMessage={apiKeyCountError.message} />
-			) : showWelcome ? (
-				<WelcomeDashboard />
-			) : (
-				<Dashboard />
-			)}
+			<HomeContent />
 		</main>
 	);
 }

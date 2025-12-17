@@ -1,5 +1,6 @@
 import { ChevronRight, ExternalLink } from "lucide-react";
 import Link from "next/link";
+import type { ReactNode } from "react";
 import {
 	Card,
 	CardContent,
@@ -10,32 +11,12 @@ import {
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
-interface DashboardCardProps {
-	title?: string | React.ReactNode;
-	description?: string | React.ReactNode;
-	content?: string | React.ReactNode;
-	icon?: React.ReactNode;
-	link?:
-		| {
-				type: "EXTERNAL" | "INTERNAL";
-				url: string;
-				text: string;
-		  }
-		| {
-				type: "CUSTOM";
-				component: React.ReactNode;
-		  };
+interface DashboardCardRootProps {
+	children: ReactNode;
 	className?: string;
 }
 
-export default function DashboardCard({
-	title,
-	description,
-	content,
-	icon,
-	link,
-	className,
-}: DashboardCardProps) {
+function DashboardCardRoot({ children, className }: DashboardCardRootProps) {
 	return (
 		<Card
 			className={cn(
@@ -43,45 +24,83 @@ export default function DashboardCard({
 				className,
 			)}
 		>
-			{!!title || !!description || !!icon ? (
-				<CardHeader className="relative">
-					<div className="flex items-center justify-between">
-						{!!title && typeof title === "string" ? (
-							<CardTitle>{title}</CardTitle>
-						) : (
-							title
-						)}
-
-						{icon ? <div>{icon}</div> : null}
-					</div>
-
-					{!!description && typeof description === "string" ? (
-						<CardDescription>{description}</CardDescription>
-					) : (
-						description
-					)}
-				</CardHeader>
-			) : null}
-
-			{content ? <CardContent>{content}</CardContent> : null}
-
-			{link ? (
-				<CardFooter className="mt-auto">
-					{link.type === "CUSTOM" ? (
-						link.component
-					) : (
-						<Link href={link.url} className="flex items-center">
-							{link.text}
-
-							{link.type === "EXTERNAL" ? (
-								<ExternalLink className="ml-2 h-4 w-4" />
-							) : (
-								<ChevronRight className="ml-2 h-4 w-4" />
-							)}
-						</Link>
-					)}
-				</CardFooter>
-			) : null}
+			{children}
 		</Card>
 	);
 }
+
+interface DashboardCardHeaderProps {
+	children: ReactNode;
+}
+
+function DashboardCardHeader({ children }: DashboardCardHeaderProps) {
+	return <CardHeader className="relative">{children}</CardHeader>;
+}
+
+interface DashboardCardTitleRowProps {
+	children: ReactNode;
+	icon?: ReactNode;
+}
+
+function DashboardCardTitleRow({ children, icon }: DashboardCardTitleRowProps) {
+	return (
+		<div className="flex items-center justify-between">
+			<CardTitle>{children}</CardTitle>
+			{icon && <div>{icon}</div>}
+		</div>
+	);
+}
+
+interface DashboardCardDescriptionProps {
+	children: ReactNode;
+}
+
+function DashboardCardDescription({ children }: DashboardCardDescriptionProps) {
+	return <CardDescription>{children}</CardDescription>;
+}
+
+interface DashboardCardContentProps {
+	children: ReactNode;
+}
+
+function DashboardCardContent({ children }: DashboardCardContentProps) {
+	return <CardContent>{children}</CardContent>;
+}
+
+interface DashboardCardLinkProps {
+	href: string;
+	external?: boolean;
+	children: ReactNode;
+}
+
+function DashboardCardLink({
+	href,
+	external,
+	children,
+}: DashboardCardLinkProps) {
+	return (
+		<CardFooter className="mt-auto">
+			<Link
+				href={href}
+				className="flex items-center"
+				target={external ? "_blank" : undefined}
+			>
+				{children}
+				{external ? (
+					<ExternalLink className="ml-2 h-4 w-4" />
+				) : (
+					<ChevronRight className="ml-2 h-4 w-4" />
+				)}
+			</Link>
+		</CardFooter>
+	);
+}
+
+export const DashboardCard = {
+	Root: DashboardCardRoot,
+	Header: DashboardCardHeader,
+	TitleRow: DashboardCardTitleRow,
+	Description: DashboardCardDescription,
+	Content: DashboardCardContent,
+	Link: DashboardCardLink,
+};

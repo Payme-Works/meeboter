@@ -7,6 +7,22 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/trpc/react";
 
+function RemainingStatusText({
+	remaining,
+}: {
+	remaining: number | null | undefined;
+}) {
+	if (remaining === null || remaining === undefined) {
+		return "No daily limits";
+	}
+
+	if (remaining > 0) {
+		return "Bots available";
+	}
+
+	return "Limit reached";
+}
+
 export function SubscriptionUsageSummary() {
 	// Get user's timezone
 	const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -168,13 +184,7 @@ export function SubscriptionUsageSummary() {
 							: "Unlimited"}
 					</div>
 					<p className="text-xs text-muted-foreground">
-						{dailyUsage?.remaining !== null &&
-						dailyUsage?.remaining !== undefined &&
-						dailyUsage.remaining > 0
-							? "Bots available"
-							: dailyUsage?.remaining === 0
-								? "Limit reached"
-								: "No daily limits"}
+						<RemainingStatusText remaining={dailyUsage?.remaining} />
 					</p>
 				</CardContent>
 			</Card>

@@ -7,43 +7,13 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { DataTable } from "@/components/custom/data-table";
-import {
-	TableSkeleton,
-	TableSkeletonCell,
-} from "@/components/custom/table-skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useSession } from "@/lib/auth-client";
 import { api } from "@/trpc/react";
 import { BotDetailsDialog } from "./_components/bot-details-dialog";
 import { MultiBotChatDialog } from "./_components/multi-bot-chat-dialog";
 import { MultiBotJoinDialog } from "./_components/multi-bot-join-dialog";
-
-function BotsTableSkeleton() {
-	return (
-		<TableSkeleton>
-			<TableSkeletonCell>
-				<div className="flex items-center gap-2">
-					<Skeleton className="h-5 w-5" />
-					<Skeleton className="h-4 w-16" />
-				</div>
-			</TableSkeletonCell>
-			<TableSkeletonCell>
-				<Skeleton className="h-4 w-36" />
-			</TableSkeletonCell>
-			<TableSkeletonCell>
-				<Skeleton className="h-5 w-16" />
-			</TableSkeletonCell>
-			<TableSkeletonCell>
-				<Skeleton className="h-4 w-24" />
-			</TableSkeletonCell>
-			<TableSkeletonCell>
-				<Skeleton className="h-9 w-24" />
-			</TableSkeletonCell>
-		</TableSkeleton>
-	);
-}
 
 export default function BotsPage() {
 	const [selectedBot, setSelectedBot] = useState<number | null>(null);
@@ -172,7 +142,6 @@ export default function BotsPage() {
 				data={bots}
 				isLoading={isLoading}
 				errorMessage={error?.message}
-				skeleton={<BotsTableSkeleton />}
 			/>
 
 			<BotDetailsDialog

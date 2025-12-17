@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
 	Table,
@@ -9,51 +8,53 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 
-interface TableSkeletonProps {
-	children: ReactNode;
-	rowCount?: number;
-}
-
-function TableSkeletonHeaderCell({ children }: { children?: ReactNode }) {
-	return <TableHead>{children ?? <Skeleton className="h-4 w-20" />}</TableHead>;
-}
-
-function TableSkeletonCell({ children }: { children?: ReactNode }) {
-	return <TableCell>{children ?? <Skeleton className="h-4 w-20" />}</TableCell>;
-}
-
-function TableSkeletonRow({ children }: { children: ReactNode }) {
-	return <TableRow>{children}</TableRow>;
-}
-
-function TableSkeleton({ children, rowCount = 5 }: TableSkeletonProps) {
+export default function TableSkeleton() {
 	return (
 		<div>
 			<div className="border">
 				<Table>
 					<TableHeader>
-						<TableRow>{children}</TableRow>
+						<TableRow>
+							<TableHead>
+								<Skeleton className="h-4 w-24" />
+							</TableHead>
+							<TableHead>
+								<Skeleton className="h-4 w-32" />
+							</TableHead>
+							<TableHead>
+								<Skeleton className="h-4 w-20" />
+							</TableHead>
+							<TableHead>
+								<Skeleton className="h-4 w-16" />
+							</TableHead>
+						</TableRow>
 					</TableHeader>
 
 					<TableBody>
-						{Array.from({ length: rowCount }, (_, i) => (
-							<TableRow key={i}>{children}</TableRow>
+						{Array.from({ length: 5 }, (_, i) => (
+							<TableRow key={i}>
+								<TableCell>
+									<Skeleton className="h-4 w-28" />
+								</TableCell>
+								<TableCell>
+									<Skeleton className="h-4 w-36" />
+								</TableCell>
+								<TableCell>
+									<Skeleton className="h-4 w-16" />
+								</TableCell>
+								<TableCell>
+									<Skeleton className="h-8 w-24" />
+								</TableCell>
+							</TableRow>
 						))}
 					</TableBody>
 				</Table>
 			</div>
 
-			<div className="flex items-center justify-end space-x-2 py-4">
+			<div className="flex items-center justify-end gap-2 py-4">
 				<Skeleton className="h-9 w-20" />
-				<Skeleton className="h-9 w-14" />
+				<Skeleton className="h-9 w-16" />
 			</div>
 		</div>
 	);
 }
-
-export {
-	TableSkeleton,
-	TableSkeletonHeaderCell,
-	TableSkeletonCell,
-	TableSkeletonRow,
-};

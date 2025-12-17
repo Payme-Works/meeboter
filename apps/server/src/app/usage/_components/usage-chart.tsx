@@ -29,6 +29,70 @@ export interface UsageChartProps {
 	dataLoading: boolean;
 }
 
+interface ChartContentProps {
+	data: UsageData[] | undefined;
+	isLoading: boolean;
+	error: { message: string } | null;
+	ydomain: [number, number] | undefined;
+	metric: "botsUsed" | "msEllapsed" | "estimatedCost";
+	dateTickFormatter: (date: string) => string;
+}
+
+function ChartContent({
+	data,
+	isLoading,
+	error,
+	ydomain,
+	metric,
+	dateTickFormatter,
+}: ChartContentProps) {
+	if (data && data.length > 0) {
+		return (
+			<div data-testid="chart-container" className="h-full w-full">
+				<ResponsiveContainer width="100%" height={300}>
+					<LineChart data={data}>
+						<CartesianGrid strokeDasharray="3 3" />
+
+						<XAxis dataKey="date" tickFormatter={dateTickFormatter} />
+
+						<YAxis
+							domain={ydomain}
+							allowDecimals={false}
+							tickFormatter={
+								metric === "msEllapsed"
+									? (value) => (value / 60000).toFixed(2)
+									: undefined
+							}
+						/>
+
+						<Tooltip content={<UsageTooltip metric={metric} />} />
+
+						<Line
+							type="monotone"
+							dataKey={metric}
+							stroke="#6366f1"
+							strokeWidth={2}
+							dot={{ r: 0 }}
+							activeDot={{ r: 6 }}
+							animationDuration={500}
+						/>
+					</LineChart>
+				</ResponsiveContainer>
+			</div>
+		);
+	}
+
+	if (isLoading) {
+		return <Skeleton className="w-full mt-2 h-[300px]" />;
+	}
+
+	if (error) {
+		return <ErrorAlert errorMessage={error.message} />;
+	}
+
+	return <div>No Data</div>;
+}
+
 export function UsageChart() {
 	// Get Metric - default to count since estimatedCost is disabled
 	const [metric, setMetric] = React.useState<
@@ -72,12 +136,15 @@ export function UsageChart() {
 		{ enabled: timeframe === "month" && !!userTimezone },
 	);
 
-	const { data, isLoading, error } =
-		timeframe === "daily"
-			? dailyData
-			: timeframe === "week"
-				? weekData
-				: monthData;
+	function getTimeframeData() {
+		if (timeframe === "daily") return dailyData;
+
+		if (timeframe === "week") return weekData;
+
+		return monthData;
+	}
+
+	const { data, isLoading, error } = getTimeframeData();
 
 	// Decide scale
 	const max =
@@ -92,7 +159,9 @@ export function UsageChart() {
 			}),
 		);
 
-	const ydomain = data && [0, max ?? 0];
+	const ydomain: [number, number] | undefined = data
+		? [0, max ?? 0]
+		: undefined;
 
 	const dateTickFormatter = (date: string) => {
 		// Handle different date formats from server
@@ -205,49 +274,14 @@ export function UsageChart() {
 					</div>
 				)}
 
-				{data && data.length > 0 ? (
-					<div data-testid="chart-container" className="h-full w-full">
-						<ResponsiveContainer width="100%" height={300}>
-							<LineChart data={data}>
-								<CartesianGrid strokeDasharray="3 3" />
-
-								<XAxis
-									dataKey="date"
-									tickFormatter={dateTickFormatter} // Format YYYY-MM-DD
-								/>
-
-								<YAxis
-									domain={ydomain}
-									allowDecimals={false}
-									tickFormatter={
-										metric === "msEllapsed"
-											? (value) => (value / 60000).toFixed(2)
-											: undefined
-									}
-								/>
-
-								<Tooltip content={<UsageTooltip metric={metric} />} />
-
-								{/* Define the Line */}
-								<Line
-									type="monotone"
-									dataKey={metric}
-									stroke="#6366f1"
-									strokeWidth={2}
-									dot={{ r: 0 }}
-									activeDot={{ r: 6 }}
-									animationDuration={500} // Speed up animation (default is 1500)
-								/>
-							</LineChart>
-						</ResponsiveContainer>
-					</div>
-				) : isLoading ? (
-					<Skeleton className="w-full mt-2 h-[300px]" />
-				) : error ? (
-					<ErrorAlert errorMessage={error.message} />
-				) : (
-					<div>No Data</div>
-				)}
+				<ChartContent
+					data={data}
+					isLoading={isLoading}
+					error={error}
+					ydomain={ydomain}
+					metric={metric}
+					dateTickFormatter={dateTickFormatter}
+				/>
 			</div>
 		</div>
 	);

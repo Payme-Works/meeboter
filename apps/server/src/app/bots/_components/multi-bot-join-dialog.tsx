@@ -45,6 +45,26 @@ interface MultiBotJoinDialogProps {
 	onClose: () => void;
 }
 
+function SubmitButtonText({
+	isSubmitting,
+	willExceedQuota,
+	isUnlimited,
+	remaining,
+}: {
+	isSubmitting: boolean;
+	willExceedQuota: boolean;
+	isUnlimited: boolean;
+	remaining: number;
+}) {
+	if (isSubmitting) return "Creating Bots...";
+
+	if (willExceedQuota) return "Exceeds Quota";
+
+	if (!isUnlimited && remaining === 0) return "No Quota Remaining";
+
+	return "Create Bots";
+}
+
 export function MultiBotJoinDialog({ open, onClose }: MultiBotJoinDialogProps) {
 	const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -315,13 +335,12 @@ export function MultiBotJoinDialog({ open, onClose }: MultiBotJoinDialogProps) {
 									(!isUnlimited && remaining === 0)
 								}
 							>
-								{isSubmitting
-									? "Creating Bots..."
-									: willExceedQuota
-										? "Exceeds Quota"
-										: !isUnlimited && remaining === 0
-											? "No Quota Remaining"
-											: "Create Bots"}
+								<SubmitButtonText
+									isSubmitting={isSubmitting}
+									willExceedQuota={willExceedQuota}
+									isUnlimited={isUnlimited}
+									remaining={remaining}
+								/>
 							</Button>
 						</div>
 					</form>

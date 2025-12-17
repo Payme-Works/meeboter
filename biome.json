@@ -30,6 +30,9 @@
 				"noUnknownAtRules": "off",
 				"noArrayIndexKey": "off"
 			},
+			"style": {
+				"noNestedTernary": "error"
+			},
 			"a11y": {
 				"useValidAnchor": "off"
 			}
@@ -48,5 +51,17 @@
 		"formatter": {
 			"quoteStyle": "double"
 		}
-	}
+	},
+	"overrides": [
+		{
+			"includes": ["**/components/custom/**"],
+			"linter": {
+				"rules": {
+					"style": {
+						"noNestedTernary": "off"
+					}
+				}
+			}
+		}
+	]
 }
