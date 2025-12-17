@@ -147,6 +147,51 @@ async function getPoolSize(
 }
 
 /**
+ * Gets the next available slot number for a platform
+ *
+ * Finds the first gap in the sequence of slot numbers, or returns max + 1
+ * if no gaps exist. This allows reuse of deleted slot numbers.
+ *
+ * Example: slots 001, 003 exist → returns 2 (fills the gap)
+ * Example: slots 001, 002, 003 exist → returns 4
+ */
+async function getNextSlotNumber(
+	platformName: string,
+	db: PostgresJsDatabase<typeof schema>,
+): Promise<number> {
+	const prefix = `meeboter-pool-${platformName}-`;
+
+	const result = await db
+		.select({ slotName: botPoolSlotsTable.slotName })
+		.from(botPoolSlotsTable)
+		.where(sql`${botPoolSlotsTable.slotName} LIKE ${`${prefix}%`}`);
+
+	if (result.length === 0) {
+		return 1;
+	}
+
+	// Collect all used numbers into a Set
+	const usedNumbers = new Set<number>();
+
+	for (const row of result) {
+		const match = row.slotName.match(/(\d+)$/);
+
+		if (match) {
+			usedNumbers.add(Number.parseInt(match[1], 10));
+		}
+	}
+
+	// Find first available number starting from 1
+	let nextNumber = 1;
+
+	while (usedNumbers.has(nextNumber)) {
+		nextNumber++;
+	}
+
+	return nextNumber;
+}
+
+/**
  * Creates a new pool slot and assigns it to the bot
  * This is slow as it involves creating a Coolify app and pulling the image
  */
@@ -170,9 +215,9 @@ async function createAndAcquireNewSlot(
 	// Get platform name for slot naming
 	const platformName = getPlatformSlotName(bot.meetingInfo.platform);
 
-	// Generate slot name with platform prefix
-	const currentSize = await getPoolSize(db);
-	const slotName = `meeboter-pool-${platformName}-${String(currentSize + 1).padStart(3, "0")}`;
+	// Generate slot name with platform prefix using next available number
+	const nextNumber = await getNextSlotNumber(platformName, db);
+	const slotName = `meeboter-pool-${platformName}-${String(nextNumber).padStart(3, "0")}`;
 
 	// Create placeholder config for initial deployment
 	const placeholderConfig: BotConfig = {
