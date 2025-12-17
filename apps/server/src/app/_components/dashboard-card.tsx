@@ -11,12 +11,12 @@ import {
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
-interface DashboardCardRootProps {
+interface DashboardCardProps {
 	children: ReactNode;
 	className?: string;
 }
 
-function DashboardCardRoot({ children, className }: DashboardCardRootProps) {
+export function DashboardCard({ children, className }: DashboardCardProps) {
 	return (
 		<Card
 			className={cn(
@@ -33,7 +33,7 @@ interface DashboardCardHeaderProps {
 	children: ReactNode;
 }
 
-function DashboardCardHeader({ children }: DashboardCardHeaderProps) {
+export function DashboardCardHeader({ children }: DashboardCardHeaderProps) {
 	return <CardHeader className="relative">{children}</CardHeader>;
 }
 
@@ -42,7 +42,10 @@ interface DashboardCardTitleRowProps {
 	icon?: ReactNode;
 }
 
-function DashboardCardTitleRow({ children, icon }: DashboardCardTitleRowProps) {
+export function DashboardCardTitleRow({
+	children,
+	icon,
+}: DashboardCardTitleRowProps) {
 	return (
 		<div className="flex items-center justify-between">
 			<CardTitle>{children}</CardTitle>
@@ -55,7 +58,9 @@ interface DashboardCardDescriptionProps {
 	children: ReactNode;
 }
 
-function DashboardCardDescription({ children }: DashboardCardDescriptionProps) {
+export function DashboardCardDescription({
+	children,
+}: DashboardCardDescriptionProps) {
 	return <CardDescription>{children}</CardDescription>;
 }
 
@@ -63,7 +68,7 @@ interface DashboardCardContentProps {
 	children: ReactNode;
 }
 
-function DashboardCardContent({ children }: DashboardCardContentProps) {
+export function DashboardCardContent({ children }: DashboardCardContentProps) {
 	return <CardContent>{children}</CardContent>;
 }
 
@@ -73,7 +78,7 @@ interface DashboardCardLinkProps {
 	children: ReactNode;
 }
 
-function DashboardCardLink({
+export function DashboardCardLink({
 	href,
 	external,
 	children,
@@ -95,12 +100,3 @@ function DashboardCardLink({
 		</CardFooter>
 	);
 }
-
-export const DashboardCard = {
-	Root: DashboardCardRoot,
-	Header: DashboardCardHeader,
-	TitleRow: DashboardCardTitleRow,
-	Description: DashboardCardDescription,
-	Content: DashboardCardContent,
-	Link: DashboardCardLink,
-};

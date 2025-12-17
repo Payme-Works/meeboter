@@ -7,7 +7,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useSession } from "@/lib/auth-client";
 import { api } from "@/trpc/react";
 
-import { DashboardCard } from "./dashboard-card";
+import {
+	DashboardCard,
+	DashboardCardContent,
+	DashboardCardHeader,
+	DashboardCardLink,
+	DashboardCardTitleRow,
+} from "./dashboard-card";
 
 function ActiveBotsContent() {
 	const {
@@ -104,66 +110,64 @@ export default function Dashboard() {
 			</div>
 
 			<div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-				<DashboardCard.Root className="min-h-56">
-					<DashboardCard.Header>
-						<DashboardCard.TitleRow icon={<Bot />}>
+				<DashboardCard className="min-h-56">
+					<DashboardCardHeader>
+						<DashboardCardTitleRow icon={<Bot />}>
 							Active Bots
-						</DashboardCard.TitleRow>
-					</DashboardCard.Header>
+						</DashboardCardTitleRow>
+					</DashboardCardHeader>
 
-					<DashboardCard.Content>
+					<DashboardCardContent>
 						<ActiveBotsContent />
-					</DashboardCard.Content>
+					</DashboardCardContent>
 
-					<DashboardCard.Link href="/bots">View Bots</DashboardCard.Link>
-				</DashboardCard.Root>
+					<DashboardCardLink href="/bots">View Bots</DashboardCardLink>
+				</DashboardCard>
 
-				<DashboardCard.Root className="min-h-56">
-					<DashboardCard.Header>
-						<DashboardCard.TitleRow icon={<Key />}>
+				<DashboardCard className="min-h-56">
+					<DashboardCardHeader>
+						<DashboardCardTitleRow icon={<Key />}>
 							Active Keys
-						</DashboardCard.TitleRow>
-					</DashboardCard.Header>
+						</DashboardCardTitleRow>
+					</DashboardCardHeader>
 
-					<DashboardCard.Content>
+					<DashboardCardContent>
 						<ActiveKeysContent />
-					</DashboardCard.Content>
+					</DashboardCardContent>
 
-					<DashboardCard.Link href="/api-keys">
-						View API Keys
-					</DashboardCard.Link>
-				</DashboardCard.Root>
+					<DashboardCardLink href="/api-keys">View API Keys</DashboardCardLink>
+				</DashboardCard>
 
-				<DashboardCard.Root className="min-h-56">
-					<DashboardCard.Header>
-						<DashboardCard.TitleRow icon={<Activity />}>
+				<DashboardCard className="min-h-56">
+					<DashboardCardHeader>
+						<DashboardCardTitleRow icon={<Activity />}>
 							Today's Usage
-						</DashboardCard.TitleRow>
-					</DashboardCard.Header>
+						</DashboardCardTitleRow>
+					</DashboardCardHeader>
 
-					<DashboardCard.Content>
+					<DashboardCardContent>
 						<TodayUsageContent />
-					</DashboardCard.Content>
+					</DashboardCardContent>
 
-					<DashboardCard.Link href="/usage">View Usage</DashboardCard.Link>
-				</DashboardCard.Root>
+					<DashboardCardLink href="/usage">View Usage</DashboardCardLink>
+				</DashboardCard>
 
-				<DashboardCard.Root className="min-h-56">
-					<DashboardCard.Header>
-						<DashboardCard.TitleRow
+				<DashboardCard className="min-h-56">
+					<DashboardCardHeader>
+						<DashboardCardTitleRow
 							icon={<File className="text-muted-foreground" />}
 						>
 							Documentation
-						</DashboardCard.TitleRow>
-					</DashboardCard.Header>
+						</DashboardCardTitleRow>
+					</DashboardCardHeader>
 
-					<DashboardCard.Content>
+					<DashboardCardContent>
 						Learn how to create bots, integrate with meetings, and boost
 						engagement.
-					</DashboardCard.Content>
+					</DashboardCardContent>
 
-					<DashboardCard.Link href="/docs">View Docs</DashboardCard.Link>
-				</DashboardCard.Root>
+					<DashboardCardLink href="/docs">View Docs</DashboardCardLink>
+				</DashboardCard>
 			</div>
 		</div>
 	);

@@ -6,7 +6,14 @@ import { useState } from "react";
 import { MultiBotJoinDialog } from "@/app/bots/_components/multi-bot-join-dialog";
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/lib/auth-client";
-import { DashboardCard } from "./dashboard-card";
+import {
+	DashboardCard,
+	DashboardCardContent,
+	DashboardCardDescription,
+	DashboardCardHeader,
+	DashboardCardLink,
+	DashboardCardTitleRow,
+} from "./dashboard-card";
 import SubscriptionPlansSection from "./subscription-plans-section";
 
 export default function WelcomeDashboard() {
@@ -33,18 +40,16 @@ export default function WelcomeDashboard() {
 						<div className="grid h-full min-h-0 grid-rows-[auto_1fr] gap-6">
 							<div className="grid min-h-0 gap-6 md:grid-cols-2">
 								<div className="min-h-0">
-									<DashboardCard.Root>
-										<DashboardCard.Header>
-											<DashboardCard.TitleRow>
-												Get Started
-											</DashboardCard.TitleRow>
-											<DashboardCard.Description>
+									<DashboardCard>
+										<DashboardCardHeader>
+											<DashboardCardTitleRow>Get Started</DashboardCardTitleRow>
+											<DashboardCardDescription>
 												{session?.user
 													? "Deploy intelligent bots to your meetings! Create API keys for programmatic access or quickly join multiple bots to any meeting."
 													: "To get started, log-in or sign-up!"}
-											</DashboardCard.Description>
-										</DashboardCard.Header>
-										<DashboardCard.Content>
+											</DashboardCardDescription>
+										</DashboardCardHeader>
+										<DashboardCardContent>
 											{session?.user ? (
 												<div className="space-y-3">
 													<Link href="/api-keys" className="block">
@@ -69,28 +74,28 @@ export default function WelcomeDashboard() {
 													</Button>
 												</Link>
 											)}
-										</DashboardCard.Content>
-									</DashboardCard.Root>
+										</DashboardCardContent>
+									</DashboardCard>
 								</div>
 
 								<div className="min-h-0">
-									<DashboardCard.Root className="h-full">
-										<DashboardCard.Header>
-											<DashboardCard.TitleRow
+									<DashboardCard className="h-full">
+										<DashboardCardHeader>
+											<DashboardCardTitleRow
 												icon={<File className="text-slate-500" />}
 											>
 												View our Docs
-											</DashboardCard.TitleRow>
-										</DashboardCard.Header>
-										<DashboardCard.Content>
+											</DashboardCardTitleRow>
+										</DashboardCardHeader>
+										<DashboardCardContent>
 											Learn how to deploy engagement bots, configure meeting
 											interactions, access recordings, and more in our
 											comprehensive documentation!
-										</DashboardCard.Content>
-										<DashboardCard.Link href="/docs" external>
+										</DashboardCardContent>
+										<DashboardCardLink href="/docs" external>
 											View Documentation
-										</DashboardCard.Link>
-									</DashboardCard.Root>
+										</DashboardCardLink>
+									</DashboardCard>
 								</div>
 							</div>
 						</div>
