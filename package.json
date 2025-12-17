@@ -39,6 +39,10 @@
 	"workspaces": [
 		"apps/**",
 		"apps/bots/providers/**",
-		"packages/**"
+		"packages/**",
+
+		"!**/node_modules/**",
+		"!**/.next/**",
+		"!**/dist/**"
 	]
 }
