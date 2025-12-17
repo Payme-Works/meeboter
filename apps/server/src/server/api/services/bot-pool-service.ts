@@ -470,7 +470,7 @@ export class BotPoolService {
 			if (slot) {
 				await this.removeFromQueue(botId);
 
-				if (slot.status === "busy") {
+				if (slot.status === "deploying") {
 					await this.configureAndStartSlot(slot, botConfig);
 				}
 
