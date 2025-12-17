@@ -21,7 +21,7 @@ export default function Home() {
 					height={48}
 					className="mr-2"
 				/>
-				<h1 className="text-center text-3xl font-bold">Live Boost</h1>
+				<h1 className="text-center text-3xl font-bold">Meeboter</h1>
 				<h1
 					className="text-muted-foreground text-2xl"
 					style={{ translate: "0px 2px" }}

@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Live Boost Deployment Script
-# This script deploys the Live Boost infrastructure and applications
+# Meeboter Deployment Script
+# This script deploys the Meeboter infrastructure and applications
 # It applies Terraform, builds Docker images, and pushes them to AWS ECR
 #
 # Usage:
@@ -624,7 +624,7 @@ apply_terraform() {
 
 # Main execution with guaranteed cleanup
 main() {
-    log_info "Starting Live Boost deployment process..."
+    log_info "Starting Meeboter deployment process..."
     
     # Set up cleanup trap for both success and failure
     trap 'cleanup_on_exit' EXIT
@@ -765,7 +765,7 @@ parse_args() {
 # Show help
 show_help() {
     cat <<EOF
-Live Boost Deployment Script
+Meeboter Deployment Script
 
 Usage: $0 [OPTIONS]
 

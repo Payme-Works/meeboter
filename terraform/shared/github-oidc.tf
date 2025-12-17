@@ -17,7 +17,7 @@ resource "aws_iam_openid_connect_provider" "github" {
 
   tags = {
     Name = "github-actions-oidc-provider"
-    Project = "Live Boost"
+    Project = "Meeboter"
     Component = "Shared"
     ManagedBy = "Terraform"
   }

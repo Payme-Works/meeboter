@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-	title: "Live Boost Example Application",
+	title: "Meeboter Example Application",
 	description:
 		"A user-friendly interface for scheduling meetings effortlessly.",
 	icons: [{ rel: "icon", url: "/logo.svg" }],

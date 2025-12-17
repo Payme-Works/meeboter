@@ -12,7 +12,7 @@ Each bot is responsible for executing the following key tasks:
 - **Uploading the Recording**: Transferring the recorded content to a designated storage location upon completion.
 - **Notifying the Backend**: Sending updates to the backend system to reflect the recording status and other relevant details.
 
-These bots are integral to the Live Boost application, ensuring seamless and automated meeting recording functionality across supported platforms.
+These bots are integral to the Meeboter application, ensuring seamless and automated meeting recording functionality across supported platforms.
 
 ## File Structure
 
@@ -116,7 +116,7 @@ bun run dev
 
 ## Building
 
-This section provides instructions for building the Docker images required for the Live Boost application.
+This section provides instructions for building the Docker images required for the Meeboter application.
 The code below outlines the necessary steps and configurations to create containerized environments
 for deploying the bot services.
 

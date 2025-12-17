@@ -89,7 +89,7 @@ export async function POST(req: Request) {
 			return NextResponse.json("Bot Validation Failed", { status: 403 });
 		}
 
-		// Send request to Live Boost API to get the signed Recording URL from S3
+		// Send request to Meeboter API to get the signed Recording URL from S3
 		const recordingResponse = await fetch(
 			`${MEETINGBOT_END_POINT}/api/bots/${botId}/recording`,
 			{

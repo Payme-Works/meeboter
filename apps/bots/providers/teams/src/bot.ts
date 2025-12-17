@@ -190,7 +190,7 @@ export class MicrosoftTeamsBot extends Bot {
 		// Fill in the display name
 		await this.page
 			.locator(`[data-tid="prejoin-display-name-input"]`)
-			.fill(this.settings.botDisplayName ?? "Live Boost");
+			.fill(this.settings.botDisplayName ?? "Meeboter");
 
 		console.log("Entered display name");
 

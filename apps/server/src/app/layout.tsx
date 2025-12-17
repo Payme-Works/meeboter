@@ -29,7 +29,7 @@ export default function RootLayout({
 					<div className="flex flex-col min-h-screen">
 						<NavigationBar />
 
-						<main className="grow space-y-4 pt-6 pb-20">{children}</main>
+						<main className="grow space-y-4 pt-10 pb-20">{children}</main>
 
 						<Footer />
 					</div>

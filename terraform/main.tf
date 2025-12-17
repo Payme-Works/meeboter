@@ -16,7 +16,7 @@ provider "aws" {
 
   default_tags {
     tags = {
-      Project     = "Live Boost"
+      Project     = "Meeboter"
       Component   = "Workspace"
       ManagedBy   = "Terraform"
       Environment = terraform.workspace == "production" ? "Production" : (terraform.workspace == "staging" ? "Staging" : "Development")

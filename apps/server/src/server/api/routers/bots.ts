@@ -215,7 +215,7 @@ export const botsRouter = createTRPCRouter({
 
 				// Extract database fields from input
 				const dbInput = {
-					botDisplayName: input.botDisplayName ?? "Live Boost",
+					botDisplayName: input.botDisplayName ?? "Meeboter",
 					botImage: input.botImage,
 					userId: ctx.session.user.id,
 					meetingTitle: input.meetingTitle ?? "Meeting",

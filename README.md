@@ -7,7 +7,7 @@
     <img src="https://raw.githubusercontent.com/meeboter/meeboter/refs/heads/main/src/landing-page/public/logo.svg" alt="Logo" width="80" height="80">
   </a>
 
-  <h3 align="center">Live Boost</h3>
+  <h3 align="center">Meeboter</h3>
 
   <p align="center">
     API for sending bots to video meetings while keeping data private & costs low
@@ -27,7 +27,7 @@
     
 </div>
 
-## Hosted Live Boost API
+## Hosted Meeboter API
 
 If you’re looking for a hosted meeting bot API, consider checking out [Recall.ai](https://www.recall.ai/?utm_source=github&utm_medium=sponsorship&utm_campaign=meetingbottech), an API for meeting recording.
 
@@ -62,11 +62,11 @@ https://github.com/user-attachments/assets/0e2f2673-a59f-4473-a5ed-e2a5e1cd1cac
 
 ## About The Project
 
-Live Boost is an open-source meeting bot API.
+Meeboter is an open-source meeting bot API.
 
-Live Boost provides the infrastructure for sending bots to meetings (Google Meet, Microsoft Teams, and Zoom) and recording them, so that developers can build applications that use meeting recording data in just a few lines of code.
+Meeboter provides the infrastructure for sending bots to meetings (Google Meet, Microsoft Teams, and Zoom) and recording them, so that developers can build applications that use meeting recording data in just a few lines of code.
 
-All infrastructure is defined using Terraform and deployed to AWS, so that you can easily self host Live Boost to keep your data private & costs low.
+All infrastructure is defined using Terraform and deployed to AWS, so that you can easily self host Meeboter to keep your data private & costs low.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -98,7 +98,7 @@ All infrastructure is defined using Terraform and deployed to AWS, so that you c
   </a>
 </div>
 
-To get started with Live Boost, you'll need to set up the infrastructure and configure the different components.
+To get started with Meeboter, you'll need to set up the infrastructure and configure the different components.
 
 ### Prerequisites
 
@@ -181,7 +181,7 @@ See more information in the [Terraform README](terraform/README.md).
 
 3.  **Run the Frontend:** Navigate to the `apps/server` directory and start the development server using `bun dev`. Access the application at `http://localhost:3000` (or the deployed endpoint).
 
-4.  **Create API Keys:** Use the frontend to create API keys for authenticating your applications with the Live Boost API.
+4.  **Create API Keys:** Use the frontend to create API keys for authenticating your applications with the Meeboter API.
 
 5.  **Deploy Bots:** Use the API endpoints to deploy bots to your desired meeting platforms.
 

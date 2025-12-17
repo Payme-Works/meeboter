@@ -347,7 +347,7 @@ export class GoogleMeetBot extends Bot {
 		});
 
 		// Define bot name
-		const name = this.settings.botDisplayName || "Live Boost";
+		const name = this.settings.botDisplayName || "Meeboter";
 
 		// Go to the meeting URL (simulate movement)
 		console.log("Simulating movement...");

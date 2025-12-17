@@ -1,6 +1,6 @@
-# Live Boost Terraform Infrastructure
+# Meeboter Terraform Infrastructure
 
-This directory contains the Terraform infrastructure configuration for the Live Boost project, supporting multiple environments (development, staging, production) with shared resources architecture.
+This directory contains the Terraform infrastructure configuration for the Meeboter project, supporting multiple environments (development, staging, production) with shared resources architecture.
 
 ## 📁 Directory Structure
 
@@ -344,7 +344,7 @@ terraform output
 
 - [Terraform Documentation](https://www.terraform.io/docs)
 - [AWS Provider Documentation](https://registry.terraform.io/providers/hashicorp/aws)
-- [Live Boost Project README](../README.md)
+- [Meeboter Project README](../README.md)
 - [Shared Resources Documentation](./shared/README.md)
 
 ## 🆘 Support

@@ -4,7 +4,7 @@ resource "aws_route53_zone" "this" {
 
   tags = {
     Name    = var.domain_name
-    Service = "Live Boost"
+    Service = "Meeboter"
   }
   
   lifecycle {

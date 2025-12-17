@@ -22,7 +22,7 @@ provider "aws" {
   
   default_tags {
     tags = {
-      Project     = "Live Boost"
+      Project     = "Meeboter"
       Component   = "Shared"
       ManagedBy   = "Terraform"
     }

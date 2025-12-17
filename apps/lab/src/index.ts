@@ -294,7 +294,7 @@ async function deployMultipleBots(): Promise<Bot[]> {
 }
 
 async function _main(): Promise<void> {
-	console.log("🚀 Live Boost - Google Meet Multiple Bot Deployment");
+	console.log("🚀 Meeboter - Google Meet Multiple Bot Deployment");
 	console.log("==================================================");
 	console.log(`🎯 Target meeting: ${GOOGLE_MEET_URL}`);
 	console.log(`🤖 Number of bots to deploy: ${BOT_CONFIG.numberOfBots}`);

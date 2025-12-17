@@ -17,7 +17,7 @@ export default function WelcomeDashboard() {
 		<div className="space-y-4">
 			<div>
 				<h1 className="text-3xl font-bold">
-					Welcome to Live Boost
+					Welcome to Meeboter
 					{session?.user?.name ? `, ${session.user.name}` : ""}
 				</h1>
 

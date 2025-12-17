@@ -1,4 +1,4 @@
-# Live Boost Lab - Google Meet Bot Orchestrator
+# Meeboter Lab - Google Meet Bot Orchestrator
 
 A sophisticated bot orchestration system that can deploy multiple independent Google Meet bots with realistic names, using clean architecture and OOP principles.
 

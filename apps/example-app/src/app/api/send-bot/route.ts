@@ -23,7 +23,7 @@ export async function POST(req: Request) {
 		}
 
 		//
-		// Send request to Live Boost API to start and send a bot to a meeting
+		// Send request to Meeboter API to start and send a bot to a meeting
 		//
 		const eurl = `${endpoint}/api/bots`;
 		console.log("Sending Request to", eurl, "with body", body);
@@ -39,7 +39,7 @@ export async function POST(req: Request) {
 		});
 
 		//
-		// Return the response from the Live Boost API
+		// Return the response from the Meeboter API
 		//
 
 		const data = await response.json();

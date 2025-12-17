@@ -225,7 +225,7 @@ export class ZoomBot extends Bot {
 
 			await frame.type(
 				"#input-for-name",
-				this.settings?.botDisplayName ?? "Live Boost",
+				this.settings?.botDisplayName ?? "Meeboter",
 			);
 
 			console.log("Typed name");

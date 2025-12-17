@@ -1,6 +1,6 @@
-# Live Boost Next.JS Server
+# Meeboter Next.JS Server
 
-The `server` folder contains the backend implementation of the Live Boost application.
+The `server` folder contains the backend implementation of the Meeboter application.
 It is built using **Next.js** and includes APIs, database configurations, authentication, and other server-side utilities.
 
 This document provides an overview of the folder structure and how the components work together.

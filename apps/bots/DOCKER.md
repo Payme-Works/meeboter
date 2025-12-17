@@ -1,4 +1,4 @@
-# Live Boost Docker Guide
+# Meeboter Docker Guide
 
 This guide provides instructions for building and running meeting bot Docker images for Google Meet, Microsoft Teams, and Zoom platforms.
 
