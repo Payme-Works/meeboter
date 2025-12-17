@@ -761,7 +761,7 @@ export type SelectBotChatMessageType = z.infer<
 /**
  * Pool slot status codes
  */
-export const poolSlotStatus = z.enum(["idle", "busy", "error"]);
+export const poolSlotStatus = z.enum(["idle", "deploying", "busy", "error"]);
 export type PoolSlotStatus = z.infer<typeof poolSlotStatus>;
 
 /**

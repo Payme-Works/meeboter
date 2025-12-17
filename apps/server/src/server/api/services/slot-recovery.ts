@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, lt, or } from "drizzle-orm";
 
 import { db } from "@/server/database/db";
 import {
@@ -23,6 +23,9 @@ const RECOVERY_INTERVAL_MS = 5 * 60 * 1000;
 /** Maximum recovery attempts before deleting the slot */
 const MAX_RECOVERY_ATTEMPTS = 3;
 
+/** Timeout for deploying slots before they're considered stale (5 minutes) */
+const DEPLOYING_TIMEOUT_MS = 5 * 60 * 1000;
+
 interface RecoveryResult {
 	recovered: number;
 	failed: number;
@@ -32,7 +35,7 @@ interface RecoveryResult {
 /**
  * Starts the background slot recovery job
  *
- * Runs every 5 minutes to attempt recovery of error slots.
+ * Runs every 5 minutes to attempt recovery of error slots and stale deploying slots.
  * Should be called once at server startup.
  */
 export function startSlotRecoveryJob(): void {
@@ -41,37 +44,51 @@ export function startSlotRecoveryJob(): void {
 	);
 
 	// Run immediately on startup
-	recoverErrorSlots();
+	recoverStuckSlots();
 
 	// Then run every interval
 	setInterval(() => {
-		recoverErrorSlots();
+		recoverStuckSlots();
 	}, RECOVERY_INTERVAL_MS);
 }
 
 /**
- * Attempts to recover all error slots
+ * Attempts to recover stuck slots (error status or stale deploying status)
  *
- * For each slot in error state:
+ * For each stuck slot:
  * - If max attempts exceeded: delete slot permanently
  * - Otherwise: attempt recovery by stopping container and resetting to idle
+ *
+ * A slot in "deploying" status is considered stale if it has been in that
+ * state for longer than DEPLOYING_TIMEOUT_MS (5 minutes).
  */
-async function recoverErrorSlots(): Promise<RecoveryResult> {
+async function recoverStuckSlots(): Promise<RecoveryResult> {
 	const result: RecoveryResult = { recovered: 0, failed: 0, deleted: 0 };
 
 	try {
-		const errorSlots = await db
+		const staleDeployingCutoff = new Date(Date.now() - DEPLOYING_TIMEOUT_MS);
+
+		// Find slots that are either in error state or stuck in deploying state
+		const stuckSlots = await db
 			.select()
 			.from(botPoolSlotsTable)
-			.where(eq(botPoolSlotsTable.status, "error"));
+			.where(
+				or(
+					eq(botPoolSlotsTable.status, "error"),
+					and(
+						eq(botPoolSlotsTable.status, "deploying"),
+						lt(botPoolSlotsTable.lastUsedAt, staleDeployingCutoff),
+					),
+				),
+			);
 
-		if (errorSlots.length === 0) {
+		if (stuckSlots.length === 0) {
 			return result;
 		}
 
-		console.log(`[Recovery] Found ${errorSlots.length} error slots to process`);
+		console.log(`[Recovery] Found ${stuckSlots.length} stuck slots to process`);
 
-		for (const slot of errorSlots) {
+		for (const slot of stuckSlots) {
 			if (slot.recoveryAttempts >= MAX_RECOVERY_ATTEMPTS) {
 				await deleteSlotPermanently(slot);
 				result.deleted++;

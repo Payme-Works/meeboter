@@ -176,8 +176,16 @@ The bot pool maintains reusable Coolify applications. Once an image is cached on
 | State | Description | Container | Assignable |
 |-------|-------------|-----------|------------|
 | `idle` | Ready for assignment | Stopped | Yes |
+| `deploying` | Starting up for a bot | Starting | No |
 | `busy` | Running a bot | Running | No |
 | `error` | Failed state | Unknown | No |
+
+**State Transitions:**
+```
+idle → deploying (on acquire/create) → busy (when container starts) → idle (on release)
+              ↓                                ↓
+           error                            error
+```
 
 ### Performance Comparison
 
@@ -237,8 +245,9 @@ This ensures:
 Pool status is synced to Coolify application descriptions:
 
 ```
-meeboter-pool-meet-001   [BUSY] Bot #123 - 2025-12-16T21:30:00Z
-meeboter-pool-meet-002   [IDLE] Available - Last used: 2025-12-16T20:15:00Z
+meeboter-pool-meet-001   [DEPLOYING] Bot #123 - Starting container...
+meeboter-pool-meet-002   [BUSY] Bot #456 - 2025-12-16T21:30:00Z
+meeboter-pool-meet-003   [IDLE] Available - Last used: 2025-12-16T20:15:00Z
 meeboter-pool-teams-001  [ERROR] Container crashed - 2025-12-16T21:00:00Z
 ```
 
@@ -705,7 +714,7 @@ MINIO_SECRET_KEY=...
 | Priority | Enhancement | Effort | Impact | Status |
 |----------|-------------|--------|--------|--------|
 | **High** | Pool Pre-Warming | Medium | Eliminates cold-start latency | Planned |
-| **High** | Error Slot Recovery | Low | Increases pool availability | ✅ Implemented |
+| **High** | Slot Recovery | Low | Increases pool availability | ✅ Implemented |
 | **High** | Background Queue Processor | Medium | Faster queue processing | Planned |
 | **Medium** | Multi-Platform Pools | High | Platform isolation | Planned |
 | **Medium** | Pool Auto-Scaling | High | Cost optimization | Planned |
@@ -797,13 +806,15 @@ POOL_PREWARM_ON_STARTUP=true      # Enable pre-warming
 
 ---
 
-#### 2. Error Slot Recovery ✅ Implemented
+#### 2. Slot Recovery ✅ Implemented
 
-> **Design Document:** [`docs/plans/2025-12-16-error-slot-recovery-design.md`](docs/plans/2025-12-16-error-slot-recovery-design.md)
+> **Design Documents:**
+> - [`docs/plans/2025-12-16-error-slot-recovery-design.md`](docs/plans/2025-12-16-error-slot-recovery-design.md)
+> - [`docs/plans/2025-12-17-deploying-slot-status-design.md`](docs/plans/2025-12-17-deploying-slot-status-design.md)
 
-**Problem:** Slots in `error` state are permanently unusable, reducing pool capacity.
+**Problem:** Slots in `error` state or stuck in `deploying` state are unusable, reducing pool capacity.
 
-**Solution:** Background job that attempts to recover error slots by stopping and resetting them.
+**Solution:** Background job that attempts to recover error slots and stale deploying slots (>5 min) by stopping and resetting them.
 
 **Implementation Details:**
 | Component | Description |
@@ -1183,11 +1194,11 @@ export function getMetrics(): Promise<string> {
 
 **Grafana Dashboard Panels:**
 1. Pool Utilization (gauge)
-2. Slots by Status (stacked bar)
+2. Slots by Status (stacked bar: idle, deploying, busy, error)
 3. Queue Depth Over Time (line)
 4. Deployment Duration (histogram)
 5. Bot Success Rate (percentage)
-6. Error Slot Recovery Rate
+6. Slot Recovery Rate
 
 ---
 
