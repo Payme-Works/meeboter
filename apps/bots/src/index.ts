@@ -86,6 +86,7 @@ export const main = async () => {
 	const botDataJson = Buffer.from(process.env.BOT_DATA, "base64").toString(
 		"utf-8",
 	);
+
 	const botData: BotConfig = JSON.parse(botDataJson);
 
 	console.log("Received bot data:", botData);

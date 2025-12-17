@@ -38,7 +38,9 @@ async function runMigrations() {
 	const sslEnabled = databaseSsl !== "false";
 	const sslConfig = sslEnabled ? { rejectUnauthorized: false } : false;
 
-	console.log(`Connecting to database (SSL: ${sslEnabled ? "enabled" : "disabled"})...`);
+	console.log(
+		`Connecting to database (SSL: ${sslEnabled ? "enabled" : "disabled"})...`,
+	);
 
 	const client = new Client({
 		connectionString: databaseUrl,

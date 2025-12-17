@@ -22,7 +22,13 @@ import {
 	getUserSubscriptionInfo,
 	validateBotCreation,
 } from "@/server/utils/subscription";
-import { deployBot, shouldDeployImmediately } from "../services/bot-deployment";
+import {
+	deployBot,
+	getPoolStats,
+	getQueueStats,
+	releaseBotSlot,
+	shouldDeployImmediately,
+} from "../services/bot-deployment";
 
 // Event batching configuration
 const EVENT_BATCH_SIZE = 50;
@@ -169,101 +175,118 @@ export const botsRouter = createTRPCRouter({
 					.transform((val) => (val ? new Date(val) : undefined))
 					.default(new Date()),
 				timeZone: z.string().default("UTC"), // IANA timezone
+				queueTimeoutMs: z
+					.number()
+					.min(0)
+					.max(10 * 60 * 1000)
+					.optional(), // Max 10 minutes
 			}),
 		)
-		.output(selectBotSchema)
-		.mutation(
-			async ({ input, ctx }): Promise<typeof selectBotSchema._output> => {
-				console.log("Starting bot creation...");
+		.output(
+			selectBotSchema.extend({
+				queued: z.boolean().optional(),
+				queuePosition: z.number().optional(),
+				estimatedWaitMs: z.number().optional(),
+			}),
+		)
+		.mutation(async ({ input, ctx }) => {
+			console.log("Starting bot creation...");
 
-				try {
-					// Test database connection
-					await ctx.db.execute(sql`SELECT 1`);
+			try {
+				// Test database connection
+				await ctx.db.execute(sql`SELECT 1`);
 
-					console.log("Database connection successful");
+				console.log("Database connection successful");
 
-					// Validate bot creation limits
-					const validation = await validateBotCreation(
-						ctx.db,
-						ctx.session.user.id,
-						0, // Keep using 0 for compatibility - subscription validation uses different logic
-					);
+				// Validate bot creation limits
+				const validation = await validateBotCreation(
+					ctx.db,
+					ctx.session.user.id,
+					0, // Keep using 0 for compatibility - subscription validation uses different logic
+				);
 
-					if (!validation.allowed) {
-						throw new Error(validation.reason || "Bot creation not allowed");
-					}
-
-					console.log(
-						`Bot creation allowed. Current usage: ${validation.usage}/${validation.limit ?? "unlimited"}`,
-					);
-
-					// Extract database fields from input
-					const dbInput = {
-						botDisplayName: input.botDisplayName ?? "Live Boost",
-						botImage: input.botImage,
-						userId: ctx.session.user.id,
-						meetingTitle: input.meetingTitle ?? "Meeting",
-						meetingInfo: input.meetingInfo,
-						startTime: input.startTime,
-						endTime: input.endTime,
-						recordingEnabled: input.recordingEnabled ?? false,
-						heartbeatInterval: input.heartbeatInterval ?? 10000,
-						automaticLeave: input.automaticLeave
-							? {
-									waitingRoomTimeout: Math.max(
-										input.automaticLeave.waitingRoomTimeout ?? 300000,
-										5 * 60 * 1000,
-									), // Minimum 5 minutes
-									noOneJoinedTimeout: Math.max(
-										input.automaticLeave.noOneJoinedTimeout ?? 300000,
-										60 * 1000,
-									), // Minimum 60 seconds
-									everyoneLeftTimeout: Math.max(
-										input.automaticLeave.everyoneLeftTimeout ?? 300000,
-										60 * 1000,
-									), // Minimum 60 seconds
-									inactivityTimeout: Math.max(
-										input.automaticLeave.inactivityTimeout ?? 300000,
-										5 * 60 * 1000,
-									), // Minimum 5 minutes
-								}
-							: {
-									waitingRoomTimeout: 5 * 60 * 1000, // 5 minutes (default)
-									noOneJoinedTimeout: 60 * 1000, // 60 seconds (default)
-									everyoneLeftTimeout: 60 * 1000, // 60 seconds (default)
-									inactivityTimeout: 5 * 60 * 1000, // 5 minutes (default)
-								},
-						callbackUrl: input.callbackUrl, // Credit to @martinezpl for this line -- cannot merge at time of writing due to capstone requirements
-						chatEnabled: input.chatEnabled ?? true,
-					};
-
-					const result = await ctx.db
-						.insert(botsTable)
-						.values(dbInput)
-						.returning();
-
-					if (!result[0]) {
-						throw new Error("Bot creation failed, no result returned");
-					}
-
-					// Check if we should deploy immediately
-					if (await shouldDeployImmediately(input.startTime)) {
-						console.log("Deploying bot immediately...");
-
-						return await deployBot({
-							botId: result[0].id,
-							db: ctx.db,
-						});
-					}
-
-					return result[0];
-				} catch (error) {
-					console.error("Error creating bot:", error);
-
-					throw error;
+				if (!validation.allowed) {
+					throw new Error(validation.reason || "Bot creation not allowed");
 				}
-			},
-		),
+
+				console.log(
+					`Bot creation allowed. Current usage: ${validation.usage}/${validation.limit ?? "unlimited"}`,
+				);
+
+				// Extract database fields from input
+				const dbInput = {
+					botDisplayName: input.botDisplayName ?? "Live Boost",
+					botImage: input.botImage,
+					userId: ctx.session.user.id,
+					meetingTitle: input.meetingTitle ?? "Meeting",
+					meetingInfo: input.meetingInfo,
+					startTime: input.startTime,
+					endTime: input.endTime,
+					recordingEnabled: input.recordingEnabled ?? false,
+					heartbeatInterval: input.heartbeatInterval ?? 10000,
+					automaticLeave: input.automaticLeave
+						? {
+								waitingRoomTimeout: Math.max(
+									input.automaticLeave.waitingRoomTimeout ?? 300000,
+									5 * 60 * 1000,
+								), // Minimum 5 minutes
+								noOneJoinedTimeout: Math.max(
+									input.automaticLeave.noOneJoinedTimeout ?? 300000,
+									60 * 1000,
+								), // Minimum 60 seconds
+								everyoneLeftTimeout: Math.max(
+									input.automaticLeave.everyoneLeftTimeout ?? 300000,
+									60 * 1000,
+								), // Minimum 60 seconds
+								inactivityTimeout: Math.max(
+									input.automaticLeave.inactivityTimeout ?? 300000,
+									5 * 60 * 1000,
+								), // Minimum 5 minutes
+							}
+						: {
+								waitingRoomTimeout: 5 * 60 * 1000, // 5 minutes (default)
+								noOneJoinedTimeout: 60 * 1000, // 60 seconds (default)
+								everyoneLeftTimeout: 60 * 1000, // 60 seconds (default)
+								inactivityTimeout: 5 * 60 * 1000, // 5 minutes (default)
+							},
+					callbackUrl: input.callbackUrl, // Credit to @martinezpl for this line -- cannot merge at time of writing due to capstone requirements
+					chatEnabled: input.chatEnabled ?? true,
+				};
+
+				const result = await ctx.db
+					.insert(botsTable)
+					.values(dbInput)
+					.returning();
+
+				if (!result[0]) {
+					throw new Error("Bot creation failed, no result returned");
+				}
+
+				// Check if we should deploy immediately
+				if (await shouldDeployImmediately(input.startTime)) {
+					console.log("Deploying bot immediately...");
+
+					const deployResult = await deployBot({
+						botId: result[0].id,
+						db: ctx.db,
+						queueTimeoutMs: input.queueTimeoutMs,
+					});
+
+					return {
+						...deployResult.bot,
+						queued: deployResult.queued,
+						queuePosition: deployResult.queuePosition,
+						estimatedWaitMs: deployResult.estimatedWaitMs,
+					};
+				}
+
+				return result[0];
+			} catch (error) {
+				console.error("Error creating bot:", error);
+
+				throw error;
+			}
+		}),
 
 	/**
 	 * Updates an existing bot's configuration.
@@ -424,24 +447,18 @@ export const botsRouter = createTRPCRouter({
 						});
 					}
 
-					// Cleanup Coolify service when bot completes or fails
+					// Release pool slot when bot completes or fails (returns slot to pool for reuse)
 					if (
 						(input.status === "DONE" || input.status === "FATAL") &&
 						botRecord[0].coolifyServiceUuid
 					) {
 						// Fire and forget - don't block the response
-						import("../services/coolify-deployment")
-							.then(({ deleteCoolifyApplication }) =>
-								deleteCoolifyApplication(
-									botRecord[0].coolifyServiceUuid as string,
-								),
-							)
-							.catch((error) => {
-								console.error(
-									`Failed to cleanup Coolify service ${botRecord[0].coolifyServiceUuid}:`,
-									error,
-								);
-							});
+						releaseBotSlot(input.id, ctx.db).catch((error) => {
+							console.error(
+								`Failed to release pool slot for bot ${input.id}:`,
+								error,
+							);
+						});
 					}
 
 					return result[0];
@@ -651,9 +668,11 @@ export const botsRouter = createTRPCRouter({
 
 	/**
 	 * Deploys a bot by provisioning necessary resources and starting it up.
-	 * @param input - Object containing the bot ID
+	 * If the pool is exhausted, the bot will be queued and queue info will be returned.
+	 * @param input - Object containing the bot ID and optional queue timeout
 	 * @param input.id - The ID of the bot to deploy
-	 * @returns Promise<Bot> The deployed bot object
+	 * @param input.queueTimeoutMs - Optional timeout for waiting in queue (max 10 minutes)
+	 * @returns Promise<Bot> The deployed bot object with optional queue info
 	 * @throws Error if bot is not found or doesn't belong to the user
 	 */
 	deployBot: protectedProcedure
@@ -665,26 +684,47 @@ export const botsRouter = createTRPCRouter({
 					"Deploy a bot by provisioning necessary resources and starting it up",
 			},
 		})
-		.input(z.object({ id: z.string().transform((val) => Number(val)) }))
-		.output(selectBotSchema)
-		.mutation(
-			async ({ input, ctx }): Promise<typeof selectBotSchema._output> => {
-				// Check if the bot belongs to the user
-				const bot = await ctx.db
-					.select()
-					.from(botsTable)
-					.where(eq(botsTable.id, input.id));
+		.input(
+			z.object({
+				id: z.string().transform((val) => Number(val)),
+				queueTimeoutMs: z
+					.number()
+					.min(0)
+					.max(10 * 60 * 1000)
+					.optional(), // Max 10 minutes
+			}),
+		)
+		.output(
+			selectBotSchema.extend({
+				queued: z.boolean().optional(),
+				queuePosition: z.number().optional(),
+				estimatedWaitMs: z.number().optional(),
+			}),
+		)
+		.mutation(async ({ input, ctx }) => {
+			// Check if the bot belongs to the user
+			const bot = await ctx.db
+				.select()
+				.from(botsTable)
+				.where(eq(botsTable.id, input.id));
 
-				if (!bot[0] || bot[0].userId !== ctx.session.user.id) {
-					throw new Error("Bot not found");
-				}
+			if (!bot[0] || bot[0].userId !== ctx.session.user.id) {
+				throw new Error("Bot not found");
+			}
 
-				return await deployBot({
-					botId: input.id,
-					db: ctx.db,
-				});
-			},
-		),
+			const deployResult = await deployBot({
+				botId: input.id,
+				db: ctx.db,
+				queueTimeoutMs: input.queueTimeoutMs,
+			});
+
+			return {
+				...deployResult.bot,
+				queued: deployResult.queued,
+				queuePosition: deployResult.queuePosition,
+				estimatedWaitMs: deployResult.estimatedWaitMs,
+			};
+		}),
 
 	/**
 	 * Retrieves the count of currently active bots for the authenticated user.
@@ -836,4 +876,56 @@ export const botsRouter = createTRPCRouter({
 				};
 			},
 		),
+
+	/**
+	 * Retrieves the current bot pool statistics for monitoring.
+	 * Shows idle, busy, and error slot counts.
+	 * @returns Promise<PoolStats> Pool statistics
+	 */
+	getPoolStats: protectedProcedure
+		.meta({
+			openapi: {
+				method: "GET",
+				path: "/bots/pool/stats",
+				description: "Get bot pool statistics for monitoring",
+			},
+		})
+		.input(z.void())
+		.output(
+			z.object({
+				total: z.number(),
+				idle: z.number(),
+				busy: z.number(),
+				error: z.number(),
+				maxSize: z.number(),
+			}),
+		)
+		.query(async ({ ctx }) => {
+			return await getPoolStats(ctx.db);
+		}),
+
+	/**
+	 * Retrieves the current queue statistics for monitoring.
+	 * Shows queue length, oldest entry, and average wait time.
+	 * @returns Promise<QueueStats> Queue statistics
+	 */
+	getQueueStats: protectedProcedure
+		.meta({
+			openapi: {
+				method: "GET",
+				path: "/bots/queue/stats",
+				description: "Get bot queue statistics for monitoring",
+			},
+		})
+		.input(z.void())
+		.output(
+			z.object({
+				length: z.number(),
+				oldestQueuedAt: z.date().nullable(),
+				avgWaitMs: z.number(),
+			}),
+		)
+		.query(async ({ ctx }) => {
+			return await getQueueStats(ctx.db);
+		}),
 });

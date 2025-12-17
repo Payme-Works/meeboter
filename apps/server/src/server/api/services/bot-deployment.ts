@@ -7,10 +7,16 @@ import { env } from "@/env";
 import type * as schema from "@/server/database/schema";
 import { type BotConfig, botsTable } from "@/server/database/schema";
 import {
-	CoolifyDeploymentError,
-	deployWithRetry,
-	selectBotImage,
-} from "./coolify-deployment";
+	acquireOrCreateSlot,
+	configureAndStartSlot,
+	releaseSlot,
+} from "./bot-pool-manager";
+import {
+	addToQueue,
+	getEstimatedWaitMs,
+	processQueueOnSlotRelease,
+} from "./bot-pool-queue";
+import { CoolifyDeploymentError } from "./coolify-deployment";
 
 /**
  * Get the directory path using import.meta.url for ES modules
@@ -29,21 +35,34 @@ export class BotDeploymentError extends Error {
 }
 
 /**
- * Deploys a bot either locally (development) or via Coolify API (production)
+ * Result of deploying a bot through the pool
+ */
+export interface DeployBotResult {
+	bot: typeof botsTable.$inferSelect;
+	queued: boolean;
+	queuePosition?: number;
+	estimatedWaitMs?: number;
+}
+
+/**
+ * Deploys a bot either locally (development) or via bot pool (production)
  *
  * @param params - Deployment parameters
  * @param params.botId - The ID of the bot to deploy
  * @param params.db - The database instance for bot operations
- * @returns The updated bot record after successful deployment
+ * @param params.queueTimeoutMs - How long to wait in queue if pool is exhausted
+ * @returns The updated bot record and queue info if queued
  * @throws BotDeploymentError if deployment fails
  */
 export async function deployBot({
 	botId,
 	db,
+	queueTimeoutMs = 5 * 60 * 1000,
 }: {
 	botId: number;
 	db: PostgresJsDatabase<typeof schema>;
-}) {
+	queueTimeoutMs?: number;
+}): Promise<DeployBotResult> {
 	const botResult = await db
 		.select()
 		.from(botsTable)
@@ -56,95 +75,131 @@ export async function deployBot({
 	const bot = botResult[0];
 	const dev = env.NODE_ENV === "development";
 
-	// First, update bot status to deploying
-	await db
-		.update(botsTable)
-		.set({ status: "DEPLOYING" })
-		.where(eq(botsTable.id, botId));
+	// Build bot configuration from database record
+	const config: BotConfig = {
+		id: botId,
+		userId: bot.userId,
+		meetingTitle: bot.meetingTitle,
+		meetingInfo: bot.meetingInfo,
+		startTime: bot.startTime,
+		endTime: bot.endTime,
+		botDisplayName: bot.botDisplayName,
+		botImage: bot.botImage ?? undefined,
+		recordingEnabled: bot.recordingEnabled,
+		heartbeatInterval: bot.heartbeatInterval,
+		chatEnabled: bot.chatEnabled,
+		automaticLeave: bot.automaticLeave,
+		callbackUrl: bot.callbackUrl ?? undefined,
+	};
 
-	try {
-		// Get the absolute path to the bots directory (parent directory)
+	if (dev) {
+		// Local development: spawn bot process directly
+		await db
+			.update(botsTable)
+			.set({ status: "DEPLOYING" })
+			.where(eq(botsTable.id, botId));
+
 		const botsDir = path.resolve(__dirname, "../../../../../bots");
 
-		// Build bot configuration from database record
-		const config: BotConfig = {
-			id: botId,
-			userId: bot.userId,
-			meetingTitle: bot.meetingTitle,
-			meetingInfo: bot.meetingInfo,
-			startTime: bot.startTime,
-			endTime: bot.endTime,
-			botDisplayName: bot.botDisplayName,
-			botImage: bot.botImage ?? undefined,
-			recordingEnabled: bot.recordingEnabled,
-			heartbeatInterval: bot.heartbeatInterval,
-			chatEnabled: bot.chatEnabled,
-			automaticLeave: bot.automaticLeave,
-			callbackUrl: bot.callbackUrl ?? undefined,
-		};
+		const botProcess = spawn("pnpm", ["start"], {
+			cwd: botsDir,
+			env: {
+				...process.env,
+				BOT_DATA: JSON.stringify(config),
+				BOT_AUTH_TOKEN: process.env.BOT_AUTH_TOKEN,
+			},
+		});
 
-		if (dev) {
-			// Spawn the bot process for local development
-			const botProcess = spawn("pnpm", ["start"], {
-				cwd: botsDir,
-				env: {
-					...process.env,
-					BOT_DATA: JSON.stringify(config),
-					BOT_AUTH_TOKEN: process.env.BOT_AUTH_TOKEN,
-				},
-			});
+		botProcess.stdout.on("data", (data) => {
+			console.log(`Bot ${botId} stdout: ${data}`);
+		});
 
-			// Log output for debugging
-			botProcess.stdout.on("data", (data) => {
-				console.log(`Bot ${botId} stdout: ${data}`);
-			});
+		botProcess.stderr.on("data", (data) => {
+			console.error(`Bot ${botId} stderr: ${data}`);
+		});
 
-			botProcess.stderr.on("data", (data) => {
-				console.error(`Bot ${botId} stderr: ${data}`);
-			});
+		botProcess.on("error", (error) => {
+			console.error(`Bot ${botId} process error:`, error);
+		});
 
-			botProcess.on("error", (error) => {
-				console.error(`Bot ${botId} process error:`, error);
-			});
-		} else {
-			// Deploy bot via Coolify API for production with retry logic
-			const image = selectBotImage(bot.meetingInfo);
-
-			// deployWithRetry will:
-			// 1. Create the Coolify application
-			// 2. Wait for deployment to be healthy
-			// 3. Retry up to 3 times on failure
-			// 4. Cleanup the application if all retries fail
-			const coolifyServiceUuid = await deployWithRetry(botId, image, config);
-
-			// Store the Coolify service UUID for cleanup later
-			await db
-				.update(botsTable)
-				.set({ coolifyServiceUuid })
-				.where(eq(botsTable.id, botId));
-
-			console.log(
-				`Bot ${botId} deployed to Coolify with service UUID: ${coolifyServiceUuid}`,
-			);
-		}
-
-		// Update status to joining call after successful deployment
 		const result = await db
 			.update(botsTable)
-			.set({
-				status: "JOINING_CALL",
-				deploymentError: null,
-			})
+			.set({ status: "JOINING_CALL", deploymentError: null })
 			.where(eq(botsTable.id, botId))
 			.returning();
 
-		if (!result[0]) {
-			throw new BotDeploymentError("Bot not found");
+		const updatedBot = result[0];
+
+		if (!updatedBot) {
+			throw new BotDeploymentError("Failed to update bot status");
 		}
 
-		return result[0];
+		return { bot: updatedBot, queued: false };
+	}
+
+	// Production: use bot pool
+	try {
+		// Try to acquire a slot from the pool
+		const slot = await acquireOrCreateSlot(botId, db);
+
+		if (slot) {
+			// Got a slot! Update status and configure it
+			await db
+				.update(botsTable)
+				.set({ status: "DEPLOYING" })
+				.where(eq(botsTable.id, botId));
+
+			// Configure and start the slot with bot config
+			await configureAndStartSlot(slot, config, db);
+
+			// Update bot with slot info and status
+			const result = await db
+				.update(botsTable)
+				.set({
+					status: "JOINING_CALL",
+					coolifyServiceUuid: slot.coolifyServiceUuid,
+					deploymentError: null,
+				})
+				.where(eq(botsTable.id, botId))
+				.returning();
+
+			const deployedBot = result[0];
+
+			if (!deployedBot) {
+				throw new BotDeploymentError(
+					"Failed to update bot status after deployment",
+				);
+			}
+
+			console.log(`Bot ${botId} deployed to pool slot ${slot.slotName}`);
+
+			return { bot: deployedBot, queued: false };
+		}
+
+		// No slot available - add to queue
+		console.log(`Bot ${botId} added to queue (pool exhausted)`);
+		const queuePosition = await addToQueue(botId, queueTimeoutMs, 100, db);
+		const estimatedWaitMs = await getEstimatedWaitMs(queuePosition);
+
+		// Get updated bot record
+		const queuedBot = await db
+			.select()
+			.from(botsTable)
+			.where(eq(botsTable.id, botId));
+
+		const botRecord = queuedBot[0];
+
+		if (!botRecord) {
+			throw new BotDeploymentError("Failed to retrieve queued bot record");
+		}
+
+		return {
+			bot: botRecord,
+			queued: true,
+			queuePosition,
+			estimatedWaitMs,
+		};
 	} catch (error) {
-		// Update status to fatal and store error message
 		const errorMessage =
 			error instanceof CoolifyDeploymentError
 				? error.message
@@ -162,6 +217,20 @@ export async function deployBot({
 
 		throw error;
 	}
+}
+
+/**
+ * Releases a bot's pool slot and processes any queued bots
+ *
+ * @param botId - The bot ID to release
+ * @param db - Database instance
+ */
+export async function releaseBotSlot(
+	botId: number,
+	db: PostgresJsDatabase<typeof schema>,
+): Promise<void> {
+	await releaseSlot(botId, db);
+	await processQueueOnSlotRelease(db);
 }
 
 /**
@@ -183,5 +252,7 @@ export async function shouldDeployImmediately(
 	return startTime.getTime() - now.getTime() <= deploymentBuffer;
 }
 
+export { getPoolStats } from "./bot-pool-manager";
+export { getQueueStats } from "./bot-pool-queue";
 // Re-export for backward compatibility
 export { CoolifyDeploymentError, selectBotImage } from "./coolify-deployment";

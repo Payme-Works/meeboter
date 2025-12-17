@@ -94,12 +94,14 @@ export async function createCoolifyApplication(
 
 		try {
 			const errorData = JSON.parse(responseText) as Record<string, unknown>;
+
 			// Log full error details for debugging
 			console.error("Coolify API error response:", {
 				status: response.status,
 				statusText: response.statusText,
 				body: errorData,
 			});
+
 			console.error("Request body was:", {
 				project_uuid: env.COOLIFY_PROJECT_UUID,
 				server_uuid: env.COOLIFY_SERVER_UUID,
@@ -109,6 +111,7 @@ export async function createCoolifyApplication(
 				docker_registry_image_tag: image.tag,
 				name: applicationName,
 			});
+
 			errorMessage =
 				(errorData.message as string) ||
 				JSON.stringify(errorData) ||
@@ -404,6 +407,7 @@ export async function deployWithRetry(
 					image,
 					botConfig,
 				);
+
 				console.log(
 					`[Coolify] Created application ${applicationUuid} for bot ${botId}`,
 				);
@@ -412,6 +416,7 @@ export async function deployWithRetry(
 				console.log(
 					`[Coolify] Restarting application ${applicationUuid} (retry ${attempt})`,
 				);
+
 				await restartCoolifyApplication(applicationUuid);
 			}
 
@@ -422,11 +427,13 @@ export async function deployWithRetry(
 				console.log(
 					`[Coolify] Bot ${botId} deployed successfully on attempt ${attempt}`,
 				);
+
 				return applicationUuid;
 			}
 
 			lastError =
 				result.error ?? `Deployment failed with status: ${result.status}`;
+
 			console.warn(
 				`[Coolify] Deployment attempt ${attempt} failed: ${lastError}`,
 			);
@@ -453,6 +460,7 @@ export async function deployWithRetry(
 		console.log(
 			`[Coolify] All ${maxRetries} deployment attempts failed. Cleaning up application ${applicationUuid}`,
 		);
+
 		try {
 			await deleteCoolifyApplication(applicationUuid);
 		} catch (cleanupError) {

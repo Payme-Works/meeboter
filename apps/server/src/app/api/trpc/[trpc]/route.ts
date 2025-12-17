@@ -25,6 +25,7 @@ const createContext = async (req: NextRequest) => {
 const handler = async (req: NextRequest): Promise<Response> => {
 	// Early logging to confirm request is reaching the server
 	console.log(`📥 tRPC Request: ${req.method} ${req.url}`);
+
 	console.log(
 		`📥 Headers: ${JSON.stringify(Object.fromEntries(req.headers.entries()))}`,
 	);
@@ -51,6 +52,7 @@ const handler = async (req: NextRequest): Promise<Response> => {
 		return response;
 	} catch (error) {
 		console.error("❌ tRPC handler error:", error);
+
 		throw error;
 	}
 };

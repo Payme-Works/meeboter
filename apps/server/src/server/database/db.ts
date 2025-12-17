@@ -2,6 +2,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
 import { env } from "@/env";
+import { startSlotRecoveryJob } from "@/server/api/services/slot-recovery";
 
 import * as schema from "./schema";
 
@@ -59,3 +60,17 @@ if (env.NODE_ENV !== "production") {
 export const db = drizzle(client, { schema });
 
 export type Db = typeof db;
+
+/**
+ * Global flag to track if background jobs have been started
+ * Prevents multiple job instances during HMR in development
+ */
+const globalForJobs = globalThis as unknown as {
+	recoveryJobStarted: boolean | undefined;
+};
+
+// Start background recovery job in production (only once)
+if (env.NODE_ENV === "production" && !globalForJobs.recoveryJobStarted) {
+	globalForJobs.recoveryJobStarted = true;
+	startSlotRecoveryJob(db);
+}

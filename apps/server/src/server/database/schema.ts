@@ -310,6 +310,7 @@ export type MeetingInfo = z.infer<typeof meetingInfoSchema>;
  */
 export const status = z.enum([
 	"READY_TO_DEPLOY",
+	"QUEUED", // Waiting for pool slot
 	"DEPLOYING",
 	"JOINING_CALL",
 	"IN_WAITING_ROOM",
@@ -756,3 +757,95 @@ export const selectBotChatMessageSchema =
 export type SelectBotChatMessageType = z.infer<
 	typeof selectBotChatMessageSchema
 >;
+
+/**
+ * Pool slot status codes
+ */
+export const poolSlotStatus = z.enum(["idle", "busy", "error"]);
+export type PoolSlotStatus = z.infer<typeof poolSlotStatus>;
+
+/**
+ * Database implementation for bot pool slots
+ * Pre-provisioned Coolify applications for fast bot deployment
+ */
+export const botPoolSlotsTable = pgTable(
+	"bot_pool_slots",
+	{
+		/** Unique identifier for the pool slot */
+		id: serial("id").primaryKey(),
+		/** Coolify application UUID */
+		coolifyServiceUuid: varchar("coolifyServiceUuid", { length: 255 })
+			.notNull()
+			.unique(),
+		/** Slot name for identification (e.g., "meeboter-pool-001") */
+		slotName: varchar("slotName", { length: 255 }).notNull(),
+		/** Current status of the slot */
+		status: varchar("status", { length: 50 })
+			.$type<PoolSlotStatus>()
+			.notNull()
+			.default("idle"),
+		/** Reference to the bot currently using this slot */
+		assignedBotId: integer("assignedBotId").references(() => botsTable.id, {
+			onDelete: "set null",
+		}),
+		/** When this slot was last used */
+		lastUsedAt: timestamp("lastUsedAt"),
+		/** Error message if slot is in error state */
+		errorMessage: text("errorMessage"),
+		/** Number of recovery attempts made for this slot */
+		recoveryAttempts: integer("recoveryAttempts").notNull().default(0),
+		/** When this slot was created */
+		createdAt: timestamp("createdAt").notNull().defaultNow(),
+	},
+	(table) => {
+		return {
+			statusIdx: index("bot_pool_slots_status_idx").on(table.status),
+			assignedBotIdIdx: index("bot_pool_slots_assigned_bot_id_idx").on(
+				table.assignedBotId,
+			),
+		};
+	},
+);
+
+/**
+ * Validation schema for bot pool slot selection queries
+ */
+export const selectBotPoolSlotSchema = createSelectSchema(botPoolSlotsTable);
+export type SelectBotPoolSlotType = z.infer<typeof selectBotPoolSlotSchema>;
+
+/**
+ * Database implementation for bot pool queue
+ * Holds requests waiting for available pool slots
+ */
+export const botPoolQueueTable = pgTable(
+	"bot_pool_queue",
+	{
+		/** Unique identifier for the queue entry */
+		id: serial("id").primaryKey(),
+		/** Reference to the bot waiting for a slot */
+		botId: integer("botId")
+			.references(() => botsTable.id, { onDelete: "cascade" })
+			.notNull()
+			.unique(),
+		/** Priority level (lower = higher priority) */
+		priority: integer("priority").notNull().default(100),
+		/** When the request was queued */
+		queuedAt: timestamp("queuedAt").notNull().defaultNow(),
+		/** When the request should timeout */
+		timeoutAt: timestamp("timeoutAt").notNull(),
+	},
+	(table) => {
+		return {
+			priorityQueuedAtIdx: index("bot_pool_queue_priority_queued_at_idx").on(
+				table.priority,
+				table.queuedAt,
+			),
+		};
+	},
+);
+
+/**
+ * Validation schema for bot pool queue selection queries
+ */
+export const selectBotPoolQueueSchema = createSelectSchema(botPoolQueueTable);
+export type SelectBotPoolQueueType = z.infer<typeof selectBotPoolQueueSchema>;

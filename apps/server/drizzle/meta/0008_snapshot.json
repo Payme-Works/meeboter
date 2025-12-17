@@ -1,6 +1,6 @@
 {
-	"id": "ef3b3ede-f42a-49db-a37c-7e041f87aa38",
-	"prevId": "bb42fc7e-9fad-44a3-bd33-a252e3e5e0ac",
+	"id": "90721ecb-8fd0-4157-b3ca-8f8a338060ad",
+	"prevId": "594cae21-4bed-4d3c-a34a-f3e927bb16bd",
 	"version": "7",
 	"dialect": "postgresql",
 	"tables": {
@@ -433,6 +433,206 @@
 			},
 			"compositePrimaryKeys": {},
 			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.bot_pool_queue": {
+			"name": "bot_pool_queue",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "serial",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"botId": {
+					"name": "botId",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"priority": {
+					"name": "priority",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 100
+				},
+				"queuedAt": {
+					"name": "queuedAt",
+					"type": "timestamp",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				},
+				"timeoutAt": {
+					"name": "timeoutAt",
+					"type": "timestamp",
+					"primaryKey": false,
+					"notNull": true
+				}
+			},
+			"indexes": {
+				"bot_pool_queue_priority_queued_at_idx": {
+					"name": "bot_pool_queue_priority_queued_at_idx",
+					"columns": [
+						{
+							"expression": "priority",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "queuedAt",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"bot_pool_queue_botId_bots_id_fk": {
+					"name": "bot_pool_queue_botId_bots_id_fk",
+					"tableFrom": "bot_pool_queue",
+					"tableTo": "bots",
+					"columnsFrom": ["botId"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {
+				"bot_pool_queue_botId_unique": {
+					"name": "bot_pool_queue_botId_unique",
+					"nullsNotDistinct": false,
+					"columns": ["botId"]
+				}
+			},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.bot_pool_slots": {
+			"name": "bot_pool_slots",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "serial",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"coolifyServiceUuid": {
+					"name": "coolifyServiceUuid",
+					"type": "varchar(255)",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"slotName": {
+					"name": "slotName",
+					"type": "varchar(255)",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"status": {
+					"name": "status",
+					"type": "varchar(50)",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "'idle'"
+				},
+				"assignedBotId": {
+					"name": "assignedBotId",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"lastUsedAt": {
+					"name": "lastUsedAt",
+					"type": "timestamp",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"errorMessage": {
+					"name": "errorMessage",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"recoveryAttempts": {
+					"name": "recoveryAttempts",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"createdAt": {
+					"name": "createdAt",
+					"type": "timestamp",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {
+				"bot_pool_slots_status_idx": {
+					"name": "bot_pool_slots_status_idx",
+					"columns": [
+						{
+							"expression": "status",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"bot_pool_slots_assigned_bot_id_idx": {
+					"name": "bot_pool_slots_assigned_bot_id_idx",
+					"columns": [
+						{
+							"expression": "assignedBotId",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"bot_pool_slots_assignedBotId_bots_id_fk": {
+					"name": "bot_pool_slots_assignedBotId_bots_id_fk",
+					"tableFrom": "bot_pool_slots",
+					"tableTo": "bots",
+					"columnsFrom": ["assignedBotId"],
+					"columnsTo": ["id"],
+					"onDelete": "set null",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {
+				"bot_pool_slots_coolifyServiceUuid_unique": {
+					"name": "bot_pool_slots_coolifyServiceUuid_unique",
+					"nullsNotDistinct": false,
+					"columns": ["coolifyServiceUuid"]
+				}
+			},
 			"policies": {},
 			"checkConstraints": {},
 			"isRLSEnabled": false
