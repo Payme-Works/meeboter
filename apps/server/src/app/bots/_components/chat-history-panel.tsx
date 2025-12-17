@@ -62,11 +62,8 @@ export function ChatHistoryPanel({ botId }: ChatHistoryPanelProps) {
 					<h3 className="font-semibold">Chat History</h3>
 				</div>
 				<div className="space-y-2">
-					{Array.from({ length: 3 }, (_, index) => (
-						<div
-							key={`skeleton-loading-${Math.random()}-${index}`}
-							className="border rounded-lg p-3"
-						>
+					{Array.from({ length: 3 }, (_, i) => (
+						<div key={i} className="border p-3">
 							<div className="flex items-center justify-between mb-2">
 								<Skeleton className="h-4 w-32" />
 								<Skeleton className="h-4 w-16" />
