@@ -39,7 +39,7 @@ export function RecentBots() {
 	);
 
 	return (
-		<div className="border bg-card h-full flex flex-col">
+		<div className="border bg-card h-full flex flex-col min-h-[400px]">
 			<div className="p-4 border-b flex items-center justify-between">
 				<div className="flex items-center gap-2">
 					<h3 className="font-semibold">Recent Bots</h3>
@@ -143,21 +143,24 @@ export function RecentBots() {
 
 export function RecentBotsSkeleton() {
 	return (
-		<div className="border bg-card h-full flex flex-col">
+		<div className="border bg-card h-full flex flex-col min-h-[400px]">
 			<div className="p-4 border-b flex items-center justify-between">
-				<Skeleton className="h-5 w-24" />
-				<Skeleton className="h-4 w-16" />
+				<h3 className="font-semibold">Recent Bots</h3>
+				<Skeleton className="h-5 w-16" />
 			</div>
 
 			<div className="flex-1">
 				<div className="divide-y">
-					{Array.from({ length: 5 }, () => Math.random()).map((key) => (
-						<div key={key} className="p-4">
+					{Array.from({ length: 5 }, (_, index) => (
+						<div key={index} className="p-4">
 							<div className="flex items-center gap-3">
 								<Skeleton className="h-10 w-10 shrink-0" />
-								<div className="flex-1 space-y-2">
-									<Skeleton className="h-4 w-32" />
-									<Skeleton className="h-3 w-24" />
+								<div className="flex-1 min-w-0 space-y-1.5">
+									<div className="flex items-center gap-2">
+										<Skeleton className="h-[18px] w-24" />
+										<Skeleton className="h-[14px] w-16" />
+									</div>
+									<Skeleton className="h-[14px] w-28" />
 								</div>
 							</div>
 						</div>

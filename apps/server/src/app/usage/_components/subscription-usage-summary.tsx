@@ -54,7 +54,7 @@ function StatCard({
 			initial={{ opacity: 0, y: 20 }}
 			animate={{ opacity: 1, y: 0 }}
 			transition={{ duration: 0.4, ease: "easeOut" }}
-			className={`relative overflow-hidden p-5 ${variants[variant]}`}
+			className={`relative overflow-hidden p-5 min-h-[130px] ${variants[variant]}`}
 		>
 			{/* Decorative corner accent */}
 			{variant === "highlight" ? (
@@ -108,19 +108,19 @@ function StatCard({
 
 function SkeletonCard({ hasProgress = false }: { hasProgress?: boolean }) {
 	return (
-		<div className="bg-card border border-border p-5 min-h-[161px]">
+		<div className="bg-card border border-border p-5 min-h-[130px]">
 			<div className="flex items-start justify-between gap-4">
 				<div className="flex-1 space-y-1">
-					<Skeleton className="h-4 w-24" />
+					<Skeleton className="h-[14px] w-24" />
 					<Skeleton className="h-9 w-20" />
-					<Skeleton className="h-4 w-16" />
+					<Skeleton className="h-[14px] w-16" />
 				</div>
 				<Skeleton className="h-9 w-9" />
 			</div>
 			{hasProgress ? (
 				<div className="mt-4 space-y-1.5">
 					<Skeleton className="h-1.5 w-full" />
-					<Skeleton className="h-3 w-28" />
+					<Skeleton className="h-[12px] w-28" />
 				</div>
 			) : null}
 		</div>

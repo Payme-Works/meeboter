@@ -202,7 +202,7 @@ export const botsRouter = createTRPCRouter({
 				const validation = await validateBotCreation(
 					ctx.db,
 					ctx.session.user.id,
-					0, // Keep using 0 for compatibility - subscription validation uses different logic
+					0, // Keep using 0 for compatibility, subscription validation uses different logic
 				);
 
 				if (!validation.allowed) {
@@ -432,7 +432,7 @@ export const botsRouter = createTRPCRouter({
 
 					// Handle callback URL outside transaction to avoid blocking
 					if (input.status === "DONE" && botRecord[0].callbackUrl) {
-						// Don't await - fire and forget to avoid blocking the database transaction
+						// Don't await, fire and forget to avoid blocking the database transaction
 						fetch(botRecord[0].callbackUrl, {
 							method: "POST",
 							headers: {
@@ -452,7 +452,7 @@ export const botsRouter = createTRPCRouter({
 						(input.status === "DONE" || input.status === "FATAL") &&
 						botRecord[0].coolifyServiceUuid
 					) {
-						// Fire and forget - don't block the response
+						// Fire and forget, don't block the response
 						releaseBotSlot(input.id, ctx.db).catch((error) => {
 							console.error(
 								`Failed to release pool slot for bot ${input.id}:`,
@@ -583,7 +583,7 @@ export const botsRouter = createTRPCRouter({
 		.mutation(async ({ input, ctx }): Promise<void> => {
 			const startTime = Date.now();
 
-			// Fire and forget pattern - don't wait for response
+			// Fire and forget pattern, don't wait for response
 			ctx.db
 				.update(botsTable)
 				.set({ lastHeartbeat: new Date() })
@@ -862,7 +862,7 @@ export const botsRouter = createTRPCRouter({
 					ctx.db,
 					ctx.session.user.id,
 					date,
-					0, // Keep using 0 for compatibility - will be updated later
+					0, // Keep using 0 for compatibility, will be updated later
 				);
 
 				const limit = subscriptionInfo.effectiveDailyLimit;

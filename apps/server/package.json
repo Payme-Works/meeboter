@@ -7,7 +7,7 @@
 	"scripts": {
 		"build": "next build && tsup",
 		"start": "next start",
-		"dev": "next dev --turbo",
+		"dev": "bun run --bun next dev",
 		"typecheck": "tsc --noEmit",
 		"test": "jest",
 		"test:e2e": "playwright test",

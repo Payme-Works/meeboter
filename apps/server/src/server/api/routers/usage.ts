@@ -107,7 +107,7 @@ export const usageRouter = createTRPCRouter({
 					};
 				}
 
-				// Calculate bot elapsed time - use endTime, lastHeartbeat, or current time
+				// Calculate bot elapsed time, use endTime, lastHeartbeat, or current time
 				const endTime = bot.endTime || bot.lastHeartbeat || new Date();
 				const botElapsed = endTime.getTime() - bot.startTime.getTime();
 

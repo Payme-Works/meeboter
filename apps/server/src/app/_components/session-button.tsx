@@ -1,4 +1,5 @@
 "use client";
+
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,11 +10,20 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { signOut, useSession } from "@/lib/auth-client";
+import { signOut } from "@/lib/auth-client";
 
-export default function SessionButton() {
-	const { data: session } = useSession();
+interface SessionButtonProps {
+	session: {
+		user: {
+			id: string;
+			name: string;
+			email: string;
+			image?: string | null;
+		};
+	} | null;
+}
 
+export default function SessionButton({ session }: SessionButtonProps) {
 	if (!session?.user) {
 		return (
 			<Button variant="outline" className="gap-2" asChild>

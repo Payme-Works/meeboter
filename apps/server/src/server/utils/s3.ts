@@ -20,7 +20,7 @@ function getS3Client(): S3Client {
 			accessKeyId: env.MINIO_ACCESS_KEY,
 			secretAccessKey: env.MINIO_SECRET_KEY,
 		},
-		forcePathStyle: true, // Required for MinIO - uses path-style URLs instead of virtual-hosted
+		forcePathStyle: true, // Required for MinIO, uses path-style URLs instead of virtual-hosted
 	});
 
 	return s3ClientInstance;

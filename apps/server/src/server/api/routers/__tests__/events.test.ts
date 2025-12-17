@@ -1,4 +1,4 @@
-// Move this to the top of the file - before any imports
+// Move this to the top of the file, before any imports
 jest.mock("@/server/api/services/botDeployment");
 jest.mock("@/server/utils/s3");
 

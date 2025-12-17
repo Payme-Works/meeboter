@@ -1,31 +1,21 @@
-"use client";
-
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useSession } from "@/lib/auth-client";
-import { cn } from "@/lib/utils";
+import NavLinks from "./nav-links";
 import SessionButton from "./session-button";
 
-const publicLinks = [
-	{ title: "Dashboard", href: "/" },
-	{ title: "Docs", href: "/docs" },
-];
+interface NavigationBarProps {
+	session: {
+		user: {
+			id: string;
+			name: string;
+			email: string;
+			image?: string | null;
+		};
+	} | null;
+}
 
-const authenticatedLinks = [
-	{ title: "API Keys", href: "/api-keys" },
-	{ title: "Bots", href: "/bots" },
-	{ title: "Templates", href: "/templates" },
-	{ title: "Usage", href: "/usage" },
-];
-
-export default function NavigationBar() {
-	const { data: session } = useSession();
-	const pathname = usePathname();
-
-	const visibleLinks = session?.user
-		? [...publicLinks, ...authenticatedLinks]
-		: publicLinks;
+export default function NavigationBar({ session }: NavigationBarProps) {
+	const isLoggedIn = !!session?.user;
 
 	return (
 		<header className="border-b border-border/50">
@@ -42,33 +32,11 @@ export default function NavigationBar() {
 						</span>
 					</Link>
 
-					{/* Navigation Links */}
-					<div className="hidden md:flex items-center gap-1">
-						{visibleLinks.map((link) => {
-							const isActive = pathname === link.href;
-
-							return (
-								<Link
-									key={link.href}
-									href={link.href}
-									className={cn(
-										"px-3 py-2 text-sm font-medium transition-colors relative",
-										isActive
-											? "text-foreground"
-											: "text-muted-foreground hover:text-foreground",
-									)}
-								>
-									{link.title}
-									{isActive && (
-										<span className="absolute bottom-0 left-3 right-3 h-0.5 bg-accent" />
-									)}
-								</Link>
-							);
-						})}
-					</div>
+					{/* Navigation Links, client component for active state */}
+					<NavLinks isLoggedIn={isLoggedIn} />
 
 					{/* Session Button */}
-					<SessionButton />
+					<SessionButton session={session} />
 				</nav>
 			</div>
 		</header>

@@ -43,44 +43,36 @@ function detectPlatform(
 	return "unknown";
 }
 
+interface UsageStatsProps {
+	usage: number;
+	limit: number | null;
+	remaining: number | null;
+}
+
 function UsageStatsSkeleton() {
 	return (
 		<div className="flex items-center gap-6">
 			<div className="flex items-center gap-3">
 				<Skeleton className="h-12 w-12" />
-				<div className="space-y-1.5">
-					<Skeleton className="h-4 w-20" />
-					<Skeleton className="h-3 w-16" />
+				<div>
+					<Skeleton className="h-8 w-12 mb-1" />
+					<Skeleton className="h-3 w-20" />
 				</div>
 			</div>
-
 			<div className="h-8 w-px bg-border" />
-
 			<div className="flex-1 max-w-48">
-				<div className="space-y-1.5">
-					<Skeleton className="h-3 w-24" />
-					<Skeleton className="h-2 w-full" />
+				<div className="flex items-center justify-between gap-4 mb-1">
+					<Skeleton className="h-3 w-20" />
+					<Skeleton className="h-3 w-10" />
 				</div>
+				<Skeleton className="h-1.5 w-full" />
 			</div>
 		</div>
 	);
 }
 
-function UsageStats() {
-	const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-
-	const { data: dailyUsage, isLoading } = api.bots.getDailyUsage.useQuery({
-		timeZone: userTimezone,
-	});
-
-	if (isLoading) {
-		return <UsageStatsSkeleton />;
-	}
-
-	const usage = dailyUsage?.usage ?? 0;
-	const limit = dailyUsage?.limit;
+function UsageStats({ usage, limit, remaining }: UsageStatsProps) {
 	const isUnlimited = limit === null;
-	const remaining = dailyUsage?.remaining ?? 0;
 
 	const usagePercentage =
 		limit && usage ? Math.min((usage / limit) * 100, 100) : 0;
@@ -102,7 +94,7 @@ function UsageStats() {
 
 			<div className="h-8 w-px bg-border" />
 
-			{!isUnlimited && (
+			{!isUnlimited ? (
 				<div className="flex-1 max-w-48">
 					<div className="flex items-center justify-between gap-4 text-xs text-muted-foreground mb-1">
 						<span>Today's usage</span>
@@ -113,9 +105,7 @@ function UsageStats() {
 					</div>
 					<Progress value={usagePercentage} className="h-1.5" />
 				</div>
-			)}
-
-			{isUnlimited && (
+			) : (
 				<div className="flex items-center gap-2 text-sm text-muted-foreground">
 					<Sparkles className="h-4 w-4 text-accent" />
 					<span>Unlimited plan</span>
@@ -145,13 +135,18 @@ export function QuickBotJoin() {
 			timeZone: userTimezone,
 		});
 
-	const remaining = dailyUsage?.remaining ?? 0;
-	const isUnlimited = dailyUsage?.remaining === null;
 	const botCount = form.watch("botCount") || 1;
 	const meetingUrl = form.watch("meetingUrl");
 
-	const willExceedQuota =
-		!isUsageLoading && !isUnlimited && remaining < botCount;
+	// Show skeleton until usage data is loaded
+	if (isUsageLoading || !dailyUsage) {
+		return <QuickBotJoinSkeleton />;
+	}
+
+	const remaining = dailyUsage.remaining ?? 0;
+	const isUnlimited = dailyUsage.remaining === null;
+
+	const willExceedQuota = !isUnlimited && remaining < botCount;
 
 	const detectedPlatform = detectPlatform(meetingUrl);
 
@@ -225,7 +220,11 @@ export function QuickBotJoin() {
 						</p>
 					</div>
 
-					<UsageStats />
+					<UsageStats
+						usage={dailyUsage.usage}
+						limit={dailyUsage.limit}
+						remaining={dailyUsage.remaining}
+					/>
 				</div>
 			</div>
 
@@ -301,7 +300,6 @@ export function QuickBotJoin() {
 								className="h-12 px-6 min-w-[160px]"
 								disabled={
 									isSubmitting ||
-									isUsageLoading ||
 									willExceedQuota ||
 									(!isUnlimited && remaining === 0)
 								}
@@ -341,9 +339,11 @@ export function QuickBotJoinSkeleton() {
 		<div className="border bg-card">
 			<div className="p-6 pb-4 border-b">
 				<div className="flex items-center justify-between">
-					<div className="space-y-2">
-						<Skeleton className="h-5 w-28" />
-						<Skeleton className="h-4 w-64" />
+					<div>
+						<h2 className="text-lg font-semibold">Deploy Bots</h2>
+						<p className="text-sm text-muted-foreground">
+							Paste a meeting link to instantly deploy engagement bots
+						</p>
 					</div>
 
 					<UsageStatsSkeleton />
@@ -352,7 +352,9 @@ export function QuickBotJoinSkeleton() {
 
 			<div className="p-6">
 				<div className="flex gap-3">
-					<Skeleton className="flex-1 h-12" />
+					<div className="flex-1">
+						<Skeleton className="h-12 w-full" />
+					</div>
 					<Skeleton className="w-20 h-12" />
 					<Skeleton className="w-[160px] h-12" />
 				</div>
