@@ -54,14 +54,16 @@ export function selectBotImage(meetingInfo: schema.MeetingInfo): BotImage {
  * @param botId - The bot ID to use for naming
  * @param image - The Docker image to deploy
  * @param botConfig - The bot configuration to pass as environment variable
+ * @param customName - Optional custom application name (used by pool slots)
  * @returns The Coolify service UUID
  */
 export async function createCoolifyApplication(
 	botId: number,
 	image: BotImage,
 	botConfig: schema.BotConfig,
+	customName?: string,
 ): Promise<string> {
-	const applicationName = `meeboter-bot-${botId}-${Date.now()}`;
+	const applicationName = customName ?? `meeboter-bot-${botId}-${Date.now()}`;
 
 	const response = await fetch(
 		`${env.COOLIFY_API_URL}/applications/dockerimage`,

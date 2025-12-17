@@ -197,6 +197,7 @@ async function createAndAcquireNewSlot(
 		botId,
 		image,
 		placeholderConfig,
+		slotName,
 	);
 
 	// Insert slot record
