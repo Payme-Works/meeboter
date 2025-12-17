@@ -7,9 +7,10 @@ import {
 	getPaginationRowModel,
 	useReactTable,
 } from "@tanstack/react-table";
+import type { ReactNode } from "react";
 import ErrorAlert from "@/components/custom/error-alert";
-
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
 	Table,
 	TableBody,
@@ -18,20 +19,58 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import TableSkeleton from "./table-skeleton";
 
 type DataTableProps<TData, TValue> = {
 	isLoading?: boolean;
 	errorMessage?: string;
 	columns?: ColumnDef<TData, TValue>[];
 	data?: TData[];
+	skeleton?: ReactNode;
 };
+
+function DefaultTableSkeleton({ columnCount = 4 }: { columnCount?: number }) {
+	return (
+		<div>
+			<div className="border">
+				<Table>
+					<TableHeader>
+						<TableRow>
+							{Array.from({ length: columnCount }, (_, i) => (
+								<TableHead key={i}>
+									<Skeleton className="h-4 w-20" />
+								</TableHead>
+							))}
+						</TableRow>
+					</TableHeader>
+
+					<TableBody>
+						{Array.from({ length: 5 }, (_, rowIndex) => (
+							<TableRow key={rowIndex}>
+								{Array.from({ length: columnCount }, (_, colIndex) => (
+									<TableCell key={colIndex}>
+										<Skeleton className="h-4 w-20" />
+									</TableCell>
+								))}
+							</TableRow>
+						))}
+					</TableBody>
+				</Table>
+			</div>
+
+			<div className="flex items-center justify-end space-x-2 py-4">
+				<Skeleton className="h-9 w-20" />
+				<Skeleton className="h-9 w-14" />
+			</div>
+		</div>
+	);
+}
 
 export function DataTable<TData, TValue>({
 	columns,
 	data,
 	isLoading,
 	errorMessage,
+	skeleton,
 }: DataTableProps<TData, TValue>) {
 	const table = useReactTable({
 		data: data ?? [],
@@ -43,7 +82,7 @@ export function DataTable<TData, TValue>({
 	return (
 		<div>
 			{isLoading ? (
-				<TableSkeleton />
+				(skeleton ?? <DefaultTableSkeleton columnCount={columns?.length} />)
 			) : errorMessage ? (
 				<ErrorAlert errorMessage={errorMessage} />
 			) : (

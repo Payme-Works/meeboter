@@ -1,6 +1,12 @@
 "use client";
 
 import ErrorAlert from "@/components/custom/error-alert";
+import {
+	Card,
+	CardContent,
+	CardFooter,
+	CardHeader,
+} from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSession } from "@/lib/auth-client";
 import { api } from "@/trpc/react";
@@ -10,22 +16,29 @@ import WelcomeDashboard from "./_components/welcome-dashboard";
 function DashboardSkeleton() {
 	return (
 		<div className="space-y-8">
-			<div className="space-y-2">
-				<Skeleton className="h-9 w-64" />
-				<Skeleton className="h-5 w-96" />
+			<div>
+				<Skeleton className="h-9 w-72" />
+				<Skeleton className="mt-2 h-5 w-[32rem]" />
 			</div>
 
-			<div className="grid gap-6 lg:grid-cols-3">
+			<div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
 				{Array.from({ length: 3 }, (_, i) => (
-					<div key={i} className="border p-6 space-y-4">
-						<div className="flex items-center justify-between">
+					<Card key={i} className="min-h-56">
+						<CardHeader>
+							<div className="flex items-center justify-between">
+								<Skeleton className="h-5 w-24" />
+								<Skeleton className="h-5 w-5" />
+							</div>
+						</CardHeader>
+
+						<CardContent>
+							<Skeleton className="h-10 w-12" />
+						</CardContent>
+
+						<CardFooter className="mt-auto">
 							<Skeleton className="h-5 w-24" />
-							<Skeleton className="h-5 w-5" />
-						</div>
-						<Skeleton className="h-10 w-16" />
-						<Skeleton className="h-4 w-full" />
-						<Skeleton className="h-4 w-20" />
-					</div>
+						</CardFooter>
+					</Card>
 				))}
 			</div>
 		</div>
