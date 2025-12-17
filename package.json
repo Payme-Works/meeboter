@@ -20,8 +20,8 @@
 		"test:coverage": "turbo run test:coverage",
 		"test:e2e": "turbo run test:e2e",
 		"test:e2e:coverage": "turbo run test:e2e:coverage",
-		"turbos": "node scripts/turbos.js",
-		"filter": "node scripts/filter.js"
+		"turbos": "bun scripts/turbos.ts",
+		"filter": "bun scripts/filter.ts"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.2.2",

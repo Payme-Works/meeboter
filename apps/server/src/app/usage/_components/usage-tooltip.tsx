@@ -1,6 +1,7 @@
 "use client";
 
-// Define the data structure
+import { Bot, Clock } from "lucide-react";
+
 interface UsageData {
 	date: string;
 	botsUsed: number;
@@ -15,12 +16,62 @@ export interface UsageTooltipProps {
 	metric: "botsUsed" | "msEllapsed" | "estimatedCost";
 }
 
-export const UsageTooltip = ({
+function formatDuration(ms: number): string {
+	if (ms < 1000) {
+		return `${ms}ms`;
+	}
+
+	const seconds = ms / 1000;
+
+	if (seconds < 60) {
+		return `${seconds.toFixed(1)}s`;
+	}
+
+	const minutes = Math.floor(ms / 60000);
+	const subSeconds = Math.floor((ms % 60000) / 1000);
+
+	if (minutes < 60) {
+		return `${minutes}m ${subSeconds}s`;
+	}
+
+	const hours = Math.floor(minutes / 60);
+	const remainingMinutes = minutes % 60;
+
+	return `${hours}h ${remainingMinutes}m`;
+}
+
+function formatDate(dateInput: string | undefined): string {
+	if (!dateInput) {
+		return "Unknown Date";
+	}
+
+	let date: Date;
+
+	if (dateInput.includes("T")) {
+		date = new Date(dateInput);
+	} else {
+		const [year, month, day] = dateInput.split("-").map(Number);
+		date = new Date(year, month - 1, day);
+	}
+
+	const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+	const options: Intl.DateTimeFormatOptions = {
+		weekday: "short",
+		month: "short",
+		day: "numeric",
+		timeZone: userTimezone,
+	};
+
+	return date.toLocaleDateString(undefined, options);
+}
+
+export function UsageTooltip({
 	active,
 	payload,
 	label,
 	metric,
-}: UsageTooltipProps) => {
+}: UsageTooltipProps) {
 	if (!active || !payload?.length) {
 		return null;
 	}
@@ -31,101 +82,41 @@ export const UsageTooltip = ({
 		return null;
 	}
 
-	// Render
-	const activeMutation = "font-semibold text-lg";
-
-	const checkActive = (check: string) =>
-		metric === check ? activeMutation : "";
-
-	// Format
-	const formatDuration = (ms: number): string => {
-		if (ms < 1000) {
-			return `${ms} ms`;
-		}
-
-		const seconds = ms / 1000;
-
-		if (seconds < 60) {
-			return `${seconds.toFixed(1)} seconds`;
-		}
-
-		const minutes = Math.floor(ms / 60000);
-		const subSeconds = Math.floor((ms % 60000) / 1000);
-
-		if (minutes < 60) {
-			return `${minutes} minutes ${subSeconds} seconds`;
-		}
-
-		const hours = Math.floor(minutes / 60);
-		const remainingMinutes = minutes % 60;
-
-		return `${hours} hours ${remainingMinutes} minutes`;
-	};
-
-	// Format Date - handle both ISO timestamps and date strings
-	const formatDate = (dateInput: string | undefined): string => {
-		if (!dateInput) {
-			return "Unknown Date";
-		}
-
-		// Handle different date formats from server
-		let date: Date;
-
-		if (dateInput.includes("T")) {
-			// Full ISO timestamp like "2025-08-30T03:00:00.000Z"
-			date = new Date(dateInput);
-		} else {
-			// Date string like "2025-08-30" - parse as local midnight instead of UTC
-			// This ensures the date represents the correct day in user's timezone
-			const [year, month, day] = dateInput.split("-").map(Number);
-			date = new Date(year, month - 1, day);
-		}
-
-		const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-
-		const options: Intl.DateTimeFormatOptions = {
-			year: "numeric",
-			month: "long",
-			day: "numeric",
-			timeZone: userTimezone,
-		};
-
-		const formattedDate = date.toLocaleDateString(undefined, options);
-
-		// Get day in user's timezone
-		const dayInUserTz = date.toLocaleDateString("en-CA", {
-			timeZone: userTimezone,
-			day: "numeric",
-		});
-
-		const day = parseInt(dayInUserTz, 10);
-
-		function getDaySuffix(day: number): string {
-			if (day % 10 === 1 && day !== 11) return "st";
-
-			if (day % 10 === 2 && day !== 12) return "nd";
-
-			if (day % 10 === 3 && day !== 13) return "rd";
-
-			return "th";
-		}
-
-		const suffix = getDaySuffix(day);
-
-		return formattedDate.replace(/\d+/, `${day}${suffix}`);
-	};
-
 	return (
-		<div className="rounded-md border bg-white p-3">
-			<p className="pb-2 font-semibold">{formatDate(label)}</p>
-
-			<p className={`text-grey-500 ${checkActive("botsUsed")}`}>
-				Bots Used: {objData.botsUsed}
+		<div className="bg-popover border border-border p-3 min-w-[160px]">
+			<p className="text-xs font-medium text-muted-foreground mb-2">
+				{formatDate(label)}
 			</p>
 
-			<p className={`text-grey-600 ${checkActive("msEllapsed")}`}>
-				Total Time: {formatDuration(objData.msEllapsed)}
-			</p>
+			<div className="space-y-2">
+				<div
+					className={`flex items-center justify-between gap-4 ${metric === "botsUsed" ? "text-foreground" : "text-muted-foreground"}`}
+				>
+					<div className="flex items-center gap-1.5">
+						<Bot className="h-3.5 w-3.5" />
+						<span className="text-xs">Bots</span>
+					</div>
+					<span
+						className={`tabular-nums ${metric === "botsUsed" ? "text-sm font-semibold" : "text-xs"}`}
+					>
+						{objData.botsUsed}
+					</span>
+				</div>
+
+				<div
+					className={`flex items-center justify-between gap-4 ${metric === "msEllapsed" ? "text-foreground" : "text-muted-foreground"}`}
+				>
+					<div className="flex items-center gap-1.5">
+						<Clock className="h-3.5 w-3.5" />
+						<span className="text-xs">Time</span>
+					</div>
+					<span
+						className={`tabular-nums ${metric === "msEllapsed" ? "text-sm font-semibold" : "text-xs"}`}
+					>
+						{formatDuration(objData.msEllapsed)}
+					</span>
+				</div>
+			</div>
 		</div>
 	);
-};
+}

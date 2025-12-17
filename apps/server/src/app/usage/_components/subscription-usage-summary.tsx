@@ -1,30 +1,144 @@
 "use client";
 
-import { Calendar, TrendingUp, Users, Zap } from "lucide-react";
+import { Bot, Crown, Sparkles, Zap } from "lucide-react";
+import { motion } from "motion/react";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/trpc/react";
 
-function RemainingStatusText({
-	remaining,
+function AnimatedNumber({ value }: { value: number | string }) {
+	return (
+		<motion.span
+			key={value}
+			initial={{ opacity: 0, y: 10 }}
+			animate={{ opacity: 1, y: 0 }}
+			transition={{ duration: 0.3, ease: "easeOut" }}
+		>
+			{value}
+		</motion.span>
+	);
+}
+
+function StatCard({
+	label,
+	value,
+	subtext,
+	icon: Icon,
+	variant = "default",
+	badge,
+	progress,
 }: {
-	remaining: number | null | undefined;
+	label: string;
+	value: string | number;
+	subtext?: string;
+	icon: React.ElementType;
+	variant?: "default" | "highlight" | "accent";
+	badge?: { text: string; variant: "default" | "secondary" | "outline" };
+	progress?: { value: number; label: string };
 }) {
-	if (remaining === null || remaining === undefined) {
-		return "No daily limits";
-	}
+	const variants = {
+		default: "bg-card border border-border",
+		highlight:
+			"bg-gradient-to-br from-accent/5 via-accent/10 to-accent/5 border border-accent/20",
+		accent: "bg-accent text-accent-foreground",
+	};
 
-	if (remaining > 0) {
-		return "Bots available";
-	}
+	const iconVariants = {
+		default: "bg-muted text-muted-foreground",
+		highlight: "bg-accent/20 text-accent",
+		accent: "bg-accent-foreground/20 text-accent-foreground",
+	};
 
-	return "Limit reached";
+	return (
+		<motion.div
+			initial={{ opacity: 0, y: 20 }}
+			animate={{ opacity: 1, y: 0 }}
+			transition={{ duration: 0.4, ease: "easeOut" }}
+			className={`relative overflow-hidden p-5 ${variants[variant]}`}
+		>
+			{/* Decorative corner accent */}
+			{variant === "highlight" ? (
+				<div className="absolute top-0 right-0 w-20 h-20 bg-accent/10 blur-2xl" />
+			) : null}
+
+			<div className="relative flex items-start justify-between gap-4">
+				<div className="flex-1 space-y-1">
+					<p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+						{label}
+					</p>
+					<div className="flex items-end gap-3">
+						<span className="text-3xl font-bold tabular-nums tracking-tight">
+							<AnimatedNumber value={value} />
+						</span>
+						{badge ? (
+							<Badge variant={badge.variant} className="text-[10px] mb-1">
+								{badge.text}
+							</Badge>
+						) : null}
+					</div>
+					{subtext ? (
+						<p className="text-xs text-muted-foreground">{subtext}</p>
+					) : null}
+				</div>
+
+				<div className={`p-2.5 ${iconVariants[variant]}`}>
+					<Icon className="h-4 w-4" />
+				</div>
+			</div>
+
+			{/* Progress bar */}
+			{progress ? (
+				<div className="mt-4 space-y-1.5">
+					<div className="h-1.5 w-full bg-muted overflow-hidden">
+						<motion.div
+							initial={{ width: 0 }}
+							animate={{ width: `${progress.value}%` }}
+							transition={{ duration: 0.6, ease: "easeOut", delay: 0.2 }}
+							className="h-full bg-accent"
+						/>
+					</div>
+					<p className="text-[10px] text-muted-foreground tabular-nums">
+						{progress.label}
+					</p>
+				</div>
+			) : null}
+		</motion.div>
+	);
+}
+
+function SkeletonCard({ hasProgress = false }: { hasProgress?: boolean }) {
+	return (
+		<div className="bg-card border border-border p-5 min-h-[161px]">
+			<div className="flex items-start justify-between gap-4">
+				<div className="flex-1 space-y-1">
+					<Skeleton className="h-4 w-24" />
+					<Skeleton className="h-9 w-20" />
+					<Skeleton className="h-4 w-16" />
+				</div>
+				<Skeleton className="h-9 w-9" />
+			</div>
+			{hasProgress ? (
+				<div className="mt-4 space-y-1.5">
+					<Skeleton className="h-1.5 w-full" />
+					<Skeleton className="h-3 w-28" />
+				</div>
+			) : null}
+		</div>
+	);
+}
+
+function LoadingSkeleton() {
+	return (
+		<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+			<SkeletonCard />
+			<SkeletonCard />
+			<SkeletonCard hasProgress />
+			<SkeletonCard />
+		</div>
+	);
 }
 
 export function SubscriptionUsageSummary() {
-	// Get user's timezone
 	const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 	const { data: subscriptionInfo, isLoading: subLoading } =
@@ -36,26 +150,7 @@ export function SubscriptionUsageSummary() {
 		});
 
 	if (subLoading || usageLoading) {
-		return (
-			<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-				{Array.from({ length: 4 }, (_, i) => (
-					<Card key={i} className="justify-between">
-						<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-							<CardTitle className="text-sm font-medium">
-								<Skeleton className="h-4 w-24" />
-							</CardTitle>
-
-							<Skeleton className="h-4 w-4" />
-						</CardHeader>
-
-						<CardContent>
-							<Skeleton className="h-8 w-20 mb-2" />
-							<Skeleton className="h-5 w-16" />
-						</CardContent>
-					</Card>
-				))}
-			</div>
-		);
+		return <LoadingSkeleton />;
 	}
 
 	const formatPlanName = (plan: string) => {
@@ -73,18 +168,16 @@ export function SubscriptionUsageSummary() {
 		}
 	};
 
-	const getPlanBadgeVariant = (plan: string) => {
+	const getPlanIcon = (plan: string) => {
 		switch (plan) {
 			case "FREE":
-				return "secondary" as const;
+				return Sparkles;
 			case "PRO":
-				return "default" as const;
-			case "PAY_AS_YOU_GO":
-				return "outline" as const;
+				return Zap;
 			case "CUSTOM":
-				return "destructive" as const;
+				return Crown;
 			default:
-				return "secondary" as const;
+				return Sparkles;
 		}
 	};
 
@@ -97,97 +190,92 @@ export function SubscriptionUsageSummary() {
 			: 0;
 
 	const formatLimit = (limit: number | null) => {
-		return limit === null ? "Unlimited" : limit.toString();
+		return limit === null ? "∞" : limit.toString();
+	};
+
+	const getRemainingStatus = (remaining: number | null | undefined) => {
+		if (remaining === null || remaining === undefined) return "No limits";
+
+		if (remaining > 0) return "Available";
+
+		return "Limit reached";
 	};
 
 	return (
-		<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-			{/* Current Plan */}
-			<Card className="justify-between">
-				<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-					<CardTitle className="text-sm font-medium">Current Plan</CardTitle>
-					<Users className="h-4 w-4 text-muted-foreground" />
-				</CardHeader>
-
-				<CardContent>
-					<div className="text-2xl font-bold mb-2">
-						{subscriptionInfo
-							? formatPlanName(subscriptionInfo.currentPlan)
-							: "Loading..."}
-					</div>
-					{subscriptionInfo && (
-						<Badge variant={getPlanBadgeVariant(subscriptionInfo.currentPlan)}>
-							{subscriptionInfo.subscriptionActive ? "Active" : "Inactive"}
-						</Badge>
-					)}
-				</CardContent>
-			</Card>
+		<motion.div
+			initial={{ opacity: 0 }}
+			animate={{ opacity: 1 }}
+			transition={{ duration: 0.3 }}
+			className="grid gap-4 md:grid-cols-2 lg:grid-cols-4"
+		>
+			{/* Current Plan - Highlight card */}
+			<StatCard
+				label="Current Plan"
+				value={
+					subscriptionInfo ? formatPlanName(subscriptionInfo.currentPlan) : "—"
+				}
+				icon={getPlanIcon(subscriptionInfo?.currentPlan || "FREE")}
+				variant="highlight"
+				badge={
+					subscriptionInfo
+						? {
+								text: subscriptionInfo.subscriptionActive
+									? "Active"
+									: "Inactive",
+								variant: subscriptionInfo.subscriptionActive
+									? "default"
+									: "secondary",
+							}
+						: undefined
+				}
+			/>
 
 			{/* Daily Limit */}
-			<Card className="justify-between">
-				<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-					<CardTitle className="text-sm font-medium">Daily Bot Limit</CardTitle>
-					<Zap className="h-4 w-4 text-muted-foreground" />
-				</CardHeader>
+			<StatCard
+				label="Daily Bot Limit"
+				value={
+					subscriptionInfo
+						? formatLimit(subscriptionInfo.effectiveDailyLimit)
+						: "—"
+				}
+				subtext={
+					subscriptionInfo?.customDailyBotLimit ? "Custom override" : "Per day"
+				}
+				icon={Bot}
+			/>
 
-				<CardContent>
-					<div className="text-2xl font-bold">
-						{subscriptionInfo
-							? formatLimit(subscriptionInfo.effectiveDailyLimit)
-							: "Loading..."}
-					</div>
+			{/* Today's Usage - with progress */}
+			<StatCard
+				label="Today's Usage"
+				value={dailyUsage ? dailyUsage.usage.toString() : "0"}
+				subtext={`of ${dailyUsage ? formatLimit(dailyUsage.limit) : "0"} bots`}
+				icon={Zap}
+				progress={
+					subscriptionInfo?.effectiveDailyLimit
+						? {
+								value: usagePercentage,
+								label: `${Math.round(usagePercentage)}% of daily quota`,
+							}
+						: undefined
+				}
+			/>
 
-					{subscriptionInfo?.customDailyBotLimit && (
-						<Badge variant="outline" className="text-xs">
-							Custom Override
-						</Badge>
-					)}
-				</CardContent>
-			</Card>
-
-			{/* Today's Usage */}
-			<Card className="justify-between">
-				<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-					<CardTitle className="text-sm font-medium">Today's Usage</CardTitle>
-					<Calendar className="h-4 w-4 text-muted-foreground" />
-				</CardHeader>
-
-				<CardContent>
-					<div className="text-2xl font-bold">
-						{dailyUsage
-							? `${dailyUsage.usage}/${formatLimit(dailyUsage.limit)}`
-							: "0/0"}
-					</div>
-
-					{subscriptionInfo?.effectiveDailyLimit && (
-						<div className="mt-2">
-							<Progress value={usagePercentage} className="h-2" />
-
-							<p className="text-xs text-muted-foreground mt-1">
-								{Math.round(usagePercentage)}% used
-							</p>
-						</div>
-					)}
-				</CardContent>
-			</Card>
-
-			{/* Remaining Bots */}
-			<Card className="justify-between">
-				<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-					<CardTitle className="text-sm font-medium">Remaining Today</CardTitle>
-					<TrendingUp className="h-4 w-4 text-muted-foreground" />
-				</CardHeader>
-				<CardContent>
-					<div className="text-2xl font-bold">
-						{dailyUsage?.remaining !== null
-							? dailyUsage?.remaining || 0
-							: "Unlimited"}
-					</div>
-					<p className="text-xs text-muted-foreground">
-						<RemainingStatusText remaining={dailyUsage?.remaining} />
-					</p>
-				</CardContent>
-			</Card>
-		</div>
+			{/* Remaining */}
+			<StatCard
+				label="Remaining Today"
+				value={
+					dailyUsage?.remaining !== null
+						? dailyUsage?.remaining?.toString() || "0"
+						: "∞"
+				}
+				subtext={getRemainingStatus(dailyUsage?.remaining)}
+				icon={Sparkles}
+				variant={
+					dailyUsage?.remaining !== null && dailyUsage?.remaining === 0
+						? "default"
+						: "default"
+				}
+			/>
+		</motion.div>
 	);
 }

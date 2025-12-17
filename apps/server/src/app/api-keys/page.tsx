@@ -2,6 +2,13 @@
 
 import { useState } from "react";
 import { DataTable } from "@/components/custom/data-table";
+import {
+	PageHeader,
+	PageHeaderActions,
+	PageHeaderContent,
+	PageHeaderDescription,
+	PageHeaderTitle,
+} from "@/components/page-header";
 import { api } from "@/trpc/react";
 import { columns } from "./_components/api-key-columns";
 import { CreateApiKeyDialog } from "./_components/create-api-key-dialog";
@@ -19,22 +26,27 @@ export default function Keys() {
 	} = api.apiKeys.listApiKeys.useQuery();
 
 	return (
-		<div className="mx-auto container space-y-4 px-4">
-			<div className="flex items-center justify-between">
-				<div>
-					<h2 className="text-2xl font-bold tracking-tight">API Keys</h2>
-					<p className="text-muted-foreground">
-						Manage your API keys and their permissions.
-					</p>
-				</div>
-				<CreateApiKeyDialog />
-			</div>
+		<div className="mx-auto container space-y-6 px-4">
+			<PageHeader>
+				<PageHeaderContent>
+					<PageHeaderTitle>API Keys</PageHeaderTitle>
+					<PageHeaderDescription>
+						Manage your API keys for programmatic bot deployment
+					</PageHeaderDescription>
+				</PageHeaderContent>
+
+				<PageHeaderActions>
+					<CreateApiKeyDialog />
+				</PageHeaderActions>
+			</PageHeader>
+
 			<DataTable
 				columns={columns(setSelectedViewLogsKeyId)}
 				data={apiKeys}
 				isLoading={isLoading}
 				errorMessage={error?.message}
 			/>
+
 			<ViewLogsDialog
 				selectedViewLogsKeyId={selectedViewLogsKeyId}
 				setSelectedViewLogsKeyId={setSelectedViewLogsKeyId}

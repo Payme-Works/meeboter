@@ -5,6 +5,13 @@ import { formatDistanceToNow } from "date-fns";
 import { Edit2, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { DataTable } from "@/components/custom/data-table";
+import {
+	PageHeader,
+	PageHeaderActions,
+	PageHeaderContent,
+	PageHeaderDescription,
+	PageHeaderTitle,
+} from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/lib/auth-client";
 import type { SelectMessageTemplateType } from "@/server/database/schema";
@@ -38,17 +45,16 @@ export default function TemplatesPage() {
 			accessorKey: "templateName",
 			header: "Template Name",
 			cell: ({ row }) => (
-				<div className="font-medium">{row.original.templateName}</div>
+				<span className="font-medium">{row.original.templateName}</span>
 			),
 		},
 		{
 			accessorKey: "messageCount",
-			header: "Message Variations",
+			header: "Variations",
 			cell: ({ row }) => (
-				<div className="text-sm text-muted-foreground">
-					{row.original.messages.length} variation
-					{row.original.messages.length !== 1 ? "s" : ""}
-				</div>
+				<span className="text-muted-foreground tabular-nums">
+					{row.original.messages.length}
+				</span>
 			),
 		},
 		{
@@ -56,11 +62,11 @@ export default function TemplatesPage() {
 			header: "Preview",
 			cell: ({ row }) => (
 				<div className="max-w-md">
-					<div className="text-sm truncate">{row.original.messages[0]}</div>
+					<p className="text-sm truncate">{row.original.messages[0]}</p>
 					{row.original.messages.length > 1 && (
-						<div className="text-xs text-muted-foreground">
+						<p className="text-xs text-muted-foreground">
 							+{row.original.messages.length - 1} more
-						</div>
+						</p>
 					)}
 				</div>
 			),
@@ -71,18 +77,20 @@ export default function TemplatesPage() {
 			cell: ({ row }) => {
 				const createdAt = row.original.createdAt;
 
-				const timeAgo = createdAt
-					? formatDistanceToNow(new Date(createdAt), { addSuffix: true })
-					: "Unknown";
-
-				return <div className="text-sm text-muted-foreground">{timeAgo}</div>;
+				return (
+					<span className="text-muted-foreground tabular-nums">
+						{createdAt
+							? formatDistanceToNow(new Date(createdAt), { addSuffix: true })
+							: "—"}
+					</span>
+				);
 			},
 		},
 		{
 			id: "actions",
 			header: "Actions",
 			cell: ({ row }) => (
-				<div className="flex items-center gap-2">
+				<div className="flex items-center gap-1">
 					<Button
 						variant="ghost"
 						size="sm"
@@ -94,6 +102,7 @@ export default function TemplatesPage() {
 						variant="ghost"
 						size="sm"
 						onClick={() => setDeletingTemplate(row.original)}
+						className="text-destructive hover:text-destructive"
 					>
 						<Trash2 className="h-4 w-4" />
 					</Button>
@@ -104,7 +113,6 @@ export default function TemplatesPage() {
 
 	const handleTemplateCreated = () => {
 		setCreateDialogOpen(false);
-
 		refetch();
 	};
 
@@ -119,26 +127,25 @@ export default function TemplatesPage() {
 	};
 
 	return (
-		<div className="mx-auto container space-y-4 px-4">
-			<div className="flex items-center justify-between">
-				<div>
-					<h2 className="text-2xl font-bold tracking-tight">
-						Message Templates
-					</h2>
-					<p className="text-muted-foreground">
-						Create and manage reusable message templates with multiple
-						variations.
-					</p>
-				</div>
+		<div className="mx-auto container space-y-6 px-4">
+			<PageHeader>
+				<PageHeaderContent>
+					<PageHeaderTitle>Message Templates</PageHeaderTitle>
+					<PageHeaderDescription>
+						Create reusable message templates with multiple variations
+					</PageHeaderDescription>
+				</PageHeaderContent>
 
-				<Button
-					onClick={() => setCreateDialogOpen(true)}
-					disabled={!session?.user}
-				>
-					<Plus className="h-4 w-4 mr-2" />
-					Create Template
-				</Button>
-			</div>
+				<PageHeaderActions>
+					<Button
+						onClick={() => setCreateDialogOpen(true)}
+						disabled={!session?.user}
+					>
+						<Plus className="h-4 w-4" />
+						Create Template
+					</Button>
+				</PageHeaderActions>
+			</PageHeader>
 
 			<DataTable
 				columns={columns}

@@ -1,22 +1,21 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { motion } from "motion/react";
+import { useEffect, useState } from "react";
 import {
+	Area,
+	AreaChart,
 	CartesianGrid,
-	Line,
-	LineChart,
 	ResponsiveContainer,
 	Tooltip,
 	XAxis,
 	YAxis,
 } from "recharts";
 import ErrorAlert from "@/components/custom/error-alert";
-import { Button } from "@/components/ui/button"; // Assuming you're using shadcn/ui
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/trpc/react";
 import { UsageTooltip } from "./usage-tooltip";
 
-// Define a proper type for the usage data
 interface UsageData {
 	date: string;
 	botsUsed: number;
@@ -24,9 +23,40 @@ interface UsageData {
 	estimatedCost: string;
 }
 
-export interface UsageChartProps {
-	data: UsageData[];
-	dataLoading: boolean;
+type Timeframe = "daily" | "week" | "month";
+
+type Metric = "botsUsed" | "msEllapsed";
+
+function SegmentedControl<T extends string>({
+	options,
+	value,
+	onChange,
+}: {
+	options: { value: T; label: string }[];
+	value: T;
+	onChange: (value: T) => void;
+}) {
+	return (
+		<div className="inline-flex bg-muted p-1 gap-0.5">
+			{options.map((option) => (
+				<button
+					key={option.value}
+					type="button"
+					onClick={() => onChange(option.value)}
+					className={`
+						relative px-3 py-1.5 text-xs font-medium transition-all duration-200
+						${
+							value === option.value
+								? "bg-background text-foreground"
+								: "text-muted-foreground hover:text-foreground"
+						}
+					`}
+				>
+					{option.label}
+				</button>
+			))}
+		</div>
+	);
 }
 
 interface ChartContentProps {
@@ -34,7 +64,7 @@ interface ChartContentProps {
 	isLoading: boolean;
 	error: { message: string } | null;
 	ydomain: [number, number] | undefined;
-	metric: "botsUsed" | "msEllapsed" | "estimatedCost";
+	metric: Metric;
 	dateTickFormatter: (date: string) => string;
 }
 
@@ -46,81 +76,139 @@ function ChartContent({
 	metric,
 	dateTickFormatter,
 }: ChartContentProps) {
-	if (data && data.length > 0) {
+	if (isLoading) {
 		return (
-			<div data-testid="chart-container" className="h-full w-full">
-				<ResponsiveContainer width="100%" height={300}>
-					<LineChart data={data}>
-						<CartesianGrid strokeDasharray="3 3" />
-
-						<XAxis dataKey="date" tickFormatter={dateTickFormatter} />
-
-						<YAxis
-							domain={ydomain}
-							allowDecimals={false}
-							tickFormatter={
-								metric === "msEllapsed"
-									? (value) => (value / 60000).toFixed(2)
-									: undefined
-							}
+			<div className="relative">
+				<Skeleton className="w-full h-[320px]" />
+				<div className="absolute inset-0 flex items-center justify-center">
+					<div className="flex items-center gap-2 text-muted-foreground">
+						<motion.div
+							animate={{ rotate: 360 }}
+							transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+							className="h-4 w-4 border-2 border-current border-t-transparent rounded-full"
 						/>
-
-						<Tooltip content={<UsageTooltip metric={metric} />} />
-
-						<Line
-							type="monotone"
-							dataKey={metric}
-							stroke="#6366f1"
-							strokeWidth={2}
-							dot={{ r: 0 }}
-							activeDot={{ r: 6 }}
-							animationDuration={500}
-						/>
-					</LineChart>
-				</ResponsiveContainer>
+						<span className="text-sm">Loading chart data...</span>
+					</div>
+				</div>
 			</div>
 		);
-	}
-
-	if (isLoading) {
-		return <Skeleton className="w-full mt-2 h-[300px]" />;
 	}
 
 	if (error) {
 		return <ErrorAlert errorMessage={error.message} />;
 	}
 
-	return <div>No Data</div>;
+	if (!data || data.length === 0) {
+		return (
+			<div className="flex items-center justify-center h-[320px] bg-muted/30 border border-dashed border-border">
+				<div className="text-center space-y-2">
+					<p className="text-muted-foreground">No usage data available</p>
+					<p className="text-xs text-muted-foreground/60">
+						Deploy some bots to see your usage analytics
+					</p>
+				</div>
+			</div>
+		);
+	}
+
+	return (
+		<motion.div
+			initial={{ opacity: 0 }}
+			animate={{ opacity: 1 }}
+			transition={{ duration: 0.4 }}
+			data-testid="chart-container"
+			className="h-[320px] w-full"
+		>
+			<ResponsiveContainer width="100%" height="100%">
+				<AreaChart
+					data={data}
+					margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+				>
+					<defs>
+						<linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
+							<stop
+								offset="0%"
+								stopColor="hsl(var(--accent))"
+								stopOpacity={0.3}
+							/>
+							<stop
+								offset="100%"
+								stopColor="hsl(var(--accent))"
+								stopOpacity={0}
+							/>
+						</linearGradient>
+					</defs>
+
+					<CartesianGrid
+						strokeDasharray="3 3"
+						stroke="hsl(var(--border))"
+						vertical={false}
+					/>
+
+					<XAxis
+						dataKey="date"
+						tickFormatter={dateTickFormatter}
+						axisLine={false}
+						tickLine={false}
+						tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
+						dy={10}
+					/>
+
+					<YAxis
+						domain={ydomain}
+						allowDecimals={false}
+						tickFormatter={
+							metric === "msEllapsed"
+								? (value) => `${(value / 60000).toFixed(0)}m`
+								: undefined
+						}
+						axisLine={false}
+						tickLine={false}
+						tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
+						dx={-10}
+						width={40}
+					/>
+
+					<Tooltip
+						content={<UsageTooltip metric={metric} />}
+						cursor={{
+							stroke: "hsl(var(--accent))",
+							strokeWidth: 1,
+							strokeDasharray: "4 4",
+						}}
+					/>
+
+					<Area
+						type="monotone"
+						dataKey={metric}
+						stroke="hsl(var(--accent))"
+						strokeWidth={2}
+						fill="url(#chartGradient)"
+						dot={false}
+						activeDot={{
+							r: 5,
+							fill: "hsl(var(--accent))",
+							stroke: "hsl(var(--background))",
+							strokeWidth: 2,
+						}}
+						animationDuration={600}
+						animationEasing="ease-out"
+					/>
+				</AreaChart>
+			</ResponsiveContainer>
+		</motion.div>
+	);
 }
 
 export function UsageChart() {
-	// Get Metric - default to count since estimatedCost is disabled
-	const [metric, setMetric] = React.useState<
-		"botsUsed" | "msEllapsed" | "estimatedCost"
-	>("botsUsed");
+	const [metric, setMetric] = useState<Metric>("botsUsed");
+	const [timeframe, setTimeframe] = useState<Timeframe>("week");
+	const [userTimezone, setUserTimezone] = useState<string>("");
 
-	const [timeframe, setTimeframe] = React.useState<"daily" | "week" | "month">(
-		"week",
-	);
-
-	const [isMobile, setIsMobile] = useState(false);
-
-	// Initialize window-dependent states safely
 	useEffect(() => {
-		setIsMobile(window.innerWidth < 768);
-
-		const handleResize = () => {
-			setIsMobile(window.innerWidth < 768);
-		};
-
-		window.addEventListener("resize", handleResize);
-
-		return () => window.removeEventListener("resize", handleResize);
+		setUserTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone);
 	}, []);
 
-	const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-
-	// Load the Data with timezone support
 	const dailyData = api.usage.getDailyUsage.useQuery(
 		{ timeZone: userTimezone },
 		{ enabled: timeframe === "daily" && !!userTimezone },
@@ -146,7 +234,6 @@ export function UsageChart() {
 
 	const { data, isLoading, error } = getTimeframeData();
 
-	// Decide scale
 	const max =
 		data &&
 		Math.max(
@@ -160,120 +247,87 @@ export function UsageChart() {
 		);
 
 	const ydomain: [number, number] | undefined = data
-		? [0, max ?? 0]
+		? [0, Math.max(max ?? 0, 1)]
 		: undefined;
 
 	const dateTickFormatter = (date: string) => {
-		// Handle different date formats from server
 		let parsedDate: Date;
 
 		if (date.includes("T")) {
-			// Full ISO timestamp like "2025-08-30T03:00:00.000Z" (daily)
 			parsedDate = new Date(date);
 		} else {
-			// Date string like "2025-08-30" (week/month) - parse as local midnight
-			// This ensures the date represents the correct day in user's timezone
 			const [year, month, day] = date.split("-").map(Number);
 			parsedDate = new Date(year, month - 1, day);
 		}
 
 		if (timeframe === "daily") {
-			// Format as hour in local timezone
 			return parsedDate.toLocaleString("default", {
 				hour: "numeric",
 				hour12: true,
 				timeZone: userTimezone,
 			});
-		} else if (timeframe === "week") {
-			// Format as weekday in user timezone
+		}
+
+		if (timeframe === "week") {
 			return parsedDate.toLocaleString("default", {
 				weekday: "short",
 				timeZone: userTimezone,
 			});
-		} else {
-			// Format as month and day in user timezone
-			return parsedDate.toLocaleDateString("default", {
-				month: "short",
-				day: "numeric",
-				timeZone: userTimezone,
-			});
 		}
+
+		return parsedDate.toLocaleDateString("default", {
+			month: "short",
+			day: "numeric",
+			timeZone: userTimezone,
+		});
 	};
 
+	const timeframeOptions: { value: Timeframe; label: string }[] = [
+		{ value: "month", label: "Month" },
+		{ value: "week", label: "Week" },
+		{ value: "daily", label: "Today" },
+	];
+
+	const metricOptions: { value: Metric; label: string }[] = [
+		{ value: "botsUsed", label: "Bots Used" },
+		{ value: "msEllapsed", label: "Active Time" },
+	];
+
 	return (
-		<div>
-			<div
-				className={`flex ${isMobile ? "flex-col" : "justify-between"} mt-4 w-full gap-2`}
-			>
-				<div className="align-center flex flex-col justify-center">
-					<div className="pb-2 font-semibold">Time Span</div>
-
-					<div className="flex gap-2">
-						<Button
-							data-testid="month-button"
-							variant={timeframe === "month" ? "default" : "outline"}
-							onClick={() => setTimeframe("month")}
-						>
-							This Month
-						</Button>
-
-						<Button
-							data-testid="week-button"
-							variant={timeframe === "week" ? "default" : "outline"}
-							onClick={() => setTimeframe("week")}
-						>
-							This Week
-						</Button>
-
-						<Button
-							data-testid="daily-button"
-							variant={timeframe === "daily" ? "default" : "outline"}
-							onClick={() => setTimeframe("daily")}
-						>
-							Today
-						</Button>
-					</div>
+		<motion.div
+			initial={{ opacity: 0, y: 20 }}
+			animate={{ opacity: 1, y: 0 }}
+			transition={{ duration: 0.4, delay: 0.1 }}
+			className="bg-card border border-border"
+		>
+			{/* Header */}
+			<div className="flex flex-col gap-4 p-5 border-b border-border sm:flex-row sm:items-center sm:justify-between">
+				<div className="space-y-1">
+					<h3 className="font-semibold">Historical Usage</h3>
+					{userTimezone ? (
+						<p className="text-xs text-muted-foreground">
+							{userTimezone.replace("_", " ")}
+						</p>
+					) : null}
 				</div>
 
-				<div className="align-center flex flex-col justify-center">
-					<div className="pb-2 font-semibold">Metric</div>
-
-					<div className="flex gap-2">
-						{/* Estimated Costs disabled - pay-as-you-go feature not available yet */}
-						{/* <Button
-							variant={metric === "estimatedCost" ? "default" : "outline"}
-							onClick={() => setMetric("estimatedCost")}
-							disabled
-						>
-							Estimated Costs
-						</Button> */}
-
-						<Button
-							variant={metric === "botsUsed" ? "default" : "outline"}
-							onClick={() => setMetric("botsUsed")}
-						>
-							Bots Used
-						</Button>
-
-						<Button
-							variant={metric === "msEllapsed" ? "default" : "outline"}
-							onClick={() => setMetric("msEllapsed")}
-						>
-							Active Bot Time
-						</Button>
-					</div>
+				<div className="flex flex-wrap items-center gap-3">
+					<SegmentedControl
+						options={timeframeOptions}
+						value={timeframe}
+						onChange={setTimeframe}
+					/>
+					<div className="h-4 w-px bg-border hidden sm:block" />
+					<SegmentedControl
+						options={metricOptions}
+						value={metric}
+						onChange={setMetric}
+					/>
 				</div>
 			</div>
 
-			{/* Chart */}
-			<div className="mt-6">
-				{/* Timezone indicator */}
-				{userTimezone && (
-					<div className="mb-2 text-xs text-muted-foreground">
-						Showing times in {userTimezone.replace("_", " ")}
-					</div>
-				)}
-
+			{/* Chart Area */}
+			<div className="p-5">
 				<ChartContent
 					data={data}
 					isLoading={isLoading}
@@ -283,6 +337,6 @@ export function UsageChart() {
 					dateTickFormatter={dateTickFormatter}
 				/>
 			</div>
-		</div>
+		</motion.div>
 	);
 }

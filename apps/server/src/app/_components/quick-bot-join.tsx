@@ -104,8 +104,9 @@ function UsageStats() {
 
 			{!isUnlimited && (
 				<div className="flex-1 max-w-48">
-					<div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+					<div className="flex items-center justify-between gap-4 text-xs text-muted-foreground mb-1">
 						<span>Today's usage</span>
+
 						<span className="tabular-nums">
 							{usage}/{limit}
 						</span>
@@ -139,15 +140,19 @@ export function QuickBotJoin() {
 	const createBotMutation = api.bots.createBot.useMutation();
 	const utils = api.useUtils();
 
-	const { data: dailyUsage } = api.bots.getDailyUsage.useQuery({
-		timeZone: userTimezone,
-	});
+	const { data: dailyUsage, isLoading: isUsageLoading } =
+		api.bots.getDailyUsage.useQuery({
+			timeZone: userTimezone,
+		});
 
 	const remaining = dailyUsage?.remaining ?? 0;
 	const isUnlimited = dailyUsage?.remaining === null;
 	const botCount = form.watch("botCount") || 1;
 	const meetingUrl = form.watch("meetingUrl");
-	const willExceedQuota = !isUnlimited && remaining < botCount;
+
+	const willExceedQuota =
+		!isUsageLoading && !isUnlimited && remaining < botCount;
+
 	const detectedPlatform = detectPlatform(meetingUrl);
 
 	async function handleSubmit(data: QuickBotFormData) {
@@ -293,9 +298,10 @@ export function QuickBotJoin() {
 							<Button
 								type="submit"
 								size="lg"
-								className="h-12 px-6"
+								className="h-12 px-6 min-w-[160px]"
 								disabled={
 									isSubmitting ||
+									isUsageLoading ||
 									willExceedQuota ||
 									(!isUnlimited && remaining === 0)
 								}
@@ -348,7 +354,7 @@ export function QuickBotJoinSkeleton() {
 				<div className="flex gap-3">
 					<Skeleton className="flex-1 h-12" />
 					<Skeleton className="w-20 h-12" />
-					<Skeleton className="w-32 h-12" />
+					<Skeleton className="w-[160px] h-12" />
 				</div>
 			</div>
 		</div>

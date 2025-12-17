@@ -2,11 +2,18 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 import { formatDistanceToNow } from "date-fns";
-import { ExternalLinkIcon, MessageSquare, Plus } from "lucide-react";
+import { Circle, ExternalLink, MessageSquare, Plus } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { DataTable } from "@/components/custom/data-table";
+import {
+	PageHeader,
+	PageHeaderActions,
+	PageHeaderContent,
+	PageHeaderDescription,
+	PageHeaderTitle,
+} from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/lib/auth-client";
@@ -14,6 +21,54 @@ import { api } from "@/trpc/react";
 import { BotDetailsDialog } from "./_components/bot-details-dialog";
 import { MultiBotChatDialog } from "./_components/multi-bot-chat-dialog";
 import { MultiBotJoinDialog } from "./_components/multi-bot-join-dialog";
+
+const STATUS_CONFIG: Record<
+	string,
+	{ color: string; bgColor: string; dotColor: string }
+> = {
+	CREATED: {
+		color: "text-slate-600 dark:text-slate-400",
+		bgColor: "bg-slate-100 dark:bg-slate-800",
+		dotColor: "text-slate-400",
+	},
+	DEPLOYING: {
+		color: "text-blue-600 dark:text-blue-400",
+		bgColor: "bg-blue-50 dark:bg-blue-950",
+		dotColor: "text-blue-500",
+	},
+	JOINING_CALL: {
+		color: "text-amber-600 dark:text-amber-400",
+		bgColor: "bg-amber-50 dark:bg-amber-950",
+		dotColor: "text-amber-500",
+	},
+	IN_CALL: {
+		color: "text-green-600 dark:text-green-400",
+		bgColor: "bg-green-50 dark:bg-green-950",
+		dotColor: "text-green-500",
+	},
+	RECORDING: {
+		color: "text-red-600 dark:text-red-400",
+		bgColor: "bg-red-50 dark:bg-red-950",
+		dotColor: "text-red-500",
+	},
+	CALL_ENDED: {
+		color: "text-slate-600 dark:text-slate-400",
+		bgColor: "bg-slate-100 dark:bg-slate-800",
+		dotColor: "text-slate-400",
+	},
+	FATAL: {
+		color: "text-red-600 dark:text-red-400",
+		bgColor: "bg-red-50 dark:bg-red-950",
+		dotColor: "text-red-500",
+	},
+};
+
+function formatStatus(status: string): string {
+	return status
+		.split("_")
+		.map((word) => word.charAt(0) + word.slice(1).toLowerCase())
+		.join(" ");
+}
 
 export default function BotsPage() {
 	const [selectedBot, setSelectedBot] = useState<number | null>(null);
@@ -28,6 +83,13 @@ export default function BotsPage() {
 
 	const columns: ColumnDef<Bot>[] = [
 		{
+			accessorKey: "botDisplayName",
+			header: "Bot Name",
+			cell: ({ row }) => (
+				<span className="font-medium">{row.original.botDisplayName}</span>
+			),
+		},
+		{
 			accessorKey: "meetingInfo.platform",
 			header: "Platform",
 			cell: ({ row }) => {
@@ -38,30 +100,17 @@ export default function BotsPage() {
 						{typeof platform === "string" && (
 							<Image
 								src={`/platform-logos/${platform}.svg`}
-								alt={`${typeof platform === "string" ? platform : "Unknown"} logo`}
+								alt={`${platform} logo`}
 								width={20}
 								height={20}
 							/>
 						)}
-						{typeof platform === "string"
-							? platform.charAt(0).toUpperCase() + platform.slice(1)
-							: "Unknown"}
+						<span className="text-muted-foreground">
+							{typeof platform === "string"
+								? platform.charAt(0).toUpperCase() + platform.slice(1)
+								: "Unknown"}
+						</span>
 					</div>
-				);
-			},
-		},
-		{
-			accessorKey: "recording",
-			header: "Recording Length",
-			cell: ({ row }) => {
-				const recording = row.original.recording;
-
-				return recording ? (
-					<Link href={recording} target="_blank">
-						{recording} <ExternalLinkIcon className="h-4 w-4" />
-					</Link>
-				) : (
-					"No Recording Available"
 				);
 			},
 		},
@@ -70,72 +119,100 @@ export default function BotsPage() {
 			header: "Status",
 			cell: ({ row }) => {
 				const status = row.original.status;
+				const config = STATUS_CONFIG[status] || STATUS_CONFIG.CREATED;
 
 				return (
-					<Badge variant="outline" className="bg-gray-100 text-gray-800">
-						{status}
+					<Badge
+						variant="outline"
+						className={`${config.bgColor} ${config.color} border-transparent`}
+					>
+						<Circle
+							className={`h-2 w-2 fill-current ${config.dotColor} mr-1.5`}
+						/>
+						{formatStatus(status)}
 					</Badge>
 				);
 			},
 		},
 		{
+			accessorKey: "recording",
+			header: "Recording",
+			cell: ({ row }) => {
+				const recording = row.original.recording;
+
+				if (!recording) {
+					return <span className="text-muted-foreground">—</span>;
+				}
+
+				return (
+					<Link
+						href={recording}
+						target="_blank"
+						className="flex items-center gap-1 text-accent hover:underline"
+					>
+						View
+						<ExternalLink className="h-3 w-3" />
+					</Link>
+				);
+			},
+		},
+		{
 			accessorKey: "createdAt",
-			header: "Created At",
+			header: "Created",
 			cell: ({ row }) => {
 				const createdAt = row.original.createdAt;
 
-				const timeAgo = createdAt
-					? formatDistanceToNow(new Date(createdAt), {
-							addSuffix: true,
-						})
-					: "No date available";
-
-				return `${timeAgo}`;
+				return (
+					<span className="text-muted-foreground tabular-nums">
+						{createdAt
+							? formatDistanceToNow(new Date(createdAt), { addSuffix: true })
+							: "—"}
+					</span>
+				);
 			},
 		},
 		{
 			id: "actions",
-			cell: ({ row }) => {
-				return (
-					<Button
-						variant="outline"
-						onClick={() => setSelectedBot(row.original.id)}
-					>
-						View Details
-					</Button>
-				);
-			},
+			cell: ({ row }) => (
+				<Button
+					variant="outline"
+					size="sm"
+					onClick={() => setSelectedBot(row.original.id)}
+				>
+					Details
+				</Button>
+			),
 		},
 	];
 
 	return (
-		<div className="mx-auto container space-y-4 px-4">
-			<div className="flex items-center justify-between">
-				<div>
-					<h2 className="text-2xl font-bold tracking-tight">Bots</h2>
-					<p className="text-muted-foreground">
-						View and manage bots that have been created.
-					</p>
-				</div>
+		<div className="mx-auto container space-y-6 px-4">
+			<PageHeader>
+				<PageHeaderContent>
+					<PageHeaderTitle>Bots</PageHeaderTitle>
+					<PageHeaderDescription>
+						View and manage all deployed engagement bots
+					</PageHeaderDescription>
+				</PageHeaderContent>
 
-				<div className="flex gap-2">
+				<PageHeaderActions>
 					<Button
 						variant="outline"
 						onClick={() => setMultiBotChatDialogOpen(true)}
 						disabled={!session?.user}
 					>
-						<MessageSquare className="h-4 w-4 mr-2" />
+						<MessageSquare className="h-4 w-4" />
 						Multi-Bot Chat
 					</Button>
 					<Button
 						onClick={() => setMultiBotDialogOpen(true)}
 						disabled={!session?.user}
 					>
-						<Plus className="h-4 w-4 mr-2" />
-						Join Multiple Bots
+						<Plus className="h-4 w-4" />
+						Deploy Bots
 					</Button>
-				</div>
-			</div>
+				</PageHeaderActions>
+			</PageHeader>
 
 			<DataTable
 				columns={columns}

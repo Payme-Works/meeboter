@@ -87,11 +87,11 @@ export default function SignInPage() {
 								required
 							/>
 						</div>
-						{error && (
-							<div className="text-sm text-red-600 bg-red-50 p-3 rounded-md">
+						{error ? (
+							<div className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950 p-3 rounded-md">
 								{error}
 							</div>
-						)}
+						) : null}
 						<Button type="submit" className="w-full" disabled={isLoading}>
 							{isLoading ? "Signing in..." : "Sign In"}
 						</Button>
@@ -102,7 +102,7 @@ export default function SignInPage() {
 							<Separator className="w-full" />
 						</div>
 						<div className="relative flex justify-center text-xs uppercase">
-							<span className="bg-white px-2 text-muted-foreground">
+							<span className="bg-card px-2 text-muted-foreground">
 								Or continue with
 							</span>
 						</div>
