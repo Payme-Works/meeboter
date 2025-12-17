@@ -1,16 +1,21 @@
 import { eq } from "drizzle-orm";
-import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 
-import type * as schema from "@/server/database/schema";
+import { db } from "@/server/database/db";
 import {
 	botPoolSlotsTable,
 	type SelectBotPoolSlotType,
 } from "@/server/database/schema";
-import { updateSlotDescription } from "./bot-pool-manager";
-import {
-	deleteCoolifyApplication,
-	stopCoolifyApplication,
-} from "./coolify-deployment";
+import type { Services } from "./index";
+
+/**
+ * Lazily imports services to avoid circular dependency
+ * (db.ts -> slot-recovery.ts -> services/index.ts -> db.ts)
+ */
+async function getServices(): Promise<Services> {
+	const { services } = await import("./index");
+
+	return services;
+}
 
 /** How often to run the recovery job (5 minutes) */
 const RECOVERY_INTERVAL_MS = 5 * 60 * 1000;
@@ -29,22 +34,18 @@ interface RecoveryResult {
  *
  * Runs every 5 minutes to attempt recovery of error slots.
  * Should be called once at server startup.
- *
- * @param db - Database instance
  */
-export function startSlotRecoveryJob(
-	db: PostgresJsDatabase<typeof schema>,
-): void {
+export function startSlotRecoveryJob(): void {
 	console.log(
 		"[Recovery] Starting slot recovery job (interval: 5min, max attempts: 3)",
 	);
 
 	// Run immediately on startup
-	recoverErrorSlots(db);
+	recoverErrorSlots();
 
 	// Then run every interval
 	setInterval(() => {
-		recoverErrorSlots(db);
+		recoverErrorSlots();
 	}, RECOVERY_INTERVAL_MS);
 }
 
@@ -55,9 +56,7 @@ export function startSlotRecoveryJob(
  * - If max attempts exceeded: delete slot permanently
  * - Otherwise: attempt recovery by stopping container and resetting to idle
  */
-async function recoverErrorSlots(
-	db: PostgresJsDatabase<typeof schema>,
-): Promise<RecoveryResult> {
+async function recoverErrorSlots(): Promise<RecoveryResult> {
 	const result: RecoveryResult = { recovered: 0, failed: 0, deleted: 0 };
 
 	try {
@@ -74,13 +73,13 @@ async function recoverErrorSlots(
 
 		for (const slot of errorSlots) {
 			if (slot.recoveryAttempts >= MAX_RECOVERY_ATTEMPTS) {
-				await deleteSlotPermanently(slot, db);
+				await deleteSlotPermanently(slot);
 				result.deleted++;
 
 				continue;
 			}
 
-			const success = await attemptSlotRecovery(slot, db);
+			const success = await attemptSlotRecovery(slot);
 
 			if (success) {
 				result.recovered++;
@@ -106,7 +105,6 @@ async function recoverErrorSlots(
  */
 async function attemptSlotRecovery(
 	slot: SelectBotPoolSlotType,
-	db: PostgresJsDatabase<typeof schema>,
 ): Promise<boolean> {
 	const attemptNumber = slot.recoveryAttempts + 1;
 
@@ -115,8 +113,10 @@ async function attemptSlotRecovery(
 	);
 
 	try {
+		const services = await getServices();
+
 		// Force stop the Coolify container
-		await stopCoolifyApplication(slot.coolifyServiceUuid);
+		await services.coolify.stopApplication(slot.coolifyServiceUuid);
 
 		// Reset slot to idle state
 		await db
@@ -131,7 +131,12 @@ async function attemptSlotRecovery(
 			.where(eq(botPoolSlotsTable.id, slot.id));
 
 		// Update Coolify description
-		await updateSlotDescription(slot.coolifyServiceUuid, "idle");
+		const description = `[IDLE] Available - Last used: ${new Date().toISOString()}`;
+
+		await services.coolify.updateDescription(
+			slot.coolifyServiceUuid,
+			description,
+		);
 
 		console.log(`[Recovery] Successfully recovered ${slot.slotName}`);
 
@@ -157,15 +162,16 @@ async function attemptSlotRecovery(
  */
 async function deleteSlotPermanently(
 	slot: SelectBotPoolSlotType,
-	db: PostgresJsDatabase<typeof schema>,
 ): Promise<void> {
 	console.log(
 		`[Recovery] Deleting permanently failed slot ${slot.slotName} (attempts: ${slot.recoveryAttempts})`,
 	);
 
+	const services = await getServices();
+
 	// Try to delete from Coolify
 	try {
-		await deleteCoolifyApplication(slot.coolifyServiceUuid);
+		await services.coolify.deleteApplication(slot.coolifyServiceUuid);
 	} catch (error) {
 		console.error(
 			`[Recovery] Failed to delete Coolify app ${slot.coolifyServiceUuid}:`,

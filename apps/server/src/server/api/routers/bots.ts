@@ -22,13 +22,7 @@ import {
 	getUserSubscriptionInfo,
 	validateBotCreation,
 } from "@/server/utils/subscription";
-import {
-	deployBot,
-	getPoolStats,
-	getQueueStats,
-	releaseBotSlot,
-	shouldDeployImmediately,
-} from "../services/bot-deployment";
+import { services } from "../services";
 
 // Event batching configuration
 const EVENT_BATCH_SIZE = 50;
@@ -263,14 +257,13 @@ export const botsRouter = createTRPCRouter({
 				}
 
 				// Check if we should deploy immediately
-				if (await shouldDeployImmediately(input.startTime)) {
+				if (services.deployment.shouldDeployImmediately(input.startTime)) {
 					console.log("Deploying bot immediately...");
 
-					const deployResult = await deployBot({
-						botId: result[0].id,
-						db: ctx.db,
-						queueTimeoutMs: input.queueTimeoutMs,
-					});
+					const deployResult = await services.deployment.deploy(
+						result[0].id,
+						input.queueTimeoutMs,
+					);
 
 					return {
 						...deployResult.bot,
@@ -453,7 +446,7 @@ export const botsRouter = createTRPCRouter({
 						botRecord[0].coolifyServiceUuid
 					) {
 						// Fire and forget, don't block the response
-						releaseBotSlot(input.id, ctx.db).catch((error) => {
+						services.deployment.release(input.id).catch((error) => {
 							console.error(
 								`Failed to release pool slot for bot ${input.id}:`,
 								error,
@@ -712,11 +705,10 @@ export const botsRouter = createTRPCRouter({
 				throw new Error("Bot not found");
 			}
 
-			const deployResult = await deployBot({
-				botId: input.id,
-				db: ctx.db,
-				queueTimeoutMs: input.queueTimeoutMs,
-			});
+			const deployResult = await services.deployment.deploy(
+				input.id,
+				input.queueTimeoutMs,
+			);
 
 			return {
 				...deployResult.bot,
@@ -900,8 +892,8 @@ export const botsRouter = createTRPCRouter({
 				maxSize: z.number(),
 			}),
 		)
-		.query(async ({ ctx }) => {
-			return await getPoolStats(ctx.db);
+		.query(async () => {
+			return await services.pool.getPoolStats();
 		}),
 
 	/**
@@ -925,7 +917,7 @@ export const botsRouter = createTRPCRouter({
 				avgWaitMs: z.number(),
 			}),
 		)
-		.query(async ({ ctx }) => {
-			return await getQueueStats(ctx.db);
+		.query(async () => {
+			return await services.pool.getQueueStats();
 		}),
 });

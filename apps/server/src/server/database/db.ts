@@ -72,5 +72,5 @@ const globalForJobs = globalThis as unknown as {
 // Start background recovery job in production (only once)
 if (env.NODE_ENV === "production" && !globalForJobs.recoveryJobStarted) {
 	globalForJobs.recoveryJobStarted = true;
-	startSlotRecoveryJob(db);
+	startSlotRecoveryJob();
 }
