@@ -681,45 +681,11 @@ export class BotPoolService {
 	}
 
 	/**
-	 * Gets the next available slot number for a platform
-	 *
-	 * Finds the first gap in the sequence of slot numbers, or returns max + 1
-	 * if no gaps exist. This allows reuse of deleted slot numbers.
-	 */
-	private async getNextSlotNumber(platformName: string): Promise<number> {
-		const prefix = `meeboter-pool-${platformName}-`;
-
-		const result = await this.db
-			.select({ slotName: botPoolSlotsTable.slotName })
-			.from(botPoolSlotsTable)
-			.where(sql`${botPoolSlotsTable.slotName} LIKE ${`${prefix}%`}`);
-
-		if (result.length === 0) {
-			return 1;
-		}
-
-		const usedNumbers = new Set<number>();
-
-		for (const row of result) {
-			const match = row.slotName.match(/(\d+)$/);
-
-			if (match) {
-				usedNumbers.add(Number.parseInt(match[1], 10));
-			}
-		}
-
-		let nextNumber = 1;
-
-		while (usedNumbers.has(nextNumber)) {
-			nextNumber++;
-		}
-
-		return nextNumber;
-	}
-
-	/**
 	 * Creates a new pool slot and assigns it to the bot
 	 * This is slow as it involves creating a Coolify app and pulling the image
+	 *
+	 * Uses a transaction with FOR UPDATE to prevent race conditions when
+	 * multiple bots are deployed simultaneously.
 	 */
 	private async createAndAcquireNewSlot(botId: number): Promise<PoolSlot> {
 		const botResult = await this.db
@@ -733,11 +699,63 @@ export class BotPoolService {
 
 		const bot = botResult[0];
 		const image = this.coolify.selectBotImage(bot.meetingInfo);
-
 		const platformName = this.getPlatformSlotName(bot.meetingInfo.platform);
 
-		const nextNumber = await this.getNextSlotNumber(platformName);
-		const slotName = `meeboter-pool-${platformName}-${String(nextNumber).padStart(3, "0")}`;
+		// Reserve slot number atomically using transaction with FOR UPDATE
+		// This prevents race conditions when multiple slots are created simultaneously
+		const { slotName, slotId } = await this.db.transaction(async (tx) => {
+			// Lock existing slots for this platform to prevent concurrent reads
+			const prefix = `meeboter-pool-${platformName}-`;
+
+			const existingSlots = await tx.execute<{ slotName: string }>(sql`
+				SELECT "slotName"
+				FROM ${botPoolSlotsTable}
+				WHERE "slotName" LIKE ${`${prefix}%`}
+				FOR UPDATE
+			`);
+
+			// Calculate next available number (finds first gap in sequence)
+			const usedNumbers = new Set<number>();
+
+			for (const row of existingSlots) {
+				const match = row.slotName.match(/(\d+)$/);
+
+				if (match) {
+					usedNumbers.add(Number.parseInt(match[1], 10));
+				}
+			}
+
+			let nextNumber = 1;
+
+			while (usedNumbers.has(nextNumber)) {
+				nextNumber++;
+			}
+
+			const reservedSlotName = `${prefix}${String(nextNumber).padStart(3, "0")}`;
+
+			// Insert placeholder row with temporary UUID to reserve the slot name
+			const tempUuid = `pending-${crypto.randomUUID()}`;
+
+			const insertResult = await tx
+				.insert(botPoolSlotsTable)
+				.values({
+					coolifyServiceUuid: tempUuid,
+					slotName: reservedSlotName,
+					status: "deploying",
+					assignedBotId: botId,
+					lastUsedAt: new Date(),
+				})
+				.returning({ id: botPoolSlotsTable.id });
+
+			if (!insertResult[0]) {
+				throw new Error("Failed to reserve pool slot");
+			}
+
+			return { slotName: reservedSlotName, slotId: insertResult[0].id };
+		});
+
+		// Create Coolify application (outside transaction to release lock quickly)
+		console.log(`[Pool] Creating Coolify application ${slotName}...`);
 
 		const placeholderConfig: BotConfig = {
 			id: botId,
@@ -755,45 +773,46 @@ export class BotPoolService {
 			callbackUrl: bot.callbackUrl ?? undefined,
 		};
 
-		console.log(`[Pool] Creating Coolify application ${slotName}...`);
+		try {
+			const coolifyServiceUuid = await this.coolify.createApplication(
+				botId,
+				image,
+				placeholderConfig,
+				slotName,
+			);
 
-		const coolifyServiceUuid = await this.coolify.createApplication(
-			botId,
-			image,
-			placeholderConfig,
-			slotName,
-		);
+			// Update with real Coolify UUID
+			await this.db
+				.update(botPoolSlotsTable)
+				.set({ coolifyServiceUuid })
+				.where(eq(botPoolSlotsTable.id, slotId));
 
-		const insertResult = await this.db
-			.insert(botPoolSlotsTable)
-			.values({
+			await this.updateSlotDescription(coolifyServiceUuid, "deploying", botId);
+
+			console.log(
+				`[Pool] Created new slot ${slotName} with UUID ${coolifyServiceUuid}`,
+			);
+
+			return {
+				id: slotId,
 				coolifyServiceUuid,
 				slotName,
 				status: "deploying",
 				assignedBotId: botId,
-				lastUsedAt: new Date(),
-			})
-			.returning();
+			};
+		} catch (error) {
+			// Clean up the reserved slot on Coolify failure
+			console.error(
+				`[Pool] Failed to create Coolify app for ${slotName}, cleaning up:`,
+				error,
+			);
 
-		const slot = insertResult[0];
+			await this.db
+				.delete(botPoolSlotsTable)
+				.where(eq(botPoolSlotsTable.id, slotId));
 
-		if (!slot) {
-			throw new Error("Failed to insert pool slot");
+			throw error;
 		}
-
-		await this.updateSlotDescription(coolifyServiceUuid, "deploying", botId);
-
-		console.log(
-			`[Pool] Created new slot ${slotName} with UUID ${coolifyServiceUuid}`,
-		);
-
-		return {
-			id: slot.id,
-			coolifyServiceUuid: slot.coolifyServiceUuid,
-			slotName: slot.slotName,
-			status: "deploying",
-			assignedBotId: botId,
-		};
 	}
 
 	/**
