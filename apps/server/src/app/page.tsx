@@ -381,6 +381,9 @@ export default async function Home() {
 	}
 
 	// Established user, show full dashboard
+	const subscription = await api.bots.getUserSubscription();
+	const isFreePlan = subscription.currentPlan === "FREE";
+
 	return (
 		<HydrateClient>
 			<main className="mx-auto container px-4">
@@ -392,7 +395,13 @@ export default async function Home() {
 					</Suspense>
 				</div>
 
-				<div className="grid gap-6 lg:grid-cols-3">
+				<div
+					className={
+						isFreePlan
+							? "grid gap-6 lg:grid-cols-3 mb-8"
+							: "grid gap-6 lg:grid-cols-3"
+					}
+				>
 					<div className="lg:col-span-2">
 						<Suspense fallback={<RecentBotsSkeleton />}>
 							<RecentBotsWithPrefetch />
@@ -403,6 +412,8 @@ export default async function Home() {
 						<StatCardsSection timeZone="UTC" />
 					</Suspense>
 				</div>
+
+				{isFreePlan ? <SubscriptionPlansSection /> : null}
 			</main>
 		</HydrateClient>
 	);
