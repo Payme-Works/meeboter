@@ -59,7 +59,7 @@ Bots fetch their configuration from the Milo API on startup using `POOL_SLOT_UUI
 # Pool slot identifier (used to fetch bot config from API)
 POOL_SLOT_UUID="coolify-service-uuid"
 
-# Milo API URL for bootstrap (bot fetches miloUrl from config for subsequent calls)
+# Milo API URL for all tRPC calls
 MILO_URL="https://meeboter.yourdomain.com"
 
 # Authentication token for API calls
@@ -78,10 +78,9 @@ NODE_ENV="production"
 
 ### How It Works
 
-1. Bot container starts with `POOL_SLOT_UUID` environment variable
-2. Bot calls `getPoolSlot` API endpoint to fetch full configuration
-3. Configuration includes meeting details, timeouts, recording settings, and `miloUrl`
-4. Bot uses `miloUrl` from config for all subsequent API calls
+1. Bot container starts with `POOL_SLOT_UUID` and `MILO_URL` environment variables
+2. Bot calls `getPoolSlot` API endpoint to fetch configuration (meeting details, timeouts, recording settings)
+3. Bot uses `MILO_URL` env var for all tRPC API calls
 
 This pattern ensures:
 - No stale configuration from cached container builds

@@ -74,6 +74,7 @@ function createCoolifyPlatformService(): CoolifyPlatformService {
 			destinationUuid: env.COOLIFY_DESTINATION_UUID,
 		},
 		{
+			miloUrl: env.NEXT_PUBLIC_APP_ORIGIN_URL,
 			miloAuthToken: env.MILO_AUTH_TOKEN ?? "",
 			s3Endpoint: env.S3_ENDPOINT,
 			s3AccessKey: env.S3_ACCESS_KEY,
@@ -117,6 +118,7 @@ function createAWSPlatformService(): AWSPlatformService {
 	};
 
 	const botEnvConfig: AWSBotEnvConfig = {
+		miloUrl: env.NEXT_PUBLIC_APP_ORIGIN_URL,
 		miloAuthToken: env.MILO_AUTH_TOKEN ?? "",
 		s3Endpoint: env.S3_ENDPOINT,
 		s3AccessKey: env.S3_ACCESS_KEY,

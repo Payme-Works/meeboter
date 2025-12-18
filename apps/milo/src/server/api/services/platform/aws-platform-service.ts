@@ -40,6 +40,7 @@ export interface AWSPlatformConfig {
  * Environment configuration passed to bot containers
  */
 export interface AWSBotEnvConfig {
+	miloUrl: string;
 	miloAuthToken: string;
 	s3Endpoint: string;
 	s3AccessKey: string;
@@ -225,6 +226,9 @@ export class AWSPlatformService implements PlatformService {
 	 */
 	private buildEnvironmentVariables(): Array<{ name: string; value: string }> {
 		return [
+			// Milo API URL for tRPC calls
+			{ name: "MILO_URL", value: this.botEnvConfig.miloUrl },
+
 			// Authentication
 			{ name: "MILO_AUTH_TOKEN", value: this.botEnvConfig.miloAuthToken },
 

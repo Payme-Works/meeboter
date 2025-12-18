@@ -705,7 +705,7 @@ S3_ACCESS_KEY=...
 S3_SECRET_KEY=...
 ```
 
-Note: Bot containers fetch their full configuration (including the dynamic `miloUrl`) from the `getPoolSlot` API endpoint on startup.
+Note: Bot containers fetch their configuration from the `getPoolSlot` API endpoint on startup. The `MILO_URL` env var is set during container deployment and used for all tRPC calls.
 
 ---
 

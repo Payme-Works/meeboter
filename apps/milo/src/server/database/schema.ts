@@ -508,7 +508,6 @@ export const botConfigSchema = z.object({
 		.optional()
 		.describe("URL to receive bot event notifications"),
 	chatEnabled: z.boolean(),
-	miloUrl: z.string().url().describe("Milo API base URL for tRPC calls"),
 });
 export type BotConfig = z.infer<typeof botConfigSchema>;
 

@@ -51,10 +51,9 @@ Refer to the `.env.example` file for the required environment variables. Duplica
 Bots fetch their configuration dynamically from the Milo API using `POOL_SLOT_UUID`. This pattern avoids issues with stale environment variables in containerized deployments.
 
 **Startup flow:**
-1. Bot container starts with `POOL_SLOT_UUID` environment variable
-2. Bot calls `getPoolSlot` API endpoint to fetch full configuration
-3. Configuration includes meeting details, timeouts, recording settings, and `miloUrl`
-4. Bot uses `miloUrl` from config for all subsequent API calls
+1. Bot container starts with `POOL_SLOT_UUID` and `MILO_URL` environment variables
+2. Bot calls `getPoolSlot` API endpoint to fetch configuration (meeting details, timeouts, recording settings)
+3. Bot uses `MILO_URL` env var for all tRPC API calls
 
 This ensures:
 - No stale configuration from cached container builds
@@ -67,7 +66,7 @@ This ensures:
 # Pool slot identifier (used to fetch bot config from API)
 POOL_SLOT_UUID="your-pool-slot-uuid"
 
-# Milo API URL for bootstrap (bot fetches miloUrl from config for subsequent calls)
+# Milo API URL for all tRPC calls
 MILO_URL="https://meeboter.yourdomain.com"
 
 # Authentication token for API calls

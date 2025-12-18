@@ -6,7 +6,7 @@ import {
 	startHeartbeat,
 } from "./monitoring";
 import { createS3ClientFromEnv, uploadRecordingToS3 } from "./s3";
-import { configureTrpc, getTrpc, trpc } from "./trpc";
+import { getTrpc, trpc } from "./trpc";
 import { EventCode, type SpeakerTimeframe } from "./types";
 
 dotenv.config({ path: "../.env.test" }); // Load .env.test for testing
@@ -96,8 +96,8 @@ export const main = async () => {
 
 	console.log("Received bot data:", botData);
 
-	// Reconfigure trpc client with miloUrl from config for all subsequent calls
-	configureTrpc(botData.miloUrl);
+	// tRPC client is already configured with MILO_URL env var on bootstrap
+	// No reconfiguration needed - just use the same client for all calls
 
 	const botId = botData.id;
 

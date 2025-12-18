@@ -10,7 +10,6 @@ export const mockBotData = {
 	id: 123,
 	platform: "mock-platform",
 	heartbeatInterval: 200,
-	miloUrl: "http://localhost:3000",
 	recordingEnabled: true,
 	chatEnabled: false,
 	meetingInfo: {

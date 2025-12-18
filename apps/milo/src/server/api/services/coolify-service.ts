@@ -16,6 +16,7 @@ export interface CoolifyConfig {
  * Configuration for bot environment variables
  */
 export interface BotEnvConfig {
+	miloUrl: string;
 	miloAuthToken: string;
 	s3Endpoint: string;
 	s3AccessKey: string;
@@ -187,9 +188,10 @@ export class CoolifyService {
 
 		// Set environment variables for the application
 		// POOL_SLOT_UUID allows bot container to fetch its config from API on startup
-		// MILO_URL is set globally in Coolify for bootstrap, bot then uses miloUrl from getPoolSlot response
+		// MILO_URL is the API base URL for all tRPC calls
 		const envVars: EnvVar[] = [
 			{ key: "POOL_SLOT_UUID", value: data.uuid },
+			{ key: "MILO_URL", value: this.botEnvConfig.miloUrl },
 			{ key: "MILO_AUTH_TOKEN", value: this.botEnvConfig.miloAuthToken },
 			{ key: "S3_ENDPOINT", value: this.botEnvConfig.s3Endpoint },
 			{ key: "S3_ACCESS_KEY", value: this.botEnvConfig.s3AccessKey },

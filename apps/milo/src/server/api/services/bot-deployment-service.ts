@@ -87,7 +87,6 @@ export class BotDeploymentService {
 			chatEnabled: bot.chatEnabled,
 			automaticLeave: bot.automaticLeave,
 			callbackUrl: bot.callbackUrl ?? undefined,
-			miloUrl: env.NEXT_PUBLIC_APP_ORIGIN_URL,
 		};
 
 		if (isDev) {

@@ -67,7 +67,6 @@ export type BotConfig = {
 	automaticLeave: AutomaticLeave;
 	callbackUrl?: string;
 	chatEnabled: boolean;
-	miloUrl: string;
 };
 
 /**
