@@ -36,7 +36,7 @@ COPY ./node_modules* /app/node_modules
 RUN echo "Copy workspace configuration and files"
 
 COPY ./apps/bots/ /app/apps/bots/
-COPY ./apps/server/ /app/apps/server/
+COPY ./apps/milo/ /app/apps/milo/
 COPY ./packages/ /app/packages/
 
 RUN echo "Convert entrypoint.sh to use Unix line endings"

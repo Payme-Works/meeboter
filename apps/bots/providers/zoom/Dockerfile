@@ -30,7 +30,7 @@ COPY ./node_modules* /app/node_modules
 RUN echo "Copy bots and packages"
 
 COPY ./apps/bots/ ./apps/bots/
-COPY ./apps/server/ ./apps/server/
+COPY ./apps/milo/ ./apps/milo/
 COPY ./packages/ ./packages/
 
 RUN echo "Configure default locale (important for chrome-headless-shell)"
