@@ -50,21 +50,20 @@ export function createS3Client(config: S3Config): S3Client | null {
 
 /**
  * Creates an S3/MinIO client from environment variables.
- * Uses S3_ prefixed variables (with MINIO_ fallback for backwards compatibility).
+ * Uses S3_ prefixed variables for S3-compatible storage configuration.
  *
  * @returns S3Client or null if configuration is invalid
  */
 export function createS3ClientFromEnv(): S3Client | null {
-	// Check for S3 configuration (preferred, with MINIO_ fallback)
-	const endpoint = process.env.S3_ENDPOINT || process.env.MINIO_ENDPOINT;
+	// Check for S3 configuration
+	const endpoint = process.env.S3_ENDPOINT;
 
 	if (endpoint) {
 		return createS3Client({
 			endpoint,
-			region: process.env.S3_REGION || process.env.MINIO_REGION || "us-east-1",
-			accessKeyId: process.env.S3_ACCESS_KEY || process.env.MINIO_ACCESS_KEY,
-			secretAccessKey:
-				process.env.S3_SECRET_KEY || process.env.MINIO_SECRET_KEY,
+			region: process.env.S3_REGION || "us-east-1",
+			accessKeyId: process.env.S3_ACCESS_KEY,
+			secretAccessKey: process.env.S3_SECRET_KEY,
 		});
 	}
 
@@ -78,17 +77,12 @@ export function createS3ClientFromEnv(): S3Client | null {
 
 /**
  * Gets the bucket name from environment variables.
- * Uses S3_BUCKET_NAME (with MINIO_BUCKET_NAME fallback for backwards compatibility).
+ * Uses S3_BUCKET_NAME for S3-compatible storage configuration.
  *
  * @returns The bucket name
  */
 export function getBucketName(): string {
-	return (
-		process.env.S3_BUCKET_NAME ||
-		process.env.MINIO_BUCKET_NAME ||
-		process.env.AWS_BUCKET_NAME ||
-		""
-	);
+	return process.env.S3_BUCKET_NAME || process.env.AWS_BUCKET_NAME || "";
 }
 
 /**

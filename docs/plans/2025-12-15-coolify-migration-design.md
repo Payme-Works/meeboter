@@ -231,7 +231,7 @@ function selectBotImage(meetingInfo: MeetingInfo): { name: string; tag: string }
 AWS_ACCESS_KEY_ID          # No longer needed (MinIO uses different auth)
 AWS_SECRET_ACCESS_KEY      # No longer needed
 AWS_REGION                 # No longer needed
-AWS_BUCKET_NAME            # Replaced with MINIO_*
+AWS_BUCKET_NAME            # Replaced with S3_*
 
 ECS_CLUSTER_NAME           # Replaced with Coolify API
 ECS_TASK_DEFINITION_MEET   # Replaced with GHCR images
@@ -257,11 +257,11 @@ GHCR_ORG=your-github-org-or-username
 BOT_IMAGE_TAG=latest
 
 # MinIO Configuration (S3-compatible)
-MINIO_ENDPOINT=https://minio.yourdomain.com
-MINIO_ACCESS_KEY=your-minio-access-key
-MINIO_SECRET_KEY=your-minio-secret-key
-MINIO_BUCKET_NAME=meeboter-recordings
-MINIO_REGION=us-east-1  # MinIO accepts any region string
+S3_ENDPOINT=https://minio.yourdomain.com
+S3_ACCESS_KEY=your-minio-access-key
+S3_SECRET_KEY=your-minio-secret-key
+S3_BUCKET_NAME=meeboter-recordings
+S3_REGION=us-east-1  # MinIO accepts any region string
 
 # Keep these unchanged
 DATABASE_URL=postgresql://user:pass@postgres:5432/meeboter
@@ -291,11 +291,11 @@ server: {
   BOT_IMAGE_TAG: z.string().default("latest"),
 
   // MinIO (S3-compatible)
-  MINIO_ENDPOINT: z.string().url(),
-  MINIO_ACCESS_KEY: z.string(),
-  MINIO_SECRET_KEY: z.string(),
-  MINIO_BUCKET_NAME: z.string(),
-  MINIO_REGION: z.string().default("us-east-1"),
+  S3_ENDPOINT: z.string().url(),
+  S3_ACCESS_KEY: z.string(),
+  S3_SECRET_KEY: z.string(),
+  S3_BUCKET_NAME: z.string(),
+  S3_REGION: z.string().default("us-east-1"),
 
   // Keep
   BOT_AUTH_TOKEN: z.string().optional(),
@@ -311,10 +311,10 @@ When spawning bots via Coolify API, inject these:
 BOT_DATA={"id":123,"meetingInfo":...}  # JSON config
 BOT_AUTH_TOKEN=...                      # Auth with server
 BACKEND_URL=https://meeboter.yourdomain.com/api/trpc
-MINIO_ENDPOINT=https://minio.yourdomain.com
-MINIO_ACCESS_KEY=...
-MINIO_SECRET_KEY=...
-MINIO_BUCKET_NAME=meeboter-recordings
+S3_ENDPOINT=https://minio.yourdomain.com
+S3_ACCESS_KEY=...
+S3_SECRET_KEY=...
+S3_BUCKET_NAME=meeboter-recordings
 NODE_ENV=production
 ```
 
@@ -444,11 +444,11 @@ let s3ClientInstance: S3Client | null = null;
 
 const getS3Client = (): S3Client => {
   s3ClientInstance ??= new S3Client({
-    endpoint: env.MINIO_ENDPOINT,           // MinIO endpoint
-    region: env.MINIO_REGION,               // Can be any string
+    endpoint: env.S3_ENDPOINT,           // MinIO endpoint
+    region: env.S3_REGION,               // Can be any string
     credentials: {
-      accessKeyId: env.MINIO_ACCESS_KEY,
-      secretAccessKey: env.MINIO_SECRET_KEY,
+      accessKeyId: env.S3_ACCESS_KEY,
+      secretAccessKey: env.S3_SECRET_KEY,
     },
     forcePathStyle: true,  // Required for MinIO
   });
@@ -463,7 +463,7 @@ export const generateSignedUrl = async (
   expiresIn = 3600,
 ): Promise<string> => {
   const command = new GetObjectCommand({
-    Bucket: env.MINIO_BUCKET_NAME,
+    Bucket: env.S3_BUCKET_NAME,
     Key: key,
   });
 
@@ -480,18 +480,18 @@ The bot upload code in `apps/bots/` already uses the S3 SDK. Same change applies
 ```typescript
 // In bot's upload code
 const s3Client = new S3Client({
-  endpoint: process.env.MINIO_ENDPOINT,
-  region: process.env.MINIO_REGION,
+  endpoint: process.env.S3_ENDPOINT,
+  region: process.env.S3_REGION,
   credentials: {
-    accessKeyId: process.env.MINIO_ACCESS_KEY,
-    secretAccessKey: process.env.MINIO_SECRET_KEY,
+    accessKeyId: process.env.S3_ACCESS_KEY,
+    secretAccessKey: process.env.S3_SECRET_KEY,
   },
   forcePathStyle: true,
 });
 
 // Upload recording - unchanged
 await s3Client.send(new PutObjectCommand({
-  Bucket: process.env.MINIO_BUCKET_NAME,
+  Bucket: process.env.S3_BUCKET_NAME,
   Key: `recordings/${botId}/${filename}`,
   Body: recordingBuffer,
   ContentType: "video/webm",
@@ -843,8 +843,8 @@ After deployment, find the auto-generated root credentials:
 1. In Coolify, go to your MinIO service
 2. Click **Environment Variables** or **Secrets** tab
 3. Find and copy:
-   - `MINIO_ROOT_USER` (or `MINIO_ACCESS_KEY`)
-   - `MINIO_ROOT_PASSWORD` (or `MINIO_SECRET_KEY`)
+   - `S3_ROOT_USER` (or `S3_ACCESS_KEY`)
+   - `S3_ROOT_PASSWORD` (or `S3_SECRET_KEY`)
 
 #### 2.3 Access MinIO Console
 
@@ -875,22 +875,22 @@ Instead of using root credentials in your app, create dedicated access keys:
 ```bash
 # S3 API endpoint (NOT the console URL)
 # Use internal hostname if on same Coolify network:
-MINIO_ENDPOINT=http://minio-service-name:9000
+S3_ENDPOINT=http://minio-service-name:9000
 # Or external URL if accessible via domain:
-MINIO_ENDPOINT=https://minio.yourdomain.com
+S3_ENDPOINT=https://minio.yourdomain.com
 
 # Credentials (from step 2.4)
-MINIO_ACCESS_KEY=your-access-key
-MINIO_SECRET_KEY=your-secret-key
+S3_ACCESS_KEY=your-access-key
+S3_SECRET_KEY=your-secret-key
 
 # Bucket name
-MINIO_BUCKET_NAME=meeboter-recordings
+S3_BUCKET_NAME=meeboter-recordings
 
 # Region (MinIO ignores this, but AWS SDK requires it)
-MINIO_REGION=us-east-1
+S3_REGION=us-east-1
 ```
 
-> **Note:** `MINIO_REGION` can be any string. MinIO doesn't use regions like AWS S3 - it's only required because the AWS S3 SDK needs a region parameter.
+> **Note:** `S3_REGION` can be any string. MinIO doesn't use regions like AWS S3 - it's only required because the AWS S3 SDK needs a region parameter.
 
 ### Step 3: Configure GHCR Registry Access on Coolify Server
 
@@ -1035,11 +1035,11 @@ GHCR_ORG=payme-works
 BOT_IMAGE_TAG=latest
 
 # MinIO
-MINIO_ENDPOINT=http://minio-service:9000
-MINIO_ACCESS_KEY=your-minio-access-key
-MINIO_SECRET_KEY=your-minio-secret-key
-MINIO_BUCKET_NAME=meeboter-recordings
-MINIO_REGION=us-east-1
+S3_ENDPOINT=http://minio-service:9000
+S3_ACCESS_KEY=your-minio-access-key
+S3_SECRET_KEY=your-minio-secret-key
+S3_BUCKET_NAME=meeboter-recordings
+S3_REGION=us-east-1
 
 # App
 NEXT_PUBLIC_APP_ORIGIN_URL=https://meeboter.yourdomain.com
