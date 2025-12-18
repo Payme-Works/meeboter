@@ -778,7 +778,7 @@ export const botPoolSlotsTable = pgTable(
 			.notNull()
 			.unique(),
 		/** Slot name for identification (e.g., "meeboter-pool-001") */
-		slotName: varchar("slotName", { length: 255 }).notNull(),
+		slotName: varchar("slotName", { length: 255 }).notNull().unique(),
 		/** Current status of the slot */
 		status: varchar("status", { length: 50 })
 			.$type<PoolSlotStatus>()

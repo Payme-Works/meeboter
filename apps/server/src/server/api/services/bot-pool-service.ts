@@ -23,6 +23,17 @@ const MAX_QUEUE_TIMEOUT_MS = 10 * 60 * 1000;
 const QUEUE_POLL_INTERVAL_MS = 1000;
 
 /**
+ * Advisory lock IDs for serializing slot creation per platform
+ * These must be unique across the application to avoid lock conflicts
+ */
+const PLATFORM_LOCK_IDS: Record<string, number> = {
+	meet: 100001,
+	teams: 100002,
+	zoom: 100003,
+	unknown: 100000,
+};
+
+/**
  * Pool slot with database fields
  */
 export interface PoolSlot {
@@ -219,7 +230,44 @@ export class BotPoolService {
 		console.log(`[Pool] Starting container for slot ${activeSlot.slotName}`);
 		await this.coolify.startApplication(activeSlot.coolifyServiceUuid);
 
-		// Transition from deploying to busy after container starts
+		// Wait for container to actually be running before transitioning to busy
+		console.log(
+			`[Pool] Waiting for container ${activeSlot.slotName} to be running...`,
+		);
+
+		const deploymentResult = await this.coolify.waitForDeployment(
+			activeSlot.coolifyServiceUuid,
+		);
+
+		if (!deploymentResult.success) {
+			// Mark slot as error if container failed to start
+			console.error(
+				`[Pool] Container ${activeSlot.slotName} failed to start: ${deploymentResult.error}`,
+			);
+
+			await this.db
+				.update(botPoolSlotsTable)
+				.set({
+					status: "error",
+					errorMessage: deploymentResult.error ?? "Container failed to start",
+				})
+				.where(eq(botPoolSlotsTable.id, activeSlot.id));
+
+			await this.updateSlotDescription(
+				activeSlot.coolifyServiceUuid,
+				"error",
+				undefined,
+				deploymentResult.error ?? "Container failed to start",
+			);
+
+			throw new Error(
+				`Container failed to start: ${deploymentResult.error ?? "Unknown error"}`,
+			);
+		}
+
+		// Container is running, now transition from deploying to busy
+		console.log(`[Pool] Container ${activeSlot.slotName} is now running`);
+
 		await this.db
 			.update(botPoolSlotsTable)
 			.set({ status: "busy" })
@@ -701,17 +749,22 @@ export class BotPoolService {
 		const image = this.coolify.selectBotImage(bot.meetingInfo);
 		const platformName = this.getPlatformSlotName(bot.meetingInfo.platform);
 
-		// Reserve slot number atomically using transaction with FOR UPDATE
-		// This prevents race conditions when multiple slots are created simultaneously
+		// Reserve slot number atomically using transaction with advisory lock
+		// Advisory lock works even when table is empty (unlike FOR UPDATE)
 		const { slotName, slotId } = await this.db.transaction(async (tx) => {
-			// Lock existing slots for this platform to prevent concurrent reads
+			// Acquire advisory lock for this platform to serialize slot creation
+			const lockId =
+				PLATFORM_LOCK_IDS[platformName] ?? PLATFORM_LOCK_IDS.unknown;
+
+			await tx.execute(sql`SELECT pg_advisory_xact_lock(${lockId})`);
+
+			// Now safe to read and calculate next slot number
 			const prefix = `meeboter-pool-${platformName}-`;
 
 			const existingSlots = await tx.execute<{ slotName: string }>(sql`
 				SELECT "slotName"
 				FROM ${botPoolSlotsTable}
 				WHERE "slotName" LIKE ${`${prefix}%`}
-				FOR UPDATE
 			`);
 
 			// Calculate next available number (finds first gap in sequence)
