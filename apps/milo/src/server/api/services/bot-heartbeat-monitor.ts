@@ -126,18 +126,18 @@ async function checkStaleHeartbeats(): Promise<MonitorResult> {
 
 				result.markedFatal++;
 
-				// Release the pool slot if assigned
+				// Release platform resources if assigned
 				if (bot.coolifyServiceUuid) {
 					try {
-						await services.pool.releaseSlot(bot.id);
+						await services.platform.releaseBot(bot.id);
 						result.slotsReleased++;
 
 						console.log(
-							`[HeartbeatMonitor] Released pool slot for bot ${bot.id}`,
+							`[HeartbeatMonitor] Released platform resources for bot ${bot.id}`,
 						);
 					} catch (releaseError) {
 						console.error(
-							`[HeartbeatMonitor] Failed to release slot for bot ${bot.id}:`,
+							`[HeartbeatMonitor] Failed to release resources for bot ${bot.id}:`,
 							releaseError,
 						);
 					}

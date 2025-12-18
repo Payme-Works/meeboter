@@ -1,3 +1,4 @@
+import { TRPCError } from "@trpc/server";
 import { and, desc, eq, notInArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import {
@@ -970,6 +971,13 @@ export const botsRouter = createTRPCRouter({
 			}),
 		)
 		.query(async () => {
+			if (!services.pool) {
+				throw new TRPCError({
+					code: "NOT_IMPLEMENTED",
+					message: "Pool stats are only available when using Coolify platform",
+				});
+			}
+
 			return await services.pool.getPoolStats();
 		}),
 
@@ -995,6 +1003,13 @@ export const botsRouter = createTRPCRouter({
 			}),
 		)
 		.query(async () => {
+			if (!services.pool) {
+				throw new TRPCError({
+					code: "NOT_IMPLEMENTED",
+					message: "Queue stats are only available when using Coolify platform",
+				});
+			}
+
 			return await services.pool.getQueueStats();
 		}),
 });

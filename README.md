@@ -425,15 +425,42 @@ For complete API documentation, visit `/docs` on your Meeboter instance (Scalar/
 | `S3_SECRET_ACCESS_KEY` | Secret key | Yes |
 | `S3_ENDPOINT` | Custom endpoint for MinIO | No |
 
-#### Coolify Integration (Production)
+#### Platform Selection
+
+| Variable | Description | Required | Default |
+|----------|-------------|----------|---------|
+| `DEPLOYMENT_PLATFORM` | Deployment backend: `coolify`, `aws`, or `auto` | No | `auto` |
+
+When set to `auto`, the platform is auto-detected based on available credentials:
+- If `COOLIFY_API_URL` and `COOLIFY_API_TOKEN` are set, Coolify is used
+- If `AWS_REGION` and `ECS_CLUSTER` are set, AWS ECS is used
+
+#### Coolify Integration
 
 | Variable | Description | Required |
 |----------|-------------|----------|
 | `COOLIFY_API_URL` | Coolify API endpoint | Yes* |
 | `COOLIFY_API_TOKEN` | Coolify API token | Yes* |
 | `COOLIFY_PROJECT_UUID` | Project UUID for bot pool | Yes* |
+| `COOLIFY_SERVER_UUID` | Server UUID | Yes* |
+| `COOLIFY_DESTINATION_UUID` | Destination UUID | Yes* |
 
-*Required for production deployments with bot pool
+*Required when `DEPLOYMENT_PLATFORM=coolify`
+
+#### AWS ECS Integration
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `AWS_REGION` | AWS region for ECS | Yes* |
+| `ECS_CLUSTER` | ECS cluster name or ARN | Yes* |
+| `ECS_SUBNETS` | Comma-separated subnet IDs | Yes* |
+| `ECS_SECURITY_GROUPS` | Comma-separated security group IDs | Yes* |
+| `ECS_TASK_DEF_ZOOM` | Task definition for Zoom bot | Yes* |
+| `ECS_TASK_DEF_TEAMS` | Task definition for Teams bot | Yes* |
+| `ECS_TASK_DEF_MEET` | Task definition for Meet bot | Yes* |
+| `ECS_ASSIGN_PUBLIC_IP` | Assign public IP to tasks | No | `true` |
+
+*Required when `DEPLOYMENT_PLATFORM=aws`
 
 ---
 

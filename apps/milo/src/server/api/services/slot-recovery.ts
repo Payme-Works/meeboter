@@ -132,6 +132,14 @@ async function attemptSlotRecovery(
 	try {
 		const services = await getServices();
 
+		if (!services.coolify) {
+			console.log(
+				"[Recovery] Coolify service not available, skipping recovery",
+			);
+
+			return false;
+		}
+
 		// Force stop the Coolify container
 		await services.coolify.stopApplication(slot.coolifyServiceUuid);
 
@@ -186,15 +194,17 @@ async function deleteSlotPermanently(
 
 	const services = await getServices();
 
-	// Try to delete from Coolify
-	try {
-		await services.coolify.deleteApplication(slot.coolifyServiceUuid);
-	} catch (error) {
-		console.error(
-			`[Recovery] Failed to delete Coolify app ${slot.coolifyServiceUuid}:`,
-			error,
-		);
-		// Continue with DB deletion anyway
+	// Try to delete from Coolify (only if service is available)
+	if (services.coolify) {
+		try {
+			await services.coolify.deleteApplication(slot.coolifyServiceUuid);
+		} catch (error) {
+			console.error(
+				`[Recovery] Failed to delete Coolify app ${slot.coolifyServiceUuid}:`,
+				error,
+			);
+			// Continue with DB deletion anyway
+		}
 	}
 
 	// Delete from database

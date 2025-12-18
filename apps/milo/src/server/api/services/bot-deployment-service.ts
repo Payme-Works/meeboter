@@ -7,8 +7,8 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { env } from "@/env";
 import type * as schema from "@/server/database/schema";
 import { type BotConfig, botsTable } from "@/server/database/schema";
-import type { BotPoolService } from "./bot-pool-service";
 import { CoolifyDeploymentError } from "./coolify-service";
+import type { PlatformService } from "./platform";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -37,20 +37,20 @@ export interface DeployBotResult {
  * Service for orchestrating bot deployments
  *
  * Handles the high-level deployment flow: decides between local dev
- * or production pool deployment, coordinates with BotPoolService,
+ * or production platform deployment, coordinates with PlatformService,
  * and manages bot status updates.
  */
 export class BotDeploymentService {
 	constructor(
 		private readonly db: PostgresJsDatabase<typeof schema>,
-		private readonly pool: BotPoolService,
+		private readonly platform: PlatformService,
 	) {}
 
 	/**
-	 * Deploys a bot either locally (development) or via bot pool (production)
+	 * Deploys a bot either locally (development) or via platform (production)
 	 *
 	 * @param botId - The ID of the bot to deploy
-	 * @param queueTimeoutMs - How long to wait in queue if pool is exhausted
+	 * @param queueTimeoutMs - How long to wait in queue if resources exhausted (Coolify only)
 	 * @returns The updated bot record and queue info if queued
 	 */
 	async deploy(
@@ -89,15 +89,15 @@ export class BotDeploymentService {
 			return await this.deployLocally(botId, config);
 		}
 
-		return await this.deployViaPool(botId, config, queueTimeoutMs);
+		return await this.deployViaPlatform(botId, config, queueTimeoutMs);
 	}
 
 	/**
-	 * Releases a bot's pool slot and processes any queued bots
+	 * Releases a bot's platform resources and processes any queued bots
 	 */
 	async release(botId: number): Promise<void> {
-		await this.pool.releaseSlot(botId);
-		await this.pool.processQueueOnSlotRelease();
+		await this.platform.releaseBot(botId);
+		await this.platform.processQueue();
 	}
 
 	/**
@@ -166,78 +166,91 @@ export class BotDeploymentService {
 	}
 
 	/**
-	 * Deploys a bot via the production pool
+	 * Deploys a bot via the configured platform (Coolify or AWS)
 	 */
-	private async deployViaPool(
+	private async deployViaPlatform(
 		botId: number,
 		config: BotConfig,
 		queueTimeoutMs: number,
 	): Promise<DeployBotResult> {
 		try {
-			const slot = await this.pool.acquireOrCreateSlot(botId);
+			// Set status to DEPLOYING before starting deployment
+			await this.db
+				.update(botsTable)
+				.set({ status: "DEPLOYING" })
+				.where(eq(botsTable.id, botId));
 
-			if (slot) {
+			// Deploy via the platform service
+			const deployResult = await this.platform.deployBot(
+				config,
+				queueTimeoutMs,
+			);
+
+			if (!deployResult.success) {
+				throw new BotDeploymentError(
+					deployResult.error ?? "Platform deployment failed",
+				);
+			}
+
+			// If queued, update status and return queue info
+			if (deployResult.queued) {
 				await this.db
 					.update(botsTable)
-					.set({ status: "DEPLOYING" })
+					.set({ status: "QUEUED" })
 					.where(eq(botsTable.id, botId));
 
-				const activeSlot = await this.pool.configureAndStartSlot(slot, config);
+				const queuedBot = await this.db
+					.select()
+					.from(botsTable)
+					.where(eq(botsTable.id, botId));
 
-				// Status stays as DEPLOYING - the bot itself will update to JOINING_CALL
-				// when it actually starts attempting to join the meeting
-				const result = await this.db
-					.update(botsTable)
-					.set({
-						coolifyServiceUuid: activeSlot.coolifyServiceUuid,
-						deploymentError: null,
-					})
-					.where(eq(botsTable.id, botId))
-					.returning();
+				const botRecord = queuedBot[0];
 
-				const deployedBot = result[0];
-
-				if (!deployedBot) {
-					throw new BotDeploymentError(
-						"Failed to update bot after pool deployment",
-					);
+				if (!botRecord) {
+					throw new BotDeploymentError("Failed to retrieve queued bot record");
 				}
 
 				console.log(
-					`Bot ${botId} deployed to pool slot ${activeSlot.slotName}`,
+					`[BotDeployment] Bot ${botId} queued at position ${deployResult.queuePosition}`,
 				);
 
-				return { bot: deployedBot, queued: false };
+				return {
+					bot: botRecord,
+					queued: true,
+					queuePosition: deployResult.queuePosition,
+					estimatedWaitMs: deployResult.estimatedWaitMs,
+				};
 			}
 
-			// No slot available, add to queue
-			console.log(`Bot ${botId} added to queue (pool exhausted)`);
+			// Deployed successfully, update with platform identifier
+			// Status stays as DEPLOYING - the bot itself will update to JOINING_CALL
+			// when it actually starts attempting to join the meeting
+			const result = await this.db
+				.update(botsTable)
+				.set({
+					coolifyServiceUuid: deployResult.identifier,
+					deploymentError: null,
+				})
+				.where(eq(botsTable.id, botId))
+				.returning();
 
-			const queuePosition = await this.pool.addToQueue(
-				botId,
-				queueTimeoutMs,
-				100,
+			const deployedBot = result[0];
+
+			if (!deployedBot) {
+				throw new BotDeploymentError(
+					"Failed to update bot after platform deployment",
+				);
+			}
+
+			const slotInfo = deployResult.slotName
+				? ` (slot: ${deployResult.slotName})`
+				: "";
+
+			console.log(
+				`[BotDeployment] Bot ${botId} deployed via ${this.platform.platformName}${slotInfo}`,
 			);
 
-			const estimatedWaitMs = this.pool.getEstimatedWaitMs(queuePosition);
-
-			const queuedBot = await this.db
-				.select()
-				.from(botsTable)
-				.where(eq(botsTable.id, botId));
-
-			const botRecord = queuedBot[0];
-
-			if (!botRecord) {
-				throw new BotDeploymentError("Failed to retrieve queued bot record");
-			}
-
-			return {
-				bot: botRecord,
-				queued: true,
-				queuePosition,
-				estimatedWaitMs,
-			};
+			return { bot: deployedBot, queued: false };
 		} catch (error) {
 			const errorMessage = this.getErrorMessage(error);
 
