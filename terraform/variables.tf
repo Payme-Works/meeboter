@@ -32,8 +32,8 @@ variable "github_token" {
   sensitive   = true
 }
 
-variable "bot_auth_token" {
+variable "milo_auth_token" {
   type        = string
-  description = "Authentication token for bot communication with backend"
+  description = "Authentication token for bot communication with Milo API"
   sensitive   = true
 }

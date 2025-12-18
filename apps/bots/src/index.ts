@@ -6,8 +6,8 @@ import {
 	startHeartbeat,
 } from "./monitoring";
 import { createS3ClientFromEnv, uploadRecordingToS3 } from "./s3";
-import { trpc } from "./trpc";
-import { type BotConfig, EventCode, type SpeakerTimeframe } from "./types";
+import { configureTrpc, getTrpc, trpc } from "./trpc";
+import { EventCode, type SpeakerTimeframe } from "./types";
 
 dotenv.config({ path: "../.env.test" }); // Load .env.test for testing
 dotenv.config();
@@ -32,7 +32,7 @@ async function startMessageProcessing(
 	const messageInterval = setInterval(async () => {
 		try {
 			// Call the backend API to get next queued message using tRPC
-			const queuedMessage = await trpc.chat.getNextQueuedMessage.query({
+			const queuedMessage = await getTrpc().chat.getNextQueuedMessage.query({
 				botId: botId.toString(),
 			});
 
@@ -89,11 +89,15 @@ export const main = async () => {
 
 	console.log(`Fetching bot config for pool slot: ${poolSlotUuid}`);
 
-	const botData: BotConfig = await trpc.bots.getPoolSlot.query({
+	// Use bootstrap trpc client to fetch config (uses MILO_URL env var)
+	const botData = await trpc.bots.getPoolSlot.query({
 		poolSlotUuid,
 	});
 
 	console.log("Received bot data:", botData);
+
+	// Reconfigure trpc client with miloUrl from config for all subsequent calls
+	configureTrpc(botData.miloUrl);
 
 	const botId = botData.id;
 

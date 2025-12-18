@@ -215,8 +215,8 @@ resource "aws_ecs_task_definition" "server" {
           value = "https://${local.workspace_domain}"
         },
         {
-          name  = "BOT_AUTH_TOKEN"
-          value = var.bot_auth_token
+          name  = "MILO_AUTH_TOKEN"
+          value = var.milo_auth_token
         }
       ]
 
@@ -315,8 +315,8 @@ resource "aws_ecs_task_definition" "meet_bot" {
       essential = true
       environment = [
         {
-          name  = "BACKEND_URL"
-          value = "https://${local.workspace_domain}/api/trpc"
+          name  = "MILO_URL"
+          value = "https://${local.workspace_domain}"
         },
         {
           name  = "AWS_BUCKET_NAME"
@@ -331,8 +331,8 @@ resource "aws_ecs_task_definition" "meet_bot" {
           value = "production"
         },
         {
-          name  = "BOT_AUTH_TOKEN"
-          value = var.bot_auth_token
+          name  = "MILO_AUTH_TOKEN"
+          value = var.milo_auth_token
         }
       ]
       readonlyRootFilesystem = false
@@ -365,8 +365,8 @@ resource "aws_ecs_task_definition" "zoom_bot" {
       essential = true
       environment = [
         {
-          name  = "BACKEND_URL"
-          value = "https://${local.workspace_domain}/api/trpc"
+          name  = "MILO_URL"
+          value = "https://${local.workspace_domain}"
         },
         {
           name  = "AWS_BUCKET_NAME"
@@ -381,8 +381,8 @@ resource "aws_ecs_task_definition" "zoom_bot" {
           value = "production"
         },
         {
-          name  = "BOT_AUTH_TOKEN"
-          value = var.bot_auth_token
+          name  = "MILO_AUTH_TOKEN"
+          value = var.milo_auth_token
         }
       ]
       readonlyRootFilesystem = false
@@ -415,8 +415,8 @@ resource "aws_ecs_task_definition" "teams_bot" {
       essential = true
       environment = [
         {
-          name  = "BACKEND_URL"
-          value = "https://${local.workspace_domain}/api/trpc"
+          name  = "MILO_URL"
+          value = "https://${local.workspace_domain}"
         },
         {
           name  = "AWS_BUCKET_NAME"
@@ -431,8 +431,8 @@ resource "aws_ecs_task_definition" "teams_bot" {
           value = "production"
         },
         {
-          name  = "BOT_AUTH_TOKEN"
-          value = var.bot_auth_token
+          name  = "MILO_AUTH_TOKEN"
+          value = var.milo_auth_token
         }
       ]
       readonlyRootFilesystem = false

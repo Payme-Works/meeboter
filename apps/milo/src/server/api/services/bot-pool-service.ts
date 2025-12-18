@@ -1,6 +1,7 @@
 import { eq, gt, lt, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 
+import { env } from "@/env";
 import type * as schema from "@/server/database/schema";
 import {
 	type BotConfig,
@@ -624,6 +625,7 @@ export class BotPoolService {
 			chatEnabled: bot.chatEnabled,
 			automaticLeave: bot.automaticLeave,
 			callbackUrl: bot.callbackUrl ?? undefined,
+			miloUrl: env.NEXT_PUBLIC_APP_ORIGIN_URL,
 		};
 
 		const slot = await this.acquireOrCreateSlot(nextEntry.botId);
@@ -853,6 +855,7 @@ export class BotPoolService {
 			chatEnabled: bot.chatEnabled,
 			automaticLeave: bot.automaticLeave,
 			callbackUrl: bot.callbackUrl ?? undefined,
+			miloUrl: env.NEXT_PUBLIC_APP_ORIGIN_URL,
 		};
 
 		try {

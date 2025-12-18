@@ -1,7 +1,7 @@
 import type { AppRouter } from "@meeboter/milo";
 import type { TRPCClient } from "@trpc/client";
 import { reportEvent } from "./monitoring";
-import { trpc } from "./trpc";
+import { getTrpc } from "./trpc";
 import type { BotConfig, EventCode, SpeakerTimeframe } from "./types";
 
 /**
@@ -116,7 +116,7 @@ export class Bot implements BotInterface {
 	) {
 		this.settings = settings;
 		this.onEvent = onEvent;
-		this.trpc = trpcInstance || trpc;
+		this.trpc = trpcInstance || getTrpc();
 	}
 
 	/**
@@ -303,7 +303,7 @@ export const createBot = async (botData: BotConfig): Promise<Bot> => {
 				async (eventType: EventCode, data?: Record<string, unknown>) => {
 					await reportEvent(botId, eventType, data);
 				},
-				trpc,
+				getTrpc(),
 			);
 		}
 
@@ -315,7 +315,7 @@ export const createBot = async (botData: BotConfig): Promise<Bot> => {
 				async (eventType: EventCode, data?: Record<string, unknown>) => {
 					await reportEvent(botId, eventType, data);
 				},
-				trpc,
+				getTrpc(),
 			);
 		}
 
@@ -327,7 +327,7 @@ export const createBot = async (botData: BotConfig): Promise<Bot> => {
 				async (eventType: EventCode, data?: Record<string, unknown>) => {
 					await reportEvent(botId, eventType, data);
 				},
-				trpc,
+				getTrpc(),
 			);
 		}
 

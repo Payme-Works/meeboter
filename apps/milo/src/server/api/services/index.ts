@@ -49,8 +49,7 @@ function createServices(): Services {
 				destinationUuid: env.COOLIFY_DESTINATION_UUID,
 			},
 			{
-				botAuthToken: env.BOT_AUTH_TOKEN ?? "",
-				backendUrl: `${env.NEXT_PUBLIC_APP_ORIGIN_URL}/api/trpc`,
+				miloAuthToken: env.MILO_AUTH_TOKEN,
 				s3Endpoint: env.S3_ENDPOINT,
 				s3AccessKey: env.S3_ACCESS_KEY,
 				s3SecretKey: env.S3_SECRET_KEY,

@@ -46,25 +46,47 @@ src/bots/
 
 Refer to the `.env.example` file for the required environment variables. Duplicate this file and rename it to `.env`. This `.env` file will be utilized by the application during execution.
 
-### Using `env-bot-data-example.ts`
+### How Configuration Works
 
-`env-bot-data-example.ts` is a script used to create the `BOT_DATA` environment variable for the bot when testing locally. This is a visually easier way to fill in the values than doing it manually. Create a duplicate of this file to
+Bots fetch their configuration dynamically from the Milo API using `POOL_SLOT_UUID`. This pattern avoids issues with stale environment variables in containerized deployments.
 
-1. Copy the script into `env-bot-data.ts` (this will be ignored by git)
-2. Fill in the `<...>` with the actual values
-3. Ensure the `.env` file is in this directory with _no_ `BOT_DATA` variable
-4. Run the script using the following command (this will modify your `.env` file)
+**Startup flow:**
+1. Bot container starts with `POOL_SLOT_UUID` environment variable
+2. Bot calls `getPoolSlot` API endpoint to fetch full configuration
+3. Configuration includes meeting details, timeouts, recording settings, and `miloUrl`
+4. Bot uses `miloUrl` from config for all subsequent API calls
+
+This ensures:
+- No stale configuration from cached container builds
+- Dynamic configuration without container rebuilds
+- Consistent behavior across Coolify, AWS ECS, and local development
+
+### Required Environment Variables
 
 ```bash
-cd apps/bots
-bun tsx env-bot-data.ts
+# Pool slot identifier (used to fetch bot config from API)
+POOL_SLOT_UUID="your-pool-slot-uuid"
+
+# Milo API URL for bootstrap (bot fetches miloUrl from config for subsequent calls)
+MILO_URL="https://meeboter.yourdomain.com"
+
+# Authentication token for API calls
+MILO_AUTH_TOKEN="your-auth-token"
+
+# S3-compatible storage
+S3_ENDPOINT="https://s3.amazonaws.com"
+S3_ACCESS_KEY="your-access-key"
+S3_SECRET_KEY="your-secret-key"
+S3_BUCKET_NAME="your-bucket"
+S3_REGION="us-east-1"
+
+# Runtime
+NODE_ENV="production"
 ```
 
-### Environment Setup
+### Meeting Info Structure
 
-See `.env.example` for an understanding of the file structure. Look at `env-bot-data-example.ts` for the structure of the variable `BOT_DATA`.
-
-The `meeting_info` object in the `.env` file is used to store the meeting information for the bot to join the meeting. However, this information is platform dependant- Each platform requires the use of different keys in the `meeting_info` object.
+The `meeting_info` object is stored in the bot configuration (fetched from API) and contains platform-specific meeting information.
 
 ### Zoom
 

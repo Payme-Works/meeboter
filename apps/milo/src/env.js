@@ -70,7 +70,7 @@ export const env = createEnv({
 			: z.string(),
 		S3_REGION: z.string().default("us-east-1"),
 
-		BOT_AUTH_TOKEN: z.string().optional(),
+		MILO_AUTH_TOKEN: z.string(),
 
 		NEXT_PUBLIC_APP_ORIGIN_URL: z.string().url(),
 
@@ -146,7 +146,8 @@ export const env = createEnv({
 		S3_BUCKET_NAME: process.env.S3_BUCKET_NAME,
 		S3_REGION: process.env.S3_REGION,
 
-		BOT_AUTH_TOKEN: process.env.BOT_AUTH_TOKEN,
+		MILO_AUTH_TOKEN: process.env.MILO_AUTH_TOKEN,
+
 		NEXT_PUBLIC_APP_ORIGIN_URL:
 			process.env.NEXT_PUBLIC_APP_ORIGIN_URL ||
 			(process.env.SKIP_ENV_VALIDATION ? "http://localhost:3000" : undefined),

@@ -1,6 +1,6 @@
 import { setTimeout } from "node:timers/promises";
 import dotenv from "dotenv";
-import { trpc } from "./trpc";
+import { getTrpc } from "./trpc";
 import { EventCode, Status } from "./types";
 
 /**
@@ -82,7 +82,7 @@ export const startHeartbeat = async (
 ) => {
 	while (!abortSignal.aborted) {
 		const result = await retryOperation(async () => {
-			return await trpc.bots.heartbeat.mutate({ id: String(botId) });
+			return await getTrpc().bots.heartbeat.mutate({ id: String(botId) });
 		}, "Heartbeat");
 
 		if (result !== null) {
@@ -128,7 +128,7 @@ export const reportEvent = async (
 
 	// Report event with retry logic
 	const reportResult = await retryOperation(async () => {
-		await trpc.bots.reportEvent.mutate({
+		await getTrpc().bots.reportEvent.mutate({
 			id: String(botId),
 			event: {
 				eventType,
@@ -150,14 +150,14 @@ export const reportEvent = async (
 		const statusUpdateResult = await retryOperation(async () => {
 			// If the event is DONE, we need to include the recording parameter
 			if (eventType === EventCode.DONE && eventData?.recording) {
-				await trpc.bots.updateBotStatus.mutate({
+				await getTrpc().bots.updateBotStatus.mutate({
 					id: String(botId),
 					status: eventType as unknown as Status,
 					recording: eventData.recording,
 					speakerTimeframes: eventData.speakerTimeframes,
 				});
 			} else {
-				await trpc.bots.updateBotStatus.mutate({
+				await getTrpc().bots.updateBotStatus.mutate({
 					id: String(botId),
 					status: eventType as unknown as Status,
 				});

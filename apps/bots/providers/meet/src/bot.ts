@@ -18,8 +18,10 @@ import {
 
 // Use stealth plugin to avoid detection
 const stealthPlugin = StealthPlugin();
+
 stealthPlugin.enabledEvasions.delete("iframe.contentWindow");
 stealthPlugin.enabledEvasions.delete("media.codecs");
+
 chromium.use(stealthPlugin);
 
 // User agent constant -- set Feb 2025

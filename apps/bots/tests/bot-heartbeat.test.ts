@@ -127,17 +127,26 @@ describe("Main function tests", () => {
 	let exitCode: string | number | null | undefined;
 
 	beforeEach(() => {
-		// Mock environment variables
-		process.env.BOT_DATA = JSON.stringify({
-			id: 123,
-			platform: "mock-platform",
-			heartbeatInterval: 200,
+		// Mock environment variables for the new POOL_SLOT_UUID pattern
+		// Bot config is fetched from API using POOL_SLOT_UUID, not passed via BOT_DATA
+		process.env.POOL_SLOT_UUID = "test-pool-slot-uuid";
+
+		// Use Object.defineProperty to work around TypeScript's read-only constraint on NODE_ENV
+		Object.defineProperty(process.env, "NODE_ENV", {
+			value: "test",
+			writable: true,
+			configurable: true,
 		});
 
-		process.env.AWS_BUCKET_NAME = "mock-bucket";
-		process.env.AWS_REGION = "mock-region";
-		process.env.AWS_ACCESS_KEY_ID = "mock-access-key";
-		process.env.AWS_SECRET_ACCESS_KEY = "mock-secret-key";
+		process.env.MILO_URL = "http://localhost:3000";
+		process.env.MILO_AUTH_TOKEN = "mock-auth-token";
+
+		// S3 configuration
+		process.env.S3_BUCKET_NAME = "mock-bucket";
+		process.env.S3_REGION = "mock-region";
+		process.env.S3_ACCESS_KEY = "mock-access-key";
+		process.env.S3_SECRET_KEY = "mock-secret-key";
+		process.env.S3_ENDPOINT = "http://localhost:9000";
 
 		exitCode = undefined;
 	});

@@ -1,12 +1,11 @@
 # Meeboter Docker Guide
 
-This guide provides instructions for building and running meeting bot Docker images for Google Meet, Microsoft Teams, and Zoom platforms.
+This guide provides instructions for building meeting bot Docker images for Google Meet, Microsoft Teams, and Zoom platforms.
 
 ## Prerequisites
 
 - Docker installed and running
 - Sufficient disk space (4GB+ for meet bot, 1.7GB+ for teams/zoom bots)
-- Required environment variables configured
 
 ## Available Bot Images
 
@@ -50,136 +49,44 @@ docker build -f providers/zoom/Dockerfile -t meeboter-zoom .
 
 All Dockerfiles are configured for automatic platform detection and will build native images for your architecture (ARM64 or AMD64).
 
-## Running Bots
+## Bot Configuration
+
+Bots fetch their configuration from the Milo API on startup using `POOL_SLOT_UUID`. This design avoids issues with stale environment variables in containerized deployments.
 
 ### Required Environment Variables
 
-All bots require these environment variables:
-
 ```bash
-# Bot configuration (JSON string)
-BOT_DATA='{"id":1,"userId":"user-id","meetingInfo":{"platform":"google|teams|zoom","meetingUrl":"meeting-url"},"meetingTitle":"Meeting Title","startTime":"2025-01-01T00:00:00Z","endTime":"2025-01-01T01:00:00Z","botDisplayName":"Bot Name","heartbeatInterval":10000,"automaticLeave":{"waitingRoomTimeout":3600000,"noOneJoinedTimeout":3600000,"everyoneLeftTimeout":3600000,"inactivityTimeout":3600000},"recordingEnabled":false}'
+# Pool slot identifier (used to fetch bot config from API)
+POOL_SLOT_UUID="coolify-service-uuid"
 
-# AWS configuration
-AWS_BUCKET_NAME="your-s3-bucket"
-AWS_REGION="us-east-1"
+# Milo API URL for bootstrap (bot fetches miloUrl from config for subsequent calls)
+MILO_URL="https://meeboter.yourdomain.com"
 
-# Node environment
-NODE_ENV="development"
+# Authentication token for API calls
+MILO_AUTH_TOKEN="your-auth-token"
+
+# S3-compatible storage
+S3_ENDPOINT="https://s3.amazonaws.com"
+S3_ACCESS_KEY="your-access-key"
+S3_SECRET_KEY="your-secret-key"
+S3_BUCKET_NAME="your-bucket"
+S3_REGION="us-east-1"
+
+# Runtime
+NODE_ENV="production"
 ```
 
-### Google Meet Bot
+### How It Works
 
-```bash
-docker run --rm \\
-  -e DISPLAY=:99 \\
-  -e NODE_ENV=development \\
-  -e BOT_DATA='{"id":1,"userId":"user-id","meetingInfo":{"platform":"google","meetingUrl":"https://meet.google.com/abc-defg-hij"},"meetingTitle":"Test Meeting","startTime":"2025-01-01T00:00:00Z","endTime":"2025-01-01T01:00:00Z","botDisplayName":"Test Bot","heartbeatInterval":10000,"automaticLeave":{"waitingRoomTimeout":3600000,"noOneJoinedTimeout":3600000,"everyoneLeftTimeout":3600000,"inactivityTimeout":3600000},"recordingEnabled":false}' \\
-  -e AWS_BUCKET_NAME="your-bucket" \\
-  -e AWS_REGION="us-east-1" \\
-  meeboter-meet
-```
+1. Bot container starts with `POOL_SLOT_UUID` environment variable
+2. Bot calls `getPoolSlot` API endpoint to fetch full configuration
+3. Configuration includes meeting details, timeouts, recording settings, and `miloUrl`
+4. Bot uses `miloUrl` from config for all subsequent API calls
 
-### Microsoft Teams Bot
-
-```bash
-docker run --rm \\
-  -e NODE_ENV=development \\
-  -e BOT_DATA='{"id":1,"userId":"user-id","meetingInfo":{"platform":"teams","meetingUrl":"https://teams.microsoft.com/l/meetup-join/..."},"meetingTitle":"Test Meeting","startTime":"2025-01-01T00:00:00Z","endTime":"2025-01-01T01:00:00Z","botDisplayName":"Test Bot","heartbeatInterval":10000,"automaticLeave":{"waitingRoomTimeout":3600000,"noOneJoinedTimeout":3600000,"everyoneLeftTimeout":3600000,"inactivityTimeout":3600000},"recordingEnabled":false}' \\
-  -e AWS_BUCKET_NAME="your-bucket" \\
-  -e AWS_REGION="us-east-1" \\
-  meeboter-teams
-```
-
-### Zoom Bot
-
-```bash
-docker run --rm \\
-  -e NODE_ENV=development \\
-  -e BOT_DATA='{"id":1,"userId":"user-id","meetingInfo":{"platform":"zoom","meetingUrl":"https://zoom.us/j/123456789"},"meetingTitle":"Test Meeting","startTime":"2025-01-01T00:00:00Z","endTime":"2025-01-01T01:00:00Z","botDisplayName":"Test Bot","heartbeatInterval":10000,"automaticLeave":{"waitingRoomTimeout":3600000,"noOneJoinedTimeout":3600000,"everyoneLeftTimeout":3600000,"inactivityTimeout":3600000},"recordingEnabled":false}' \\
-  -e AWS_BUCKET_NAME="your-bucket" \\
-  -e AWS_REGION="us-east-1" \\
-  meeboter-zoom
-```
-
-## BOT_DATA Configuration
-
-The `BOT_DATA` environment variable must be a JSON string with the following structure:
-
-```json
-{
-  "id": 1,
-  "userId": "unique-user-id",
-  "meetingInfo": {
-    "platform": "google|teams|zoom",
-    "meetingUrl": "https://...",
-    "meetingId": "optional-meeting-id",
-    "meetingPassword": "optional-password"
-  },
-  "meetingTitle": "Meeting Title",
-  "startTime": "2025-01-01T00:00:00Z",
-  "endTime": "2025-01-01T01:00:00Z",
-  "botDisplayName": "Bot Display Name",
-  "heartbeatInterval": 10000,
-  "automaticLeave": {
-    "waitingRoomTimeout": 3600000,
-    "noOneJoinedTimeout": 3600000,
-    "everyoneLeftTimeout": 3600000,
-    "inactivityTimeout": 3600000
-  },
-  "recordingEnabled": false,
-  "callbackUrl": "optional-webhook-url"
-}
-```
-
-### Platform-Specific meetingInfo
-
-#### Google Meet
-
-```json
-"meetingInfo": {
-  "platform": "google",
-  "meetingUrl": "https://meet.google.com/abc-defg-hij"
-}
-```
-
-#### Microsoft Teams
-
-```json
-"meetingInfo": {
-  "platform": "teams",
-  "meetingUrl": "https://teams.microsoft.com/l/meetup-join/...",
-  "meetingId": "meeting-id",
-  "organizerId": "organizer-id",
-  "tenantId": "tenant-id"
-}
-```
-
-#### Zoom
-
-```json
-"meetingInfo": {
-  "platform": "zoom",
-  "meetingUrl": "https://zoom.us/j/123456789?pwd=password",
-  "meetingId": "123456789",
-  "meetingPassword": "optional-password"
-}
-```
-
-## Testing
-
-### Quick Test Commands
-
-```bash
-# Test Google Meet bot (10 second run)
-docker run --rm -e DISPLAY=:99 -e NODE_ENV=development -e BOT_DATA='{"id":1,"userId":"test","meetingInfo":{"platform":"google","meetingUrl":"https://meet.google.com/test"},"meetingTitle":"Test","startTime":"2025-01-01T00:00:00Z","endTime":"2025-01-01T01:00:00Z","botDisplayName":"Test","heartbeatInterval":10000,"automaticLeave":{"waitingRoomTimeout":3600000,"noOneJoinedTimeout":3600000,"everyoneLeftTimeout":3600000,"inactivityTimeout":3600000},"recordingEnabled":false}' -e AWS_BUCKET_NAME="test" -e AWS_REGION="us-east-1" meeboter-meet & sleep 10 && docker kill $(docker ps -q --filter ancestor=meeboter-meet) 2>/dev/null
-
-# Test Teams bot (8 second run)
-docker run --rm -e NODE_ENV=development -e BOT_DATA='{"id":1,"userId":"test","meetingInfo":{"platform":"teams","meetingUrl":"https://teams.microsoft.com/test"},"meetingTitle":"Test","startTime":"2025-01-01T00:00:00Z","endTime":"2025-01-01T01:00:00Z","botDisplayName":"Test","heartbeatInterval":10000,"automaticLeave":{"waitingRoomTimeout":3600000,"noOneJoinedTimeout":3600000,"everyoneLeftTimeout":3600000,"inactivityTimeout":3600000},"recordingEnabled":false}' -e AWS_BUCKET_NAME="test" -e AWS_REGION="us-east-1" meeboter-teams & sleep 8 && docker kill $(docker ps -q --filter ancestor=meeboter-teams) 2>/dev/null
-
-# Test Zoom bot (8 second run)
-docker run --rm -e NODE_ENV=development -e BOT_DATA='{"id":1,"userId":"test","meetingInfo":{"platform":"zoom","meetingUrl":"https://zoom.us/j/123456789"},"meetingTitle":"Test","startTime":"2025-01-01T00:00:00Z","endTime":"2025-01-01T01:00:00Z","botDisplayName":"Test","heartbeatInterval":10000,"automaticLeave":{"waitingRoomTimeout":3600000,"noOneJoinedTimeout":3600000,"everyoneLeftTimeout":3600000,"inactivityTimeout":3600000},"recordingEnabled":false}' -e AWS_BUCKET_NAME="test" -e AWS_REGION="us-east-1" meeboter-zoom & sleep 8 && docker kill $(docker ps -q --filter ancestor=meeboter-zoom) 2>/dev/null
-```
+This pattern ensures:
+- No stale configuration from cached container builds
+- Dynamic configuration without container rebuilds
+- Consistent behavior across Coolify, AWS ECS, and local development
 
 ## Troubleshooting
 
@@ -217,8 +124,8 @@ docker logs <container-id>
 
 All Docker images support both AMD64 and ARM64 architectures:
 
-- ✅ **AMD64**: Intel/AMD processors, AWS ECS, most cloud providers
-- ✅ **ARM64**: Apple Silicon (M1/M2), AWS Graviton, ARM-based servers
+- **AMD64**: Intel/AMD processors, AWS ECS, most cloud providers
+- **ARM64**: Apple Silicon (M1/M2), AWS Graviton, ARM-based servers
 
 Images automatically build for the host architecture without any platform-specific configuration.
 
@@ -226,7 +133,8 @@ Images automatically build for the host architecture without any platform-specif
 
 - All bots run as non-root users
 - No hardcoded secrets or credentials
-- Environment variables used for configuration
+- Environment variables used for sensitive configuration
+- Bot config fetched dynamically from API (not baked into image)
 - Minimal attack surface with distroless/alpine base images where possible
 
 ## Performance

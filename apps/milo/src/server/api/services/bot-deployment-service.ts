@@ -6,7 +6,11 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 
 import { env } from "@/env";
 import type * as schema from "@/server/database/schema";
-import { type BotConfig, botsTable } from "@/server/database/schema";
+import {
+	type BotConfig,
+	botPoolSlotsTable,
+	botsTable,
+} from "@/server/database/schema";
 import { CoolifyDeploymentError } from "./coolify-service";
 import type { PlatformService } from "./platform";
 
@@ -83,10 +87,11 @@ export class BotDeploymentService {
 			chatEnabled: bot.chatEnabled,
 			automaticLeave: bot.automaticLeave,
 			callbackUrl: bot.callbackUrl ?? undefined,
+			miloUrl: env.NEXT_PUBLIC_APP_ORIGIN_URL,
 		};
 
 		if (isDev) {
-			return await this.deployLocally(botId, config);
+			return await this.deployLocally(botId);
 		}
 
 		return await this.deployViaPlatform(botId, config, queueTimeoutMs);
@@ -117,10 +122,7 @@ export class BotDeploymentService {
 	/**
 	 * Deploys a bot locally for development
 	 */
-	private async deployLocally(
-		botId: number,
-		config: BotConfig,
-	): Promise<DeployBotResult> {
+	private async deployLocally(botId: number): Promise<DeployBotResult> {
 		await this.db
 			.update(botsTable)
 			.set({ status: "DEPLOYING" })
@@ -128,12 +130,26 @@ export class BotDeploymentService {
 
 		const botsDir = path.resolve(__dirname, "../../../../../bots");
 
+		// For local development, create a mock pool slot so bot can fetch config via API
+		// This mirrors the production flow where bots fetch config using POOL_SLOT_UUID
+		const mockPoolSlotUuid = `local-dev-${botId}-${Date.now()}`;
+
+		// Insert mock pool slot for local dev
+		await this.db.insert(botPoolSlotsTable).values({
+			coolifyServiceUuid: mockPoolSlotUuid,
+			slotName: `local-bot-${botId}`,
+			status: "busy",
+			assignedBotId: botId,
+			lastUsedAt: new Date(),
+		});
+
 		const botProcess = spawn("pnpm", ["start"], {
 			cwd: botsDir,
 			env: {
 				...process.env,
-				BOT_DATA: JSON.stringify(config),
-				BOT_AUTH_TOKEN: process.env.BOT_AUTH_TOKEN,
+				POOL_SLOT_UUID: mockPoolSlotUuid,
+				MILO_URL: env.NEXT_PUBLIC_APP_ORIGIN_URL,
+				MILO_AUTH_TOKEN: process.env.MILO_AUTH_TOKEN,
 			},
 		});
 

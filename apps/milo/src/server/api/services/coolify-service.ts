@@ -16,8 +16,7 @@ export interface CoolifyConfig {
  * Configuration for bot environment variables
  */
 export interface BotEnvConfig {
-	botAuthToken: string;
-	backendUrl: string;
+	miloAuthToken: string;
 	s3Endpoint: string;
 	s3AccessKey: string;
 	s3SecretKey: string;
@@ -186,28 +185,12 @@ export class CoolifyService {
 
 		const data = (await response.json()) as CoolifyCreateResponse;
 
-		await this.setEnvironmentVariables(data.uuid, botId);
-
-		return data.uuid;
-	}
-
-	/**
-	 * Sets environment variables for a Coolify application
-	 *
-	 * IMPORTANT: Only sets IMMUTABLE variables that don't change between slot reuses.
-	 * Dynamic bot config is fetched at runtime via API using POOL_SLOT_UUID.
-	 * This avoids triggering Coolify rebuilds on env var changes (Coolify bug #2854).
-	 */
-	async setEnvironmentVariables(
-		applicationUuid: string,
-		_botId: number,
-	): Promise<void> {
+		// Set environment variables for the application
 		// POOL_SLOT_UUID allows bot container to fetch its config from API on startup
-		// All other vars are constant across all pool slot uses
+		// MILO_URL is set globally in Coolify for bootstrap, bot then uses miloUrl from getPoolSlot response
 		const envVars: EnvVar[] = [
-			{ key: "POOL_SLOT_UUID", value: applicationUuid },
-			{ key: "BOT_AUTH_TOKEN", value: this.botEnvConfig.botAuthToken },
-			{ key: "BACKEND_URL", value: this.botEnvConfig.backendUrl },
+			{ key: "POOL_SLOT_UUID", value: data.uuid },
+			{ key: "MILO_AUTH_TOKEN", value: this.botEnvConfig.miloAuthToken },
 			{ key: "S3_ENDPOINT", value: this.botEnvConfig.s3Endpoint },
 			{ key: "S3_ACCESS_KEY", value: this.botEnvConfig.s3AccessKey },
 			{ key: "S3_SECRET_KEY", value: this.botEnvConfig.s3SecretKey },
@@ -216,8 +199,8 @@ export class CoolifyService {
 			{ key: "NODE_ENV", value: "production" },
 		];
 
-		const response = await fetch(
-			`${this.config.apiUrl}/applications/${applicationUuid}/envs/bulk`,
+		const envResponse = await fetch(
+			`${this.config.apiUrl}/applications/${data.uuid}/envs/bulk`,
 			{
 				method: "PATCH",
 				headers: {
@@ -228,12 +211,14 @@ export class CoolifyService {
 			},
 		);
 
-		if (!response.ok) {
+		if (!envResponse.ok) {
 			console.error(
-				`[CoolifyService] Failed to set environment variables for slot ${applicationUuid}:`,
-				await response.text(),
+				`[CoolifyService] Failed to set environment variables for slot ${data.uuid}:`,
+				await envResponse.text(),
 			);
 		}
+
+		return data.uuid;
 	}
 
 	/**

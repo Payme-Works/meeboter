@@ -268,7 +268,7 @@ DATABASE_URL=postgresql://user:pass@postgres:5432/meeboter
 AUTH_SECRET=...
 AUTH_GITHUB_ID=...
 AUTH_GITHUB_SECRET=...
-BOT_AUTH_TOKEN=...
+MILO_AUTH_TOKEN=...
 NEXT_PUBLIC_APP_ORIGIN_URL=https://meeboter.yourdomain.com
 ```
 
@@ -298,7 +298,7 @@ server: {
   S3_REGION: z.string().default("us-east-1"),
 
   // Keep
-  BOT_AUTH_TOKEN: z.string().optional(),
+  MILO_AUTH_TOKEN: z.string().optional(),
   NEXT_PUBLIC_APP_ORIGIN_URL: z.string().url(),
 }
 ```
@@ -308,15 +308,17 @@ server: {
 When spawning bots via Coolify API, inject these:
 
 ```bash
-BOT_DATA={"id":123,"meetingInfo":...}  # JSON config
-BOT_AUTH_TOKEN=...                      # Auth with server
-BACKEND_URL=https://meeboter.yourdomain.com/api/trpc
+POOL_SLOT_UUID=<coolify-service-uuid>   # Used to fetch bot config from API
+MILO_URL=https://meeboter.yourdomain.com  # Bootstrap URL (set globally in Coolify)
+MILO_AUTH_TOKEN=...                      # Auth with Milo API
 S3_ENDPOINT=https://minio.yourdomain.com
 S3_ACCESS_KEY=...
 S3_SECRET_KEY=...
 S3_BUCKET_NAME=meeboter-recordings
 NODE_ENV=production
 ```
+
+Note: Bot containers fetch their full configuration (including the dynamic `miloUrl`) from the `getPoolSlot` API endpoint on startup. This avoids issues with stale environment variables when Coolify caches build artifacts.
 
 ---
 

@@ -323,7 +323,7 @@ Request arrives (createBot)
                                     ▼
                     ┌─────────────────────────────┐
                     │ Configure slot               │
-                    │ • Update BOT_DATA env var   │
+                    │ • Assign bot to slot in DB  │
                     │ • Update description [BUSY] │
                     └─────────────────────────────┘
                                     │
@@ -697,13 +697,15 @@ BOT_IMAGE_TAG=latest
 #### Bot Containers
 
 ```bash
-BOT_DATA=<base64-encoded-json>  # Bot configuration
-BOT_AUTH_TOKEN=server-auth-token
-BACKEND_URL=https://meeboter.yourdomain.com/api/trpc
+POOL_SLOT_UUID=<coolify-service-uuid>  # Used to fetch bot config from API
+MILO_URL=https://meeboter.yourdomain.com  # Bootstrap URL for initial API call
+MILO_AUTH_TOKEN=server-auth-token
 S3_ENDPOINT=...
 S3_ACCESS_KEY=...
 S3_SECRET_KEY=...
 ```
+
+Note: Bot containers fetch their full configuration (including the dynamic `miloUrl`) from the `getPoolSlot` API endpoint on startup.
 
 ---
 

@@ -302,13 +302,13 @@ export const protectedProcedure = t.procedure
 			}
 		}
 
-		// Try to authenticate using bot token
-		const botToken = ctx.headers.get("x-bot-token");
+		// Try to authenticate using Milo token
+		const miloToken = ctx.headers.get("X-Milo-Token");
 
 		if (
-			botToken &&
-			process.env.BOT_AUTH_TOKEN &&
-			botToken === process.env.BOT_AUTH_TOKEN
+			miloToken &&
+			process.env.MILO_AUTH_TOKEN &&
+			miloToken === process.env.MILO_AUTH_TOKEN
 		) {
 			// Create a minimal session for bot operations
 			const botSession: Session = {

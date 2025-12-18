@@ -40,8 +40,7 @@ export interface AWSPlatformConfig {
  * Environment configuration passed to bot containers
  */
 export interface AWSBotEnvConfig {
-	botAuthToken: string;
-	backendUrl: string;
+	miloAuthToken: string;
 	s3Endpoint: string;
 	s3AccessKey: string;
 	s3SecretKey: string;
@@ -93,7 +92,7 @@ export class AWSPlatformService implements PlatformService {
 						containerOverrides: [
 							{
 								name: containerName,
-								environment: this.buildEnvironmentVariables(botConfig),
+								environment: this.buildEnvironmentVariables(),
 							},
 						],
 					},
@@ -219,19 +218,15 @@ export class AWSPlatformService implements PlatformService {
 	}
 
 	/**
-	 * Builds environment variables for the bot container
+	 * Builds environment variables for the bot container.
+	 * Note: Bot config is NOT passed as env vars anymore.
+	 * Bot fetches config via API using POOL_SLOT_UUID (set in task definition).
+	 * MILO_URL is set in ECS task definition for bootstrap.
 	 */
-	private buildEnvironmentVariables(
-		botConfig: BotConfig,
-	): Array<{ name: string; value: string }> {
+	private buildEnvironmentVariables(): Array<{ name: string; value: string }> {
 		return [
-			// Bot identification
-			{ name: "BOT_ID", value: String(botConfig.id) },
-			{ name: "BOT_DATA", value: JSON.stringify(botConfig) },
-
 			// Authentication
-			{ name: "BOT_AUTH_TOKEN", value: this.botEnvConfig.botAuthToken },
-			{ name: "BACKEND_URL", value: this.botEnvConfig.backendUrl },
+			{ name: "MILO_AUTH_TOKEN", value: this.botEnvConfig.miloAuthToken },
 
 			// S3-compatible storage configuration
 			{ name: "S3_ENDPOINT", value: this.botEnvConfig.s3Endpoint },

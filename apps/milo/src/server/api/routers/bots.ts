@@ -1,6 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import { and, desc, eq, notInArray, sql } from "drizzle-orm";
 import { z } from "zod";
+import { env } from "@/env";
 import {
 	createTRPCRouter,
 	protectedProcedure,
@@ -945,6 +946,7 @@ export const botsRouter = createTRPCRouter({
 				automaticLeave: bot.automaticLeave,
 				callbackUrl: bot.callbackUrl ?? undefined,
 				chatEnabled: bot.chatEnabled,
+				miloUrl: env.NEXT_PUBLIC_APP_ORIGIN_URL,
 			};
 		}),
 

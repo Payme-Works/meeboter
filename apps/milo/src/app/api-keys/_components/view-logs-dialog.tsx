@@ -91,7 +91,7 @@ export function ViewLogsDialog({
 	return (
 		<Dialog
 			open={selectedViewLogsKeyId !== null}
-			onOpenChange={(_open) => setSelectedViewLogsKeyId(null)}
+			onOpenChange={() => setSelectedViewLogsKeyId(null)}
 		>
 			<DialogContent className="max-w-4xl" aria-description="API Key Logs">
 				<DialogHeader>

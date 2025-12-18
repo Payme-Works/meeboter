@@ -206,9 +206,9 @@ Create new slot        Add to queue         │
     └────────────────────────┴──────────────┘
                              │
                              ▼
-              Update env vars (BOT_DATA)
+              Assign bot to slot in DB
               Update description: [BUSY]
-              Start container
+              Start container (fetches config via API)
               status: "JOINING_CALL"
                              │
                              ▼

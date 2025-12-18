@@ -2,6 +2,22 @@ import { jest } from "@jest/globals";
 
 console.log("Mocking trpc.ts");
 
+/**
+ * Default mock bot data returned by getPoolSlot.
+ * Tests can override this by modifying mockBotData before running.
+ */
+export const mockBotData = {
+	id: 123,
+	platform: "mock-platform",
+	heartbeatInterval: 200,
+	miloUrl: "http://localhost:3000",
+	recordingEnabled: true,
+	chatEnabled: false,
+	meetingInfo: {
+		platform: "mock-platform",
+	},
+};
+
 export const trpc = {
 	transformer: jest.fn(() => {}),
 	links: [
@@ -12,6 +28,13 @@ export const trpc = {
 		},
 	],
 	bots: {
+		getPoolSlot: {
+			query: jest.fn(() => {
+				console.log("Mock getPoolSlot query called");
+
+				return Promise.resolve(mockBotData);
+			}),
+		},
 		heartbeat: {
 			mutate: jest.fn(() => {
 				console.log("Mock heartbeat mutate called");
@@ -40,4 +63,20 @@ export const trpc = {
 			}),
 		},
 	},
+	chat: {
+		getNextQueuedMessage: {
+			query: jest.fn(() => {
+				console.log("Mock getNextQueuedMessage query called");
+
+				return Promise.resolve(null);
+			}),
+		},
+	},
 };
+
+// Export mock functions for configureTrpc and getTrpc
+export const configureTrpc = jest.fn((miloUrl: string) => {
+	console.log(`Mock configureTrpc called with: ${miloUrl}`);
+});
+
+export const getTrpc = jest.fn(() => trpc);

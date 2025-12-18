@@ -72,7 +72,7 @@ COOLIFY_DESTINATION_UUID="your-destination-uuid"
 # Bot Images (GitHub Container Registry)
 GHCR_ORG="your-github-org"
 BOT_IMAGE_TAG="latest"
-BOT_AUTH_TOKEN="your-bot-auth-token"
+MILO_AUTH_TOKEN="your-milo-auth-token"
 ```
 
 ### Getting Coolify UUIDs
@@ -157,7 +157,7 @@ ECS_TASK_DEF_TEAMS="meeboter-teams-bot:1"
 ECS_TASK_DEF_MEET="meeboter-google-meet-bot:1"
 
 # Bot Configuration
-BOT_AUTH_TOKEN="your-bot-auth-token"
+MILO_AUTH_TOKEN="your-milo-auth-token"
 ```
 
 ### Task Definition Setup
@@ -251,7 +251,7 @@ Both platforms require bot container images. Meeboter supports:
 | `MEETING_PLATFORM` | Platform type (zoom, teams, meet) |
 | `BOT_NAME` | Display name in meeting |
 | `API_CALLBACK_URL` | Meeboter API callback endpoint |
-| `BOT_AUTH_TOKEN` | Authentication token for API calls |
+| `MILO_AUTH_TOKEN` | Authentication token for Milo API calls |
 | `RECORDING_MODE` | Recording configuration |
 
 ---
