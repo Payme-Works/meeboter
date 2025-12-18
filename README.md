@@ -562,9 +562,9 @@ bun turbo db:studio --filter=@meeboter/server
 
 ## License
 
-This project is licensed under the **GNU Lesser General Public License (LGPL)**.
+This project is licensed under the **MIT License**.
 
-You can use this code commercially or non-commercially, as long as any modifications or forks remain open source.
+You are free to use, modify, and distribute this software for any purpose, commercial or non-commercial.
 
 See [LICENSE](LICENSE) for details.
 
