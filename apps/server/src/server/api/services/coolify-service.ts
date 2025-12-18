@@ -428,30 +428,58 @@ export class CoolifyService {
 
 	/**
 	 * Waits for a Coolify application deployment to complete
+	 *
+	 * Uses a grace period to handle the delay between calling startApplication
+	 * and the container actually beginning to start. During the grace period,
+	 * "exited"/"stopped" statuses are not treated as failures since they may
+	 * represent the old state before Coolify processes the start command.
 	 */
 	async waitForDeployment(
 		applicationUuid: string,
-		timeoutMs: number = 5 * 60 * 1000,
-		pollIntervalMs: number = 10 * 1000,
+		timeoutMs: number = 30 * 60 * 1000,
+		pollIntervalMs: number = 15 * 1000,
 	): Promise<DeploymentStatusResult> {
 		const startTime = Date.now();
 
+		// Grace period before treating exited/stopped as failures (20 minutes)
+		// Deployments (image pull, extract, container creation) take 5-25min
+		// During this time status may show "exited"/"stopped" which is normal
+		const gracePeriodMs = 20 * 60 * 1000;
+
 		const successStatuses = ["running", "healthy"];
-		const failedStatuses = ["exited", "error", "stopped", "degraded"];
+		// "error" and "degraded" are always failures
+		const alwaysFailedStatuses = ["error", "degraded"];
+		// "exited" and "stopped" are failures only after grace period
+		const delayedFailedStatuses = ["exited", "stopped"];
 
 		while (Date.now() - startTime < timeoutMs) {
 			try {
 				const status = await this.getApplicationStatus(applicationUuid);
+				const elapsedMs = Date.now() - startTime;
+				const isGracePeriod = elapsedMs < gracePeriodMs;
 
 				console.log(
-					`[CoolifyService] Application ${applicationUuid} status: ${status}`,
+					`[CoolifyService] Application ${applicationUuid} status: ${status} (elapsed: ${Math.round(elapsedMs / 1000)}s, grace: ${isGracePeriod})`,
 				);
 
 				if (successStatuses.includes(status.toLowerCase())) {
 					return { success: true, status };
 				}
 
-				if (failedStatuses.includes(status.toLowerCase())) {
+				// Always treat these as failures
+				if (alwaysFailedStatuses.includes(status.toLowerCase())) {
+					return {
+						success: false,
+						status,
+						error: `Deployment failed with status: ${status}`,
+					};
+				}
+
+				// Only treat exited/stopped as failures after grace period
+				if (
+					!isGracePeriod &&
+					delayedFailedStatuses.includes(status.toLowerCase())
+				) {
 					return {
 						success: false,
 						status,

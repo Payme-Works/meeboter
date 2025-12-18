@@ -55,22 +55,31 @@ slotName: varchar("slotName", { length: 255 }).notNull().unique(),
 
 Requires migration and cleanup of existing duplicates first.
 
-### Fix 3: Wait for Deployment
+### Fix 3: Fire-and-Forget Status Transition
 
-Use existing `waitForDeployment()` before transitioning to `busy`:
+Wait for deployment in background for optimistic UI feedback:
 
 ```typescript
 await this.coolify.startApplication(activeSlot.coolifyServiceUuid);
 
-const result = await this.coolify.waitForDeployment(activeSlot.coolifyServiceUuid);
-if (!result.success) {
-  // Mark as error, not busy
-  throw new Error(`Container failed to start: ${result.error}`);
-}
+// Fire-and-forget: runs in background, returns immediately
+this.waitAndTransitionStatus(activeSlot, botConfig.id).catch((error) => {
+  console.error(`Background status transition failed:`, error);
+});
 
-// NOW transition to busy
-await this.db.update(...).set({ status: "busy" });
+// Return immediately with deploying status
+return { ...activeSlot, status: "deploying" };
 ```
+
+The background `waitAndTransitionStatus` method handles:
+- Polling `waitForDeployment()` until container is running
+- Updating status to `busy` on success
+- Updating status to `error` on failure
+
+**Benefits**:
+- API returns immediately with `deploying` status
+- User sees optimistic feedback
+- Status transitions correctly in background
 
 ## Implementation
 
@@ -78,7 +87,8 @@ await this.db.update(...).set({ status: "busy" });
 
 1. `bot-pool-service.ts`
    - Add advisory lock to `createAndAcquireNewSlot`
-   - Update `configureAndStartSlot` to wait for deployment
+   - Add `waitAndTransitionStatus` helper method
+   - Update `configureAndStartSlot` to fire-and-forget
 
 2. `schema.ts`
    - Add `.unique()` to `slotName` column
@@ -95,9 +105,33 @@ Also delete corresponding Coolify applications manually.
 ## Status Lifecycle (Corrected)
 
 ```
-idle → deploying (on acquire) → [wait for container] → busy → idle
+idle → deploying (on acquire) → [background wait] → busy → idle
               ↓                         ↓
            error                     error
 ```
 
-`deploying` status now visible for ~30 seconds while container starts.
+API returns immediately with `deploying` status. Background process transitions to `busy` (~30 seconds) or `error`.
+
+### Fix 4: Grace Period in waitForDeployment
+
+The `waitForDeployment` function was failing prematurely because:
+1. `startApplication` queues the start and returns immediately
+2. First poll catches container in "exited"/"stopped" state (old state)
+3. Treated as failure before Coolify even began starting the container
+
+**Solution**: Add 3-minute grace period where "exited"/"stopped" are not treated as failures:
+
+```typescript
+// Deployments can take 5-20 minutes
+const timeoutMs = 25 * 60 * 1000;     // 25 min total timeout
+const pollIntervalMs = 15 * 1000;     // Poll every 15 seconds
+const gracePeriodMs = 3 * 60 * 1000;  // 3 min grace period
+
+const alwaysFailedStatuses = ["error", "degraded"];  // Always failures
+const delayedFailedStatuses = ["exited", "stopped"]; // Only after grace
+
+// Only fail on exited/stopped after grace period
+if (!isGracePeriod && delayedFailedStatuses.includes(status)) {
+  return { success: false, ... };
+}
+```

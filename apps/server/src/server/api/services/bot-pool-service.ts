@@ -198,6 +198,9 @@ export class BotPoolService {
 	 *
 	 * If the Coolify application has been deleted externally, this function
 	 * will automatically recreate it and update the slot in the database.
+	 *
+	 * Returns immediately with `deploying` status for optimistic UI feedback.
+	 * The status transition to `busy` or `error` happens in the background.
 	 */
 	async configureAndStartSlot(
 		slot: PoolSlot,
@@ -230,19 +233,40 @@ export class BotPoolService {
 		console.log(`[Pool] Starting container for slot ${activeSlot.slotName}`);
 		await this.coolify.startApplication(activeSlot.coolifyServiceUuid);
 
-		// Wait for container to actually be running before transitioning to busy
+		// Fire-and-forget: wait for deployment in background, return immediately
+		// This provides optimistic feedback to the user
+		this.waitAndTransitionStatus(activeSlot, botConfig.id).catch((error) => {
+			console.error(
+				`[Pool] Background status transition failed for ${activeSlot.slotName}:`,
+				error,
+			);
+		});
+
+		// Return immediately with deploying status for optimistic UI feedback
+		return { ...activeSlot, status: "deploying" as const };
+	}
+
+	/**
+	 * Waits for container deployment and transitions slot status accordingly
+	 *
+	 * This runs in the background after configureAndStartSlot returns.
+	 * Updates status to `busy` on success or `error` on failure.
+	 */
+	private async waitAndTransitionStatus(
+		slot: PoolSlot,
+		botId: number,
+	): Promise<void> {
 		console.log(
-			`[Pool] Waiting for container ${activeSlot.slotName} to be running...`,
+			`[Pool] Background: Waiting for container ${slot.slotName} to be running...`,
 		);
 
 		const deploymentResult = await this.coolify.waitForDeployment(
-			activeSlot.coolifyServiceUuid,
+			slot.coolifyServiceUuid,
 		);
 
 		if (!deploymentResult.success) {
-			// Mark slot as error if container failed to start
 			console.error(
-				`[Pool] Container ${activeSlot.slotName} failed to start: ${deploymentResult.error}`,
+				`[Pool] Container ${slot.slotName} failed to start: ${deploymentResult.error}`,
 			);
 
 			await this.db
@@ -251,35 +275,27 @@ export class BotPoolService {
 					status: "error",
 					errorMessage: deploymentResult.error ?? "Container failed to start",
 				})
-				.where(eq(botPoolSlotsTable.id, activeSlot.id));
+				.where(eq(botPoolSlotsTable.id, slot.id));
 
 			await this.updateSlotDescription(
-				activeSlot.coolifyServiceUuid,
+				slot.coolifyServiceUuid,
 				"error",
 				undefined,
 				deploymentResult.error ?? "Container failed to start",
 			);
 
-			throw new Error(
-				`Container failed to start: ${deploymentResult.error ?? "Unknown error"}`,
-			);
+			return;
 		}
 
-		// Container is running, now transition from deploying to busy
-		console.log(`[Pool] Container ${activeSlot.slotName} is now running`);
+		// Container is running, transition from deploying to busy
+		console.log(`[Pool] Container ${slot.slotName} is now running`);
 
 		await this.db
 			.update(botPoolSlotsTable)
 			.set({ status: "busy" })
-			.where(eq(botPoolSlotsTable.id, activeSlot.id));
+			.where(eq(botPoolSlotsTable.id, slot.id));
 
-		await this.updateSlotDescription(
-			activeSlot.coolifyServiceUuid,
-			"busy",
-			botConfig.id,
-		);
-
-		return { ...activeSlot, status: "busy" as const };
+		await this.updateSlotDescription(slot.coolifyServiceUuid, "busy", botId);
 	}
 
 	/**
