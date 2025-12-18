@@ -71,13 +71,24 @@ const globalForJobs = globalThis as unknown as {
 	heartbeatMonitorStarted: boolean | undefined;
 };
 
-// Start background jobs in production (only once)
-if (env.NODE_ENV === "production" && !globalForJobs.recoveryJobStarted) {
+// Start background jobs in production runtime (only once)
+// Skip during build time (SKIP_ENV_VALIDATION is set during Docker builds)
+const isBuildTime = !!process.env.SKIP_ENV_VALIDATION;
+
+if (
+	env.NODE_ENV === "production" &&
+	!isBuildTime &&
+	!globalForJobs.recoveryJobStarted
+) {
 	globalForJobs.recoveryJobStarted = true;
 	startSlotRecoveryJob();
 }
 
-if (env.NODE_ENV === "production" && !globalForJobs.heartbeatMonitorStarted) {
+if (
+	env.NODE_ENV === "production" &&
+	!isBuildTime &&
+	!globalForJobs.heartbeatMonitorStarted
+) {
 	globalForJobs.heartbeatMonitorStarted = true;
 	startBotHeartbeatMonitor();
 }
