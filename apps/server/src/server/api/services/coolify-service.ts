@@ -446,10 +446,14 @@ export class CoolifyService {
 		// During this time status may show "exited"/"stopped" which is normal
 		const gracePeriodMs = 20 * 60 * 1000;
 
+		// Success: container is running and ready
 		const successStatuses = ["running", "healthy"];
-		// "error" and "degraded" are always failures
+		// In-progress: container is still starting up, keep polling
+		// (starting, restarting, unhealthy will fall through and continue polling)
+		// Always failures: something is critically wrong
 		const alwaysFailedStatuses = ["error", "degraded"];
-		// "exited" and "stopped" are failures only after grace period
+		// Delayed failures: only treat as failure after grace period
+		// (container may show "exited"/"stopped" briefly during startup)
 		const delayedFailedStatuses = ["exited", "stopped"];
 
 		while (Date.now() - startTime < timeoutMs) {
