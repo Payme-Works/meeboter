@@ -1,13 +1,9 @@
 {
-  "permissions": {
-    "allow": [
-      "Edit(*)",
-      "Read(*)",
-      "Write(*)"
-    ],
-    "deny": []
-  },
-  "enabledPlugins": {
-    "vercel@claude-plugins-official": true
-  }
+	"permissions": {
+		"allow": ["Edit(*)", "Read(*)", "Write(*)"],
+		"deny": []
+	},
+	"enabledPlugins": {
+		"vercel@claude-plugins-official": true
+	}
 }
