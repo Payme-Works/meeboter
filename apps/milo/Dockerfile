@@ -1,5 +1,5 @@
 # Turborepo-optimized Dockerfile for Next.js Server App
-# Build from monorepo root: docker build -f apps/milo/Dockerfile -t meeboter-server .
+# Build from monorepo root: docker build -f apps/milo/Dockerfile -t meeboter-milo .
 
 FROM oven/bun:1-alpine AS base
 RUN apk update && apk add --no-cache libc6-compat

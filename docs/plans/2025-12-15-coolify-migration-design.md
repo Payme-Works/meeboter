@@ -79,7 +79,7 @@ Access: HTTPS required (Coolify handles SSL)
 
 ```
 Type: Docker Image
-Image: ghcr.io/payme-works/meeboter-server:latest
+Image: ghcr.io/payme-works/meeboter-milo:latest
 Port: 3000
 Domain: meeboter.yourdomain.com
 ```
@@ -209,7 +209,7 @@ function selectBotImage(meetingInfo: MeetingInfo): { name: string; tag: string }
 
   switch (meetingInfo.platform?.toLowerCase()) {
     case "google":
-      return { name: `${baseImage}-meet-bot`, tag };
+      return { name: `${baseImage}-google-meet-bot`, tag };
     case "teams":
       return { name: `${baseImage}-teams-bot`, tag };
     case "zoom":
@@ -418,9 +418,9 @@ Each push creates two tags:
 
 After workflow runs:
 ```
-ghcr.io/payme-works/meeboter-server:latest
-ghcr.io/payme-works/meeboter-server:sha-abc1234
-ghcr.io/payme-works/meeboter-meet-bot:latest
+ghcr.io/payme-works/meeboter-milo:latest
+ghcr.io/payme-works/meeboter-milo:sha-abc1234
+ghcr.io/payme-works/meeboter-google-meet-bot:latest
 ghcr.io/payme-works/meeboter-teams-bot:latest
 ghcr.io/payme-works/meeboter-zoom-bot:latest
 ```
@@ -701,7 +701,7 @@ Once logged in, Coolify automatically detects and uses these credentials when pu
 
 1. **New Resource** → **Application** → **Docker Image**
 2. Configure:
-   - Image: `ghcr.io/payme-works/meeboter-server:latest`
+   - Image: `ghcr.io/payme-works/meeboter-milo:latest`
    - Port: `3000`
    - Domain: `meeboter.yourdomain.com`
 3. Add environment variables (from Section 4)
@@ -923,7 +923,7 @@ Coolify doesn't have a UI for Docker registries. Instead, you SSH into the serve
 When packages are pushed via GitHub Actions using `GITHUB_TOKEN`, they are **automatically linked** to the source repository. You can verify this:
 
 1. Go to: **https://github.com/orgs/Payme-Works/packages**
-2. Click on any package (e.g., `meeboter-server`)
+2. Click on any package (e.g., `meeboter-milo`)
 3. Look for **"Linked to Payme-Works/meeboter"** in the package details
 
 **If packages are NOT linked** (rare, only if pushed manually):
@@ -947,8 +947,8 @@ Once logged in, Coolify automatically detects and uses these credentials when pu
 
 **Image paths for this project:**
 ```
-ghcr.io/payme-works/meeboter-server:latest
-ghcr.io/payme-works/meeboter-meet-bot:latest
+ghcr.io/payme-works/meeboter-milo:latest
+ghcr.io/payme-works/meeboter-google-meet-bot:latest
 ghcr.io/payme-works/meeboter-teams-bot:latest
 ghcr.io/payme-works/meeboter-zoom-bot:latest
 ```
@@ -1008,7 +1008,7 @@ Navigate to these locations in Coolify (replace `coolify.yourdomain.com` with yo
 
 1. In Coolify: **New Resource** → **Application** → **Docker Image**
 2. Configure:
-   - **Image**: `ghcr.io/payme-works/meeboter-server:latest`
+   - **Image**: `ghcr.io/payme-works/meeboter-milo:latest`
    - **Port**: `3000`
    - **Domain**: `meeboter.yourdomain.com`
 3. Add all environment variables:
@@ -1085,8 +1085,8 @@ After deployment, verify:
 - [ ] **GitHub Actions completed**: https://github.com/Payme-Works/meeboter/actions
 - [ ] **Server application is healthy** in Coolify dashboard
 - [ ] **All 4 images published to GHCR**: https://github.com/orgs/Payme-Works/packages
-  - `ghcr.io/payme-works/meeboter-server`
-  - `ghcr.io/payme-works/meeboter-meet-bot`
+  - `ghcr.io/payme-works/meeboter-milo`
+  - `ghcr.io/payme-works/meeboter-google-meet-bot`
   - `ghcr.io/payme-works/meeboter-teams-bot`
   - `ghcr.io/payme-works/meeboter-zoom-bot`
 - [ ] **Create a test bot** → verify it appears in Coolify UI as a new application
@@ -1123,8 +1123,8 @@ Once everything is verified working for 24-48 hours:
 │  ┌────────────────────────────────────────────────────────────────┐ │
 │  │              ghcr.io (Private Registry)                         │ │
 │  │                                                                 │ │
-│  │  - ghcr.io/payme-works/meeboter-server:latest                  │ │
-│  │  - ghcr.io/payme-works/meeboter-meet-bot:latest                │ │
+│  │  - ghcr.io/payme-works/meeboter-milo:latest                  │ │
+│  │  - ghcr.io/payme-works/meeboter-google-meet-bot:latest                │ │
 │  │  - ghcr.io/payme-works/meeboter-teams-bot:latest               │ │
 │  │  - ghcr.io/payme-works/meeboter-zoom-bot:latest                │ │
 │  │                                                                 │ │
@@ -1142,7 +1142,7 @@ Once everything is verified working for 24-48 hours:
 │           │                    │                                     │
 │  ┌────────┴────────────────────┴──────────────────────────────────┐ │
 │  │                   Meeboter Server                               │ │
-│  │          (ghcr.io/your-org/meeboter-server:latest)             │ │
+│  │          (ghcr.io/your-org/meeboter-milo:latest)             │ │
 │  │                          │                                      │ │
 │  │              Coolify API │ (spawn bots)                         │ │
 │  │                          ▼                                      │ │

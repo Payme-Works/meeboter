@@ -662,8 +662,8 @@ jobs:
 All images are stored in GitHub Container Registry (ghcr.io):
 
 ```
-ghcr.io/payme-works/meeboter-server:latest
-ghcr.io/payme-works/meeboter-meet-bot:latest
+ghcr.io/payme-works/meeboter-milo:latest
+ghcr.io/payme-works/meeboter-google-meet-bot:latest
 ghcr.io/payme-works/meeboter-teams-bot:latest
 ghcr.io/payme-works/meeboter-zoom-bot:latest
 ```
@@ -987,7 +987,7 @@ export const POOL_CONFIGS: PlatformPoolConfig[] = [
   {
     platform: "google",
     maxSize: 100,
-    image: "meeboter-meet-bot",
+    image: "meeboter-google-meet-bot",
     prewarmCount: 5,
     enabled: true,
   },

@@ -41,7 +41,7 @@ const client: postgres.Sql =
 			undefined: null, // Handle undefined values properly
 		},
 		connection: {
-			application_name: "meeboter-server",
+			application_name: "meeboter-milo",
 		},
 		onnotice: env.NODE_ENV === "development" ? console.log : undefined, // Log notices in development
 		debug: false, // Disable debug in all environments for performance

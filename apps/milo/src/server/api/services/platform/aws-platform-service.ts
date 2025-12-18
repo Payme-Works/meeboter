@@ -212,7 +212,7 @@ export class AWSPlatformService implements PlatformService {
 			case "teams":
 				return "teams-bot";
 			case "google":
-				return "meet-bot";
+				return "google-meet-bot";
 			default:
 				throw new Error(`Unsupported platform: ${platform}`);
 		}

@@ -98,7 +98,7 @@ export class CoolifyService {
 
 		switch (meetingInfo.platform?.toLowerCase()) {
 			case "google":
-				return { name: `${baseImage}-meet-bot`, tag };
+				return { name: `${baseImage}-google-meet-bot`, tag };
 			case "teams":
 				return { name: `${baseImage}-teams-bot`, tag };
 			case "zoom":
