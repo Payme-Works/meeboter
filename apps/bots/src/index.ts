@@ -70,7 +70,7 @@ async function startMessageProcessing(
 export const main = async () => {
 	let hasErrorOccurred = false;
 
-	const requiredEnvVars = ["BOT_DATA", "NODE_ENV"] as const;
+	const requiredEnvVars = ["POOL_SLOT_UUID", "NODE_ENV"] as const;
 
 	// Check all required environment variables are present
 	for (const envVar of requiredEnvVars) {
@@ -79,15 +79,19 @@ export const main = async () => {
 		}
 	}
 
-	// Parse bot data (base64 encoded to avoid escaping issues through Coolify)
-	if (!process.env.BOT_DATA)
-		throw new Error("BOT_DATA environment variable is required");
+	// Fetch bot config from API using pool slot UUID
+	// This avoids Coolify rebuild issues when env vars change (Coolify bug #2854)
+	const poolSlotUuid = process.env.POOL_SLOT_UUID;
 
-	const botDataJson = Buffer.from(process.env.BOT_DATA, "base64").toString(
-		"utf-8",
-	);
+	if (!poolSlotUuid) {
+		throw new Error("POOL_SLOT_UUID environment variable is required");
+	}
 
-	const botData: BotConfig = JSON.parse(botDataJson);
+	console.log(`Fetching bot config for pool slot: ${poolSlotUuid}`);
+
+	const botData: BotConfig = await trpc.bots.getPoolSlot.query({
+		poolSlotUuid,
+	});
 
 	console.log("Received bot data:", botData);
 
