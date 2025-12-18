@@ -3,7 +3,7 @@
 <br />
 <div align="center">
   <a href="https://github.com/Payme-Works/meeboter">
-    <img src="https://raw.githubusercontent.com/Payme-Works/meeboter/refs/heads/main/apps/server/public/logo.svg" alt="Meeboter Logo" width="80" height="80">
+    <img src="https://raw.githubusercontent.com/Payme-Works/meeboter/refs/heads/bare-metal/apps/server/public/logo.svg" alt="Meeboter Logo" width="80" height="80">
   </a>
 
   <h3 align="center">Meeboter</h3>
