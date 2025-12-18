@@ -13,7 +13,7 @@ on:
         default: true
         type: boolean
       deploy_meet_bot:
-        description: 'Deploy meet-bot image'
+        description: 'Deploy google-meet-bot image'
         required: false
         default: true
         type: boolean
@@ -46,7 +46,7 @@ jobs:
           - name: milo
             dockerfile: apps/milo/Dockerfile
             input_check: deploy_milo
-          - name: meet-bot
+          - name: google-meet-bot
             dockerfile: apps/bots/providers/meet/Dockerfile
             input_check: deploy_meet_bot
           - name: teams-bot
@@ -125,7 +125,7 @@ jobs:
           # Determine description based on image type
           case "$IMAGE_NAME" in
             "milo") DESC="Core API Server" ;;
-            "meet-bot") DESC="Google Meet Bot" ;;
+            "google-meet-bot") DESC="Google Meet Bot" ;;
             "teams-bot") DESC="Microsoft Teams Bot" ;;
             "zoom-bot") DESC="Zoom Bot" ;;
             *) DESC="Container" ;;
@@ -204,7 +204,7 @@ jobs:
           | Component | Image | Pull Command |
           |:----------|:------|:-------------|
           | **Milo** | \`$REGISTRY/$IMAGE_PREFIX-milo\` | \`docker pull $REGISTRY/$IMAGE_PREFIX-milo:$SHORT_SHA\` |
-          | **Meet Bot** | \`$REGISTRY/$IMAGE_PREFIX-meet-bot\` | \`docker pull $REGISTRY/$IMAGE_PREFIX-meet-bot:$SHORT_SHA\` |
+          | **Google Meet Bot** | \`$REGISTRY/$IMAGE_PREFIX-google-meet-bot\` | \`docker pull $REGISTRY/$IMAGE_PREFIX-google-meet-bot:$SHORT_SHA\` |
           | **Teams Bot** | \`$REGISTRY/$IMAGE_PREFIX-teams-bot\` | \`docker pull $REGISTRY/$IMAGE_PREFIX-teams-bot:$SHORT_SHA\` |
           | **Zoom Bot** | \`$REGISTRY/$IMAGE_PREFIX-zoom-bot\` | \`docker pull $REGISTRY/$IMAGE_PREFIX-zoom-bot:$SHORT_SHA\` |
 
@@ -226,7 +226,7 @@ jobs:
           \`\`\`bash
           # Set these environment variables for your deployment
           export MILO_IMAGE="$REGISTRY/$IMAGE_PREFIX-milo:$SHORT_SHA"
-          export MEET_BOT_IMAGE="$REGISTRY/$IMAGE_PREFIX-meet-bot:$SHORT_SHA"
+          export MEET_BOT_IMAGE="$REGISTRY/$IMAGE_PREFIX-google-meet-bot:$SHORT_SHA"
           export TEAMS_BOT_IMAGE="$REGISTRY/$IMAGE_PREFIX-teams-bot:$SHORT_SHA"
           export ZOOM_BOT_IMAGE="$REGISTRY/$IMAGE_PREFIX-zoom-bot:$SHORT_SHA"
           \`\`\`
