@@ -250,14 +250,14 @@ Check queue for waiting bots
 ## Files to Create/Modify
 
 ### New Files
-- `apps/server/src/server/database/schema/bot-pool.ts` - Schema definitions
-- `apps/server/src/server/api/services/bot-pool-manager.ts` - Pool manager logic
-- `apps/server/src/server/api/services/bot-pool-queue.ts` - Queue logic
+- `apps/milo/src/server/database/schema/bot-pool.ts` - Schema definitions
+- `apps/milo/src/server/api/services/bot-pool-manager.ts` - Pool manager logic
+- `apps/milo/src/server/api/services/bot-pool-queue.ts` - Queue logic
 
 ### Modified Files
-- `apps/server/src/server/api/services/bot-deployment.ts` - Use pool instead of direct creation
-- `apps/server/src/server/api/routers/bots.ts` - Add queueTimeoutMs param, new statuses
-- `apps/server/src/server/database/schema/index.ts` - Export new tables
+- `apps/milo/src/server/api/services/bot-deployment.ts` - Use pool instead of direct creation
+- `apps/milo/src/server/api/routers/bots.ts` - Add queueTimeoutMs param, new statuses
+- `apps/milo/src/server/database/schema/index.ts` - Export new tables
 
 ## Migration
 

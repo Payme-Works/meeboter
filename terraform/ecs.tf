@@ -238,7 +238,7 @@ resource "aws_ecs_task_definition" "server" {
       SKIP_ENV_VALIDATION          = "true"
     }
 
-    command = "cd ../apps/server && bun install && bun db:migrate && echo 'Database migrations completed successfully'"
+    command = "cd ../apps/milo && bun install && bun db:migrate && echo 'Database migrations completed successfully'"
   }
 }
 

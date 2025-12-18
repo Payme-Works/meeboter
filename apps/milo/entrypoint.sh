@@ -9,7 +9,7 @@ echo "Set NODE_TLS_REJECT_UNAUTHORIZED=0 to ignore SSL certificate errors"
 # Run database migrations
 echo "Running database migrations..."
 
-cd /app && node /app/apps/server/drizzle-migrate.cjs
+cd /app && node /app/apps/milo/drizzle-migrate.cjs
 
 # Start the Next.js server
 echo "Starting server..."
@@ -47,4 +47,4 @@ NODE_HEAP_SIZE=$(((CONTAINER_MEMORY_MB * 80) / 100))
 echo "Container memory: ${CONTAINER_MEMORY_MB}MB"
 echo "Node.js heap size: ${NODE_HEAP_SIZE}MB"
 
-exec node --max-old-space-size=${NODE_HEAP_SIZE} /app/apps/server/server.js
+exec node --max-old-space-size=${NODE_HEAP_SIZE} /app/apps/milo/server.js

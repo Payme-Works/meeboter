@@ -400,7 +400,7 @@ build_and_push_server() {
         --build-arg ECS_CLUSTER_NAME="dummy" \
         --build-arg ECS_SUBNETS="dummy" \
         --build-arg ECS_SECURITY_GROUPS="dummy" \
-        -f apps/server/Dockerfile \
+        -f apps/milo/Dockerfile \
         -t "$ECR_SERVER:$TAG" \
         -t "$ECR_SERVER:latest" \
         .; then

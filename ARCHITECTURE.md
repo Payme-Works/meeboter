@@ -642,7 +642,7 @@ jobs:
       matrix:
         include:
           - name: server
-            dockerfile: apps/server/Dockerfile
+            dockerfile: apps/milo/Dockerfile
           - name: meet-bot
             dockerfile: apps/bots/providers/meet/Dockerfile
           # ... teams-bot, zoom-bot
@@ -1545,4 +1545,4 @@ export default {
 
 ---
 
-*This document is maintained alongside the codebase. For implementation details, see the source files in `apps/server/src/server/api/services/`.*
+*This document is maintained alongside the codebase. For implementation details, see the source files in `apps/milo/src/server/api/services/`.*

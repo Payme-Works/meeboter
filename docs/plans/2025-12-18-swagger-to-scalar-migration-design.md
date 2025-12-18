@@ -34,7 +34,7 @@ Replace `swagger-ui-react` with Scalar, served as a standalone HTML page that lo
 
 ### 1. OpenAPI JSON Endpoint
 
-**File:** `apps/server/src/app/api/openapi.json/route.ts`
+**File:** `apps/milo/src/app/api/openapi.json/route.ts`
 
 ```typescript
 import { openApiDocument } from "@/lib/swagger";
@@ -47,7 +47,7 @@ export async function GET() {
 
 ### 2. Scalar HTML Route Handler
 
-**File:** `apps/server/src/app/docs/route.ts`
+**File:** `apps/milo/src/app/docs/route.ts`
 
 ```typescript
 import { NextResponse } from "next/server";
@@ -75,10 +75,10 @@ export async function GET() {
 ### 3. Cleanup
 
 **Files to delete:**
-- `apps/server/src/app/docs/page.tsx`
-- `apps/server/src/app/docs/react-swagger.tsx`
+- `apps/milo/src/app/docs/page.tsx`
+- `apps/milo/src/app/docs/react-swagger.tsx`
 
-**Dependencies to remove from `apps/server/package.json`:**
+**Dependencies to remove from `apps/milo/package.json`:**
 - `swagger-ui-react`
 - `@types/swagger-ui-react`
 

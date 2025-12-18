@@ -347,7 +347,7 @@ jobs:
       matrix:
         include:
           - name: server
-            dockerfile: apps/server/Dockerfile
+            dockerfile: apps/milo/Dockerfile
             context: .
           - name: meet-bot
             dockerfile: apps/bots/providers/meet/Dockerfile
@@ -541,7 +541,7 @@ We need to store the Coolify service UUID so we can clean up the bot service whe
 
 ### Migration (Drizzle Schema)
 
-Update `apps/server/src/server/database/schema.ts`:
+Update `apps/milo/src/server/database/schema.ts`:
 
 ```typescript
 export const botsTable = pgTable("bots", {
@@ -757,12 +757,12 @@ gh workflow run deploy.yml
 
 ### Code Changes
 
-- [x] Update `apps/server/src/env.js` - new environment variable schema
-- [x] Create `apps/server/src/server/api/services/coolify-deployment.ts` - new deployment service
-- [x] Update `apps/server/src/server/api/services/bot-deployment.ts` - use Coolify instead of ECS
-- [x] Update `apps/server/src/server/utils/s3.ts` - MinIO configuration
-- [x] Update `apps/server/src/server/database/schema.ts` - add `coolifyServiceUuid` column
-- [x] Update `apps/server/src/server/api/routers/bots.ts` - add cleanup on bot completion
+- [x] Update `apps/milo/src/env.js` - new environment variable schema
+- [x] Create `apps/milo/src/server/api/services/coolify-deployment.ts` - new deployment service
+- [x] Update `apps/milo/src/server/api/services/bot-deployment.ts` - use Coolify instead of ECS
+- [x] Update `apps/milo/src/server/utils/s3.ts` - MinIO configuration
+- [x] Update `apps/milo/src/server/database/schema.ts` - add `coolifyServiceUuid` column
+- [x] Update `apps/milo/src/server/api/routers/bots.ts` - add cleanup on bot completion
 - [x] Update bot apps S3 configuration (meet, teams, zoom)
 - [ ] Remove AWS ECS SDK dependencies (optional cleanup)
 
@@ -1211,12 +1211,12 @@ RUN bun install
 
 **Symptom:** `error: Workspace dependency "@meeboter/server" not found` during bot Docker builds.
 
-**Cause:** Bot Dockerfiles copy `apps/bots/` and `packages/` but not `apps/server/` which is a workspace dependency.
+**Cause:** Bot Dockerfiles copy `apps/bots/` and `packages/` but not `apps/milo/` which is a workspace dependency.
 
 **Solution:** Add the server package to bot Dockerfiles:
 ```dockerfile
 COPY ./apps/bots/ ./apps/bots/
-COPY ./apps/server/ ./apps/server/  # Add this line
+COPY ./apps/milo/ ./apps/milo/  # Add this line
 COPY ./packages/ ./packages/
 ```
 
@@ -1267,7 +1267,7 @@ DATABASE_URL: z.string().regex(/^postgres(ql)?:\/\//, {
 
 **Cause:** When running behind a reverse proxy (Traefik), the authentication library doesn't know the public URL. It derives the callback URL from the server's internal hostname (`0.0.0.0`) instead of the public domain.
 
-**Solution:** Add `baseURL` to the better-auth configuration in `apps/server/src/server/auth.ts`:
+**Solution:** Add `baseURL` to the better-auth configuration in `apps/milo/src/server/auth.ts`:
 ```typescript
 export const auth = betterAuth({
   baseURL: env.NEXT_PUBLIC_APP_ORIGIN_URL,  // Add this line
