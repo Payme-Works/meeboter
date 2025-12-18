@@ -15,6 +15,7 @@ const authenticatedLinks = [
 	{ title: "Bots", href: "/bots" },
 	{ title: "Templates", href: "/templates" },
 	{ title: "API Keys", href: "/api-keys" },
+	{ title: "Pool", href: "/pool" },
 	{ title: "Docs", href: "/docs" },
 ];
 

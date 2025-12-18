@@ -3,6 +3,7 @@ import { apiKeysRouter } from "./routers/api-keys";
 import { botsRouter } from "./routers/bots";
 import { chatRouter } from "./routers/chat";
 import { eventsRouter } from "./routers/events";
+import { poolRouter } from "./routers/pool";
 import { usageRouter } from "./routers/usage";
 
 /**
@@ -18,6 +19,7 @@ export const appRouter = createTRPCRouter({
 	apiKeys: apiKeysRouter,
 	usage: usageRouter,
 	chat: chatRouter,
+	pool: poolRouter,
 });
 
 /**
