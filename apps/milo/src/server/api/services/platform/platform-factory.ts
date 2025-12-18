@@ -45,9 +45,14 @@ function detectPlatform(): "coolify" | "aws" {
 		return "aws";
 	}
 
-	// In development, default to Coolify (even with fake values)
-	if (env.NODE_ENV === "development") {
-		console.log("[PlatformFactory] Development mode, defaulting to Coolify");
+	// In development or during build (SKIP_ENV_VALIDATION), default to Coolify
+	const isDevelopmentOrBuild =
+		env.NODE_ENV === "development" || process.env.SKIP_ENV_VALIDATION;
+
+	if (isDevelopmentOrBuild) {
+		console.log(
+			"[PlatformFactory] Development/build mode, defaulting to Coolify",
+		);
 
 		return "coolify";
 	}

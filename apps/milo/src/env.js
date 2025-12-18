@@ -151,7 +151,9 @@ export const env = createEnv({
 			(process.env.SKIP_ENV_VALIDATION ? "http://localhost:3000" : undefined),
 
 		// Platform Selection
-		DEPLOYMENT_PLATFORM: process.env.DEPLOYMENT_PLATFORM,
+		DEPLOYMENT_PLATFORM:
+			process.env.DEPLOYMENT_PLATFORM ||
+			(process.env.SKIP_ENV_VALIDATION ? "auto" : undefined),
 
 		// AWS ECS
 		AWS_REGION: process.env.AWS_REGION,
