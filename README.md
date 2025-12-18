@@ -557,7 +557,7 @@ bun turbo db:studio --filter=@meeboter/server
 ## Contributors
 
 <a href="https://github.com/Payme-Works/meeboter/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=Payme-Works/meeboter" alt="Contributors" />
+  <img src="https://contrib.rocks/image?repo=Payme-Works/meeboter&max=10" alt="Contributors" width="200" />
 </a>
 
 ## License
