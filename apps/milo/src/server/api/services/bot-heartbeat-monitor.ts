@@ -19,9 +19,12 @@ const MONITOR_INTERVAL_MS = 5 * 60 * 1000;
 /** Timeout for heartbeat before marking bot as FATAL (5 minutes) */
 const HEARTBEAT_TIMEOUT_MS = 5 * 60 * 1000;
 
+/** Timeout for DEPLOYING bots that never sent a heartbeat (30 minutes) */
+const DEPLOYMENT_TIMEOUT_MS = 30 * 60 * 1000;
+
 /**
- * Active statuses where the bot container should be running and sending heartbeats
- * DEPLOYING is excluded because container might not have started yet (5-25 min)
+ * Active statuses where the bot container should be running and sending heartbeats.
+ * If heartbeat goes stale (> 5 min), the bot is marked as FATAL.
  */
 const ACTIVE_STATUSES: Status[] = [
 	"JOINING_CALL",
@@ -60,9 +63,10 @@ export function startBotHeartbeatMonitor(): void {
  * Checks for bots with stale heartbeats and marks them as FATAL
  *
  * A bot is considered crashed if:
- * - Status is active (JOINING_CALL, IN_WAITING_ROOM, IN_CALL)
- * - Last heartbeat is older than HEARTBEAT_TIMEOUT_MS (5 minutes)
- *   OR lastHeartbeat is null (never sent a heartbeat)
+ * - Status is active (JOINING_CALL, IN_WAITING_ROOM, IN_CALL) AND
+ *   (lastHeartbeat > 5 min old OR lastHeartbeat is null)
+ * - OR status is DEPLOYING AND lastHeartbeat > 5 min old (container started but crashed)
+ * - OR status is DEPLOYING AND lastHeartbeat is null AND createdAt > 30 min ago (container never started)
  */
 async function checkStaleHeartbeats(): Promise<MonitorResult> {
 	const result: MonitorResult = {
@@ -73,22 +77,41 @@ async function checkStaleHeartbeats(): Promise<MonitorResult> {
 
 	try {
 		const heartbeatCutoff = new Date(Date.now() - HEARTBEAT_TIMEOUT_MS);
+		const deploymentCutoff = new Date(Date.now() - DEPLOYMENT_TIMEOUT_MS);
 
-		// Find bots with active status and stale/missing heartbeat
+		// Find bots that should be marked as FATAL:
+		// 1. Active status (JOINING_CALL, IN_WAITING_ROOM, IN_CALL) with stale/missing heartbeat
+		// 2. DEPLOYING status with stale heartbeat (container started but crashed)
+		// 3. DEPLOYING status with no heartbeat and old createdAt (container never started)
 		const staleBots = await db
 			.select({
 				id: botsTable.id,
 				status: botsTable.status,
 				lastHeartbeat: botsTable.lastHeartbeat,
+				createdAt: botsTable.createdAt,
 				coolifyServiceUuid: botsTable.coolifyServiceUuid,
 			})
 			.from(botsTable)
 			.where(
-				and(
-					inArray(botsTable.status, ACTIVE_STATUSES),
-					or(
+				or(
+					// Case 1: Active status with stale or missing heartbeat
+					and(
+						inArray(botsTable.status, ACTIVE_STATUSES),
+						or(
+							lt(botsTable.lastHeartbeat, heartbeatCutoff),
+							isNull(botsTable.lastHeartbeat),
+						),
+					),
+					// Case 2: DEPLOYING with stale heartbeat (container started but crashed)
+					and(
+						eq(botsTable.status, "DEPLOYING"),
 						lt(botsTable.lastHeartbeat, heartbeatCutoff),
+					),
+					// Case 3: DEPLOYING with no heartbeat and deployment timed out
+					and(
+						eq(botsTable.status, "DEPLOYING"),
 						isNull(botsTable.lastHeartbeat),
+						lt(botsTable.createdAt, deploymentCutoff),
 					),
 				),
 			);
@@ -111,8 +134,11 @@ async function checkStaleHeartbeats(): Promise<MonitorResult> {
 					? bot.lastHeartbeat.toISOString()
 					: "never";
 
+				// Determine the appropriate error message based on the failure mode
+				const errorMessage = getDeploymentErrorMessage(bot);
+
 				console.log(
-					`[HeartbeatMonitor] Marking bot ${bot.id} as FATAL (status: ${bot.status}, lastHeartbeat: ${lastHeartbeatStr})`,
+					`[HeartbeatMonitor] Marking bot ${bot.id} as FATAL (status: ${bot.status}, lastHeartbeat: ${lastHeartbeatStr}, reason: ${errorMessage})`,
 				);
 
 				// Mark bot as FATAL
@@ -120,7 +146,7 @@ async function checkStaleHeartbeats(): Promise<MonitorResult> {
 					.update(botsTable)
 					.set({
 						status: "FATAL",
-						deploymentError: `Bot crashed or stopped responding (no heartbeat for 5+ minutes)`,
+						deploymentError: errorMessage,
 					})
 					.where(eq(botsTable.id, bot.id));
 
@@ -158,4 +184,22 @@ async function checkStaleHeartbeats(): Promise<MonitorResult> {
 	}
 
 	return result;
+}
+
+/**
+ * Generates an appropriate error message based on the bot's failure mode
+ */
+function getDeploymentErrorMessage(bot: {
+	status: Status;
+	lastHeartbeat: Date | null;
+}): string {
+	if (bot.status === "DEPLOYING") {
+		if (bot.lastHeartbeat === null) {
+			return "Deployment timed out - container never started (no heartbeat received in 30+ minutes)";
+		}
+
+		return "Bot crashed during deployment (no heartbeat for 5+ minutes after container started)";
+	}
+
+	return "Bot crashed or stopped responding (no heartbeat for 5+ minutes)";
 }
