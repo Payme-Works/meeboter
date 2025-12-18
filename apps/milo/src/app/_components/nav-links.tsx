@@ -10,10 +10,12 @@ const publicLinks = [
 ];
 
 const authenticatedLinks = [
-	{ title: "API Keys", href: "/api-keys" },
+	{ title: "Dashboard", href: "/" },
+	{ title: "Usage", href: "/usage" },
 	{ title: "Bots", href: "/bots" },
 	{ title: "Templates", href: "/templates" },
-	{ title: "Usage", href: "/usage" },
+	{ title: "API Keys", href: "/api-keys" },
+	{ title: "Docs", href: "/docs" },
 ];
 
 interface NavLinksProps {
@@ -23,9 +25,7 @@ interface NavLinksProps {
 export default function NavLinks({ isLoggedIn }: NavLinksProps) {
 	const pathname = usePathname();
 
-	const visibleLinks = isLoggedIn
-		? [...publicLinks, ...authenticatedLinks]
-		: publicLinks;
+	const visibleLinks = isLoggedIn ? authenticatedLinks : publicLinks;
 
 	return (
 		<div className="hidden md:flex items-center gap-1">
