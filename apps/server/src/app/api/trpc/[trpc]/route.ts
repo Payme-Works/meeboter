@@ -23,13 +23,6 @@ const createContext = async (req: NextRequest) => {
 };
 
 const handler = async (req: NextRequest): Promise<Response> => {
-	// Early logging to confirm request is reaching the server
-	console.log(`📥 tRPC Request: ${req.method} ${req.url}`);
-
-	console.log(
-		`📥 Headers: ${JSON.stringify(Object.fromEntries(req.headers.entries()))}`,
-	);
-
 	try {
 		const response = await fetchRequestHandler({
 			endpoint: "/api/trpc",
@@ -47,8 +40,6 @@ const handler = async (req: NextRequest): Promise<Response> => {
 			},
 		});
 
-		console.log(`📤 tRPC Response: ${response.status}`);
-
 		return response;
 	} catch (error) {
 		console.error("❌ tRPC handler error:", error);
@@ -60,9 +51,7 @@ const handler = async (req: NextRequest): Promise<Response> => {
 /**
  * Handle OPTIONS requests for CORS preflight
  */
-const handleOptions = async (req: NextRequest): Promise<Response> => {
-	console.log(`📥 OPTIONS preflight: ${req.url}`);
-
+const handleOptions = async (_req: NextRequest): Promise<Response> => {
 	return new Response(null, {
 		status: 204,
 		headers: {

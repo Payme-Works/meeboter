@@ -227,8 +227,6 @@ export const protectedProcedure = t.procedure
 		const apiKey = ctx.headers.get("x-api-key");
 
 		if (apiKey) {
-			console.log("Authenticated using API Key ", apiKey);
-
 			let error = null;
 			let statusCode = 200;
 			const startTime = Date.now();
@@ -312,8 +310,6 @@ export const protectedProcedure = t.procedure
 			process.env.BOT_AUTH_TOKEN &&
 			botToken === process.env.BOT_AUTH_TOKEN
 		) {
-			console.log("Authenticated using Bot Token");
-
 			// Create a minimal session for bot operations
 			const botSession: Session = {
 				user: {
