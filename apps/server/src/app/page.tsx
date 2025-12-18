@@ -339,7 +339,9 @@ export default async function Home() {
 		return (
 			<main className="mx-auto container px-4">
 				<WelcomeHeader />
+
 				<LoggedOutHero />
+
 				<SubscriptionPlansSection />
 			</main>
 		);
