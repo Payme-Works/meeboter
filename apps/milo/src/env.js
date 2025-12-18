@@ -73,6 +73,22 @@ export const env = createEnv({
 		BOT_AUTH_TOKEN: z.string().optional(),
 
 		NEXT_PUBLIC_APP_ORIGIN_URL: z.string().url(),
+
+		// Platform Selection
+		DEPLOYMENT_PLATFORM: z.enum(["coolify", "aws", "auto"]).default("auto"),
+
+		// AWS ECS Configuration (required when DEPLOYMENT_PLATFORM=aws)
+		AWS_REGION: z.string().optional(),
+		ECS_CLUSTER: z.string().optional(),
+		ECS_SUBNETS: z.string().optional(),
+		ECS_SECURITY_GROUPS: z.string().optional(),
+		ECS_TASK_DEF_ZOOM: z.string().optional(),
+		ECS_TASK_DEF_TEAMS: z.string().optional(),
+		ECS_TASK_DEF_MEET: z.string().optional(),
+		ECS_ASSIGN_PUBLIC_IP: z
+			.enum(["true", "false"])
+			.default("true")
+			.transform((val) => val === "true"),
 	},
 
 	/**
@@ -134,6 +150,19 @@ export const env = createEnv({
 		NEXT_PUBLIC_APP_ORIGIN_URL:
 			process.env.NEXT_PUBLIC_APP_ORIGIN_URL ||
 			(process.env.SKIP_ENV_VALIDATION ? "http://localhost:3000" : undefined),
+
+		// Platform Selection
+		DEPLOYMENT_PLATFORM: process.env.DEPLOYMENT_PLATFORM,
+
+		// AWS ECS
+		AWS_REGION: process.env.AWS_REGION,
+		ECS_CLUSTER: process.env.ECS_CLUSTER,
+		ECS_SUBNETS: process.env.ECS_SUBNETS,
+		ECS_SECURITY_GROUPS: process.env.ECS_SECURITY_GROUPS,
+		ECS_TASK_DEF_ZOOM: process.env.ECS_TASK_DEF_ZOOM,
+		ECS_TASK_DEF_TEAMS: process.env.ECS_TASK_DEF_TEAMS,
+		ECS_TASK_DEF_MEET: process.env.ECS_TASK_DEF_MEET,
+		ECS_ASSIGN_PUBLIC_IP: process.env.ECS_ASSIGN_PUBLIC_IP,
 	},
 
 	/**

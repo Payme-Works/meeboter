@@ -29,20 +29,17 @@ function detectPlatform(): "coolify" | "aws" {
 	// Check for Coolify configuration
 	// Note: env.js provides fake defaults for development, so we check for real values
 	const hasCoolify =
-		process.env.COOLIFY_API_URL &&
-		!process.env.COOLIFY_API_URL.includes("localhost:8000") &&
-		process.env.COOLIFY_API_TOKEN &&
-		!process.env.COOLIFY_API_TOKEN.includes("fake");
+		env.COOLIFY_API_URL &&
+		!env.COOLIFY_API_URL.includes("localhost:8000") &&
+		env.COOLIFY_API_TOKEN &&
+		!env.COOLIFY_API_TOKEN.includes("fake");
 
 	if (hasCoolify) {
 		return "coolify";
 	}
 
 	// Check for AWS configuration
-	const hasAWS =
-		process.env.AWS_REGION &&
-		process.env.ECS_CLUSTER &&
-		process.env.ECS_SUBNETS;
+	const hasAWS = env.AWS_REGION && env.ECS_CLUSTER && env.ECS_SUBNETS;
 
 	if (hasAWS) {
 		return "aws";
@@ -100,28 +97,24 @@ function createCoolifyPlatformService(): CoolifyPlatformService {
  * Creates an AWS platform service instance
  */
 function createAWSPlatformService(): AWSPlatformService {
-	const region = process.env.AWS_REGION;
-
-	if (!region) {
+	if (!env.AWS_REGION) {
 		throw new Error(
 			"AWS_REGION environment variable is required for AWS platform",
 		);
 	}
 
-	const ecsClient = new ECSClient({ region });
+	const ecsClient = new ECSClient({ region: env.AWS_REGION });
 
 	const config: AWSPlatformConfig = {
-		cluster: process.env.ECS_CLUSTER ?? "",
-		subnets: (process.env.ECS_SUBNETS ?? "").split(",").filter(Boolean),
-		securityGroups: (process.env.ECS_SECURITY_GROUPS ?? "")
-			.split(",")
-			.filter(Boolean),
+		cluster: env.ECS_CLUSTER ?? "",
+		subnets: (env.ECS_SUBNETS ?? "").split(",").filter(Boolean),
+		securityGroups: (env.ECS_SECURITY_GROUPS ?? "").split(",").filter(Boolean),
 		taskDefinitions: {
-			zoom: process.env.ECS_TASK_DEF_ZOOM ?? "",
-			teams: process.env.ECS_TASK_DEF_TEAMS ?? "",
-			meet: process.env.ECS_TASK_DEF_MEET ?? "",
+			zoom: env.ECS_TASK_DEF_ZOOM ?? "",
+			teams: env.ECS_TASK_DEF_TEAMS ?? "",
+			meet: env.ECS_TASK_DEF_MEET ?? "",
 		},
-		assignPublicIp: process.env.ECS_ASSIGN_PUBLIC_IP !== "false",
+		assignPublicIp: env.ECS_ASSIGN_PUBLIC_IP,
 	};
 
 	const botEnvConfig: AWSBotEnvConfig = {
@@ -146,8 +139,7 @@ function createAWSPlatformService(): AWSPlatformService {
  * @returns Configured platform service instance
  */
 export function createPlatformService(): PlatformService {
-	const configuredPlatform = (process.env.DEPLOYMENT_PLATFORM ??
-		"auto") as PlatformType;
+	const configuredPlatform = env.DEPLOYMENT_PLATFORM;
 
 	const platform =
 		configuredPlatform === "auto" ? detectPlatform() : configuredPlatform;
@@ -171,8 +163,7 @@ export function createPlatformService(): PlatformService {
  * Useful for conditional logic based on platform without creating the service.
  */
 export function getPlatformType(): "coolify" | "aws" {
-	const configuredPlatform = (process.env.DEPLOYMENT_PLATFORM ??
-		"auto") as PlatformType;
+	const configuredPlatform = env.DEPLOYMENT_PLATFORM;
 
 	return configuredPlatform === "auto" ? detectPlatform() : configuredPlatform;
 }
