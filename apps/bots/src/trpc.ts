@@ -1,6 +1,7 @@
 import type { AppRouter } from "@meeboter/milo";
 import { createTRPCProxyClient, httpBatchLink } from "@trpc/client";
 import superjson from "superjson";
+import { env } from "./env";
 
 /**
  * tRPC client configured with MILO_URL env var.
@@ -9,12 +10,10 @@ import superjson from "superjson";
 export const trpc = createTRPCProxyClient<AppRouter>({
 	links: [
 		httpBatchLink({
-			url: `${process.env.MILO_URL || "http://localhost:3000"}/api/trpc`,
+			url: `${env.MILO_URL}/api/trpc`,
 			transformer: superjson,
 			headers: () => ({
-				...(process.env.MILO_AUTH_TOKEN && {
-					"X-Milo-Token": process.env.MILO_AUTH_TOKEN,
-				}),
+				"X-Milo-Token": env.MILO_AUTH_TOKEN,
 			}),
 		}),
 	],

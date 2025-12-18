@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { promises as fsPromises, readFileSync } from "node:fs";
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import type { Bot } from "./bot";
+import { env } from "./env";
 
 /**
  * Configuration for S3/MinIO client
@@ -50,39 +51,26 @@ export function createS3Client(config: S3Config): S3Client | null {
 
 /**
  * Creates an S3/MinIO client from environment variables.
- * Uses S3_ prefixed variables for S3-compatible storage configuration.
+ * Uses S3_ prefixed variables for storage configuration.
  *
  * @returns S3Client or null if configuration is invalid
  */
 export function createS3ClientFromEnv(): S3Client | null {
-	// Check for S3 configuration
-	const endpoint = process.env.S3_ENDPOINT;
-
-	if (endpoint) {
-		return createS3Client({
-			endpoint,
-			region: process.env.S3_REGION || "us-east-1",
-			accessKeyId: process.env.S3_ACCESS_KEY,
-			secretAccessKey: process.env.S3_SECRET_KEY,
-		});
-	}
-
-	// Fallback to AWS S3 configuration (legacy support)
 	return createS3Client({
-		region: process.env.AWS_REGION || "us-east-2",
-		accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-		secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+		endpoint: env.S3_ENDPOINT,
+		region: env.S3_REGION,
+		accessKeyId: env.S3_ACCESS_KEY,
+		secretAccessKey: env.S3_SECRET_KEY,
 	});
 }
 
 /**
  * Gets the bucket name from environment variables.
- * Uses S3_BUCKET_NAME for S3-compatible storage configuration.
  *
  * @returns The bucket name
  */
 export function getBucketName(): string {
-	return process.env.S3_BUCKET_NAME || process.env.AWS_BUCKET_NAME || "";
+	return env.S3_BUCKET_NAME ?? "";
 }
 
 /**

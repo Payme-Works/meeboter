@@ -1,5 +1,5 @@
 import { setTimeout } from "node:timers/promises";
-import dotenv from "dotenv";
+import { env } from "./env";
 import { trpc } from "./trpc";
 import { EventCode, Status } from "./types";
 
@@ -71,9 +71,6 @@ async function retryOperation<T>(
 	return null;
 }
 
-// Load the .env.test file (overrides variables from .env if they overlap)
-dotenv.config({ path: ".env.test" });
-
 // Start heartbeat loop in the background
 export const startHeartbeat = async (
 	botId: number,
@@ -88,8 +85,8 @@ export const startHeartbeat = async (
 		if (result !== null) {
 			console.log(`[${new Date().toISOString()}] Heartbeat sent`);
 		} else {
-			// Do not log the entire heartbeat error if, in local, the user has set HEARTBEAT_DEBUG to false.
-			if ((process.env?.HEARTBEAT_DEBUG ?? "true") !== "false") {
+			// Do not log the entire heartbeat error if the user has set HEARTBEAT_DEBUG to false
+			if (env.HEARTBEAT_DEBUG) {
 				console.error(
 					`[${new Date().toISOString()}] Heartbeat failed after all retries, continuing bot operation`,
 				);

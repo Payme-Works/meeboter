@@ -1,5 +1,6 @@
 import type { AppRouter } from "@meeboter/milo";
 import type { TRPCClient } from "@trpc/client";
+import { env } from "./env";
 import { reportEvent } from "./monitoring";
 import { trpc } from "./trpc";
 import type { BotConfig, EventCode, SpeakerTimeframe } from "./types";
@@ -281,7 +282,7 @@ export const createBot = async (botData: BotConfig): Promise<Bot> => {
 	const platform = botData.meetingInfo.platform;
 
 	// Retrieve Docker image name from environment variable
-	const dockerImageName = process.env.DOCKER_MEETING_PLATFORM;
+	const dockerImageName = env.DOCKER_MEETING_PLATFORM;
 
 	// Ensure the Docker image name matches the platform - safety check
 	// If local development (implies DOCKER_MEETING_PLATFORM is not set), we don't need this check

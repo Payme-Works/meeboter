@@ -1,5 +1,11 @@
 import dotenv from "dotenv";
+
+// Load environment variables before importing modules that use them
+dotenv.config({ path: "../.env.test" }); // Load .env.test for testing
+dotenv.config();
+
 import { type BotInterface, createBot } from "./bot";
+import { env } from "./env";
 import {
 	safeReportEvent,
 	startDurationMonitor,
@@ -8,9 +14,6 @@ import {
 import { createS3ClientFromEnv, uploadRecordingToS3 } from "./s3";
 import { trpc } from "./trpc";
 import { EventCode, type SpeakerTimeframe } from "./types";
-
-dotenv.config({ path: "../.env.test" }); // Load .env.test for testing
-dotenv.config();
 
 /**
  * Starts message processing for a bot with chat functionality enabled.
@@ -70,22 +73,9 @@ async function startMessageProcessing(
 export const main = async () => {
 	let hasErrorOccurred = false;
 
-	const requiredEnvVars = ["POOL_SLOT_UUID", "NODE_ENV"] as const;
-
-	// Check all required environment variables are present
-	for (const envVar of requiredEnvVars) {
-		if (!process.env[envVar]) {
-			throw new Error(`Missing required environment variable: ${envVar}`);
-		}
-	}
-
-	// Fetch bot config from API using pool slot UUID
-	// This avoids Coolify rebuild issues when env vars change (Coolify bug #2854)
-	const poolSlotUuid = process.env.POOL_SLOT_UUID;
-
-	if (!poolSlotUuid) {
-		throw new Error("POOL_SLOT_UUID environment variable is required");
-	}
+	// Environment variables are validated by env.ts on import
+	// This will throw if required variables are missing or invalid
+	const poolSlotUuid = env.POOL_SLOT_UUID;
 
 	console.log(`Fetching bot config for pool slot: ${poolSlotUuid}`);
 
@@ -123,7 +113,7 @@ export const main = async () => {
 	const botStartTime = new Date();
 
 	// Do not start heartbeat in development
-	if (process.env.NODE_ENV !== "development") {
+	if (env.NODE_ENV !== "development") {
 		console.log("Starting heartbeat and duration monitor");
 
 		const heartbeatInterval = botData.heartbeatInterval ?? 10000; // Default to 10 seconds if not set
