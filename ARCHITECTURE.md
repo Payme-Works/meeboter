@@ -641,9 +641,9 @@ jobs:
     strategy:
       matrix:
         include:
-          - name: server
+          - name: milo
             dockerfile: apps/milo/Dockerfile
-          - name: meet-bot
+          - name: google-meet-bot
             dockerfile: apps/bots/providers/meet/Dockerfile
           # ... teams-bot, zoom-bot
 
