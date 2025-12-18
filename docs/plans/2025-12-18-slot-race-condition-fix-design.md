@@ -14,9 +14,9 @@ When 10 bots deploy simultaneously with an empty pool:
 1. All transactions query the table
 2. `FOR UPDATE` finds no rows to lock (empty table)
 3. All proceed simultaneously, calculate slot number 1
-4. All insert `meeboter-pool-google-meet-001`
+4. All insert `pool-google-meet-001`
 
-**Evidence**: Database showed 8 rows with identical `slotName = meeboter-pool-google-meet-001`
+**Evidence**: Database showed 8 rows with identical `slotName = pool-google-meet-001`
 
 ### Status Bug
 

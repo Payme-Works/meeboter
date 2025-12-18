@@ -788,7 +788,7 @@ export class BotPoolService {
 			await tx.execute(sql`SELECT pg_advisory_xact_lock(${lockId})`);
 
 			// Now safe to read and calculate next slot number
-			const prefix = `meeboter-pool-${platformName}-`;
+			const prefix = `pool-${platformName}-`;
 
 			const existingSlots = await tx.execute<{ slotName: string }>(sql`
 				SELECT "slotName"

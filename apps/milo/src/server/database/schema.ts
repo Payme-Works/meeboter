@@ -777,7 +777,7 @@ export const botPoolSlotsTable = pgTable(
 		coolifyServiceUuid: varchar("coolifyServiceUuid", { length: 255 })
 			.notNull()
 			.unique(),
-		/** Slot name for identification (e.g., "meeboter-pool-001") */
+		/** Slot name for identification (e.g., "pool-google-meet-001") */
 		slotName: varchar("slotName", { length: 255 }).notNull().unique(),
 		/** Current status of the slot */
 		status: varchar("status", { length: 50 })

@@ -44,7 +44,7 @@ Tracks pool slot state and assignment.
 CREATE TABLE bot_pool_slots (
   id SERIAL PRIMARY KEY,
   coolify_service_uuid VARCHAR(255) NOT NULL UNIQUE,
-  slot_name VARCHAR(255) NOT NULL,            -- "meeboter-pool-001" to "meeboter-pool-100"
+  slot_name VARCHAR(255) NOT NULL,            -- "pool-google-meet-001" to "pool-google-meet-100"
   status VARCHAR(50) NOT NULL DEFAULT 'idle', -- "idle", "busy", "error"
   assigned_bot_id INTEGER REFERENCES bots(id),
   last_used_at TIMESTAMP,
@@ -175,9 +175,9 @@ async function updateSlotDescription(uuid: string, status: string, botId?: numbe
 
 **Coolify UI displays:**
 ```
-meeboter-pool-001  [BUSY] Bot #123 - 2025-12-16T21:30:00Z
-meeboter-pool-002  [IDLE] Available - Last used: 2025-12-16T20:15:00Z
-meeboter-pool-003  [ERROR] Container crashed - 2025-12-16T21:00:00Z
+pool-google-meet-001  [BUSY] Bot #123 - 2025-12-16T21:30:00Z
+pool-google-meet-002  [IDLE] Available - Last used: 2025-12-16T20:15:00Z
+pool-google-meet-003  [ERROR] Container crashed - 2025-12-16T21:00:00Z
 ```
 
 ## Request Flow

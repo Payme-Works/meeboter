@@ -245,10 +245,10 @@ This ensures:
 Pool status is synced to Coolify application descriptions:
 
 ```
-meeboter-pool-google-meet-001   [DEPLOYING] Bot #123 - Starting container...
-meeboter-pool-google-meet-002   [BUSY] Bot #456 - 2025-12-16T21:30:00Z
-meeboter-pool-google-meet-003   [IDLE] Available - Last used: 2025-12-16T20:15:00Z
-meeboter-pool-teams-001         [ERROR] Container crashed - 2025-12-16T21:00:00Z
+pool-google-meet-001   [DEPLOYING] Bot #123 - Starting container...
+pool-google-meet-002   [BUSY] Bot #456 - 2025-12-16T21:30:00Z
+pool-google-meet-003   [IDLE] Available - Last used: 2025-12-16T20:15:00Z
+pool-teams-001         [ERROR] Container crashed - 2025-12-16T21:00:00Z
 ```
 
 ---
@@ -1490,10 +1490,10 @@ SELECT * FROM bot_pool_slots WHERE status = 'error';
 
 ```bash
 # Check container status
-docker ps -a | grep meeboter-pool
+docker ps -a | grep pool-
 
 # View container logs (replace with actual slot name)
-docker logs meeboter-pool-google-meet-001 --tail 100
+docker logs pool-google-meet-001 --tail 100
 
 # Check database pool status
 psql $DATABASE_URL -c "SELECT slot_name, status, assigned_bot_id FROM bot_pool_slots"
