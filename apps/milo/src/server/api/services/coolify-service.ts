@@ -140,6 +140,9 @@ export class CoolifyService {
 					description: `Bot ${botId} for ${botConfig.meetingInfo.platform} meeting`,
 					ports_exposes: "3000",
 					instant_deploy: true,
+					// Resource limits matching AWS ECS task definitions (512 CPU units, 1024 MB)
+					limits_cpus: "0.5",
+					limits_memory: "1024m",
 				}),
 			},
 		);
