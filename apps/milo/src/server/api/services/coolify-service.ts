@@ -259,6 +259,9 @@ export class CoolifyService {
 
 	/**
 	 * Stops a Coolify application
+	 *
+	 * This operation is idempotent: if the application doesn't exist (404),
+	 * we treat it as success since a non-existent app is effectively stopped.
 	 */
 	async stopApplication(applicationUuid: string): Promise<void> {
 		const response = await fetch(
@@ -270,6 +273,14 @@ export class CoolifyService {
 				},
 			},
 		);
+
+		if (response.status === 404) {
+			console.log(
+				`[CoolifyService] Application ${applicationUuid} not found, treating as stopped`,
+			);
+
+			return;
+		}
 
 		if (!response.ok) {
 			throw new CoolifyDeploymentError(
@@ -303,6 +314,9 @@ export class CoolifyService {
 
 	/**
 	 * Deletes a Coolify application
+	 *
+	 * This operation is idempotent: if the application doesn't exist (404),
+	 * we treat it as a successful deletion since the desired state is achieved.
 	 */
 	async deleteApplication(applicationUuid: string): Promise<void> {
 		const response = await fetch(
@@ -314,6 +328,14 @@ export class CoolifyService {
 				},
 			},
 		);
+
+		if (response.status === 404) {
+			console.log(
+				`[CoolifyService] Application ${applicationUuid} already deleted or not found`,
+			);
+
+			return;
+		}
 
 		if (!response.ok) {
 			throw new CoolifyDeploymentError(
