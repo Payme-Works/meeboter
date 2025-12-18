@@ -3,7 +3,7 @@ import { z } from "zod";
 
 // Check if we're in a real production deployment (not just a build)
 // During builds, NODE_ENV is "production" but we still want development defaults
-const isProductionDeployment =
+const isProduction =
 	process.env.VERCEL_ENV === "production" ||
 	(process.env.NODE_ENV === "production" &&
 		!process.env.SKIP_ENV_VALIDATION &&
@@ -32,40 +32,40 @@ export const env = createEnv({
 			.transform((val) => val === "true"),
 
 		// Coolify API Configuration
-		COOLIFY_API_URL: !isProductionDeployment
+		COOLIFY_API_URL: !isProduction
 			? z.preprocess(() => "http://localhost:8000/api/v1", z.string().url())
 			: z.string().url(),
-		COOLIFY_API_TOKEN: !isProductionDeployment
+		COOLIFY_API_TOKEN: !isProduction
 			? z.preprocess(() => "fake_coolify_token", z.string())
 			: z.string(),
-		COOLIFY_PROJECT_UUID: !isProductionDeployment
+		COOLIFY_PROJECT_UUID: !isProduction
 			? z.preprocess(() => "fake_project_uuid", z.string())
 			: z.string(),
-		COOLIFY_SERVER_UUID: !isProductionDeployment
+		COOLIFY_SERVER_UUID: !isProduction
 			? z.preprocess(() => "fake_server_uuid", z.string())
 			: z.string(),
 		COOLIFY_ENVIRONMENT_NAME: z.string().default("production"),
-		COOLIFY_DESTINATION_UUID: !isProductionDeployment
+		COOLIFY_DESTINATION_UUID: !isProduction
 			? z.preprocess(() => "fake_destination_uuid", z.string())
 			: z.string(),
 
 		// GitHub Container Registry
-		GHCR_ORG: !isProductionDeployment
+		GHCR_ORG: !isProduction
 			? z.preprocess(() => "fake_ghcr_org", z.string())
 			: z.string(),
 		BOT_IMAGE_TAG: z.string().default("latest"),
 
 		// S3-Compatible Storage (MinIO or AWS S3)
-		S3_ENDPOINT: !isProductionDeployment
+		S3_ENDPOINT: !isProduction
 			? z.preprocess(() => "http://localhost:9000", z.string().url())
 			: z.string().url(),
-		S3_ACCESS_KEY: !isProductionDeployment
+		S3_ACCESS_KEY: !isProduction
 			? z.preprocess(() => "fake_s3_access_key", z.string())
 			: z.string(),
-		S3_SECRET_KEY: !isProductionDeployment
+		S3_SECRET_KEY: !isProduction
 			? z.preprocess(() => "fake_s3_secret_key", z.string())
 			: z.string(),
-		S3_BUCKET_NAME: !isProductionDeployment
+		S3_BUCKET_NAME: !isProduction
 			? z.preprocess(() => "meeboter-recordings", z.string())
 			: z.string(),
 		S3_REGION: z.string().default("us-east-1"),
@@ -96,9 +96,7 @@ export const env = createEnv({
 	 * isn't built with invalid env vars. To expose them to the client, prefix them with
 	 * `NEXT_PUBLIC_`.
 	 */
-	client: {
-		// NEXT_PUBLIC_CLIENTVAR: z.string(),
-	},
+	client: {},
 
 	/**
 	 * You can't destruct `process.env` as a regular object in the Next.js edge runtimes (e.g.
