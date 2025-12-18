@@ -19,28 +19,13 @@ export const env = createEnv({
 			.enum(["development", "test", "production"])
 			.default("development"),
 
-		// Auth secrets - use dummy values during build time
-		AUTH_SECRET: !isProductionDeployment
-			? z.preprocess(() => "build_time_secret_placeholder_32chars!", z.string())
-			: z.string(),
-		AUTH_GITHUB_ID: !isProductionDeployment
-			? z.preprocess(() => "build_time_github_id", z.string())
-			: z.string(),
-		AUTH_GITHUB_SECRET: !isProductionDeployment
-			? z.preprocess(() => "build_time_github_secret", z.string())
-			: z.string(),
+		AUTH_SECRET: z.string(),
+		AUTH_GITHUB_ID: z.string(),
+		AUTH_GITHUB_SECRET: z.string(),
 
-		DATABASE_URL: !isProductionDeployment
-			? z.preprocess(
-					() => "postgresql://localhost:5432/build_placeholder",
-					z.string().regex(/^postgres(ql)?:\/\//, {
-						message:
-							"DATABASE_URL must start with postgresql:// or postgres://",
-					}),
-				)
-			: z.string().regex(/^postgres(ql)?:\/\//, {
-					message: "DATABASE_URL must start with postgresql:// or postgres://",
-				}),
+		DATABASE_URL: z.string().regex(/^postgres(ql)?:\/\//, {
+			message: "DATABASE_URL must start with postgresql:// or postgres://",
+		}),
 		DATABASE_SSL: z
 			.enum(["true", "false"])
 			.default("true")
@@ -87,9 +72,7 @@ export const env = createEnv({
 
 		BOT_AUTH_TOKEN: z.string().optional(),
 
-		NEXT_PUBLIC_APP_ORIGIN_URL: !isProductionDeployment
-			? z.preprocess(() => "http://localhost:3000", z.string().url())
-			: z.string().url(),
+		NEXT_PUBLIC_APP_ORIGIN_URL: z.string().url(),
 	},
 
 	/**
@@ -106,10 +89,25 @@ export const env = createEnv({
 	 * middlewares) or client-side so we need to destruct manually.
 	 */
 	runtimeEnv: {
-		AUTH_SECRET: process.env.AUTH_SECRET,
-		AUTH_GITHUB_ID: process.env.AUTH_GITHUB_ID,
-		AUTH_GITHUB_SECRET: process.env.AUTH_GITHUB_SECRET,
-		DATABASE_URL: process.env.DATABASE_URL,
+		// Auth - provide build-time fallbacks when SKIP_ENV_VALIDATION is set
+		AUTH_SECRET:
+			process.env.AUTH_SECRET ||
+			(process.env.SKIP_ENV_VALIDATION
+				? "build_time_secret_placeholder_32chars!"
+				: undefined),
+		AUTH_GITHUB_ID:
+			process.env.AUTH_GITHUB_ID ||
+			(process.env.SKIP_ENV_VALIDATION ? "build_github_id" : undefined),
+		AUTH_GITHUB_SECRET:
+			process.env.AUTH_GITHUB_SECRET ||
+			(process.env.SKIP_ENV_VALIDATION ? "build_github_secret" : undefined),
+
+		// Database - provide build-time fallback
+		DATABASE_URL:
+			process.env.DATABASE_URL ||
+			(process.env.SKIP_ENV_VALIDATION
+				? "postgresql://localhost:5432/build_placeholder"
+				: undefined),
 		DATABASE_SSL: process.env.DATABASE_SSL,
 		NODE_ENV: process.env.NODE_ENV,
 
@@ -133,7 +131,9 @@ export const env = createEnv({
 		MINIO_REGION: process.env.MINIO_REGION,
 
 		BOT_AUTH_TOKEN: process.env.BOT_AUTH_TOKEN,
-		NEXT_PUBLIC_APP_ORIGIN_URL: process.env.NEXT_PUBLIC_APP_ORIGIN_URL,
+		NEXT_PUBLIC_APP_ORIGIN_URL:
+			process.env.NEXT_PUBLIC_APP_ORIGIN_URL ||
+			(process.env.SKIP_ENV_VALIDATION ? "http://localhost:3000" : undefined),
 	},
 
 	/**
