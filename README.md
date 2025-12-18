@@ -71,7 +71,7 @@ Innovative **Bot Pool System** reduces deployment time from 7+ minutes to ~30 se
 ### Developer Experience
 
 - **Type-Safe API** - End-to-end TypeScript with tRPC
-- **OpenAPI/Swagger** - Auto-generated REST documentation
+- **OpenAPI/Scalar** - Auto-generated REST documentation
 - **Event Batching** - High-performance event processing (50 events/100ms)
 - **Flexible Storage** - S3-compatible (AWS S3, MinIO, etc.)
 
@@ -392,7 +392,7 @@ const events = await client.events.getEventsForBot.query({ botId: bot.id });
 
 ---
 
-For complete API documentation, visit `/docs` on your Meeboter instance (Swagger/OpenAPI).
+For complete API documentation, visit `/docs` on your Meeboter instance (Scalar/OpenAPI).
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
