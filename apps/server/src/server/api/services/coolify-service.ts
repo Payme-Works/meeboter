@@ -183,25 +183,26 @@ export class CoolifyService {
 
 		const data = (await response.json()) as CoolifyCreateResponse;
 
-		await this.setEnvironmentVariables(data.uuid, botId, botConfig);
+		await this.setEnvironmentVariables(data.uuid, botId);
 
 		return data.uuid;
 	}
 
 	/**
 	 * Sets environment variables for a Coolify application
+	 *
+	 * IMPORTANT: Only sets IMMUTABLE variables that don't change between slot reuses.
+	 * Dynamic bot config is fetched at runtime via API using POOL_SLOT_UUID.
+	 * This avoids triggering Coolify rebuilds on env var changes (Coolify bug #2854).
 	 */
 	async setEnvironmentVariables(
 		applicationUuid: string,
-		botId: number,
-		botConfig: schema.BotConfig,
+		_botId: number,
 	): Promise<void> {
-		const botDataBase64 = Buffer.from(JSON.stringify(botConfig)).toString(
-			"base64",
-		);
-
+		// POOL_SLOT_UUID allows bot container to fetch its config from API on startup
+		// All other vars are constant across all pool slot uses
 		const envVars: EnvVar[] = [
-			{ key: "BOT_DATA", value: botDataBase64 },
+			{ key: "POOL_SLOT_UUID", value: applicationUuid },
 			{ key: "BOT_AUTH_TOKEN", value: this.botEnvConfig.botAuthToken },
 			{ key: "BACKEND_URL", value: this.botEnvConfig.backendUrl },
 			{ key: "MINIO_ENDPOINT", value: this.botEnvConfig.minioEndpoint },
@@ -226,40 +227,7 @@ export class CoolifyService {
 
 		if (!response.ok) {
 			console.error(
-				`[CoolifyService] Failed to set environment variables for bot ${botId}:`,
-				await response.text(),
-			);
-		}
-	}
-
-	/**
-	 * Updates only the BOT_DATA environment variable
-	 */
-	async updateBotData(
-		applicationUuid: string,
-		botConfig: schema.BotConfig,
-	): Promise<void> {
-		const botDataBase64 = Buffer.from(JSON.stringify(botConfig)).toString(
-			"base64",
-		);
-
-		const response = await fetch(
-			`${this.config.apiUrl}/applications/${applicationUuid}/envs/bulk`,
-			{
-				method: "PATCH",
-				headers: {
-					Authorization: `Bearer ${this.config.apiToken}`,
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify({
-					data: [{ key: "BOT_DATA", value: botDataBase64 }],
-				}),
-			},
-		);
-
-		if (!response.ok) {
-			console.error(
-				`[CoolifyService] Failed to update BOT_DATA for ${applicationUuid}:`,
+				`[CoolifyService] Failed to set environment variables for slot ${applicationUuid}:`,
 				await response.text(),
 			);
 		}

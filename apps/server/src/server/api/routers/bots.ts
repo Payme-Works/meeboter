@@ -7,6 +7,8 @@ import {
 } from "@/server/api/trpc";
 import type { Db } from "@/server/database/db";
 import {
+	botConfigSchema,
+	botPoolSlotsTable,
 	botsTable,
 	events,
 	insertBotSchema,
@@ -868,6 +870,81 @@ export const botsRouter = createTRPCRouter({
 				};
 			},
 		),
+
+	/**
+	 * Retrieves bot configuration for a pool slot (called by bot containers on startup).
+	 * Uses POOL_SLOT_UUID env var to identify which slot is requesting its config.
+	 * @param input - Object containing the pool slot UUID
+	 * @param input.poolSlotUuid - The Coolify service UUID for the pool slot
+	 * @returns Promise<BotConfig> The bot configuration for the assigned bot
+	 * @throws Error if pool slot not found, no bot assigned, or bot not found
+	 */
+	getPoolSlot: publicProcedure
+		.meta({
+			openapi: {
+				method: "GET",
+				path: "/bots/pool-slot/{poolSlotUuid}",
+				description:
+					"Get bot configuration for a pool slot (called by bot containers)",
+			},
+		})
+		.input(
+			z.object({
+				poolSlotUuid: z.string(),
+			}),
+		)
+		.output(botConfigSchema)
+		.query(async ({ input, ctx }): Promise<typeof botConfigSchema._output> => {
+			// Look up the pool slot by Coolify service UUID
+			const slotResult = await ctx.db
+				.select({
+					assignedBotId: botPoolSlotsTable.assignedBotId,
+					status: botPoolSlotsTable.status,
+				})
+				.from(botPoolSlotsTable)
+				.where(eq(botPoolSlotsTable.coolifyServiceUuid, input.poolSlotUuid))
+				.limit(1);
+
+			if (!slotResult[0]) {
+				throw new Error(`Pool slot not found: ${input.poolSlotUuid}`);
+			}
+
+			const slot = slotResult[0];
+
+			if (!slot.assignedBotId) {
+				throw new Error(`No bot assigned to pool slot: ${input.poolSlotUuid}`);
+			}
+
+			// Get the assigned bot's full configuration
+			const botResult = await ctx.db
+				.select()
+				.from(botsTable)
+				.where(eq(botsTable.id, slot.assignedBotId))
+				.limit(1);
+
+			if (!botResult[0]) {
+				throw new Error(`Bot not found: ${slot.assignedBotId}`);
+			}
+
+			const bot = botResult[0];
+
+			// Return the bot config in the expected format
+			return {
+				id: bot.id,
+				userId: bot.userId,
+				meetingInfo: bot.meetingInfo,
+				meetingTitle: bot.meetingTitle,
+				startTime: bot.startTime,
+				endTime: bot.endTime,
+				botDisplayName: bot.botDisplayName,
+				botImage: bot.botImage ?? undefined,
+				recordingEnabled: bot.recordingEnabled,
+				heartbeatInterval: bot.heartbeatInterval,
+				automaticLeave: bot.automaticLeave,
+				callbackUrl: bot.callbackUrl ?? undefined,
+				chatEnabled: bot.chatEnabled,
+			};
+		}),
 
 	/**
 	 * Retrieves the current bot pool statistics for monitoring.

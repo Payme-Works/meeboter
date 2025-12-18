@@ -194,7 +194,10 @@ export class BotPoolService {
 	}
 
 	/**
-	 * Updates environment variables and starts a pool slot for a bot
+	 * Starts a pool slot for a bot (no env var updates needed)
+	 *
+	 * Bot config is fetched at runtime via API using POOL_SLOT_UUID env var.
+	 * This avoids triggering Coolify rebuilds (Coolify bug #2854).
 	 *
 	 * If the Coolify application has been deleted externally, this function
 	 * will automatically recreate it and update the slot in the database.
@@ -207,7 +210,7 @@ export class BotPoolService {
 		botConfig: BotConfig,
 	): Promise<PoolSlot> {
 		console.log(
-			`[Pool] Configuring slot ${slot.slotName} for bot ${botConfig.id}`,
+			`[Pool] Starting slot ${slot.slotName} for bot ${botConfig.id} (config fetched via API)`,
 		);
 
 		const appExists = await this.coolify.applicationExists(
@@ -228,7 +231,8 @@ export class BotPoolService {
 			);
 		}
 
-		await this.coolify.updateBotData(activeSlot.coolifyServiceUuid, botConfig);
+		// No updateBotData call, bot fetches config from API using POOL_SLOT_UUID
+		// This avoids Coolify rebuild triggered by env var changes
 
 		// Update Coolify description to show deploying status
 		await this.updateSlotDescription(
