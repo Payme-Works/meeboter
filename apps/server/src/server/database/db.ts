@@ -2,6 +2,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
 import { env } from "@/env";
+import { startBotHeartbeatMonitor } from "@/server/api/services/bot-heartbeat-monitor";
 import { startSlotRecoveryJob } from "@/server/api/services/slot-recovery";
 
 import * as schema from "./schema";
@@ -67,10 +68,16 @@ export type Db = typeof db;
  */
 const globalForJobs = globalThis as unknown as {
 	recoveryJobStarted: boolean | undefined;
+	heartbeatMonitorStarted: boolean | undefined;
 };
 
-// Start background recovery job in production (only once)
+// Start background jobs in production (only once)
 if (env.NODE_ENV === "production" && !globalForJobs.recoveryJobStarted) {
 	globalForJobs.recoveryJobStarted = true;
 	startSlotRecoveryJob();
+}
+
+if (env.NODE_ENV === "production" && !globalForJobs.heartbeatMonitorStarted) {
+	globalForJobs.heartbeatMonitorStarted = true;
+	startBotHeartbeatMonitor();
 }
