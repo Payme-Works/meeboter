@@ -7,8 +7,8 @@ on:
       - bare-metal
   workflow_dispatch:
     inputs:
-      deploy_server:
-        description: 'Deploy server image'
+      deploy_milo:
+        description: 'Deploy milo image'
         required: false
         default: true
         type: boolean
@@ -43,9 +43,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: server
-            dockerfile: apps/server/Dockerfile
-            input_check: deploy_server
+          - name: milo
+            dockerfile: apps/milo/Dockerfile
+            input_check: deploy_milo
           - name: meet-bot
             dockerfile: apps/bots/providers/meet/Dockerfile
             input_check: deploy_meet_bot
@@ -138,7 +138,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Image | Tag |" >> $GITHUB_STEP_SUMMARY
           echo "|-------|-----|" >> $GITHUB_STEP_SUMMARY
-          echo "| $REGISTRY/$IMAGE_PREFIX-server | $COMMIT_SHA |" >> $GITHUB_STEP_SUMMARY
+          echo "| $REGISTRY/$IMAGE_PREFIX-milo | $COMMIT_SHA |" >> $GITHUB_STEP_SUMMARY
           echo "| $REGISTRY/$IMAGE_PREFIX-meet-bot | $COMMIT_SHA |" >> $GITHUB_STEP_SUMMARY
           echo "| $REGISTRY/$IMAGE_PREFIX-teams-bot | $COMMIT_SHA |" >> $GITHUB_STEP_SUMMARY
           echo "| $REGISTRY/$IMAGE_PREFIX-zoom-bot | $COMMIT_SHA |" >> $GITHUB_STEP_SUMMARY
