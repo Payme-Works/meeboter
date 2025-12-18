@@ -1,3 +1,5 @@
+import { startOfDay } from "date-fns";
+import { fromZonedTime, toZonedTime } from "date-fns-tz";
 import { and, desc, eq, gte, lt } from "drizzle-orm";
 import { FREE_PLAN, SUBSCRIPTION_PLANS } from "@/constants/subscription-plans";
 import type { db } from "@/server/database/db";
@@ -103,29 +105,24 @@ export async function getUserSubscriptionInfo(
  * @param db - The database instance
  * @param userId - The user ID to calculate usage for
  * @param date - The date to calculate usage for (defaults to current date)
- * @param timezoneOffset - Timezone offset in minutes (defaults to 0 for UTC)
+ * @param timeZone - IANA timezone identifier (e.g., "America/Sao_Paulo", defaults to "UTC")
  * @returns The number of bots used on the specified date
  */
 export async function getDailyBotUsage(
 	db: Database,
 	userId: string,
 	date = new Date(),
-	timezoneOffset = 0,
+	timeZone = "UTC",
 ): Promise<number> {
-	// Calculate date range in user's timezone
-	const localDate = new Date(date.getTime() - timezoneOffset * 60000);
+	// Convert current date to user's timezone
+	const dateInUserTimeZone = toZonedTime(date, timeZone);
 
-	const startOfDay = new Date(
-		localDate.getFullYear(),
-		localDate.getMonth(),
-		localDate.getDate(),
-	);
+	// Get start of day in user's timezone
+	const startOfDayInUserTimeZone = startOfDay(dateInUserTimeZone);
 
-	const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
-
-	// Convert back to UTC for database query
-	const startOfDayUTC = new Date(startOfDay.getTime() + timezoneOffset * 60000);
-	const endOfDayUTC = new Date(endOfDay.getTime() + timezoneOffset * 60000);
+	// Convert start and end of day back to UTC for database query
+	const startOfDayUTC = fromZonedTime(startOfDayInUserTimeZone, timeZone);
+	const endOfDayUTC = new Date(startOfDayUTC.getTime() + 24 * 60 * 60 * 1000);
 
 	const bots = await db
 		.select()
@@ -146,13 +143,13 @@ export async function getDailyBotUsage(
  *
  * @param db - The database instance
  * @param userId - The user ID to validate bot creation for
- * @param timezoneOffset - Timezone offset in minutes (defaults to 0 for UTC)
+ * @param timeZone - IANA timezone identifier (e.g., "America/Sao_Paulo", defaults to "UTC")
  * @returns Validation result containing allowed status, reason, usage, and limit information
  */
 export async function validateBotCreation(
 	db: Database,
 	userId: string,
-	timezoneOffset = 0,
+	timeZone = "UTC",
 ): Promise<{
 	allowed: boolean;
 	reason?: string;
@@ -162,12 +159,7 @@ export async function validateBotCreation(
 	try {
 		const subscriptionInfo = await getUserSubscriptionInfo(db, userId);
 
-		const todayUsage = await getDailyBotUsage(
-			db,
-			userId,
-			new Date(),
-			timezoneOffset,
-		);
+		const todayUsage = await getDailyBotUsage(db, userId, new Date(), timeZone);
 
 		// Check if subscription is active
 		if (!subscriptionInfo.subscriptionActive) {
