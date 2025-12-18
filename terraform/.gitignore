@@ -1,5 +1,0 @@
-.terraform
-.infracost
-
-*.tfvars
-*.tfplan

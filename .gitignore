@@ -1,23 +1,43 @@
 # Dependencies
 node_modules
-/node_modules
 .pnp
 .pnp.js
+
+# Build outputs
 dist
-/dist
+build
+out
+
+# Turborepo
+.turbo
+
+# Next.js
+.next
+next-env.d.ts
+
+# Vercel
+.vercel
 
 # Testing
 coverage
-/coverage
-/.nyc_output
+.nyc_output
+test-results
+playwright-report
+blob-report
+playwright/.cache
+playwright/.auth
+.test.env
 
-# Next.js
-.next/
-out/
-build
-.vercel
+# TypeScript
+*.tsbuildinfo
 
-# Environment Variables
+# Database
+prisma/db.sqlite
+prisma/db.sqlite-journal
+db.sqlite
+
+# Environment variables
+.env*.local
 .env.local*
 .env.test.local*
 .env.development.local*
@@ -36,23 +56,26 @@ lerna-debug.log*
 *.pem
 
 # IDEs and editors
-/.idea
+.idea
 .project
 .classpath
-.c9/
+.c9
 *.launch
-.settings/
+.settings
 *.sublime-workspace
 
-# VSCode
+# VSCode (keep specific config files)
 .vscode/*
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
 
-# Build
-.turbo
+# Terraform
+.terraform
+.infracost
+*.tfvars
+*.tfplan
 
-# Next.js
-.next
+# Lab assets
+apps/lab/assets
