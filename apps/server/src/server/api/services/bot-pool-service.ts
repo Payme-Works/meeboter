@@ -625,15 +625,17 @@ export class BotPoolService {
 
 		await this.removeFromQueue(nextEntry.botId);
 
-		await this.configureAndStartSlot(slot, botConfig);
-
+		// Set status to DEPLOYING - the bot itself will update to JOINING_CALL
+		// when it actually starts attempting to join the meeting
 		await this.db
 			.update(botsTable)
 			.set({
-				status: "JOINING_CALL",
+				status: "DEPLOYING",
 				coolifyServiceUuid: slot.coolifyServiceUuid,
 			})
 			.where(eq(botsTable.id, nextEntry.botId));
+
+		await this.configureAndStartSlot(slot, botConfig);
 
 		console.log(
 			`[Queue] Bot ${nextEntry.botId} deployed to slot ${slot.slotName}`,

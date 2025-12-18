@@ -149,16 +149,17 @@ export class BotDeploymentService {
 			console.error(`Bot ${botId} process error:`, error);
 		});
 
+		// Status stays as DEPLOYING - the bot itself will update to JOINING_CALL
+		// when it actually starts attempting to join the meeting
 		const result = await this.db
-			.update(botsTable)
-			.set({ status: "JOINING_CALL", deploymentError: null })
-			.where(eq(botsTable.id, botId))
-			.returning();
+			.select()
+			.from(botsTable)
+			.where(eq(botsTable.id, botId));
 
 		const updatedBot = result[0];
 
 		if (!updatedBot) {
-			throw new BotDeploymentError("Failed to update bot status");
+			throw new BotDeploymentError("Failed to retrieve bot after local deploy");
 		}
 
 		return { bot: updatedBot, queued: false };
@@ -183,10 +184,11 @@ export class BotDeploymentService {
 
 				const activeSlot = await this.pool.configureAndStartSlot(slot, config);
 
+				// Status stays as DEPLOYING - the bot itself will update to JOINING_CALL
+				// when it actually starts attempting to join the meeting
 				const result = await this.db
 					.update(botsTable)
 					.set({
-						status: "JOINING_CALL",
 						coolifyServiceUuid: activeSlot.coolifyServiceUuid,
 						deploymentError: null,
 					})
@@ -197,7 +199,7 @@ export class BotDeploymentService {
 
 				if (!deployedBot) {
 					throw new BotDeploymentError(
-						"Failed to update bot status after deployment",
+						"Failed to update bot after pool deployment",
 					);
 				}
 
