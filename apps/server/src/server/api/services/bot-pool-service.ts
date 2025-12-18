@@ -230,6 +230,13 @@ export class BotPoolService {
 
 		await this.coolify.updateBotData(activeSlot.coolifyServiceUuid, botConfig);
 
+		// Update Coolify description to show deploying status
+		await this.updateSlotDescription(
+			activeSlot.coolifyServiceUuid,
+			"deploying",
+			botConfig.id,
+		);
+
 		console.log(`[Pool] Starting container for slot ${activeSlot.slotName}`);
 		await this.coolify.startApplication(activeSlot.coolifyServiceUuid);
 
