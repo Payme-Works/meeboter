@@ -14,9 +14,9 @@ When 10 bots deploy simultaneously with an empty pool:
 1. All transactions query the table
 2. `FOR UPDATE` finds no rows to lock (empty table)
 3. All proceed simultaneously, calculate slot number 1
-4. All insert `meeboter-pool-meet-001`
+4. All insert `meeboter-pool-google-meet-001`
 
-**Evidence**: Database showed 8 rows with identical `slotName = meeboter-pool-meet-001`
+**Evidence**: Database showed 8 rows with identical `slotName = meeboter-pool-google-meet-001`
 
 ### Status Bug
 
@@ -30,7 +30,7 @@ Use PostgreSQL `pg_advisory_xact_lock()` to serialize slot creation per platform
 
 ```typescript
 const PLATFORM_LOCK_IDS = {
-  meet: 100001,
+  "google-meet": 100001,
   teams: 100002,
   zoom: 100003,
   unknown: 100000,

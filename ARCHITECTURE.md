@@ -155,7 +155,7 @@ The bot pool maintains reusable Coolify applications. Once an image is cached on
 │                       Bot Pool (max 100 slots)                               │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │  [IDLE]        [IDLE]        [BUSY]        [IDLE]        [BUSY]     ...    │
-│  pool-meet-001 pool-meet-002 pool-meet-003 pool-teams-001 pool-zoom-001    │
+│  pool-google-meet-001 pool-google-meet-002 pool-google-meet-003 pool-teams-001 pool-zoom-001 │
 └─────────────────────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -245,10 +245,10 @@ This ensures:
 Pool status is synced to Coolify application descriptions:
 
 ```
-meeboter-pool-meet-001   [DEPLOYING] Bot #123 - Starting container...
-meeboter-pool-meet-002   [BUSY] Bot #456 - 2025-12-16T21:30:00Z
-meeboter-pool-meet-003   [IDLE] Available - Last used: 2025-12-16T20:15:00Z
-meeboter-pool-teams-001  [ERROR] Container crashed - 2025-12-16T21:00:00Z
+meeboter-pool-google-meet-001   [DEPLOYING] Bot #123 - Starting container...
+meeboter-pool-google-meet-002   [BUSY] Bot #456 - 2025-12-16T21:30:00Z
+meeboter-pool-google-meet-003   [IDLE] Available - Last used: 2025-12-16T20:15:00Z
+meeboter-pool-teams-001         [ERROR] Container crashed - 2025-12-16T21:00:00Z
 ```
 
 ---
@@ -502,7 +502,7 @@ Tracks pool slot state and assignment.
 |--------|------|-------------|
 | `id` | SERIAL | Primary key |
 | `coolifyServiceUuid` | VARCHAR(255) | Coolify app UUID |
-| `slotName` | VARCHAR(255) | Human name (pool-meet-001) |
+| `slotName` | VARCHAR(255) | Human name (pool-google-meet-001) |
 | `status` | VARCHAR(50) | idle, busy, error |
 | `assignedBotId` | INTEGER | Currently assigned bot |
 | `lastUsedAt` | TIMESTAMP | For LRU selection |
@@ -1493,7 +1493,7 @@ SELECT * FROM bot_pool_slots WHERE status = 'error';
 docker ps -a | grep meeboter-pool
 
 # View container logs (replace with actual slot name)
-docker logs meeboter-pool-meet-001 --tail 100
+docker logs meeboter-pool-google-meet-001 --tail 100
 
 # Check database pool status
 psql $DATABASE_URL -c "SELECT slot_name, status, assigned_bot_id FROM bot_pool_slots"

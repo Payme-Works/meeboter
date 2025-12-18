@@ -27,7 +27,7 @@ const QUEUE_POLL_INTERVAL_MS = 1000;
  * These must be unique across the application to avoid lock conflicts
  */
 const PLATFORM_LOCK_IDS: Record<string, number> = {
-	meet: 100001,
+	"google-meet": 100001,
 	teams: 100002,
 	zoom: 100003,
 	unknown: 100000,
@@ -747,7 +747,7 @@ export class BotPoolService {
 	private getPlatformSlotName(platform: string | undefined): string {
 		switch (platform?.toLowerCase()) {
 			case "google":
-				return "meet";
+				return "google-meet";
 			case "teams":
 				return "teams";
 			case "zoom":
