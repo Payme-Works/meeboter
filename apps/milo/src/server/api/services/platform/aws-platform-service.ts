@@ -42,11 +42,11 @@ export interface AWSPlatformConfig {
 export interface AWSBotEnvConfig {
 	botAuthToken: string;
 	backendUrl: string;
-	minioEndpoint: string;
-	minioAccessKey: string;
-	minioSecretKey: string;
-	minioBucketName: string;
-	minioRegion: string;
+	s3Endpoint: string;
+	s3AccessKey: string;
+	s3SecretKey: string;
+	s3BucketName: string;
+	s3Region: string;
 }
 
 /**
@@ -233,12 +233,12 @@ export class AWSPlatformService implements PlatformService {
 			{ name: "BOT_AUTH_TOKEN", value: this.botEnvConfig.botAuthToken },
 			{ name: "BACKEND_URL", value: this.botEnvConfig.backendUrl },
 
-			// MinIO/S3 configuration
-			{ name: "MINIO_ENDPOINT", value: this.botEnvConfig.minioEndpoint },
-			{ name: "MINIO_ACCESS_KEY", value: this.botEnvConfig.minioAccessKey },
-			{ name: "MINIO_SECRET_KEY", value: this.botEnvConfig.minioSecretKey },
-			{ name: "MINIO_BUCKET_NAME", value: this.botEnvConfig.minioBucketName },
-			{ name: "MINIO_REGION", value: this.botEnvConfig.minioRegion },
+			// S3-compatible storage configuration
+			{ name: "S3_ENDPOINT", value: this.botEnvConfig.s3Endpoint },
+			{ name: "S3_ACCESS_KEY", value: this.botEnvConfig.s3AccessKey },
+			{ name: "S3_SECRET_KEY", value: this.botEnvConfig.s3SecretKey },
+			{ name: "S3_BUCKET_NAME", value: this.botEnvConfig.s3BucketName },
+			{ name: "S3_REGION", value: this.botEnvConfig.s3Region },
 
 			// Runtime
 			{ name: "NODE_ENV", value: "production" },

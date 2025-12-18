@@ -76,11 +76,11 @@ function createCoolifyPlatformService(): CoolifyPlatformService {
 		{
 			botAuthToken: env.BOT_AUTH_TOKEN ?? "",
 			backendUrl: `${env.NEXT_PUBLIC_APP_ORIGIN_URL}/api/trpc`,
-			minioEndpoint: env.MINIO_ENDPOINT,
-			minioAccessKey: env.MINIO_ACCESS_KEY,
-			minioSecretKey: env.MINIO_SECRET_KEY,
-			minioBucketName: env.MINIO_BUCKET_NAME,
-			minioRegion: env.MINIO_REGION,
+			s3Endpoint: env.S3_ENDPOINT,
+			s3AccessKey: env.S3_ACCESS_KEY,
+			s3SecretKey: env.S3_SECRET_KEY,
+			s3BucketName: env.S3_BUCKET_NAME,
+			s3Region: env.S3_REGION,
 		},
 		{
 			ghcrOrg: env.GHCR_ORG,
@@ -120,11 +120,11 @@ function createAWSPlatformService(): AWSPlatformService {
 	const botEnvConfig: AWSBotEnvConfig = {
 		botAuthToken: env.BOT_AUTH_TOKEN ?? "",
 		backendUrl: `${env.NEXT_PUBLIC_APP_ORIGIN_URL}/api/trpc`,
-		minioEndpoint: env.MINIO_ENDPOINT,
-		minioAccessKey: env.MINIO_ACCESS_KEY,
-		minioSecretKey: env.MINIO_SECRET_KEY,
-		minioBucketName: env.MINIO_BUCKET_NAME,
-		minioRegion: env.MINIO_REGION,
+		s3Endpoint: env.S3_ENDPOINT,
+		s3AccessKey: env.S3_ACCESS_KEY,
+		s3SecretKey: env.S3_SECRET_KEY,
+		s3BucketName: env.S3_BUCKET_NAME,
+		s3Region: env.S3_REGION,
 	};
 
 	return new AWSPlatformService(ecsClient, config, botEnvConfig);

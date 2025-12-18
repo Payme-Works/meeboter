@@ -18,11 +18,11 @@ export interface CoolifyConfig {
 export interface BotEnvConfig {
 	botAuthToken: string;
 	backendUrl: string;
-	minioEndpoint: string;
-	minioAccessKey: string;
-	minioSecretKey: string;
-	minioBucketName: string;
-	minioRegion: string;
+	s3Endpoint: string;
+	s3AccessKey: string;
+	s3SecretKey: string;
+	s3BucketName: string;
+	s3Region: string;
 }
 
 /**
@@ -205,11 +205,11 @@ export class CoolifyService {
 			{ key: "POOL_SLOT_UUID", value: applicationUuid },
 			{ key: "BOT_AUTH_TOKEN", value: this.botEnvConfig.botAuthToken },
 			{ key: "BACKEND_URL", value: this.botEnvConfig.backendUrl },
-			{ key: "MINIO_ENDPOINT", value: this.botEnvConfig.minioEndpoint },
-			{ key: "MINIO_ACCESS_KEY", value: this.botEnvConfig.minioAccessKey },
-			{ key: "MINIO_SECRET_KEY", value: this.botEnvConfig.minioSecretKey },
-			{ key: "MINIO_BUCKET_NAME", value: this.botEnvConfig.minioBucketName },
-			{ key: "MINIO_REGION", value: this.botEnvConfig.minioRegion },
+			{ key: "S3_ENDPOINT", value: this.botEnvConfig.s3Endpoint },
+			{ key: "S3_ACCESS_KEY", value: this.botEnvConfig.s3AccessKey },
+			{ key: "S3_SECRET_KEY", value: this.botEnvConfig.s3SecretKey },
+			{ key: "S3_BUCKET_NAME", value: this.botEnvConfig.s3BucketName },
+			{ key: "S3_REGION", value: this.botEnvConfig.s3Region },
 			{ key: "NODE_ENV", value: "production" },
 		];
 

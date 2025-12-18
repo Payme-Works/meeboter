@@ -105,7 +105,7 @@ export const main = async () => {
 
 	if (!s3Client) {
 		throw new Error(
-			"Failed to create S3 client - check MINIO_* or AWS_* environment variables",
+			"Failed to create S3 client - check S3_* or AWS_* environment variables",
 		);
 	}
 

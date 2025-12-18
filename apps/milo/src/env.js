@@ -55,20 +55,20 @@ export const env = createEnv({
 			: z.string(),
 		BOT_IMAGE_TAG: z.string().default("latest"),
 
-		// MinIO Configuration (S3-compatible)
-		MINIO_ENDPOINT: !isProductionDeployment
+		// S3-Compatible Storage (MinIO or AWS S3)
+		S3_ENDPOINT: !isProductionDeployment
 			? z.preprocess(() => "http://localhost:9000", z.string().url())
 			: z.string().url(),
-		MINIO_ACCESS_KEY: !isProductionDeployment
-			? z.preprocess(() => "fake_minio_access_key", z.string())
+		S3_ACCESS_KEY: !isProductionDeployment
+			? z.preprocess(() => "fake_s3_access_key", z.string())
 			: z.string(),
-		MINIO_SECRET_KEY: !isProductionDeployment
-			? z.preprocess(() => "fake_minio_secret_key", z.string())
+		S3_SECRET_KEY: !isProductionDeployment
+			? z.preprocess(() => "fake_s3_secret_key", z.string())
 			: z.string(),
-		MINIO_BUCKET_NAME: !isProductionDeployment
+		S3_BUCKET_NAME: !isProductionDeployment
 			? z.preprocess(() => "meeboter-recordings", z.string())
 			: z.string(),
-		MINIO_REGION: z.string().default("us-east-1"),
+		S3_REGION: z.string().default("us-east-1"),
 
 		BOT_AUTH_TOKEN: z.string().optional(),
 
@@ -139,12 +139,12 @@ export const env = createEnv({
 		GHCR_ORG: process.env.GHCR_ORG,
 		BOT_IMAGE_TAG: process.env.BOT_IMAGE_TAG,
 
-		// MinIO
-		MINIO_ENDPOINT: process.env.MINIO_ENDPOINT,
-		MINIO_ACCESS_KEY: process.env.MINIO_ACCESS_KEY,
-		MINIO_SECRET_KEY: process.env.MINIO_SECRET_KEY,
-		MINIO_BUCKET_NAME: process.env.MINIO_BUCKET_NAME,
-		MINIO_REGION: process.env.MINIO_REGION,
+		// S3-Compatible Storage
+		S3_ENDPOINT: process.env.S3_ENDPOINT,
+		S3_ACCESS_KEY: process.env.S3_ACCESS_KEY,
+		S3_SECRET_KEY: process.env.S3_SECRET_KEY,
+		S3_BUCKET_NAME: process.env.S3_BUCKET_NAME,
+		S3_REGION: process.env.S3_REGION,
 
 		BOT_AUTH_TOKEN: process.env.BOT_AUTH_TOKEN,
 		NEXT_PUBLIC_APP_ORIGIN_URL:

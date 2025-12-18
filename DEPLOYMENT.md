@@ -262,18 +262,18 @@ Bot recordings are stored in S3-compatible storage (MinIO or AWS S3):
 
 ```bash
 # MinIO (Self-hosted)
-MINIO_ENDPOINT="http://minio:9000"
-MINIO_ACCESS_KEY="your-access-key"
-MINIO_SECRET_KEY="your-secret-key"
-MINIO_BUCKET_NAME="meeboter-recordings"
-MINIO_REGION="us-east-1"
+S3_ENDPOINT="http://minio:9000"
+S3_ACCESS_KEY="your-access-key"
+S3_SECRET_KEY="your-secret-key"
+S3_BUCKET_NAME="meeboter-recordings"
+S3_REGION="us-east-1"
 
 # AWS S3
-MINIO_ENDPOINT="https://s3.us-east-1.amazonaws.com"
-MINIO_ACCESS_KEY="your-aws-access-key"
-MINIO_SECRET_KEY="your-aws-secret-key"
-MINIO_BUCKET_NAME="meeboter-recordings"
-MINIO_REGION="us-east-1"
+S3_ENDPOINT="https://s3.us-east-1.amazonaws.com"
+S3_ACCESS_KEY="your-aws-access-key"
+S3_SECRET_KEY="your-aws-secret-key"
+S3_BUCKET_NAME="meeboter-recordings"
+S3_REGION="us-east-1"
 ```
 
 ---
