@@ -1,5 +1,5 @@
 {
-	"name": "@meeboter/server",
+	"name": "@meeboter/milo",
 	"version": "0.1.0",
 	"private": true,
 	"type": "module",

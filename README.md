@@ -3,7 +3,7 @@
 <br />
 <div align="center">
   <a href="https://github.com/Payme-Works/meeboter">
-    <img src="https://raw.githubusercontent.com/Payme-Works/meeboter/refs/heads/bare-metal/apps/server/public/logo.svg" alt="Meeboter Logo" width="80" height="80">
+    <img src="https://raw.githubusercontent.com/Payme-Works/meeboter/refs/heads/bare-metal/apps/milo/public/logo.svg" alt="Meeboter Logo" width="80" height="80">
   </a>
 
   <h3 align="center">Meeboter</h3>
@@ -162,20 +162,20 @@ Innovative **Bot Pool System** reduces deployment time from 7+ minutes to ~30 se
 4. **Configure environment**
 
    ```bash
-   cp apps/server/.env.example apps/server/.env
+   cp apps/milo/.env.example apps/milo/.env
    # Edit .env with your configuration
    ```
 
 5. **Run database migrations**
 
    ```bash
-   bun turbo db:migrate --filter=@meeboter/server
+   bun turbo db:migrate --filter=@meeboter/milo
    ```
 
 6. **Start the development server**
 
    ```bash
-   bun turbo dev --filter=@meeboter/server
+   bun turbo dev --filter=@meeboter/milo
    ```
 
 7. **Access the dashboard**
@@ -368,7 +368,7 @@ For TypeScript projects, use the type-safe tRPC client:
 
 ```typescript
 import { createTRPCClient } from '@trpc/client';
-import type { AppRouter } from '@meeboter/server';
+import type { AppRouter } from '@meeboter/milo';
 
 const client = createTRPCClient<AppRouter>({
   url: 'https://your-meeboter-instance/api/trpc',
@@ -464,7 +464,7 @@ For complete API documentation, visit `/docs` on your Meeboter instance (Scalar/
 ```
 meeboter/
 ├── apps/
-│   ├── server/              # Next.js 15 full-stack application
+│   ├── milo/                # Next.js 15 full-stack application (Milo)
 │   │   ├── src/
 │   │   │   ├── app/         # Next.js pages and API routes
 │   │   │   ├── server/
@@ -508,10 +508,10 @@ bun install
 docker compose up -d
 
 # Run migrations
-bun turbo db:migrate --filter=@meeboter/server
+bun turbo db:migrate --filter=@meeboter/milo
 
 # Start development server
-bun turbo dev --filter=@meeboter/server
+bun turbo dev --filter=@meeboter/milo
 
 # Run linting
 bun run lint
@@ -538,13 +538,13 @@ bun run build
 
 ```bash
 # Generate a new migration
-bun turbo db:generate --filter=@meeboter/server -- --name <migration_name>
+bun turbo db:generate --filter=@meeboter/milo -- --name <migration_name>
 
 # Apply migrations
-bun turbo db:migrate --filter=@meeboter/server
+bun turbo db:migrate --filter=@meeboter/milo
 
 # Open Drizzle Studio (database UI)
-bun turbo db:studio --filter=@meeboter/server
+bun turbo db:studio --filter=@meeboter/milo
 ```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>

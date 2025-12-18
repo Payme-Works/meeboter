@@ -1,4 +1,4 @@
-import type { AppRouter } from "@meeboter/server";
+import type { AppRouter } from "@meeboter/milo";
 import {
 	createTRPCProxyClient,
 	httpBatchLink,
