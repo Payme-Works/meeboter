@@ -6,7 +6,7 @@ import {
 	startHeartbeat,
 } from "./monitoring";
 import { createS3ClientFromEnv, uploadRecordingToS3 } from "./s3";
-import { getTrpc, trpc } from "./trpc";
+import { trpc } from "./trpc";
 import { EventCode, type SpeakerTimeframe } from "./types";
 
 dotenv.config({ path: "../.env.test" }); // Load .env.test for testing
@@ -32,7 +32,7 @@ async function startMessageProcessing(
 	const messageInterval = setInterval(async () => {
 		try {
 			// Call the backend API to get next queued message using tRPC
-			const queuedMessage = await getTrpc().chat.getNextQueuedMessage.query({
+			const queuedMessage = await trpc.chat.getNextQueuedMessage.query({
 				botId: botId.toString(),
 			});
 

@@ -72,10 +72,3 @@ export const trpc = {
 		},
 	},
 };
-
-// Export mock functions for configureTrpc and getTrpc
-export const configureTrpc = jest.fn((miloUrl: string) => {
-	console.log(`Mock configureTrpc called with: ${miloUrl}`);
-});
-
-export const getTrpc = jest.fn(() => trpc);
