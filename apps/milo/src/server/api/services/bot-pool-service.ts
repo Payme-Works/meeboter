@@ -264,6 +264,23 @@ export class BotPoolService {
 		const idleSlot = await this.acquireIdleSlot(botId);
 
 		if (idleSlot) {
+			// Validate that coolifyServiceUuid was returned from the query
+			if (!idleSlot.coolifyServiceUuid) {
+				console.error(
+					`[Pool] CRITICAL: acquireIdleSlot returned slot with missing coolifyServiceUuid`,
+					{
+						slotId: idleSlot.id,
+						slotName: idleSlot.slotName,
+						coolifyServiceUuid: idleSlot.coolifyServiceUuid,
+						assignedBotId: idleSlot.assignedBotId,
+					},
+				);
+
+				throw new Error(
+					`Slot ${idleSlot.id} has no coolifyServiceUuid - database may need migration`,
+				);
+			}
+
 			// Update bot's coolifyServiceUuid immediately after slot acquisition
 			// This ensures both tables are in sync (slot.assignedBotId and bot.coolifyServiceUuid)
 			await this.db
@@ -921,10 +938,22 @@ export class BotPoolService {
 		`);
 
 		if (result.length === 0) {
+			console.log(`[Pool] No idle slots available for bot ${botId}`);
+
 			return null;
 		}
 
 		const row = result[0];
+
+		// Debug logging to diagnose column mapping issues
+		console.log(`[Pool] acquireIdleSlot raw result for bot ${botId}:`, {
+			rowKeys: Object.keys(row),
+			id: row.id,
+			coolify_service_uuid: row.coolify_service_uuid,
+			slot_name: row.slot_name,
+			status: row.status,
+			assigned_bot_id: row.assigned_bot_id,
+		});
 
 		return {
 			id: row.id,
