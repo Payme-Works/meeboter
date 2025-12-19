@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import {
@@ -87,7 +87,8 @@ export const eventsRouter = createTRPCRouter({
 			return await ctx.db
 				.select()
 				.from(events)
-				.where(eq(events.botId, input.botId));
+				.where(eq(events.botId, input.botId))
+				.orderBy(desc(events.eventTime));
 		}),
 
 	/**
