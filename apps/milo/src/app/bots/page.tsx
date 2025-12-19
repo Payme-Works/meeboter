@@ -7,12 +7,18 @@ import {
 	ExternalLink,
 	MessageSquare,
 	Rocket,
+	Trash2,
 	Video,
+	X,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
-import { DataTable } from "@/components/custom/data-table";
+import { toast } from "sonner";
+import {
+	DataTable,
+	type RowSelectionState,
+} from "@/components/custom/data-table";
 import {
 	PageHeader,
 	PageHeaderActions,
@@ -22,6 +28,15 @@ import {
 } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
 import { useSession } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 import { api } from "@/trpc/react";
@@ -105,6 +120,8 @@ export default function BotsPage() {
 	const [selectedBot, setSelectedBot] = useState<number | null>(null);
 	const [multiBotDialogOpen, setMultiBotDialogOpen] = useState(false);
 	const [broadcastCenterOpen, setBroadcastCenterOpen] = useState(false);
+	const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
 	const [botToRemove, setBotToRemove] = useState<{
 		id: number;
@@ -117,12 +134,65 @@ export default function BotsPage() {
 	} | null>(null);
 
 	const { data: session } = useSession();
+	const utils = api.useUtils();
 
 	const { data: bots = [], isLoading, error } = api.bots.getBots.useQuery();
 
+	const deleteBotsMutation = api.bots.deleteBots.useMutation({
+		onSuccess: (data) => {
+			if (data.deleted > 0) {
+				toast.success(`Successfully deleted ${data.deleted} bot(s)`);
+			}
+
+			if (data.failed > 0) {
+				toast.error(`Failed to delete ${data.failed} bot(s)`);
+			}
+
+			setRowSelection({});
+			utils.bots.getBots.invalidate();
+		},
+		onError: (error) => {
+			toast.error(`Failed to delete bots: ${error.message}`);
+		},
+	});
+
 	type Bot = (typeof bots)[number];
 
+	// Get selected bot IDs from row selection
+	const selectedBotIds = Object.keys(rowSelection)
+		.filter((key) => rowSelection[key])
+		.map((id) => Number.parseInt(id, 10));
+
+	const handleBulkDelete = () => {
+		if (selectedBotIds.length === 0) return;
+
+		deleteBotsMutation.mutate({ ids: selectedBotIds });
+		setDeleteDialogOpen(false);
+	};
+
 	const columns: ColumnDef<Bot>[] = [
+		{
+			id: "select",
+			header: ({ table }) => (
+				<Checkbox
+					checked={
+						table.getIsAllPageRowsSelected() ||
+						(table.getIsSomePageRowsSelected() && "indeterminate")
+					}
+					onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+					aria-label="Select all"
+				/>
+			),
+			cell: ({ row }) => (
+				<Checkbox
+					checked={row.getIsSelected()}
+					onCheckedChange={(value) => row.toggleSelected(!!value)}
+					aria-label="Select row"
+				/>
+			),
+			enableSorting: false,
+			enableHiding: false,
+		},
 		{
 			accessorKey: "botDisplayName",
 			header: "Bot Name",
@@ -288,11 +358,45 @@ export default function BotsPage() {
 				</PageHeaderActions>
 			</PageHeader>
 
+			{/* Bulk Action Toolbar */}
+			{selectedBotIds.length > 0 ? (
+				<div className="flex items-center justify-between rounded-lg border bg-muted/50 px-4 py-3">
+					<div className="flex items-center gap-2">
+						<span className="text-sm font-medium">
+							{selectedBotIds.length} bot(s) selected
+						</span>
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={() => setRowSelection({})}
+						>
+							<X className="h-4 w-4" />
+							Clear
+						</Button>
+					</div>
+					<div className="flex items-center gap-2">
+						<Button
+							variant="destructive"
+							size="sm"
+							onClick={() => setDeleteDialogOpen(true)}
+							disabled={deleteBotsMutation.isPending}
+						>
+							<Trash2 className="h-4 w-4" />
+							Delete Selected
+						</Button>
+					</div>
+				</div>
+			) : null}
+
 			<DataTable
 				columns={columns}
 				data={bots}
 				isLoading={isLoading}
 				errorMessage={error?.message}
+				enableRowSelection
+				rowSelection={rowSelection}
+				onRowSelectionChange={setRowSelection}
+				getRowId={(row) => row.id.toString()}
 			/>
 
 			<BotDetailsDialog
@@ -328,6 +432,34 @@ export default function BotsPage() {
 					if (!open) setBotToCancel(null);
 				}}
 			/>
+
+			{/* Bulk Delete Confirmation Dialog */}
+			<Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Delete {selectedBotIds.length} bot(s)?</DialogTitle>
+						<DialogDescription>
+							This action cannot be undone. This will permanently delete the
+							selected bots and their associated data.
+						</DialogDescription>
+					</DialogHeader>
+					<DialogFooter>
+						<Button
+							variant="outline"
+							onClick={() => setDeleteDialogOpen(false)}
+						>
+							Cancel
+						</Button>
+						<Button
+							variant="destructive"
+							onClick={handleBulkDelete}
+							disabled={deleteBotsMutation.isPending}
+						>
+							{deleteBotsMutation.isPending ? "Deleting..." : "Delete"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 }

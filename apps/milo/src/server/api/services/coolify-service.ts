@@ -500,6 +500,51 @@ export class CoolifyService {
 	}
 
 	/**
+	 * Updates resource limits for a Coolify application
+	 *
+	 * This ensures existing pool slots have consistent resource limits
+	 * when being reused for new bot deployments.
+	 */
+	async updateResourceLimits(
+		applicationUuid: string,
+		limits: { cpus?: string; memory?: string } = {},
+	): Promise<void> {
+		const { cpus = "0.25", memory = "512m" } = limits;
+
+		try {
+			const response = await fetch(
+				`${this.config.apiUrl}/applications/${applicationUuid}`,
+				{
+					method: "PATCH",
+					headers: {
+						Authorization: `Bearer ${this.config.apiToken}`,
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify({
+						limits_cpus: cpus,
+						limits_memory: memory,
+					}),
+				},
+			);
+
+			if (!response.ok) {
+				const errorText = await response.text();
+
+				console.error(
+					`[CoolifyService] Failed to update resource limits for ${applicationUuid}:`,
+					errorText,
+				);
+			} else {
+				console.log(
+					`[CoolifyService] Updated resource limits for ${applicationUuid}: cpus=${cpus}, memory=${memory}`,
+				);
+			}
+		} catch (error) {
+			console.error("[CoolifyService] Error updating resource limits:", error);
+		}
+	}
+
+	/**
 	 * Waits for a Coolify application deployment to complete
 	 *
 	 * Polls the Coolify deployment API to check deployment status:

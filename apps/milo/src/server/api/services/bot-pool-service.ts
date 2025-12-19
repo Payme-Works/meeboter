@@ -283,6 +283,10 @@ export class BotPoolService {
 				);
 			}
 
+			// Update resource limits for existing slot to ensure consistency
+			// This ensures slots have the current resource configuration when reused
+			await this.coolify.updateResourceLimits(idleSlot.coolifyServiceUuid);
+
 			// Update bot's coolifyServiceUuid immediately after slot acquisition
 			// This ensures both tables are in sync (slot.assignedBotId and bot.coolifyServiceUuid)
 			await this.db

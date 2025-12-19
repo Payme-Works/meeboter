@@ -2,17 +2,33 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 import { formatDistanceToNow } from "date-fns";
-import { ChevronDown, X } from "lucide-react";
+import { ChevronDown, MoreHorizontal, Trash2, X } from "lucide-react";
 import { motion } from "motion/react";
-import { DataTable } from "@/components/custom/data-table";
+import { useState } from "react";
+import { toast } from "sonner";
+import {
+	DataTable,
+	type RowSelectionState,
+} from "@/components/custom/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
 import {
 	DropdownMenu,
 	DropdownMenuCheckboxItem,
 	DropdownMenuContent,
+	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { api } from "@/trpc/react";
 
 type PoolSlotStatus = "idle" | "deploying" | "busy" | "error";
 
@@ -87,7 +103,92 @@ export function PoolSlotsTable({
 	statusFilter,
 	onStatusFilterChange,
 }: PoolSlotsTableProps) {
+	const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+	const [slotsToDelete, setSlotsToDelete] = useState<PoolSlot[]>([]);
+
+	const utils = api.useUtils();
+
+	const deleteMutation = api.pool.slots.delete.useMutation({
+		onSuccess: (result) => {
+			if (result.deletedIds.length > 0) {
+				toast.success(
+					`Deleted ${result.deletedIds.length} slot${result.deletedIds.length > 1 ? "s" : ""}`,
+				);
+			}
+
+			if (result.failedIds.length > 0) {
+				toast.error(
+					`Failed to delete ${result.failedIds.length} slot${result.failedIds.length > 1 ? "s" : ""}`,
+					{
+						description: result.failedIds
+							.map((f) => `Slot ${f.id}: ${f.error}`)
+							.join(", "),
+					},
+				);
+			}
+
+			setRowSelection({});
+			setSlotsToDelete([]);
+			setDeleteDialogOpen(false);
+
+			utils.pool.slots.list.invalidate();
+			utils.pool.statistics.getPool.invalidate();
+		},
+		onError: (error) => {
+			toast.error("Failed to delete slots", {
+				description: error.message,
+			});
+		},
+	});
+
+	const handleDeleteClick = (slot: PoolSlot) => {
+		setSlotsToDelete([slot]);
+		setDeleteDialogOpen(true);
+	};
+
+	const handleBulkDeleteClick = () => {
+		if (!slots) return;
+
+		const selectedIds = Object.keys(rowSelection);
+
+		const selectedSlots = slots.filter((slot) =>
+			selectedIds.includes(String(slot.id)),
+		);
+
+		setSlotsToDelete(selectedSlots);
+		setDeleteDialogOpen(true);
+	};
+
+	const handleConfirmDelete = () => {
+		if (slotsToDelete.length === 0) return;
+
+		deleteMutation.mutate({ ids: slotsToDelete.map((s) => s.id) });
+	};
+
 	const columns: ColumnDef<PoolSlot>[] = [
+		{
+			id: "select",
+			header: ({ table }) => (
+				<Checkbox
+					checked={
+						table.getIsAllPageRowsSelected() ||
+						(table.getIsSomePageRowsSelected() && "indeterminate")
+					}
+					onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+					aria-label="Select all"
+				/>
+			),
+			cell: ({ row }) => (
+				<Checkbox
+					checked={row.getIsSelected()}
+					onCheckedChange={(value) => row.toggleSelected(!!value)}
+					aria-label="Select row"
+				/>
+			),
+			enableSorting: false,
+			enableHiding: false,
+		},
 		{
 			accessorKey: "slotName",
 			header: "Slot Name",
@@ -182,6 +283,29 @@ export function PoolSlotsTable({
 				</span>
 			),
 		},
+		{
+			id: "actions",
+			header: "",
+			cell: ({ row }) => (
+				<DropdownMenu>
+					<DropdownMenuTrigger asChild>
+						<Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+							<span className="sr-only">Open menu</span>
+							<MoreHorizontal className="h-4 w-4" />
+						</Button>
+					</DropdownMenuTrigger>
+					<DropdownMenuContent align="end">
+						<DropdownMenuItem
+							onClick={() => handleDeleteClick(row.original)}
+							className="text-destructive focus:text-destructive"
+						>
+							<Trash2 className="mr-2 h-4 w-4" />
+							Delete
+						</DropdownMenuItem>
+					</DropdownMenuContent>
+				</DropdownMenu>
+			),
+		},
 	];
 
 	const toggleStatus = (status: PoolSlotStatus) => {
@@ -197,6 +321,7 @@ export function PoolSlotsTable({
 	};
 
 	const hasFilters = statusFilter.length > 0;
+	const selectedCount = Object.keys(rowSelection).length;
 
 	return (
 		<motion.div
@@ -210,6 +335,18 @@ export function PoolSlotsTable({
 				<h2 className="text-lg font-semibold">Pool Slots</h2>
 
 				<div className="flex items-center gap-2">
+					{selectedCount > 0 ? (
+						<Button
+							variant="destructive"
+							size="sm"
+							onClick={handleBulkDeleteClick}
+							className="h-8"
+						>
+							<Trash2 className="h-3 w-3 mr-1" />
+							Delete ({selectedCount})
+						</Button>
+					) : null}
+
 					{hasFilters ? (
 						<Button
 							variant="ghost"
@@ -261,7 +398,72 @@ export function PoolSlotsTable({
 			</div>
 
 			{/* Table */}
-			<DataTable columns={columns} data={slots} isLoading={isLoading} />
+			<DataTable
+				columns={columns}
+				data={slots}
+				isLoading={isLoading}
+				enableRowSelection
+				rowSelection={rowSelection}
+				onRowSelectionChange={setRowSelection}
+				getRowId={(row) => String(row.id)}
+			/>
+
+			{/* Delete confirmation dialog */}
+			<Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>
+							Delete pool slot{slotsToDelete.length > 1 ? "s" : ""}
+						</DialogTitle>
+						<DialogDescription>
+							{slotsToDelete.length === 1 ? (
+								<>
+									Are you sure you want to delete slot{" "}
+									<span className="font-mono font-medium">
+										{slotsToDelete[0]?.slotName}
+									</span>
+									? This will stop the container and remove it from Coolify.
+								</>
+							) : (
+								<>
+									Are you sure you want to delete {slotsToDelete.length} slots?
+									This will stop all containers and remove them from Coolify.
+								</>
+							)}
+						</DialogDescription>
+					</DialogHeader>
+
+					{slotsToDelete.length > 1 ? (
+						<div className="max-h-32 overflow-y-auto border rounded-md p-2">
+							<ul className="space-y-1">
+								{slotsToDelete.map((slot) => (
+									<li key={slot.id} className="flex items-center gap-2 text-sm">
+										<span className="font-mono">{slot.slotName}</span>
+										<StatusBadge status={slot.status} />
+									</li>
+								))}
+							</ul>
+						</div>
+					) : null}
+
+					<DialogFooter>
+						<Button
+							variant="outline"
+							onClick={() => setDeleteDialogOpen(false)}
+							disabled={deleteMutation.isPending}
+						>
+							Cancel
+						</Button>
+						<Button
+							variant="destructive"
+							onClick={handleConfirmDelete}
+							disabled={deleteMutation.isPending}
+						>
+							{deleteMutation.isPending ? "Deleting..." : "Delete"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</motion.div>
 	);
 }

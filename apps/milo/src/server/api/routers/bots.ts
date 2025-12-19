@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { and, desc, eq, notInArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, notInArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import {
 	createTRPCRouter,
@@ -516,6 +516,61 @@ export const botsRouter = createTRPCRouter({
 
 			return { message: "Bot deleted successfully" };
 		}),
+
+	/**
+	 * Deletes multiple bots by their IDs.
+	 * @param input - Object containing an array of bot IDs
+	 * @param input.ids - Array of bot IDs to delete
+	 * @returns Promise<{deleted: number, failed: number}> Count of deleted and failed deletions
+	 */
+	deleteBots: protectedProcedure
+		.input(
+			z.object({
+				ids: z.array(z.number()).min(1, "At least one bot ID is required"),
+			}),
+		)
+		.output(
+			z.object({
+				deleted: z.number(),
+				failed: z.number(),
+			}),
+		)
+		.mutation(
+			async ({ input, ctx }): Promise<{ deleted: number; failed: number }> => {
+				// First verify all bots belong to the user
+				const userBots = await ctx.db
+					.select({ id: botsTable.id })
+					.from(botsTable)
+					.where(
+						and(
+							inArray(botsTable.id, input.ids),
+							eq(botsTable.userId, ctx.session.user.id),
+						),
+					);
+
+				const validBotIds = userBots.map((b) => b.id);
+				const invalidCount = input.ids.length - validBotIds.length;
+
+				if (validBotIds.length === 0) {
+					return { deleted: 0, failed: input.ids.length };
+				}
+
+				// Delete all valid bots
+				const result = await ctx.db
+					.delete(botsTable)
+					.where(inArray(botsTable.id, validBotIds))
+					.returning({ id: botsTable.id });
+
+				console.log(
+					`[Bots] Bulk delete: ${result.length} deleted, ${invalidCount} failed (not found or unauthorized)`,
+				);
+
+				return {
+					deleted: result.length,
+					failed: invalidCount,
+				};
+			},
+		),
 
 	/**
 	 * Generates a signed URL for accessing a bot's recording.
