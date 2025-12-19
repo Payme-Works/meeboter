@@ -4,7 +4,12 @@ import { env } from "./env";
 import { BotLogger, parseLogLevel } from "./logger";
 import { reportEvent } from "./monitoring";
 import { trpc } from "./trpc";
-import type { BotConfig, EventCode, SpeakerTimeframe } from "./types";
+import {
+	type BotConfig,
+	type EventCode,
+	type SpeakerTimeframe,
+	Status,
+} from "./types";
 
 /**
  * Interface defining the contract for all bot implementations.
@@ -292,6 +297,22 @@ const validPlatformForImage = (
 };
 
 /**
+ * Options for creating a bot instance
+ */
+export interface CreateBotOptions {
+	/** Initial log level string from database */
+	initialLogLevel?: string;
+
+	/**
+	 * Callback fired when bot status changes (status events like IN_CALL, IN_WAITING_ROOM, etc.)
+	 * Used for capturing screenshots on status transitions for debugging purposes.
+	 * @param eventType - The status event type
+	 * @param bot - The bot instance for capturing screenshots
+	 */
+	onStatusChange?: (eventType: EventCode, bot: Bot) => Promise<void>;
+}
+
+/**
  * Factory function that creates platform-specific bot instances.
  * This function handles the dynamic creation of bot implementations based on
  * the meeting platform specified in the configuration. It includes safety checks
@@ -305,16 +326,17 @@ const validPlatformForImage = (
  * - Platform validation and safety checks
  *
  * @param botData - Configuration data containing meeting info and bot settings
- * @param initialLogLevel - Optional initial log level string from database
+ * @param options - Optional configuration including initialLogLevel and onStatusChange callback
  * @returns Promise that resolves to a platform-specific bot instance
  * @throws Error if the platform is unsupported or if there's a platform/Docker image mismatch
  */
 export const createBot = async (
 	botData: BotConfig,
-	initialLogLevel?: string,
+	options?: CreateBotOptions,
 ): Promise<Bot> => {
 	const botId = botData.id;
 	const platform = botData.meetingInfo.platform;
+	const { initialLogLevel, onStatusChange } = options ?? {};
 
 	// Retrieve Docker image name from environment variable
 	const dockerImageName = env.DOCKER_MEETING_PLATFORM;
@@ -336,47 +358,62 @@ export const createBot = async (
 
 	logger.info(`Creating bot for platform: ${platform}`);
 
+	/**
+	 * Creates an event handler that reports events and triggers status change callbacks.
+	 * The bot instance is captured in a closure to enable screenshot capture on status changes.
+	 */
+	const createEventHandler =
+		(bot: Bot) =>
+		async (eventType: EventCode, data?: Record<string, unknown>) => {
+			await reportEvent(botId, eventType, data);
+
+			// Trigger onStatusChange callback for status events (non-blocking)
+			if (onStatusChange && eventType in Status) {
+				onStatusChange(eventType, bot).catch((err) => {
+					logger.warn(
+						`Failed to capture status change screenshot: ${err instanceof Error ? err.message : String(err)}`,
+					);
+				});
+			}
+		};
+
+	// Placeholder event handler used during bot construction
+	// Will be replaced with the full handler after bot creation
+	const placeholderHandler = async () => {};
+
+	let bot: Bot;
+
 	switch (botData.meetingInfo.platform) {
 		case "google": {
 			const { GoogleMeetBot } = await import("../providers/meet/src/bot");
 
-			return new GoogleMeetBot(
-				botData,
-				async (eventType: EventCode, data?: Record<string, unknown>) => {
-					await reportEvent(botId, eventType, data);
-				},
-				trpc,
-				logger,
-			);
+			bot = new GoogleMeetBot(botData, placeholderHandler, trpc, logger);
+
+			break;
 		}
 
 		case "teams": {
 			const { MicrosoftTeamsBot } = await import("../providers/teams/src/bot");
 
-			return new MicrosoftTeamsBot(
-				botData,
-				async (eventType: EventCode, data?: Record<string, unknown>) => {
-					await reportEvent(botId, eventType, data);
-				},
-				trpc,
-				logger,
-			);
+			bot = new MicrosoftTeamsBot(botData, placeholderHandler, trpc, logger);
+
+			break;
 		}
 
 		case "zoom": {
 			const { ZoomBot } = await import("../providers/zoom/src/bot");
 
-			return new ZoomBot(
-				botData,
-				async (eventType: EventCode, data?: Record<string, unknown>) => {
-					await reportEvent(botId, eventType, data);
-				},
-				trpc,
-				logger,
-			);
+			bot = new ZoomBot(botData, placeholderHandler, trpc, logger);
+
+			break;
 		}
 
 		default:
 			throw new Error(`Unsupported platform: ${botData.meetingInfo.platform}`);
 	}
+
+	// Replace placeholder with full event handler that has access to the bot instance
+	bot.onEvent = createEventHandler(bot);
+
+	return bot;
 };

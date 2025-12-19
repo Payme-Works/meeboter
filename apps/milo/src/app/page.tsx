@@ -344,7 +344,8 @@ async function ResourceCardsSection() {
 							<div className="space-y-1">
 								<Progress value={capacityPercent} className="h-1.5" />
 								<p className="text-xs text-muted-foreground">
-									{capacityPercent}% capacity ({poolStats.total}/{poolStats.maxSize} slots)
+									{capacityPercent}% capacity ({poolStats.total}/
+									{poolStats.maxSize} slots)
 								</p>
 							</div>
 						</StatCardContent>

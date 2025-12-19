@@ -4,7 +4,8 @@ import dotenv from "dotenv";
 dotenv.config({ path: "../.env.test" }); // Load .env.test for testing
 dotenv.config();
 
-import { type BotInterface, createBot } from "./bot";
+import type { S3Client } from "@aws-sdk/client-s3";
+import { type Bot, type BotInterface, createBot } from "./bot";
 import { env } from "./env";
 import type { ScreenshotData } from "./logger";
 import { uploadScreenshotToS3 } from "./logger/screenshot";
@@ -115,6 +116,39 @@ async function uploadAndSaveScreenshot(
 	}
 }
 
+/**
+ * Creates a status change handler that captures screenshots on status transitions.
+ * Used for debugging to capture visual state at each bot lifecycle stage.
+ */
+function createStatusChangeHandler(s3Client: S3Client) {
+	return async (eventType: EventCode, bot: Bot): Promise<void> => {
+		bot.logger.debug(
+			`Status change detected: ${eventType}, capturing screenshot`,
+		);
+
+		try {
+			const screenshotPath = await bot.logger.captureScreenshot(
+				"state_change",
+				eventType,
+			);
+
+			if (screenshotPath) {
+				await uploadAndSaveScreenshot(
+					bot,
+					s3Client,
+					screenshotPath,
+					"state_change",
+					eventType,
+				);
+			}
+		} catch (error) {
+			bot.logger.warn(
+				`Failed to capture status change screenshot: ${error instanceof Error ? error.message : String(error)}`,
+			);
+		}
+	};
+}
+
 export const main = async () => {
 	let hasErrorOccurred = false;
 
@@ -149,8 +183,10 @@ export const main = async () => {
 	}
 
 	// Create the appropriate bot instance based on platform
-	// Note: We don't have logLevel in getPoolSlot response yet, so we create without it
-	const bot = await createBot(botData);
+	// Pass onStatusChange callback to capture screenshots on status transitions
+	const bot = await createBot(botData, {
+		onStatusChange: createStatusChangeHandler(s3Client),
+	});
 
 	// Create AbortController for heartbeat and duration monitor
 	const monitoringController = new AbortController();
