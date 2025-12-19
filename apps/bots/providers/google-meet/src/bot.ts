@@ -84,14 +84,6 @@ const SELECTORS = {
 	dismissButton: '//button[.//span[text()="Dismiss"]]',
 } as const;
 
-// Texts that indicate bot is still in waiting room
-const WAITING_ROOM_TEXTS = [
-	"Asking to be let in",
-	"Someone will let you in",
-	"waiting for the host",
-	"Wait for the host",
-];
-
 // Texts that indicate successful admission to the call
 const ADMISSION_CONFIRMATION_TEXTS = [
 	"You've been admitted",
@@ -886,8 +878,7 @@ export class GoogleMeetBot extends Bot {
 
 	/**
 	 * Wait for successful call entry.
-	 * Checks for admission confirmation texts OR in-call UI indicators.
-	 * Ensures we're not still in the waiting room.
+	 * Checks for in-call UI indicators (People/Chat buttons only appear when truly in call).
 	 */
 	private async waitForCallEntry(): Promise<void> {
 		if (!this.page) {
@@ -896,34 +887,29 @@ export class GoogleMeetBot extends Bot {
 
 		const timeout = this.settings.automaticLeave.waitingRoomTimeout;
 		const startTime = Date.now();
-		const checkInterval = 2000;
+		const checkInterval = 1000; // Check every second for faster detection
 
 		this.logger.debug("Waiting for call entry", {
 			timeoutSeconds: timeout / 1000,
 		});
 
 		while (Date.now() - startTime < timeout) {
-			// Check if we're still in waiting room
-			const stillInWaitingRoom = await this.isStillInWaitingRoom();
+			// Check for in-call UI indicators (these only appear when truly in call)
+			const isInCall = await this.hasInCallIndicators();
 
-			if (!stillInWaitingRoom) {
-				// Verify we're actually in the call with UI indicators
-				const isInCall = await this.hasInCallIndicators();
+			if (isInCall) {
+				this.logger.debug("Admission confirmed via in-call indicators");
 
-				if (isInCall) {
-					this.logger.debug("Admission confirmed via in-call indicators");
+				return;
+			}
 
-					return;
-				}
+			// Also check for admission confirmation text as fallback
+			const hasAdmissionText = await this.hasAdmissionConfirmation();
 
-				// Also check for admission confirmation text
-				const hasAdmissionText = await this.hasAdmissionConfirmation();
+			if (hasAdmissionText) {
+				this.logger.debug("Admission confirmed via confirmation text");
 
-				if (hasAdmissionText) {
-					this.logger.debug("Admission confirmed via confirmation text");
-
-					return;
-				}
+				return;
 			}
 
 			await setTimeout(checkInterval);
@@ -932,29 +918,6 @@ export class GoogleMeetBot extends Bot {
 		throw new WaitingRoomTimeoutError(
 			`Bot was not admitted within ${timeout / 1000}s`,
 		);
-	}
-
-	/**
-	 * Check if bot is still in waiting room by looking for waiting room texts.
-	 */
-	private async isStillInWaitingRoom(): Promise<boolean> {
-		if (!this.page) return false;
-
-		try {
-			const pageText = await this.page.textContent("body");
-
-			if (!pageText) return false;
-
-			for (const text of WAITING_ROOM_TEXTS) {
-				if (pageText.toLowerCase().includes(text.toLowerCase())) {
-					return true;
-				}
-			}
-
-			return false;
-		} catch {
-			return false;
-		}
 	}
 
 	/**
@@ -982,17 +945,21 @@ export class GoogleMeetBot extends Bot {
 
 	/**
 	 * Check for in-call UI indicators (People button, Chat button, etc.).
+	 * Uses Promise.all for faster parallel detection.
 	 */
 	private async hasInCallIndicators(): Promise<boolean> {
-		if (!this.page) return false;
+		const page = this.page;
 
-		for (const selector of SELECTORS.inCallIndicators) {
-			if (await elementExists(this.page, selector)) {
-				return true;
-			}
-		}
+		if (!page) return false;
 
-		return false;
+		// Check all indicators in parallel for faster detection
+		const checks = SELECTORS.inCallIndicators.map((selector) =>
+			elementExists(page, selector),
+		);
+
+		const results = await Promise.all(checks);
+
+		return results.some((found) => found);
 	}
 
 	/**
