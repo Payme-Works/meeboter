@@ -405,7 +405,7 @@ export class CoolifyService {
 		applicationUuid: string,
 	): Promise<{ status: string; uuid: string } | null> {
 		const response = await fetch(
-			`${this.config.apiUrl}/deployments/applications/${applicationUuid}?take=1`,
+			`${this.config.apiUrl}/applications/${applicationUuid}/deployments?take=1`,
 			{
 				method: "GET",
 				headers: {
@@ -415,8 +415,11 @@ export class CoolifyService {
 		);
 
 		if (!response.ok) {
+			const errorBody = await response.text();
+
 			console.error(
-				`[CoolifyService] Failed to get deployments for ${applicationUuid}: ${response.statusText}`,
+				`[CoolifyService] Failed to get deployments for ${applicationUuid}: ${response.status} ${response.statusText}`,
+				errorBody,
 			);
 
 			return null;
@@ -427,11 +430,7 @@ export class CoolifyService {
 			uuid: string;
 		}>;
 
-		if (data.length === 0) {
-			return null;
-		}
-
-		return data[0];
+		return data[0] ?? null;
 	}
 
 	/**
