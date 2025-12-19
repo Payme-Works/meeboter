@@ -47,7 +47,7 @@ interface Breadcrumb {
  * Screenshot metadata for storage
  */
 export interface ScreenshotData {
-	url: string;
+	key: string;
 	capturedAt: Date;
 	type: "error" | "fatal" | "manual" | "state_change";
 	state: string;

@@ -1588,6 +1588,36 @@ export const botsRouter = createTRPCRouter({
 		),
 
 	/**
+	 * Generates a presigned URL for accessing a bot's screenshot.
+	 * @param input - Object containing the S3 key
+	 * @param input.key - The S3 key for the screenshot
+	 * @returns Promise<{url: string}> The presigned URL
+	 */
+	getScreenshotSignedUrl: protectedProcedure
+		.meta({
+			openapi: {
+				method: "GET",
+				path: "/screenshots/signed-url",
+				description: "Get a presigned URL for a screenshot",
+			},
+		})
+		.input(
+			z.object({
+				key: z.string(),
+			}),
+		)
+		.output(
+			z.object({
+				url: z.string(),
+			}),
+		)
+		.query(async ({ input }): Promise<{ url: string }> => {
+			const url = await generateSignedUrl(input.key, 3600); // 1 hour expiry
+
+			return { url };
+		}),
+
+	/**
 	 * Updates a bot's log level at runtime.
 	 * Allows operators to change log verbosity without restarting the bot.
 	 * @param input - Object containing bot ID and new log level

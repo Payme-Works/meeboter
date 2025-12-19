@@ -277,7 +277,7 @@ export type SpeakerTimeframe = z.infer<typeof speakerTimeframeSchema>;
  * Captures screenshots during bot lifecycle for debugging
  */
 export const screenshotDataSchema = z.object({
-	url: z.string(),
+	key: z.string(),
 	capturedAt: z.coerce.date(),
 	type: z.enum(["error", "fatal", "manual", "state_change"]),
 	state: z.string(),

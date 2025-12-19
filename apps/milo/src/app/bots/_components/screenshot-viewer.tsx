@@ -24,6 +24,7 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import type { ScreenshotData } from "@/server/database/schema";
+import { api } from "@/trpc/react";
 
 interface ScreenshotViewerProps {
 	screenshots: ScreenshotData[];
@@ -60,6 +61,46 @@ const TYPE_CONFIG: Record<
 		icon: RefreshCw,
 	},
 };
+
+/**
+ * Component that fetches a presigned URL for a screenshot and renders it
+ */
+function ScreenshotImage({
+	s3Key,
+	alt,
+	fill,
+	className,
+	sizes,
+	priority,
+}: {
+	s3Key: string;
+	alt: string;
+	fill?: boolean;
+	className?: string;
+	sizes?: string;
+	priority?: boolean;
+}) {
+	const { data, isLoading } = api.bots.getScreenshotSignedUrl.useQuery(
+		{ key: s3Key },
+		{ staleTime: 30 * 60 * 1000 }, // Cache for 30 minutes
+	);
+
+	if (isLoading || !data?.url) {
+		return <Skeleton className={cn("bg-muted", className)} />;
+	}
+
+	return (
+		<Image
+			src={data.url}
+			alt={alt}
+			fill={fill}
+			className={className}
+			sizes={sizes}
+			priority={priority}
+			unoptimized
+		/>
+	);
+}
 
 export function ScreenshotViewer({
 	screenshots,
@@ -126,7 +167,7 @@ export function ScreenshotViewer({
 
 							return (
 								<button
-									key={`${screenshot.url}-${screenshot.capturedAt}`}
+									key={`${screenshot.key}-${screenshot.capturedAt}`}
 									type="button"
 									onClick={() => setSelectedIndex(index)}
 									className={cn(
@@ -135,14 +176,13 @@ export function ScreenshotViewer({
 										config.bgColor,
 									)}
 								>
-									{/* Thumbnail - unoptimized to bypass Next.js proxy (MinIO access) */}
-									<Image
-										src={screenshot.url}
+									{/* Thumbnail with presigned URL */}
+									<ScreenshotImage
+										s3Key={screenshot.key}
 										alt={`Screenshot ${index + 1}`}
 										fill
 										className="object-cover"
 										sizes="144px"
-										unoptimized
 									/>
 
 									{/* Overlay with metadata */}
@@ -252,17 +292,16 @@ export function ScreenshotViewer({
 							<ChevronRight className="h-5 w-5" />
 						</Button>
 
-						{/* Image - unoptimized to bypass Next.js proxy (MinIO access) */}
+						{/* Full-size image with presigned URL */}
 						{selectedScreenshot ? (
 							<div className="relative w-full aspect-video">
-								<Image
-									src={selectedScreenshot.url}
+								<ScreenshotImage
+									s3Key={selectedScreenshot.key}
 									alt={`Screenshot ${(selectedIndex ?? 0) + 1}`}
 									fill
 									className="object-contain"
 									sizes="(max-width: 1280px) 100vw, 1280px"
 									priority
-									unoptimized
 								/>
 							</div>
 						) : null}

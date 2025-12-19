@@ -40,17 +40,6 @@ export async function uploadScreenshotToS3(
 
 		await s3Client.send(putCommand);
 
-		// Build the URL based on whether we're using a custom endpoint (MinIO) or AWS S3
-		let url: string;
-
-		if (env.S3_ENDPOINT) {
-			// MinIO or custom S3-compatible storage
-			url = `${env.S3_ENDPOINT}/${bucketName}/${key}`;
-		} else {
-			// AWS S3
-			url = `https://${bucketName}.s3.${env.S3_REGION}.amazonaws.com/${key}`;
-		}
-
 		console.log(`Screenshot uploaded to S3: ${key}`);
 
 		// Clean up local file
@@ -61,7 +50,7 @@ export async function uploadScreenshotToS3(
 		}
 
 		return {
-			url,
+			key,
 			capturedAt: new Date(),
 			type,
 			state,
@@ -87,7 +76,7 @@ export function createScreenshotMetadata(
 	trigger?: string,
 ): ScreenshotData {
 	return {
-		url: localPath,
+		key: localPath,
 		capturedAt: new Date(),
 		type,
 		state,
