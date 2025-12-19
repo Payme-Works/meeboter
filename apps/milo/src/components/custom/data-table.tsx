@@ -168,6 +168,7 @@ export function DataTable<TData, TValue>({
 		onPaginationChange: handlePaginationChange,
 		manualPagination: isExternalPagination && controlledPageCount !== undefined,
 		pageCount: controlledPageCount,
+		autoResetPageIndex: false,
 		state: {
 			rowSelection,
 			pagination,
