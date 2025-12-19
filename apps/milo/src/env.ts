@@ -1,9 +1,12 @@
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
 
-// Skip validation during Next.js build phase (page data collection)
-// Env vars are validated at runtime when the app actually starts
-const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
+// Skip validation during build phase
+// Detects: Next.js build, CI environments, Docker builds (no runtime secrets)
+const isBuildPhase =
+	process.env.NEXT_PHASE === "phase-production-build" ||
+	process.env.CI === "true" ||
+	!process.env.DATABASE_URL;
 
 export const env = createEnv({
 	/**
