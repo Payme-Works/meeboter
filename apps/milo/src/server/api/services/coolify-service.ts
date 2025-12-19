@@ -241,11 +241,17 @@ export class CoolifyService {
 	}
 
 	/**
-	 * Starts a Coolify application
+	 * Deploys a Coolify application
+	 *
+	 * Uses the /deploy endpoint which triggers a full deployment with tracking.
+	 * This creates a deployment record that can be polled via getLatestDeployment().
+	 *
+	 * Note: The old /applications/{uuid}/start endpoint only starts a stopped
+	 * container without creating a deployment record.
 	 */
 	async startApplication(applicationUuid: string): Promise<void> {
 		const response = await fetch(
-			`${this.config.apiUrl}/applications/${applicationUuid}/start`,
+			`${this.config.apiUrl}/deploy?uuid=${applicationUuid}`,
 			{
 				method: "GET",
 				headers: {
@@ -255,8 +261,10 @@ export class CoolifyService {
 		);
 
 		if (!response.ok) {
+			const errorBody = await response.text();
+
 			throw new CoolifyDeploymentError(
-				`Failed to start Coolify application: ${response.statusText}`,
+				`Failed to deploy Coolify application: ${response.statusText} - ${errorBody}`,
 			);
 		}
 	}
@@ -294,11 +302,14 @@ export class CoolifyService {
 	}
 
 	/**
-	 * Restarts a Coolify application
+	 * Restarts/redeploys a Coolify application
+	 *
+	 * Uses the /deploy endpoint with force=true to trigger a full rebuild.
+	 * This creates a new deployment record for tracking.
 	 */
 	async restartApplication(applicationUuid: string): Promise<void> {
 		const response = await fetch(
-			`${this.config.apiUrl}/applications/${applicationUuid}/restart`,
+			`${this.config.apiUrl}/deploy?uuid=${applicationUuid}&force=true`,
 			{
 				method: "GET",
 				headers: {
@@ -308,12 +319,14 @@ export class CoolifyService {
 		);
 
 		if (!response.ok) {
+			const errorBody = await response.text();
+
 			throw new CoolifyDeploymentError(
-				`Failed to restart Coolify application: ${response.statusText}`,
+				`Failed to redeploy Coolify application: ${response.statusText} - ${errorBody}`,
 			);
 		}
 
-		console.log(`[CoolifyService] Restarted application: ${applicationUuid}`);
+		console.log(`[CoolifyService] Redeployed application: ${applicationUuid}`);
 	}
 
 	/**
