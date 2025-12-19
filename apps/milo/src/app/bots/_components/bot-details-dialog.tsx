@@ -201,7 +201,7 @@ export function BotDetailsDialog({ botId, onClose }: BotDetailsDialogProps) {
 
 	return (
 		<Dialog open={!!botId} onOpenChange={onClose}>
-			<DialogContent className="max-w-3xl p-0 gap-0 overflow-hidden border-0 [&_[data-slot=dialog-close]]:text-white">
+			<DialogContent className="max-w-5xl p-0 gap-0 overflow-hidden border-0 [&_[data-slot=dialog-close]]:text-white">
 				{/* Header */}
 				<div className="bg-gradient-to-r from-zinc-900 to-zinc-800 px-6 py-5 border-b border-zinc-700">
 					<DialogHeader className="space-y-3">
@@ -243,17 +243,17 @@ export function BotDetailsDialog({ botId, onClose }: BotDetailsDialogProps) {
 					</DialogHeader>
 
 					{/* Tab Navigation */}
-					<div className="flex items-center gap-1 mt-4 p-1 bg-zinc-800/50 rounded-lg w-fit">
+					<div className="flex items-stretch mt-4 bg-zinc-800/50 rounded-lg w-fit">
 						{tabs.map((tab) => (
 							<button
 								key={tab.id}
 								type="button"
 								onClick={() => setActiveTab(tab.id)}
 								className={cn(
-									"flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-all duration-150",
+									"flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-all duration-150 first:rounded-l-lg last:rounded-r-lg",
 									activeTab === tab.id
 										? "bg-white text-zinc-900"
-										: "text-zinc-400 hover:text-white",
+										: "text-zinc-400 hover:text-white hover:bg-zinc-700/50",
 								)}
 							>
 								<tab.icon className="h-4 w-4" />
