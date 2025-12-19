@@ -445,17 +445,25 @@ export class CoolifyService {
 			return null;
 		}
 
-		const data = (await response.json()) as Array<{
-			status: string;
-			uuid: string;
-		}>;
+		// API returns { count: number, deployments: [...] }
+		const data = (await response.json()) as {
+			count: number;
+			deployments: Array<{
+				status: string;
+				deployment_uuid: string;
+			}>;
+		};
 
-		console.log(
-			`[CoolifyService] Deployments response for ${applicationUuid}:`,
-			JSON.stringify(data),
-		);
+		const deployment = data.deployments?.[0];
 
-		return data[0] ?? null;
+		if (!deployment) {
+			return null;
+		}
+
+		return {
+			status: deployment.status,
+			uuid: deployment.deployment_uuid,
+		};
 	}
 
 	/**
