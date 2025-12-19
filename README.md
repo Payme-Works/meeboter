@@ -308,7 +308,7 @@ curl -X POST https://your-meeboter-instance/api/v1/bots \
 ```json
 {
   "id": 123,
-  "status": "READY_TO_DEPLOY",
+  "status": "DEPLOYING",
   "meetingUrl": "https://meet.google.com/abc-defg-hij",
   "botDisplayName": "Meeting Assistant"
 }

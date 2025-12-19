@@ -74,8 +74,6 @@ export type BotConfig = {
  * @enum {string}
  */
 export enum Status {
-	/** Bot is configured and ready to be deployed */
-	READY_TO_DEPLOY = "READY_TO_DEPLOY",
 	/** Bot deployment is in progress */
 	DEPLOYING = "DEPLOYING",
 	/** Bot is attempting to join the meeting call */
@@ -97,8 +95,6 @@ export enum Status {
  * @enum {string}
  */
 export enum EventCode {
-	/** Bot is ready for deployment */
-	READY_TO_DEPLOY = "READY_TO_DEPLOY",
 	/** Bot deployment is in progress */
 	DEPLOYING = "DEPLOYING",
 	/** Bot is joining the meeting call */

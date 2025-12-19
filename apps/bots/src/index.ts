@@ -112,9 +112,6 @@ export const main = async () => {
 			});
 		}
 
-		// Report initial status
-		await reportEventWithStatus(trpc, botId, EventCode.READY_TO_DEPLOY);
-
 		// Start message queue worker if chat is enabled
 		if (botConfig.chatEnabled) {
 			workers.messageQueue.start(botId);

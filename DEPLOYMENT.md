@@ -283,7 +283,7 @@ S3_REGION="us-east-1"
 ### Bot Status Lifecycle
 
 ```
-QUEUED → DEPLOYING → JOINING_CALL → IN_WAITING_ROOM → IN_CALL → ENDED
+DEPLOYING → JOINING_CALL → IN_WAITING_ROOM → IN_CALL → ENDED
                   ↓                                        ↓
                 FATAL ←────────────────────────────────────┘
 ```

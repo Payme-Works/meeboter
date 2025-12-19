@@ -129,13 +129,8 @@ export class BotDeploymentService {
 				);
 			}
 
-			// If queued, update status and return queue info
+			// If queued, return queue info (bot remains in DEPLOYING status)
 			if (deployResult.queued) {
-				await this.db
-					.update(botsTable)
-					.set({ status: "QUEUED" })
-					.where(eq(botsTable.id, botId));
-
 				const queuedBot = await this.db
 					.select()
 					.from(botsTable)

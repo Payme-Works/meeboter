@@ -11,6 +11,7 @@ import { Bot } from "../../../src/bot";
 import {
 	clickIfExists,
 	elementExists,
+	fillWithRetry,
 	navigateWithRetry,
 } from "../../../src/helpers";
 import type { BotLogger } from "../../../src/logger";
@@ -217,9 +218,9 @@ export class GoogleMeetBot extends Bot {
 			throw new Error("Failed to find name input field");
 		}
 
-		// Fill bot name
+		// Fill bot name with retry logic for timeout resilience
 		const botName = this.settings.botDisplayName || "Meeboter";
-		await this.page.fill(nameInputSelector, botName);
+		await fillWithRetry(this.page, nameInputSelector, botName);
 		this.logger.info("Filled bot name", { name: botName });
 
 		// Disable media devices

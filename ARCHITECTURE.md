@@ -345,7 +345,7 @@ Request arrives (createBot)
     ▼
 ┌─────────────────────────────┐
 │ Create bot record in DB      │
-│ Status: "READY_TO_DEPLOY"    │
+│ Status: "DEPLOYING"          │
 └─────────────────────────────┘
     │
     ▼
@@ -386,7 +386,6 @@ Request arrives (createBot)
               ▼                                          │
          ┌─────────────────────────────┐                │
          │ Add to queue                 │                │
-         │ Status: "QUEUED"             │                │
          │ Return: queuePosition,       │                │
          │         estimatedWaitMs      │                │
          └─────────────────────────────┘                │
@@ -419,10 +418,6 @@ Request arrives (createBot)
 │                          Bot Lifecycle Flow                                   │
 └──────────────────────────────────────────────────────────────────────────────┘
 
-    READY_TO_DEPLOY
-         │
-         │ deployBot()
-         ▼
       DEPLOYING
          │
          │ Container starts
@@ -557,8 +552,6 @@ Primary table for bot instances.
 | `deploymentError` | TEXT | Error message if FATAL |
 
 **Status Values:**
-- `READY_TO_DEPLOY` - Created, waiting to deploy
-- `QUEUED` - Waiting for pool slot
 - `DEPLOYING` - Container starting
 - `JOINING_CALL` - Bot joining meeting
 - `IN_WAITING_ROOM` - Waiting to be admitted

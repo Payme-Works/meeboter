@@ -236,12 +236,7 @@ export default function BotsPage() {
 		.map((id) => Number.parseInt(id, 10));
 
 	// Determine which bots can be cancelled (deploying) vs removed from call
-	const deployingStatuses = [
-		"READY_TO_DEPLOY",
-		"QUEUED",
-		"DEPLOYING",
-		"JOINING_CALL",
-	];
+	const deployingStatuses = ["DEPLOYING", "JOINING_CALL"];
 
 	const inCallStatuses = ["IN_WAITING_ROOM", "IN_CALL"];
 

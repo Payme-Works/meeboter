@@ -880,7 +880,7 @@ export const botsRouter = createTRPCRouter({
 
 	/**
 	 * Cancels multiple bot deployments by their IDs.
-	 * Only works for bots in pre-call states (READY_TO_DEPLOY, QUEUED, DEPLOYING, JOINING_CALL).
+	 * Only works for bots in pre-call states (DEPLOYING, JOINING_CALL).
 	 * @param input - Object containing an array of bot IDs
 	 * @param input.ids - Array of bot IDs to cancel
 	 * @returns Promise<{cancelled: number, failed: number}> Count of cancelled and failed cancellations
@@ -903,12 +903,7 @@ export const botsRouter = createTRPCRouter({
 				ctx,
 			}): Promise<{ cancelled: number; failed: number }> => {
 				// Only pre-call statuses can be cancelled
-				const cancellableStatuses = [
-					"READY_TO_DEPLOY",
-					"QUEUED",
-					"DEPLOYING",
-					"JOINING_CALL",
-				] as const;
+				const cancellableStatuses = ["DEPLOYING", "JOINING_CALL"] as const;
 
 				// Get all bots that belong to the user and are in a cancellable state
 				const userBots = await ctx.db

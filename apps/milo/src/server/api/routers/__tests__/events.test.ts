@@ -218,9 +218,9 @@ describe("eventsRouter", () => {
 		// Create a series of events
 		await eventsCaller.createEvent({
 			botId: testBotId,
-			eventType: "READY_TO_DEPLOY" as EventCode,
+			eventType: "DEPLOYING" as EventCode,
 			eventTime: new Date(),
-			data: { message: "Bot started successfully" },
+			data: { message: "Bot deployment started" },
 		});
 
 		await eventsCaller.createEvent({
@@ -260,7 +260,7 @@ describe("eventsRouter", () => {
 
 		// Verify we have the expected event types
 		const eventTypes = result.map((event) => event.eventType);
-		expect(eventTypes).toContain("READY_TO_DEPLOY");
+		expect(eventTypes).toContain("DEPLOYING");
 		expect(eventTypes).toContain("JOINING_CALL");
 		expect(eventTypes).toContain("PARTICIPANT_JOIN");
 	}, 15000);

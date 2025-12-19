@@ -737,11 +737,6 @@ export class BotPoolService {
 			timeoutAt,
 		});
 
-		await this.db
-			.update(botsTable)
-			.set({ status: "QUEUED" })
-			.where(eq(botsTable.id, botId));
-
 		const position = await this.getQueuePosition(botId);
 
 		console.log(`[Queue] Bot ${botId} added to queue at position ${position}`);

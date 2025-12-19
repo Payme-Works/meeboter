@@ -601,7 +601,7 @@ export class CoolifyService {
 	async waitForDeployment(
 		applicationUuid: string,
 		timeoutMs: number = 30 * 60 * 1000,
-		pollIntervalMs: number = 15 * 1000,
+		pollIntervalMs: number = 2.5 * 1000,
 	): Promise<DeploymentStatusResult> {
 		const startTime = Date.now();
 

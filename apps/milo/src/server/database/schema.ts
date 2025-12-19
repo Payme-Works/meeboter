@@ -338,8 +338,6 @@ export type MeetingInfo = z.infer<typeof meetingInfoSchema>;
  * Bot status codes representing the current state of a bot
  */
 export const status = z.enum([
-	"READY_TO_DEPLOY",
-	"QUEUED", // Waiting for pool slot
 	"DEPLOYING",
 	"JOINING_CALL",
 	"IN_WAITING_ROOM",
@@ -378,8 +376,6 @@ export const EVENT_DESCRIPTIONS = {
 		"A participant has joined the call. The data.participantId will contain the id of the participant.",
 	PARTICIPANT_LEAVE:
 		"A participant has left the call. The data.participantId will contain the id of the participant.",
-	READY_TO_DEPLOY:
-		"Resources have been provisioned and the bot is ready internally to join a meeting.",
 	DEPLOYING:
 		"The bot is in the process of being deployed with the specified configuration.",
 	JOINING_CALL:
@@ -463,7 +459,7 @@ export const botsTable = pgTable(
 		status: varchar("status", { length: 255 })
 			.$type<Status>()
 			.notNull()
-			.default("READY_TO_DEPLOY"),
+			.default("DEPLOYING"),
 
 		/** Error message if bot deployment failed */
 		deploymentError: varchar("deployment_error", { length: 1024 }),

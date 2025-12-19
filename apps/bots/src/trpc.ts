@@ -53,7 +53,6 @@ export type BotConfig = {
  * Enumeration of possible bot status states throughout the meeting lifecycle
  */
 export enum Status {
-	READY_TO_DEPLOY = "READY_TO_DEPLOY",
 	DEPLOYING = "DEPLOYING",
 	JOINING_CALL = "JOINING_CALL",
 	IN_WAITING_ROOM = "IN_WAITING_ROOM",
@@ -67,7 +66,6 @@ export enum Status {
  * Enumeration of event codes for bot lifecycle and meeting events
  */
 export enum EventCode {
-	READY_TO_DEPLOY = "READY_TO_DEPLOY",
 	DEPLOYING = "DEPLOYING",
 	JOINING_CALL = "JOINING_CALL",
 	IN_WAITING_ROOM = "IN_WAITING_ROOM",
@@ -90,7 +88,6 @@ export enum EventCode {
  * Status event codes that should trigger a status update in addition to event logging
  */
 export const STATUS_EVENT_CODES: readonly EventCode[] = [
-	EventCode.READY_TO_DEPLOY,
 	EventCode.DEPLOYING,
 	EventCode.JOINING_CALL,
 	EventCode.IN_WAITING_ROOM,

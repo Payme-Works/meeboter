@@ -24,7 +24,6 @@ The "Remove from Call" action is available only for bots in meeting states:
 
 | Status | Shows Button |
 |--------|--------------|
-| QUEUED | No |
 | DEPLOYING | No |
 | JOINING_CALL | No |
 | IN_WAITING_ROOM | **Yes** |
@@ -136,7 +135,6 @@ Active statuses (priority order):
 3. IN_WAITING_ROOM
 4. JOINING_CALL
 5. DEPLOYING
-6. QUEUED
 
 Then terminal statuses by recency: DONE, FATAL, CALL_ENDED
 
