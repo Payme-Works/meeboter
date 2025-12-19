@@ -250,21 +250,27 @@ export class CoolifyService {
 	 * container without creating a deployment record.
 	 */
 	async startApplication(applicationUuid: string): Promise<void> {
-		const response = await fetch(
-			`${this.config.apiUrl}/deploy?uuid=${applicationUuid}`,
-			{
-				method: "GET",
-				headers: {
-					Authorization: `Bearer ${this.config.apiToken}`,
-				},
+		const url = `${this.config.apiUrl}/deploy?uuid=${applicationUuid}`;
+
+		console.log(`[CoolifyService] Calling deploy endpoint: ${url}`);
+
+		const response = await fetch(url, {
+			method: "GET",
+			headers: {
+				Authorization: `Bearer ${this.config.apiToken}`,
 			},
+		});
+
+		const responseBody = await response.text();
+
+		console.log(
+			`[CoolifyService] Deploy response: ${response.status} ${response.statusText}`,
+			responseBody,
 		);
 
 		if (!response.ok) {
-			const errorBody = await response.text();
-
 			throw new CoolifyDeploymentError(
-				`Failed to deploy Coolify application: ${response.statusText} - ${errorBody}`,
+				`Failed to deploy Coolify application: ${response.statusText} - ${responseBody}`,
 			);
 		}
 	}
@@ -419,15 +425,14 @@ export class CoolifyService {
 	): Promise<{ status: string; uuid: string } | null> {
 		// Correct endpoint per Coolify API docs: /deployments/applications/{uuid}
 		// NOT /applications/{uuid}/deployments
-		const response = await fetch(
-			`${this.config.apiUrl}/deployments/applications/${applicationUuid}?take=1`,
-			{
-				method: "GET",
-				headers: {
-					Authorization: `Bearer ${this.config.apiToken}`,
-				},
+		const url = `${this.config.apiUrl}/deployments/applications/${applicationUuid}?take=1`;
+
+		const response = await fetch(url, {
+			method: "GET",
+			headers: {
+				Authorization: `Bearer ${this.config.apiToken}`,
 			},
-		);
+		});
 
 		if (!response.ok) {
 			const errorBody = await response.text();
@@ -444,6 +449,11 @@ export class CoolifyService {
 			status: string;
 			uuid: string;
 		}>;
+
+		console.log(
+			`[CoolifyService] Deployments response for ${applicationUuid}:`,
+			JSON.stringify(data),
+		);
 
 		return data[0] ?? null;
 	}
