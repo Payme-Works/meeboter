@@ -61,7 +61,7 @@ export function PoolCard({ idle, busy, total, maxSize }: PoolCardProps) {
 	}
 
 	return (
-		<div className="group/card border bg-card p-5 flex flex-col h-full min-h-[180px] relative overflow-hidden transition-all duration-300 hover:border-accent/20 hover:shadow-sm">
+		<div className="group/card border bg-card p-5 flex flex-col h-full min-h-[180px] relative overflow-hidden transition-all duration-300 hover:border-accent/20">
 			{/* Subtle ambient glow on hover */}
 			<div className="absolute -top-20 -right-20 w-40 h-40 bg-accent/5 rounded-full blur-3xl opacity-0 group-hover/card:opacity-100 transition-opacity duration-500 pointer-events-none" />
 
