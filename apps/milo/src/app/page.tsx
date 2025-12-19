@@ -1,4 +1,4 @@
-import { Activity, Bot, File, Key, LogIn, Server } from "lucide-react";
+import { Activity, Bot, File, Key, LogIn } from "lucide-react";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -7,6 +7,11 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { auth } from "@/server/auth";
 import { api, HydrateClient } from "@/trpc/server";
+import {
+	PoolCard,
+	PoolCardSkeleton,
+	PoolCardUnavailable,
+} from "./_components/pool-card";
 import {
 	QuickBotJoin,
 	QuickBotJoinSkeleton,
@@ -268,17 +273,7 @@ function ResourceCardsSkeleton() {
 					<StatCardLinkSkeleton />
 				</StatCardFooter>
 			</StatCard>
-			<StatCard className="min-h-[180px]">
-				<StatCardHeader className="justify-start gap-3">
-					<StatCardIconSkeleton />
-					<Skeleton className="h-5 w-12" />
-				</StatCardHeader>
-				<Skeleton className="h-4 w-full mb-1" />
-				<Skeleton className="h-4 w-3/4 flex-1" />
-				<StatCardFooter className="border-t-0 pt-0 mt-4">
-					<StatCardLinkSkeleton />
-				</StatCardFooter>
-			</StatCard>
+			<PoolCardSkeleton />
 			<StatCard className="min-h-[180px]">
 				<StatCardHeader className="justify-start gap-3">
 					<StatCardIconSkeleton />
@@ -302,10 +297,6 @@ async function ResourceCardsSection() {
 		api.pool.statistics.getPool().catch(() => null),
 	]);
 
-	const capacityPercent = poolStats
-		? Math.round((poolStats.total / poolStats.maxSize) * 100)
-		: 0;
-
 	return (
 		<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
 			<StatCard className="min-h-[180px]">
@@ -325,41 +316,16 @@ async function ResourceCardsSection() {
 				</StatCardFooter>
 			</StatCard>
 
-			<StatCard className="min-h-[180px]">
-				<StatCardHeader className="justify-start gap-3">
-					<StatCardIcon>
-						<Server className="h-5 w-5" />
-					</StatCardIcon>
-					<StatCardTitle>Pool</StatCardTitle>
-				</StatCardHeader>
-				{poolStats ? (
-					<>
-						<StatCardValue>
-							{poolStats.idle}
-							<span className="text-lg text-muted-foreground font-normal ml-1">
-								/{poolStats.total} idle
-							</span>
-						</StatCardValue>
-						<StatCardContent>
-							<div className="space-y-1">
-								<Progress value={capacityPercent} className="h-1.5" />
-								<p className="text-xs text-muted-foreground">
-									{capacityPercent}% capacity ({poolStats.total}/
-									{poolStats.maxSize} slots)
-								</p>
-							</div>
-						</StatCardContent>
-					</>
-				) : (
-					<StatCardDescription>
-						Pool statistics unavailable. Monitor bot pool capacity and
-						deployment queue.
-					</StatCardDescription>
-				)}
-				<StatCardFooter className="border-t-0 pt-0 mt-4">
-					<StatCardLink href="/pool">View Pool</StatCardLink>
-				</StatCardFooter>
-			</StatCard>
+			{poolStats ? (
+				<PoolCard
+					idle={poolStats.idle}
+					busy={poolStats.busy}
+					total={poolStats.total}
+					maxSize={poolStats.maxSize}
+				/>
+			) : (
+				<PoolCardUnavailable />
+			)}
 
 			<StatCard className="min-h-[180px]">
 				<StatCardHeader className="justify-start gap-3">

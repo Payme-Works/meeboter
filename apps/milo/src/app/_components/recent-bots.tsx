@@ -81,7 +81,7 @@ export function RecentBots() {
 		return <RecentBotsSkeleton />;
 	}
 
-	const recentBots = sortedBots.slice(0, 5);
+	const recentBots = sortedBots.slice(0, 8);
 
 	const hasActiveBots = bots.some((bot) =>
 		["JOINING_CALL", "IN_CALL", "RECORDING", "DEPLOYING"].includes(bot.status),
@@ -254,7 +254,7 @@ export function RecentBotsSkeleton() {
 
 			<div className="flex-1">
 				<div className="divide-y">
-					{Array.from({ length: 5 }, (_, index) => (
+					{Array.from({ length: 8 }, (_, index) => (
 						<div key={index} className="p-4">
 							<div className="flex items-center gap-3">
 								<Skeleton className="h-10 w-10 shrink-0" />
