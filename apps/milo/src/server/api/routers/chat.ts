@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
 	buildPaginatedResponse,
 	type PaginatedResponse,
+	paginatedResponseSchema,
 	paginationInput,
 } from "@/lib/pagination";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
@@ -44,6 +45,7 @@ export const chatRouter = createTRPCRouter({
 			},
 		})
 		.input(paginationInput)
+		.output(paginatedResponseSchema(selectMessageTemplateSchema))
 		.query(
 			async ({
 				ctx,

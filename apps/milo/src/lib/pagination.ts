@@ -16,6 +16,20 @@ export const paginationInput = z.object({
 
 export type PaginationInput = z.infer<typeof paginationInput>;
 
+/**
+ * Creates a Zod schema for a paginated response with the given data schema
+ */
+export function paginatedResponseSchema<T extends z.ZodTypeAny>(dataSchema: T) {
+	return z.object({
+		data: z.array(dataSchema),
+		total: z.number(),
+		pageCount: z.number(),
+		hasNextPage: z.boolean(),
+		hasPreviousPage: z.boolean(),
+		nextCursor: z.string().nullable(),
+	});
+}
+
 export function buildPaginatedResponse<T>(
 	data: T[],
 	total: number,

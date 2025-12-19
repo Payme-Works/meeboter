@@ -4,6 +4,7 @@ import { z } from "zod";
 import {
 	buildPaginatedResponse,
 	type PaginatedResponse,
+	paginatedResponseSchema,
 	paginationInput,
 } from "@/lib/pagination";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
@@ -127,6 +128,7 @@ const slotsRouter = createTRPCRouter({
 				status: z.array(poolSlotStatus).optional(),
 			}),
 		)
+		.output(paginatedResponseSchema(poolSlotViewSchema))
 		.query(
 			async ({
 				ctx,

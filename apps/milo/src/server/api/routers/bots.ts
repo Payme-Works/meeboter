@@ -4,6 +4,7 @@ import { z } from "zod";
 import {
 	buildPaginatedResponse,
 	type PaginatedResponse,
+	paginatedResponseSchema,
 	paginationInput,
 } from "@/lib/pagination";
 import {
@@ -357,6 +358,7 @@ export const botsRouter = createTRPCRouter({
 			},
 		})
 		.input(paginationInput)
+		.output(paginatedResponseSchema(selectBotSchema))
 		.query(
 			async ({
 				ctx,
