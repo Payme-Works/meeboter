@@ -248,7 +248,7 @@ export function BroadcastCenterDialog({
 										>
 											{isSelected && <Check className="h-3 w-3" />}
 											<span className="truncate max-w-[150px]">
-												{bot.meetingTitle || bot.botDisplayName}
+												{bot.botDisplayName}
 											</span>
 										</button>
 									);

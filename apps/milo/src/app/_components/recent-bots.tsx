@@ -97,7 +97,7 @@ export function RecentBots() {
 							variant="secondary"
 							className="bg-green-500/10 text-green-600 border-green-500/20"
 						>
-							<Circle className="h-2 w-2 fill-current mr-1" />
+							<Circle className="h-2! w-2! fill-current mr-1" />
 							Active
 						</Badge>
 					)}
