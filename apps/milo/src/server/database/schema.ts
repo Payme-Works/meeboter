@@ -32,22 +32,22 @@ export const subscriptionsTable = pgTable("subscription", {
 	id: serial("id").primaryKey(),
 
 	/** Reference to the user who owns this subscription */
-	userId: text("userId")
+	userId: text("user_id")
 		.references(() => usersTable.id, { onDelete: "cascade" })
 		.notNull(),
 
 	/** Type of subscription (PRO, PAY_AS_YOU_GO, CUSTOM) */
 	type: varchar("type", { length: 50 }).$type<Subscription>().notNull(),
 	/** Whether the subscription is currently active */
-	isActive: boolean("isActive").notNull().default(true),
+	isActive: boolean("is_active").notNull().default(true),
 
 	/** When the subscription started */
-	startDate: timestamp("startDate").notNull().defaultNow(),
+	startDate: timestamp("start_date").notNull().defaultNow(),
 	/** When the subscription ends (null for indefinite) */
-	endDate: timestamp("endDate"),
+	endDate: timestamp("end_date"),
 
 	/** When this subscription record was created */
-	createdAt: timestamp("createdAt").notNull().defaultNow(),
+	createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 /**
@@ -63,18 +63,18 @@ export const usersTable = pgTable("user", {
 	/** User's email address (unique across all users) */
 	email: text("email").notNull().unique(),
 	/** Whether the user's email has been verified */
-	emailVerified: boolean("emailVerified").notNull().default(false),
+	emailVerified: boolean("email_verified").notNull().default(false),
 
 	/** URL to user's profile image */
 	image: text("image"),
 
 	/** Custom daily bot limit for this user (overrides default limits) */
-	customDailyBotLimit: integer("customDailyBotLimit"),
+	customDailyBotLimit: integer("custom_daily_bot_limit"),
 
 	/** When this user account was created */
-	createdAt: timestamp("createdAt").notNull().defaultNow(),
+	createdAt: timestamp("created_at").notNull().defaultNow(),
 	/** When this user account was last updated */
-	updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+	updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
 /**
@@ -86,24 +86,24 @@ export const sessionsTable = pgTable("session", {
 	id: text("id").primaryKey(),
 
 	/** When this session expires */
-	expiresAt: timestamp("expiresAt").notNull(),
+	expiresAt: timestamp("expires_at").notNull(),
 	/** Session token (unique across all sessions) */
 	token: text("token").notNull().unique(),
 
 	/** IP address where the session was created */
-	ipAddress: text("ipAddress"),
+	ipAddress: text("ip_address"),
 	/** User agent string from the client */
-	userAgent: text("userAgent"),
+	userAgent: text("user_agent"),
 
 	/** Reference to the user who owns this session */
-	userId: text("userId")
+	userId: text("user_id")
 		.notNull()
 		.references(() => usersTable.id, { onDelete: "cascade" }),
 
 	/** When this session was created */
-	createdAt: timestamp("createdAt").notNull().defaultNow(),
+	createdAt: timestamp("created_at").notNull().defaultNow(),
 	/** When this session was last updated */
-	updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+	updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
 /**
@@ -115,26 +115,26 @@ export const accountsTable = pgTable("account", {
 	id: text("id").primaryKey(),
 
 	/** Account ID from the external provider */
-	accountId: text("accountId").notNull(),
+	accountId: text("account_id").notNull(),
 	/** Identifier of the OAuth provider */
-	providerId: text("providerId").notNull(),
+	providerId: text("provider_id").notNull(),
 
 	/** Reference to the user who owns this account */
-	userId: text("userId")
+	userId: text("user_id")
 		.notNull()
 		.references(() => usersTable.id, { onDelete: "cascade" }),
 
 	/** OAuth access token for API calls */
-	accessToken: text("accessToken"),
+	accessToken: text("access_token"),
 	/** OAuth refresh token for renewing access */
-	refreshToken: text("refreshToken"),
+	refreshToken: text("refresh_token"),
 	/** OpenID Connect ID token */
-	idToken: text("idToken"),
+	idToken: text("id_token"),
 
 	/** When the access token expires */
-	accessTokenExpiresAt: timestamp("accessTokenExpiresAt"),
+	accessTokenExpiresAt: timestamp("access_token_expires_at"),
 	/** When the refresh token expires */
-	refreshTokenExpiresAt: timestamp("refreshTokenExpiresAt"),
+	refreshTokenExpiresAt: timestamp("refresh_token_expires_at"),
 
 	/** OAuth scope permissions granted */
 	scope: text("scope"),
@@ -142,9 +142,9 @@ export const accountsTable = pgTable("account", {
 	password: text("password"),
 
 	/** When this account was linked */
-	createdAt: timestamp("createdAt").notNull().defaultNow(),
+	createdAt: timestamp("created_at").notNull().defaultNow(),
 	/** When this account was last updated */
-	updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+	updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
 /**
@@ -159,22 +159,22 @@ export const verificationTable = pgTable("verification", {
 	/** Verification token value */
 	value: text("value").notNull(),
 	/** When this verification token expires */
-	expiresAt: timestamp("expiresAt").notNull(),
+	expiresAt: timestamp("expires_at").notNull(),
 	/** When this verification token was created */
-	createdAt: timestamp("createdAt").defaultNow(),
+	createdAt: timestamp("created_at").defaultNow(),
 	/** When this verification token was last updated */
-	updatedAt: timestamp("updatedAt").defaultNow(),
+	updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 /**
  * Database implementation for user API keys
  * Stores API keys that users can generate to access the platform programmatically
  */
-export const apiKeysTable = pgTable("apiKeys", {
+export const apiKeysTable = pgTable("api_keys", {
 	/** Unique identifier for the API key */
 	id: serial("id").primaryKey(),
 	/** Reference to the user who owns this API key */
-	userId: text("userId")
+	userId: text("user_id")
 		.references(() => usersTable.id)
 		.notNull(),
 	/** The actual API key value (hashed) */
@@ -182,13 +182,13 @@ export const apiKeysTable = pgTable("apiKeys", {
 	/** User-friendly name for the API key */
 	name: varchar("name", { length: 255 }).notNull(),
 	/** When this API key was created */
-	createdAt: timestamp("createdAt").defaultNow(),
+	createdAt: timestamp("created_at").defaultNow(),
 	/** When this API key was last used */
-	lastUsedAt: timestamp("lastUsedAt"),
+	lastUsedAt: timestamp("last_used_at"),
 	/** When this API key expires (null for no expiration) */
-	expiresAt: timestamp("expiresAt"),
+	expiresAt: timestamp("expires_at"),
 	/** Whether this API key has been revoked */
-	isRevoked: boolean("isRevoked").default(false),
+	isRevoked: boolean("is_revoked").default(false),
 });
 
 /**
@@ -209,15 +209,15 @@ export const selectApiKeySchema = createSelectSchema(apiKeysTable);
  * Database implementation for API request logging
  * Tracks all API requests for monitoring, debugging, and usage analytics
  */
-export const apiRequestLogsTable = pgTable("apiRequestLogs", {
+export const apiRequestLogsTable = pgTable("api_request_logs", {
 	/** Unique identifier for this request log */
 	id: serial("id").primaryKey(),
 	/** Reference to the API key used for this request */
-	apiKeyId: integer("apiKeyId")
+	apiKeyId: integer("api_key_id")
 		.references(() => apiKeysTable.id)
 		.notNull(),
 	/** Reference to the user who made this request */
-	userId: text("userId")
+	userId: text("user_id")
 		.references(() => usersTable.id)
 		.notNull(),
 	/** HTTP method used for the request */
@@ -225,17 +225,17 @@ export const apiRequestLogsTable = pgTable("apiRequestLogs", {
 	/** API endpoint path that was called */
 	path: varchar("path", { length: 255 }).notNull(),
 	/** HTTP status code returned */
-	statusCode: integer("statusCode").notNull(),
+	statusCode: integer("status_code").notNull(),
 	/** JSON body of the request */
-	requestBody: json("requestBody").$type<Record<string, unknown> | null>(),
+	requestBody: json("request_body").$type<Record<string, unknown> | null>(),
 	/** JSON body of the response */
-	responseBody: json("responseBody").$type<Record<string, unknown> | null>(),
+	responseBody: json("response_body").$type<Record<string, unknown> | null>(),
 	/** Error message if the request failed */
 	error: varchar("error", { length: 1024 }),
 	/** Request duration in milliseconds */
 	duration: integer("duration").notNull(),
 	/** When this request was made */
-	createdAt: timestamp("createdAt").defaultNow(),
+	createdAt: timestamp("created_at").defaultNow(),
 });
 
 /**
@@ -373,36 +373,36 @@ export const botsTable = pgTable(
 		/** Unique identifier for the bot */
 		id: serial("id").primaryKey(),
 		/** Display name shown for the bot in meetings */
-		botDisplayName: varchar("botDisplayName", { length: 255 }).notNull(),
+		botDisplayName: varchar("bot_display_name", { length: 255 }).notNull(),
 		/** URL to bot's avatar image */
-		botImage: varchar("botImage", { length: 255 }),
+		botImage: varchar("bot_image", { length: 255 }),
 
 		/** Reference to the user who owns this bot */
-		userId: text("userId")
+		userId: text("user_id")
 			.references(() => usersTable.id)
 			.notNull(),
 
 		/** Title of the meeting this bot will join */
-		meetingTitle: varchar("meetingTitle", { length: 255 }).notNull(),
+		meetingTitle: varchar("meeting_title", { length: 255 }).notNull(),
 		/** Platform-specific meeting connection details */
-		meetingInfo: json("meetingInfo").$type<MeetingInfo>().notNull(),
+		meetingInfo: json("meeting_info").$type<MeetingInfo>().notNull(),
 
 		/** Scheduled start time for the meeting */
-		startTime: timestamp("startTime").notNull(),
+		startTime: timestamp("start_time").notNull(),
 		/** Scheduled end time for the meeting */
-		endTime: timestamp("endTime").notNull(),
+		endTime: timestamp("end_time").notNull(),
 
 		/** Path to the recorded audio file */
 		recording: varchar("recording", { length: 255 }),
 		/** Whether recording is enabled for this bot */
-		recordingEnabled: boolean("recordingEnabled").notNull().default(false),
+		recordingEnabled: boolean("recording_enabled").notNull().default(false),
 		/** Timeline of when each speaker was active */
-		speakerTimeframes: json("speakerTimeframes")
+		speakerTimeframes: json("speaker_timeframes")
 			.$type<SpeakerTimeframe[]>()
 			.notNull()
 			.default([]),
 		/** Last time the bot sent a heartbeat signal */
-		lastHeartbeat: timestamp("lastHeartbeat"),
+		lastHeartbeat: timestamp("last_heartbeat"),
 
 		/** Current status of the bot */
 		status: varchar("status", { length: 255 })
@@ -411,22 +411,22 @@ export const botsTable = pgTable(
 			.default("READY_TO_DEPLOY"),
 
 		/** Error message if bot deployment failed */
-		deploymentError: varchar("deploymentError", { length: 1024 }),
+		deploymentError: varchar("deployment_error", { length: 1024 }),
 
 		/** Coolify service UUID for cleanup when bot finishes */
-		coolifyServiceUuid: varchar("coolifyServiceUuid", { length: 255 }),
+		coolifyServiceUuid: varchar("coolify_service_uuid", { length: 255 }),
 
 		/** How often the bot sends heartbeat signals (milliseconds) */
-		heartbeatInterval: integer("heartbeatInterval").notNull(),
+		heartbeatInterval: integer("heartbeat_interval").notNull(),
 		/** Configuration for automatic leave conditions */
-		automaticLeave: json("automaticLeave").$type<AutomaticLeave>().notNull(),
+		automaticLeave: json("automatic_leave").$type<AutomaticLeave>().notNull(),
 		/** URL to send bot event notifications to */
-		callbackUrl: varchar("callbackUrl", { length: 1024 }),
+		callbackUrl: varchar("callback_url", { length: 1024 }),
 		/** Whether chat messaging is enabled for this bot */
-		chatEnabled: boolean("chatEnabled").notNull().default(false),
+		chatEnabled: boolean("chat_enabled").notNull().default(false),
 
 		/** When this bot was created */
-		createdAt: timestamp("createdAt").defaultNow(),
+		createdAt: timestamp("created_at").defaultNow(),
 	},
 	(table) => {
 		return {
@@ -570,19 +570,19 @@ export const events = pgTable(
 		/** Unique identifier for this event */
 		id: serial("id").primaryKey(),
 		/** Reference to the bot that generated this event */
-		botId: integer("botId")
+		botId: integer("bot_id")
 			.references(() => botsTable.id)
 			.notNull(),
 		/** Type of event that occurred */
-		eventType: varchar("eventType", { length: 255 })
+		eventType: varchar("event_type", { length: 255 })
 			.$type<EventCode>()
 			.notNull(),
 		/** When the event occurred */
-		eventTime: timestamp("eventTime").notNull(),
+		eventTime: timestamp("event_time").notNull(),
 		/** Additional data specific to the event type */
 		data: json("data").$type<EventData | null>(),
 		/** When this event record was created */
-		createdAt: timestamp("createdAt").defaultNow(),
+		createdAt: timestamp("created_at").defaultNow(),
 	},
 	(table) => {
 		return {
@@ -641,17 +641,17 @@ export const messageTemplatesTable = pgTable(
 		/** Unique identifier for the template */
 		id: serial("id").primaryKey(),
 		/** Reference to the user who owns this template */
-		userId: text("userId")
+		userId: text("user_id")
 			.references(() => usersTable.id, { onDelete: "cascade" })
 			.notNull(),
 		/** User-friendly name for the template */
-		templateName: varchar("templateName", { length: 255 }).notNull(),
+		templateName: varchar("template_name", { length: 255 }).notNull(),
 		/** Array of message variations for randomized selection */
 		messages: json("messages").$type<string[]>().notNull(),
 		/** When this template was created */
-		createdAt: timestamp("createdAt").notNull().defaultNow(),
+		createdAt: timestamp("created_at").notNull().defaultNow(),
 		/** When this template was last updated */
-		updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+		updatedAt: timestamp("updated_at").notNull().defaultNow(),
 	},
 	(table) => {
 		return {
@@ -703,24 +703,24 @@ export const botChatMessagesTable = pgTable(
 		/** Unique identifier for the message */
 		id: serial("id").primaryKey(),
 		/** Reference to the bot that sent this message */
-		botId: integer("botId")
+		botId: integer("bot_id")
 			.references(() => botsTable.id, { onDelete: "cascade" })
 			.notNull(),
 		/** Reference to the user who initiated this message */
-		userId: text("userId")
+		userId: text("user_id")
 			.references(() => usersTable.id, { onDelete: "cascade" })
 			.notNull(),
 		/** The actual message text that was sent */
-		messageText: text("messageText").notNull(),
+		messageText: text("message_text").notNull(),
 		/** Reference to the template used (null for manual messages) */
-		templateId: integer("templateId").references(
+		templateId: integer("template_id").references(
 			() => messageTemplatesTable.id,
 			{
 				onDelete: "set null",
 			},
 		),
 		/** When the message was sent */
-		sentAt: timestamp("sentAt").notNull().defaultNow(),
+		sentAt: timestamp("sent_at").notNull().defaultNow(),
 		/** Status of message delivery */
 		status: varchar("status", { length: 50 }).notNull().default("pending"),
 		/** Error message if delivery failed */
@@ -774,28 +774,28 @@ export const botPoolSlotsTable = pgTable(
 		/** Unique identifier for the pool slot */
 		id: serial("id").primaryKey(),
 		/** Coolify application UUID */
-		coolifyServiceUuid: varchar("coolifyServiceUuid", { length: 255 })
+		coolifyServiceUuid: varchar("coolify_service_uuid", { length: 255 })
 			.notNull()
 			.unique(),
 		/** Slot name for identification (e.g., "pool-google-meet-001") */
-		slotName: varchar("slotName", { length: 255 }).notNull().unique(),
+		slotName: varchar("slot_name", { length: 255 }).notNull().unique(),
 		/** Current status of the slot */
 		status: varchar("status", { length: 50 })
 			.$type<PoolSlotStatus>()
 			.notNull()
 			.default("idle"),
 		/** Reference to the bot currently using this slot */
-		assignedBotId: integer("assignedBotId").references(() => botsTable.id, {
+		assignedBotId: integer("assigned_bot_id").references(() => botsTable.id, {
 			onDelete: "set null",
 		}),
 		/** When this slot was last used */
-		lastUsedAt: timestamp("lastUsedAt"),
+		lastUsedAt: timestamp("last_used_at"),
 		/** Error message if slot is in error state */
-		errorMessage: text("errorMessage"),
+		errorMessage: text("error_message"),
 		/** Number of recovery attempts made for this slot */
-		recoveryAttempts: integer("recoveryAttempts").notNull().default(0),
+		recoveryAttempts: integer("recovery_attempts").notNull().default(0),
 		/** When this slot was created */
-		createdAt: timestamp("createdAt").notNull().defaultNow(),
+		createdAt: timestamp("created_at").notNull().defaultNow(),
 	},
 	(table) => {
 		return {
@@ -823,16 +823,16 @@ export const botPoolQueueTable = pgTable(
 		/** Unique identifier for the queue entry */
 		id: serial("id").primaryKey(),
 		/** Reference to the bot waiting for a slot */
-		botId: integer("botId")
+		botId: integer("bot_id")
 			.references(() => botsTable.id, { onDelete: "cascade" })
 			.notNull()
 			.unique(),
 		/** Priority level (lower = higher priority) */
 		priority: integer("priority").notNull().default(100),
 		/** When the request was queued */
-		queuedAt: timestamp("queuedAt").notNull().defaultNow(),
+		queuedAt: timestamp("queued_at").notNull().defaultNow(),
 		/** When the request should timeout */
-		timeoutAt: timestamp("timeoutAt").notNull(),
+		timeoutAt: timestamp("timeout_at").notNull(),
 	},
 	(table) => {
 		return {

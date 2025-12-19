@@ -417,11 +417,11 @@ export const botsRouter = createTRPCRouter({
 						updateData.speakerTimeframes = input.speakerTimeframes;
 					}
 
-					// Clear coolifyServiceUuid when bot reaches terminal state
-					// This prevents conflicts when the slot is reused for another bot
-					if (input.status === "DONE" || input.status === "FATAL") {
-						updateData.coolifyServiceUuid = null;
-					}
+					// Note: We intentionally do NOT clear coolifyServiceUuid when bot reaches terminal state.
+					// Keeping it allows getPoolSlot to find finished bots and return a proper "container should exit"
+					// error when the container makes a final call during shutdown. The slot's assignedBotId being
+					// cleared is sufficient for pool management, and new bots get their own coolifyServiceUuid set
+					// when assigned to a slot (overwriting any previous value).
 
 					const result = await tx
 						.update(botsTable)
