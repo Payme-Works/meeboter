@@ -235,7 +235,6 @@ resource "aws_ecs_task_definition" "server" {
     environment = {
       NODE_TLS_REJECT_UNAUTHORIZED = "0"
       DATABASE_URL                 = "postgresql://${aws_db_instance.this.username}:${random_password.db_password.result}@${aws_db_instance.this.endpoint}/${aws_db_instance.this.db_name}?sslmode=no-verify"
-      SKIP_ENV_VALIDATION          = "true"
     }
 
     command = "cd ../apps/milo && bun install && bun db:migrate && echo 'Database migrations completed successfully'"

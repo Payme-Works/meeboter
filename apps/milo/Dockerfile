@@ -34,11 +34,7 @@ RUN if [ -f /tmp/pruner-out/bun.lock ]; then \
 
 # Build the project
 COPY --from=pruner /app/out/full/ .
-# Skip env validation during build - secrets are injected at runtime
-# Note: Do NOT set NODE_ENV during build as it causes Next.js static generation errors
-# See: https://github.com/vercel/next.js/issues/56481
-ENV SKIP_ENV_VALIDATION=1
-RUN SKIP_ENV_VALIDATION=1 bun turbo build --filter=@meeboter/milo
+RUN bun turbo build --filter=@meeboter/milo
 
 # =============================================================================
 # RUNNER: Final production image

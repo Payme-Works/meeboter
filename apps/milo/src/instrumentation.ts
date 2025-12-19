@@ -25,13 +25,8 @@ export async function register() {
 async function startBackgroundWorkers(): Promise<void> {
 	const { env } = await import("@/env");
 
-	// Skip during build time (SKIP_ENV_VALIDATION is set during Docker builds)
-	const isBuildTime = !!process.env.SKIP_ENV_VALIDATION;
-
-	if (env.NODE_ENV !== "production" || isBuildTime) {
-		console.log(
-			"[Instrumentation] Skipping workers (not production or build time)",
-		);
+	if (env.NODE_ENV !== "production") {
+		console.log("[Instrumentation] Skipping workers (not production)");
 
 		return;
 	}

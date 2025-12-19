@@ -61,11 +61,6 @@ function detectPlatform(): "coolify" | "aws" | "local" {
 		return "aws";
 	}
 
-	// During build (SKIP_ENV_VALIDATION), default to local
-	if (process.env.SKIP_ENV_VALIDATION) {
-		return "local";
-	}
-
 	throw new Error(
 		"Unable to detect deployment platform. " +
 			"Set DEPLOYMENT_PLATFORM environment variable or provide platform-specific configuration. " +

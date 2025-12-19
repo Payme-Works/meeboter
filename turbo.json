@@ -3,8 +3,7 @@
 	"globalDependencies": ["**/.env.*local"],
 	"tasks": {
 		"build": {
-			"dependsOn": ["^build"],
-			"passThroughEnv": ["SKIP_ENV_VALIDATION"]
+			"dependsOn": ["^build"]
 		},
 		"dev": {
 			"dependsOn": ["^build"]
