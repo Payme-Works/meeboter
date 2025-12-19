@@ -2,6 +2,7 @@
 
 import { ArrowRight, Hexagon } from "lucide-react";
 import Link from "next/link";
+import { api } from "@/trpc/react";
 
 interface PoolCardProps {
 	idle: number;
@@ -221,5 +222,36 @@ export function PoolCardUnavailable() {
 				</Link>
 			</div>
 		</div>
+	);
+}
+
+/**
+ * Client-side wrapper that fetches pool data and renders PoolCard.
+ * This enables React Query cache invalidation after bot deployment.
+ */
+export function PoolCardLoader() {
+	const { data: poolStats, isLoading } = api.pool.statistics.getPool.useQuery(
+		undefined,
+		{
+			refetchInterval: 30000,
+		},
+	);
+
+	if (isLoading) {
+		return <PoolCardSkeleton />;
+	}
+
+	if (!poolStats) {
+		return <PoolCardUnavailable />;
+	}
+
+	return (
+		<PoolCard
+			idle={poolStats.idle}
+			deploying={poolStats.deploying}
+			busy={poolStats.busy}
+			total={poolStats.total}
+			maxSize={poolStats.maxSize}
+		/>
 	);
 }

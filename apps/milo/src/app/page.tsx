@@ -7,11 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { auth } from "@/server/auth";
 import { api, HydrateClient } from "@/trpc/server";
-import {
-	PoolCard,
-	PoolCardSkeleton,
-	PoolCardUnavailable,
-} from "./_components/pool-card";
+import { PoolCardLoader, PoolCardSkeleton } from "./_components/pool-card";
 import {
 	QuickBotJoin,
 	QuickBotJoinSkeleton,
@@ -292,24 +288,11 @@ function ResourceCardsSkeleton() {
 // ─── Resource Cards, for Welcome Dashboard ──────────────────────
 
 async function ResourceCardsSection() {
-	const [keys, poolStats] = await Promise.all([
-		api.apiKeys.getApiKeyCount(),
-		api.pool.statistics.getPool().catch(() => null),
-	]);
+	const keys = await api.apiKeys.getApiKeyCount();
 
 	return (
 		<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-			{poolStats ? (
-				<PoolCard
-					idle={poolStats.idle}
-					deploying={poolStats.deploying}
-					busy={poolStats.busy}
-					total={poolStats.total}
-					maxSize={poolStats.maxSize}
-				/>
-			) : (
-				<PoolCardUnavailable />
-			)}
+			<PoolCardLoader />
 
 			<StatCard className="min-h-[180px]">
 				<StatCardHeader className="justify-start gap-3">
