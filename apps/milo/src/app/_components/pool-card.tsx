@@ -2,6 +2,7 @@
 
 import { ArrowRight, Hexagon } from "lucide-react";
 import Link from "next/link";
+import { LiveIndicator } from "@/components/live-indicator";
 import { api } from "@/trpc/react";
 
 interface PoolCardProps {
@@ -80,6 +81,9 @@ export function PoolCard({
 		<div className="group/card border bg-card p-5 flex flex-col h-full min-h-[180px] relative overflow-hidden transition-all duration-300 hover:border-accent/20">
 			{/* Subtle ambient glow on hover */}
 			<div className="absolute -top-20 -right-20 w-40 h-40 bg-accent/5 rounded-full blur-3xl opacity-0 group-hover/card:opacity-100 transition-opacity duration-500 pointer-events-none" />
+
+			{/* Live indicator */}
+			<LiveIndicator className="absolute top-4 right-4" />
 
 			{/* Header */}
 			<div className="flex items-center gap-2.5 mb-5 relative">
@@ -233,7 +237,7 @@ export function PoolCardLoader() {
 	const { data: poolStats, isLoading } = api.pool.statistics.getPool.useQuery(
 		undefined,
 		{
-			refetchInterval: 30000,
+			refetchInterval: 5000,
 		},
 	);
 
