@@ -6,6 +6,7 @@ import type { TRPCClient } from "@trpc/client";
 import puppeteer, { type Browser, type Page } from "puppeteer";
 import { getStream, launch, wss } from "puppeteer-stream";
 import { Bot } from "../../../src/bot";
+import type { BotLogger } from "../../../src/logger";
 import {
 	type BotConfig,
 	type EventCode,
@@ -52,6 +53,8 @@ export class MicrosoftTeamsBot extends Bot {
 	 *
 	 * @param botSettings - Configuration object containing meeting details and bot behavior settings
 	 * @param onEvent - Callback function to handle bot lifecycle events and data updates
+	 * @param trpcInstance - tRPC client instance for backend API calls
+	 * @param logger - Logger instance for structured logging
 	 */
 	constructor(
 		botSettings: BotConfig,
@@ -60,8 +63,9 @@ export class MicrosoftTeamsBot extends Bot {
 			data?: Record<string, unknown>,
 		) => Promise<void>,
 		trpcInstance?: TRPCClient<AppRouter>,
+		logger?: BotLogger,
 	) {
-		super(botSettings, onEvent, trpcInstance);
+		super(botSettings, onEvent, trpcInstance, logger);
 		this.recordingPath = "./recording.webm";
 		this.contentType = "video/webm";
 		this.url = `https://teams.microsoft.com/v2/?meetingjoin=true#/l/meetup-join/19:meeting_${this.settings.meetingInfo.meetingId}@thread.v2/0?context=%7b%22Tid%22%3a%22${this.settings.meetingInfo.tenantId}%22%2c%22Oid%22%3a%22${this.settings.meetingInfo.organizerId}%22%7d&anon=true`;

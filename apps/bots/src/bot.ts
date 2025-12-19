@@ -1,6 +1,7 @@
 import type { AppRouter } from "@meeboter/milo";
 import type { TRPCClient } from "@trpc/client";
 import { env } from "./env";
+import { BotLogger, parseLogLevel } from "./logger";
 import { reportEvent } from "./monitoring";
 import { trpc } from "./trpc";
 import type { BotConfig, EventCode, SpeakerTimeframe } from "./types";
@@ -13,6 +14,9 @@ import type { BotConfig, EventCode, SpeakerTimeframe } from "./types";
 export interface BotInterface {
 	/** Bot configuration settings containing meeting info and other parameters */
 	readonly settings: BotConfig;
+
+	/** Logger instance for structured logging with breadcrumbs and screenshots */
+	readonly logger: BotLogger;
 
 	/**
 	 * Event handler for bot lifecycle and operational events.
@@ -92,6 +96,9 @@ export class Bot implements BotInterface {
 	/** Bot configuration settings containing meeting information and parameters */
 	readonly settings: BotConfig;
 
+	/** Logger instance for structured logging with breadcrumbs and screenshots */
+	readonly logger: BotLogger;
+
 	/**
 	 * Event handler function for reporting bot lifecycle and operational events.
 	 * This function is injected during bot creation to handle event reporting.
@@ -118,6 +125,7 @@ export class Bot implements BotInterface {
 	 * @param settings - Bot configuration containing meeting info and other parameters
 	 * @param onEvent - Event handler function for reporting bot events
 	 * @param trpcInstance - tRPC client instance for backend API calls
+	 * @param logger - Optional logger instance (created if not provided)
 	 */
 	constructor(
 		settings: BotConfig,
@@ -126,10 +134,12 @@ export class Bot implements BotInterface {
 			data?: Record<string, unknown>,
 		) => Promise<void>,
 		trpcInstance?: TRPCClient<AppRouter>,
+		logger?: BotLogger,
 	) {
 		this.settings = settings;
 		this.onEvent = onEvent;
 		this.trpc = trpcInstance || trpc;
+		this.logger = logger || new BotLogger(settings.id);
 	}
 
 	/**
@@ -254,7 +264,7 @@ export class Bot implements BotInterface {
 	 * Sets the leaveRequested flag which should be checked in the bot's main loop.
 	 */
 	requestLeave(): void {
-		console.log("Leave requested by user, setting leaveRequested flag");
+		this.logger.info("Leave requested by user, setting leaveRequested flag");
 		this.leaveRequested = true;
 	}
 }
@@ -295,10 +305,14 @@ const validPlatformForImage = (
  * - Platform validation and safety checks
  *
  * @param botData - Configuration data containing meeting info and bot settings
+ * @param initialLogLevel - Optional initial log level string from database
  * @returns Promise that resolves to a platform-specific bot instance
  * @throws Error if the platform is unsupported or if there's a platform/Docker image mismatch
  */
-export const createBot = async (botData: BotConfig): Promise<Bot> => {
+export const createBot = async (
+	botData: BotConfig,
+	initialLogLevel?: string,
+): Promise<Bot> => {
 	const botId = botData.id;
 	const platform = botData.meetingInfo.platform;
 
@@ -316,6 +330,12 @@ export const createBot = async (botData: BotConfig): Promise<Bot> => {
 		);
 	}
 
+	// Create logger with initial log level from database
+	const logLevel = initialLogLevel ? parseLogLevel(initialLogLevel) : undefined;
+	const logger = new BotLogger(botId, { logLevel });
+
+	logger.info(`Creating bot for platform: ${platform}`);
+
 	switch (botData.meetingInfo.platform) {
 		case "google": {
 			const { GoogleMeetBot } = await import("../providers/meet/src/bot");
@@ -326,6 +346,7 @@ export const createBot = async (botData: BotConfig): Promise<Bot> => {
 					await reportEvent(botId, eventType, data);
 				},
 				trpc,
+				logger,
 			);
 		}
 
@@ -338,6 +359,7 @@ export const createBot = async (botData: BotConfig): Promise<Bot> => {
 					await reportEvent(botId, eventType, data);
 				},
 				trpc,
+				logger,
 			);
 		}
 
@@ -350,6 +372,7 @@ export const createBot = async (botData: BotConfig): Promise<Bot> => {
 					await reportEvent(botId, eventType, data);
 				},
 				trpc,
+				logger,
 			);
 		}
 

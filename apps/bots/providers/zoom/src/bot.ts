@@ -6,6 +6,7 @@ import type { TRPCClient } from "@trpc/client";
 import puppeteer, { type Browser, type Page } from "puppeteer";
 import { getStream, launch, wss } from "puppeteer-stream";
 import { Bot } from "../../../src/bot";
+import type { BotLogger } from "../../../src/logger";
 import {
 	type BotConfig,
 	type EventCode,
@@ -52,6 +53,8 @@ export class ZoomBot extends Bot {
 	 *
 	 * @param botSettings - Configuration settings for the bot including meeting details
 	 * @param onEvent - Callback function for handling bot events and status updates
+	 * @param trpcInstance - tRPC client instance for backend API calls
+	 * @param logger - Logger instance for structured logging
 	 */
 	constructor(
 		botSettings: BotConfig,
@@ -60,8 +63,9 @@ export class ZoomBot extends Bot {
 			data?: Record<string, unknown>,
 		) => Promise<void>,
 		trpcInstance?: TRPCClient<AppRouter>,
+		logger?: BotLogger,
 	) {
-		super(botSettings, onEvent, trpcInstance);
+		super(botSettings, onEvent, trpcInstance, logger);
 		this.recordingPath = path.resolve(__dirname, "recording.mp4");
 		this.contentType = "video/mp4";
 		this.url = `https://app.zoom.us/wc/${this.settings.meetingInfo.meetingId}/join?fromPWA=1&pwd=${this.settings.meetingInfo.meetingPassword}`;

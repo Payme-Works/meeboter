@@ -9,6 +9,7 @@ import { chromium } from "playwright-extra";
 import type { PageVideoCapture } from "playwright-video";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import { Bot } from "../../../src/bot";
+import type { BotLogger } from "../../../src/logger";
 import {
 	type BotConfig,
 	EventCode,
@@ -172,6 +173,7 @@ export class GoogleMeetBot extends Bot {
 	 * @param botSettings - Bot configuration including meeting URL, display name, and behavior settings
 	 * @param onEvent - Event callback function for communicating with the backend
 	 * @param trpcInstance - tRPC client instance for backend API calls
+	 * @param logger - Logger instance for structured logging
 	 */
 	constructor(
 		botSettings: BotConfig,
@@ -180,8 +182,9 @@ export class GoogleMeetBot extends Bot {
 			data?: Record<string, unknown>,
 		) => Promise<void>,
 		trpcInstance?: TRPCClient<AppRouter>,
+		logger?: BotLogger,
 	) {
-		super(botSettings, onEvent, trpcInstance);
+		super(botSettings, onEvent, trpcInstance, logger);
 
 		this.recordingPath = path.resolve(__dirname, "recording.mp4");
 
@@ -408,7 +411,7 @@ export class GoogleMeetBot extends Bot {
 	 * @param headless - Whether to run browser in headless mode (default: false)
 	 */
 	async launchBrowser(headless: boolean = false): Promise<void> {
-		console.log("Launching browser...");
+		this.logger.info("Launching browser");
 
 		// Launch browser
 		this.browser = await chromium.launch({
@@ -428,6 +431,9 @@ export class GoogleMeetBot extends Bot {
 
 		// Create page
 		this.page = await context.newPage();
+
+		// Set page on logger for screenshot capture
+		this.logger.setPage(this.page);
 	}
 
 	/**
@@ -442,8 +448,9 @@ export class GoogleMeetBot extends Bot {
 		await this.launchBrowser();
 
 		await this.onEvent(EventCode.JOINING_CALL);
+		this.logger.setState("JOINING_CALL");
 
-		console.log("Joining meeting...");
+		this.logger.info("Joining meeting");
 
 		if (!this.page) {
 			throw new Error("Page not initialized");
@@ -603,15 +610,16 @@ export class GoogleMeetBot extends Bot {
 
 		// If we clicked "Ask to join", report that we're in the waiting room
 		if (isWaitingRoom) {
-			console.log("Bot is now in waiting room, awaiting host acceptance...");
+			this.logger.info("Bot is now in waiting room, awaiting host acceptance");
+			this.logger.setState("IN_WAITING_ROOM");
 			await this.onEvent(EventCode.IN_WAITING_ROOM);
 		}
 
 		// Should exit after the waiting room timeout if we're in the waiting room
 		const timeout = this.settings.automaticLeave.waitingRoomTimeout; // in milliseconds
 
-		console.log(
-			`Waiting for host acceptance (timeout: ${timeout / 1000} seconds)...`,
+		this.logger.info(
+			`Waiting for host acceptance (timeout: ${timeout / 1000}s)`,
 		);
 
 		// Wait for actual call entry by detecting in-call indicators
@@ -673,9 +681,10 @@ export class GoogleMeetBot extends Bot {
 			const timeoutSeconds = Math.round(timeout / 1000);
 
 			// Log the actual error for debugging
-			console.error(
-				"waitForFunction failed:",
-				error instanceof Error ? error.message : String(error),
+			this.logger.error(
+				"waitForFunction failed",
+				error instanceof Error ? error : new Error(String(error)),
+				{ elapsedSeconds, timeoutSeconds },
 			);
 
 			// Differentiate between actual timeout and immediate failures
@@ -698,12 +707,13 @@ export class GoogleMeetBot extends Bot {
 					: `Bot encountered an error while joining after ${elapsedSeconds}s (timeout was ${timeoutSeconds}s): ${actualError}`;
 			}
 
-			console.error(errorMessage);
+			this.logger.error(errorMessage);
 
 			throw new WaitingRoomTimeoutError(errorMessage);
 		}
 
-		console.log("Joined call (verified by in-call indicators)");
+		this.logger.info("Joined call (verified by in-call indicators)");
+		this.logger.setState("IN_CALL");
 
 		await this.onEvent(EventCode.IN_CALL);
 
@@ -1498,16 +1508,13 @@ export class GoogleMeetBot extends Bot {
 		}
 
 		// Loop -- check for end meeting conditions every second
-		console.log("Waiting until a leave condition is fulfilled..");
+		this.logger.debug("Waiting until a leave condition is fulfilled");
 
 		while (true) {
 			// Check if user requested leave via UI (heartbeat received shouldLeave)
 			if (this.leaveRequested) {
-				console.log(
-					"Leaving: User requested bot removal via UI (LEAVING status)",
-				);
-
-				console.log("Leave reason: USER_REQUESTED");
+				this.logger.info("Leaving: User requested bot removal via UI");
+				this.logger.setState("LEAVING");
 
 				break; // Exit loop
 			}
@@ -1549,9 +1556,11 @@ export class GoogleMeetBot extends Bot {
 			// Got kicked, no longer in the meeting
 			// Check each of the potential conditions
 			if (await this.checkKicked()) {
-				console.log("Leaving: Detected that we were kicked from the meeting");
+				this.logger.warn(
+					"Leaving: Detected that we were kicked from the meeting",
+				);
 
-				console.log("Leave reason: KICKED");
+				this.logger.setState("KICKED");
 
 				this.kicked = true; // Store
 
@@ -1569,7 +1578,7 @@ export class GoogleMeetBot extends Bot {
 		}
 
 		// Exit
-		console.log("Starting end life actions...");
+		this.logger.info("Starting end life actions");
 
 		try {
 			await this.leaveMeeting();
@@ -1586,25 +1595,27 @@ export class GoogleMeetBot extends Bot {
 	 * Performs cleanup operations including stopping recording and closing browser.
 	 */
 	async endLife(): Promise<void> {
+		this.logger.setState("ENDING");
+
 		// Stop message processing if enabled
 		if (this.chatEnabled) {
-			console.log("Stopping message processing...");
+			this.logger.debug("Stopping message processing");
 		}
 
 		// Ensure recording is done
 		if (this.settings.recordingEnabled) {
-			console.log("Stopping recording...");
+			this.logger.info("Stopping recording");
 
 			await this.stopRecording();
 		}
 
-		console.log("Done");
+		this.logger.info("Cleanup complete");
 
 		// Close my browser
 		if (this.browser) {
 			await this.browser.close();
 
-			console.log("Closed browser");
+			this.logger.debug("Browser closed");
 		}
 	}
 
@@ -1616,7 +1627,8 @@ export class GoogleMeetBot extends Bot {
 	 */
 	async leaveMeeting(): Promise<number> {
 		// Try and find the leave button, press. Otherwise, just delete the browser
-		console.log("Trying to leave the call...");
+		this.logger.info("Trying to leave the call");
+		this.logger.setState("LEAVING");
 
 		if (!this.page) {
 			throw new Error("Page not initialized");
@@ -1625,13 +1637,15 @@ export class GoogleMeetBot extends Bot {
 		try {
 			await this.page.click(leaveButton, { timeout: 1000 }); // Short attempt
 
-			console.log("Left call");
+			this.logger.info("Left call successfully");
 		} catch (_e) {
 			// If we couldn't leave the call, we probably already left
-			console.log("Attempted to leave call, couldn't (probably already left)");
+			this.logger.debug(
+				"Attempted to leave call, couldn't (probably already left)",
+			);
 		}
 
-		console.log("Ending life...");
+		this.logger.info("Ending life");
 
 		await this.endLife();
 

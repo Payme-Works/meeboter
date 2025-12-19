@@ -14,6 +14,8 @@ import {
 	events,
 	insertBotSchema,
 	insertEventSchema,
+	type ScreenshotData,
+	screenshotDataSchema,
 	selectBotSchema,
 	speakerTimeframeSchema,
 	status,
@@ -826,16 +828,18 @@ export const botsRouter = createTRPCRouter({
 	/**
 	 * Processes heartbeat signals from bot scripts to indicate the bot is still running.
 	 * Returns shouldLeave flag if the bot has been requested to leave the call.
+	 * Also returns logLevel for dynamic log level control.
 	 * @param input - Object containing the bot ID
 	 * @param input.id - The ID of the bot sending the heartbeat
-	 * @returns Promise<{shouldLeave: boolean}> Whether the bot should gracefully leave the call
+	 * @returns Promise<{shouldLeave: boolean, logLevel: string | null}> Whether the bot should leave and current log level
 	 */
 	heartbeat: publicProcedure
 		.meta({
 			openapi: {
 				method: "POST",
 				path: "/bots/{id}/heartbeat",
-				description: "Heartbeat with leave signal for graceful termination",
+				description:
+					"Heartbeat with leave signal and log level for runtime control",
 			},
 		})
 		.input(
@@ -846,38 +850,45 @@ export const botsRouter = createTRPCRouter({
 		.output(
 			z.object({
 				shouldLeave: z.boolean(),
+				logLevel: z.string().nullable(),
 			}),
 		)
-		.mutation(async ({ input, ctx }): Promise<{ shouldLeave: boolean }> => {
-			const startTime = Date.now();
+		.mutation(
+			async ({
+				input,
+				ctx,
+			}): Promise<{ shouldLeave: boolean; logLevel: string | null }> => {
+				const startTime = Date.now();
 
-			// Get current status and update heartbeat in parallel
-			const [statusResult] = await Promise.all([
-				ctx.db
-					.select({ status: botsTable.status })
-					.from(botsTable)
-					.where(eq(botsTable.id, input.id))
-					.limit(1),
-				ctx.db
-					.update(botsTable)
-					.set({ lastHeartbeat: new Date() })
-					.where(eq(botsTable.id, input.id))
-					.execute(),
-			]);
+				// Get current status and logLevel, update heartbeat in parallel
+				const [botResult] = await Promise.all([
+					ctx.db
+						.select({ status: botsTable.status, logLevel: botsTable.logLevel })
+						.from(botsTable)
+						.where(eq(botsTable.id, input.id))
+						.limit(1),
+					ctx.db
+						.update(botsTable)
+						.set({ lastHeartbeat: new Date() })
+						.where(eq(botsTable.id, input.id))
+						.execute(),
+				]);
 
-			const duration = Date.now() - startTime;
+				const duration = Date.now() - startTime;
 
-			if (duration > 1000) {
-				console.warn(
-					`[DB] heartbeat query took ${duration}ms for bot ${input.id}`,
-				);
-			}
+				if (duration > 1000) {
+					console.warn(
+						`[DB] heartbeat query took ${duration}ms for bot ${input.id}`,
+					);
+				}
 
-			// Return shouldLeave if bot status is LEAVING
-			const shouldLeave = statusResult[0]?.status === "LEAVING";
+				// Return shouldLeave if bot status is LEAVING
+				const shouldLeave = botResult[0]?.status === "LEAVING";
+				const logLevel = botResult[0]?.logLevel ?? null;
 
-			return { shouldLeave };
-		}),
+				return { shouldLeave, logLevel };
+			},
+		),
 
 	/**
 	 * Records events that occur during a bot session.
@@ -1502,5 +1513,136 @@ export const botsRouter = createTRPCRouter({
 			}
 
 			return await services.pool.getQueueStats();
+		}),
+
+	/**
+	 * Appends a screenshot to a bot's screenshots array.
+	 * Called by bot containers when capturing screenshots on errors or state changes.
+	 * @param input - Object containing bot ID and screenshot data
+	 * @param input.id - The ID of the bot
+	 * @param input.screenshot - The screenshot metadata to append
+	 * @returns Promise<{success: boolean, totalScreenshots: number}> Success status and total count
+	 */
+	appendScreenshot: publicProcedure
+		.meta({
+			openapi: {
+				method: "POST",
+				path: "/bots/{id}/screenshots",
+				description: "Append a screenshot to a bot's screenshots array",
+			},
+		})
+		.input(
+			z.object({
+				id: z.string().transform((val) => Number(val)),
+				screenshot: screenshotDataSchema,
+			}),
+		)
+		.output(
+			z.object({
+				success: z.boolean(),
+				totalScreenshots: z.number(),
+			}),
+		)
+		.mutation(
+			async ({
+				input,
+				ctx,
+			}): Promise<{ success: boolean; totalScreenshots: number }> => {
+				// Get current screenshots array
+				const bot = await ctx.db
+					.select({ screenshots: botsTable.screenshots })
+					.from(botsTable)
+					.where(eq(botsTable.id, input.id))
+					.limit(1);
+
+				if (!bot[0]) {
+					throw new TRPCError({
+						code: "NOT_FOUND",
+						message: "Bot not found",
+					});
+				}
+
+				// Append new screenshot to array (limit to last 50 to prevent unbounded growth)
+				const currentScreenshots = (bot[0].screenshots ??
+					[]) as ScreenshotData[];
+
+				const updatedScreenshots = [
+					...currentScreenshots,
+					input.screenshot,
+				].slice(-50);
+
+				await ctx.db
+					.update(botsTable)
+					.set({ screenshots: updatedScreenshots })
+					.where(eq(botsTable.id, input.id));
+
+				console.log(
+					`[Bot ${input.id}] Screenshot appended (${input.screenshot.type}), total: ${updatedScreenshots.length}`,
+				);
+
+				return {
+					success: true,
+					totalScreenshots: updatedScreenshots.length,
+				};
+			},
+		),
+
+	/**
+	 * Updates a bot's log level at runtime.
+	 * Allows operators to change log verbosity without restarting the bot.
+	 * @param input - Object containing bot ID and new log level
+	 * @param input.id - The ID of the bot
+	 * @param input.logLevel - The new log level (TRACE, DEBUG, INFO, WARN, ERROR, FATAL)
+	 * @returns Promise<{success: boolean}> Success status
+	 */
+	updateLogLevel: protectedProcedure
+		.meta({
+			openapi: {
+				method: "PATCH",
+				path: "/bots/{id}/log-level",
+				description: "Update a bot's log level at runtime",
+			},
+		})
+		.input(
+			z.object({
+				id: z.string().transform((val) => Number(val)),
+				logLevel: z.enum(["TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL"]),
+			}),
+		)
+		.output(
+			z.object({
+				success: z.boolean(),
+			}),
+		)
+		.mutation(async ({ input, ctx }): Promise<{ success: boolean }> => {
+			// Verify bot belongs to user
+			const bot = await ctx.db
+				.select({ userId: botsTable.userId })
+				.from(botsTable)
+				.where(eq(botsTable.id, input.id))
+				.limit(1);
+
+			if (!bot[0]) {
+				throw new TRPCError({
+					code: "NOT_FOUND",
+					message: "Bot not found",
+				});
+			}
+
+			if (bot[0].userId !== ctx.session.user.id) {
+				throw new TRPCError({
+					code: "FORBIDDEN",
+					message: "Bot not found",
+				});
+			}
+
+			await ctx.db
+				.update(botsTable)
+				.set({ logLevel: input.logLevel })
+				.where(eq(botsTable.id, input.id));
+
+			console.log(`[Bot ${input.id}] Log level updated to ${input.logLevel}`);
+
+			return { success: true };
 		}),
 });

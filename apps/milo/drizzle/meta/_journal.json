@@ -71,6 +71,13 @@
 			"when": 1766115958639,
 			"tag": "0009_snake_case_columns",
 			"breakpoints": true
+		},
+		{
+			"idx": 10,
+			"version": "7",
+			"when": 1766149537702,
+			"tag": "0010_silly_otto_octavius",
+			"breakpoints": true
 		}
 	]
 }

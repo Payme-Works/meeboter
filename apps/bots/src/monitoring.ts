@@ -71,13 +71,25 @@ async function retryOperation<T>(
 	return null;
 }
 
+/**
+ * Heartbeat callbacks for various events
+ */
+export interface HeartbeatCallbacks {
+	/** Called when user requests bot to leave */
+	onLeaveRequested?: () => void;
+	/** Called when log level changes */
+	onLogLevelChange?: (logLevel: string) => void;
+}
+
 // Start heartbeat loop in the background
 export const startHeartbeat = async (
 	botId: number,
 	abortSignal: AbortSignal,
 	intervalMs: number = 10000,
-	onLeaveRequested?: () => void,
+	callbacks?: HeartbeatCallbacks,
 ) => {
+	let lastLogLevel: string | null = null;
+
 	while (!abortSignal.aborted) {
 		const result = await retryOperation(async () => {
 			return await trpc.bots.heartbeat.mutate({ id: String(botId) });
@@ -92,12 +104,25 @@ export const startHeartbeat = async (
 					`[${new Date().toISOString()}] Received leave request from backend, signaling bot to leave`,
 				);
 
-				if (onLeaveRequested) {
-					onLeaveRequested();
+				if (callbacks?.onLeaveRequested) {
+					callbacks.onLeaveRequested();
 				}
 
 				// Stop heartbeat loop - bot is leaving
 				return;
+			}
+
+			// Check if log level changed
+			if (result.logLevel && result.logLevel !== lastLogLevel) {
+				console.log(
+					`[${new Date().toISOString()}] Log level changed: ${lastLogLevel} -> ${result.logLevel}`,
+				);
+
+				lastLogLevel = result.logLevel;
+
+				if (callbacks?.onLogLevelChange) {
+					callbacks.onLogLevelChange(result.logLevel);
+				}
 			}
 		} else {
 			// Do not log the entire heartbeat error if the user has set HEARTBEAT_DEBUG to false

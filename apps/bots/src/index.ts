@@ -6,6 +6,8 @@ dotenv.config();
 
 import { type BotInterface, createBot } from "./bot";
 import { env } from "./env";
+import type { ScreenshotData } from "./logger";
+import { uploadScreenshotToS3 } from "./logger/screenshot";
 import {
 	safeReportEvent,
 	startDurationMonitor,
@@ -70,6 +72,49 @@ async function startMessageProcessing(
 	});
 }
 
+/**
+ * Helper function to upload screenshot to S3 and save to backend
+ */
+async function uploadAndSaveScreenshot(
+	bot: BotInterface,
+	s3Client: ReturnType<typeof createS3ClientFromEnv>,
+	localPath: string,
+	type: ScreenshotData["type"],
+	trigger?: string,
+): Promise<void> {
+	if (!s3Client) {
+		return;
+	}
+
+	const screenshotData = await uploadScreenshotToS3(
+		s3Client,
+		localPath,
+		bot.settings.id,
+		type,
+		bot.logger.getState(),
+		trigger,
+	);
+
+	if (screenshotData) {
+		// Save to backend
+		try {
+			await trpc.bots.appendScreenshot.mutate({
+				id: String(bot.settings.id),
+				screenshot: {
+					...screenshotData,
+					capturedAt: screenshotData.capturedAt.toISOString(),
+				},
+			});
+
+			bot.logger.info(`Screenshot saved to backend: ${type}`);
+		} catch (error) {
+			bot.logger.warn(
+				`Failed to save screenshot to backend: ${error instanceof Error ? error.message : String(error)}`,
+			);
+		}
+	}
+}
+
 export const main = async () => {
 	let hasErrorOccurred = false;
 
@@ -104,6 +149,7 @@ export const main = async () => {
 	}
 
 	// Create the appropriate bot instance based on platform
+	// Note: We don't have logLevel in getPoolSlot response yet, so we create without it
 	const bot = await createBot(botData);
 
 	// Create AbortController for heartbeat and duration monitor
@@ -114,15 +160,16 @@ export const main = async () => {
 
 	// Do not start heartbeat in development
 	if (env.NODE_ENV !== "development") {
-		console.log("Starting heartbeat and duration monitor");
+		bot.logger.info("Starting heartbeat and duration monitor");
 
 		const heartbeatInterval = botData.heartbeatInterval ?? 10000; // Default to 10 seconds if not set
 
-		// Start both heartbeat and duration monitoring
-		// Pass callback to trigger graceful leave when user requests bot removal
-		startHeartbeat(botId, monitoringController.signal, heartbeatInterval, () =>
-			bot.requestLeave(),
-		);
+		// Start both heartbeat and duration monitoring with callbacks
+		startHeartbeat(botId, monitoringController.signal, heartbeatInterval, {
+			onLeaveRequested: () => bot.requestLeave(),
+			onLogLevelChange: (logLevel) =>
+				bot.logger.setLogLevelFromString(logLevel),
+		});
 
 		startDurationMonitor(botId, botStartTime, monitoringController.signal);
 	}
@@ -139,42 +186,87 @@ export const main = async () => {
 
 		// Run the bot
 		await bot.run().catch(async (error) => {
-			console.error("Error running bot:", error);
+			bot.logger.error(
+				"Error running bot",
+				error instanceof Error ? error : new Error(String(error)),
+			);
 
 			// Use safe reporting to prevent cascading failures
 			await safeReportEvent(botId, EventCode.FATAL, {
 				description: (error as Error).message,
 			});
 
-			// Check what's on the screen in case of an error
+			// Capture screenshot on error using logger (auto-uploads)
 			try {
-				await bot.screenshot();
+				const screenshotPath = await bot.logger.captureScreenshot(
+					"error",
+					(error as Error).message,
+				);
+
+				if (screenshotPath) {
+					await uploadAndSaveScreenshot(
+						bot,
+						s3Client,
+						screenshotPath,
+						"error",
+						(error as Error).message,
+					);
+				}
 			} catch (screenshotError) {
-				console.warn("Failed to take screenshot:", screenshotError);
+				bot.logger.warn(
+					`Failed to capture/upload screenshot: ${screenshotError instanceof Error ? screenshotError.message : String(screenshotError)}`,
+				);
 			}
 
 			// **Ensure** the bot cleans up its resources after a breaking error
 			try {
 				await bot.endLife();
 			} catch (cleanupError) {
-				console.warn("Error during bot cleanup:", cleanupError);
+				bot.logger.warn(
+					`Error during bot cleanup: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`,
+				);
 			}
 		});
 
 		// Upload recording to S3 only if recording was enabled
 		if (bot.settings.recordingEnabled) {
-			console.log("Start upload to S3...");
+			bot.logger.info("Starting upload to S3...");
 
 			key = await uploadRecordingToS3(s3Client, bot);
 		} else {
-			console.log("Recording was disabled, skipping S3 upload");
+			bot.logger.debug("Recording was disabled, skipping S3 upload");
 
 			key = ""; // No recording to upload
 		}
 	} catch (error) {
 		hasErrorOccurred = true;
 
-		console.error("Error running bot:", error);
+		bot.logger.error(
+			"Error running bot",
+			error instanceof Error ? error : new Error(String(error)),
+		);
+
+		// Capture fatal screenshot
+		try {
+			const screenshotPath = await bot.logger.captureScreenshot(
+				"fatal",
+				(error as Error).message,
+			);
+
+			if (screenshotPath) {
+				await uploadAndSaveScreenshot(
+					bot,
+					s3Client,
+					screenshotPath,
+					"fatal",
+					(error as Error).message,
+				);
+			}
+		} catch (screenshotError) {
+			bot.logger.warn(
+				`Failed to capture/upload fatal screenshot: ${screenshotError instanceof Error ? screenshotError.message : String(screenshotError)}`,
+			);
+		}
 
 		// Use safe reporting to prevent secondary crashes
 		await safeReportEvent(botId, EventCode.FATAL, {
@@ -185,7 +277,7 @@ export const main = async () => {
 	// After S3 upload and cleanup, stop the monitoring
 	monitoringController.abort();
 
-	console.log("Bot execution completed, monitoring stopped.");
+	bot.logger.info("Bot execution completed, monitoring stopped");
 
 	// Only report DONE if no error occurred
 	if (!hasErrorOccurred) {
@@ -197,10 +289,12 @@ export const main = async () => {
 				? bot.getSpeakerTimeframes()
 				: [];
 		} catch (error) {
-			console.warn("Failed to get speaker timeframes:", error);
+			bot.logger.warn(
+				`Failed to get speaker timeframes: ${error instanceof Error ? error.message : String(error)}`,
+			);
 		}
 
-		console.debug("Speaker timeframes:", speakerTimeframes);
+		bot.logger.debug("Speaker timeframes", { count: speakerTimeframes.length });
 
 		// Use safe reporting for final event
 		await safeReportEvent(botId, EventCode.DONE, {

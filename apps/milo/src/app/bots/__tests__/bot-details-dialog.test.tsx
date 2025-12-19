@@ -44,6 +44,8 @@ const fakeBotData: SelectBotType = {
 		inactivityTimeout: 1000,
 	},
 	coolifyServiceUuid: null,
+	screenshots: [],
+	logLevel: "TRACE",
 };
 
 const fakeEventsData: SelectEventType[] = [

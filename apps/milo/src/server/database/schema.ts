@@ -273,6 +273,19 @@ export const speakerTimeframeSchema = z.object({
 export type SpeakerTimeframe = z.infer<typeof speakerTimeframeSchema>;
 
 /**
+ * Schema for bot screenshot data
+ * Captures screenshots during bot lifecycle for debugging
+ */
+export const screenshotDataSchema = z.object({
+	url: z.string(),
+	capturedAt: z.coerce.date(),
+	type: z.enum(["error", "fatal", "manual", "state_change"]),
+	state: z.string(),
+	trigger: z.string().optional(),
+});
+export type ScreenshotData = z.infer<typeof screenshotDataSchema>;
+
+/**
  * Schema for automatic bot leave configuration
  * Defines timeout conditions for when bots should automatically leave meetings
  */
@@ -451,6 +464,15 @@ export const botsTable = pgTable(
 		/** Whether chat messaging is enabled for this bot */
 		chatEnabled: boolean("chat_enabled").notNull().default(false),
 
+		/** Screenshots captured during bot lifecycle for debugging */
+		screenshots: json("screenshots")
+			.$type<ScreenshotData[]>()
+			.notNull()
+			.default([]),
+
+		/** Current log level for this bot (runtime configurable) */
+		logLevel: varchar("log_level", { length: 10 }).default("TRACE"),
+
 		/** When this bot was created */
 		createdAt: timestamp("created_at").defaultNow(),
 	},
@@ -509,6 +531,7 @@ export const selectBotSchema = createSelectSchema(botsTable, {
 	meetingInfo: meetingInfoSchema,
 	automaticLeave: automaticLeaveSchema,
 	speakerTimeframes: z.array(speakerTimeframeSchema),
+	screenshots: z.array(screenshotDataSchema),
 });
 export type SelectBotType = z.infer<typeof selectBotSchema>;
 
