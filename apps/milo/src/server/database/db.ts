@@ -2,8 +2,6 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
 import { env } from "@/env";
-import { startBotHeartbeatMonitor } from "@/server/api/services/bot-heartbeat-monitor";
-import { startSlotRecoveryJob } from "@/server/api/services/slot-recovery";
 
 import * as schema from "./schema";
 
@@ -61,34 +59,3 @@ if (env.NODE_ENV !== "production") {
 export const db = drizzle(client, { schema });
 
 export type Db = typeof db;
-
-/**
- * Global flag to track if background jobs have been started
- * Prevents multiple job instances during HMR in development
- */
-const globalForJobs = globalThis as unknown as {
-	recoveryJobStarted: boolean | undefined;
-	heartbeatMonitorStarted: boolean | undefined;
-};
-
-// Start background jobs in production runtime (only once)
-// Skip during build time (SKIP_ENV_VALIDATION is set during Docker builds)
-const isBuildTime = !!process.env.SKIP_ENV_VALIDATION;
-
-if (
-	env.NODE_ENV === "production" &&
-	!isBuildTime &&
-	!globalForJobs.recoveryJobStarted
-) {
-	globalForJobs.recoveryJobStarted = true;
-	startSlotRecoveryJob();
-}
-
-if (
-	env.NODE_ENV === "production" &&
-	!isBuildTime &&
-	!globalForJobs.heartbeatMonitorStarted
-) {
-	globalForJobs.heartbeatMonitorStarted = true;
-	startBotHeartbeatMonitor();
-}
