@@ -12,7 +12,6 @@ import {
 	clickIfExists,
 	elementExists,
 	navigateWithRetry,
-	waitForElement,
 } from "../../../src/helpers";
 import type { BotLogger } from "../../../src/logger";
 import {
@@ -59,6 +58,15 @@ const SELECTORS = {
 	muteButton: '[aria-label*="Turn off microphone"]',
 	cameraOffButton: '[aria-label*="Turn off camera"]',
 
+	// In-call indicators (presence of any indicates successful join)
+	inCallIndicators: [
+		'button[aria-label*="People"]',
+		'button[aria-label*="Chat"]',
+		'button[aria-label*="More options"]',
+		'button[aria-label*="Meeting details"]',
+		"[data-meeting-title]",
+	],
+
 	// Kick detection
 	kickDialog: '//button[.//span[text()="Return to home screen"]]',
 
@@ -75,6 +83,24 @@ const SELECTORS = {
 	gotItButton: '//button[.//span[text()="Got it"]]',
 	dismissButton: '//button[.//span[text()="Dismiss"]]',
 } as const;
+
+// Texts that indicate bot is still in waiting room
+const WAITING_ROOM_TEXTS = [
+	"Asking to be let in",
+	"Someone will let you in",
+	"waiting for the host",
+	"Wait for the host",
+];
+
+// Texts that indicate successful admission to the call
+const ADMISSION_CONFIRMATION_TEXTS = [
+	"You've been admitted",
+	"You're the only one here",
+	"You are the only one here",
+	"No one else is here",
+	"Waiting for others",
+	"Waiting for others to join",
+];
 
 // ============================================
 // SECTION 3: TYPES
@@ -859,7 +885,9 @@ export class GoogleMeetBot extends Bot {
 	}
 
 	/**
-	 * Wait for successful call entry (leave button visible).
+	 * Wait for successful call entry.
+	 * Checks for admission confirmation texts OR in-call UI indicators.
+	 * Ensures we're not still in the waiting room.
 	 */
 	private async waitForCallEntry(): Promise<void> {
 		if (!this.page) {
@@ -867,20 +895,104 @@ export class GoogleMeetBot extends Bot {
 		}
 
 		const timeout = this.settings.automaticLeave.waitingRoomTimeout;
+		const startTime = Date.now();
+		const checkInterval = 2000;
 
 		this.logger.debug("Waiting for call entry", {
 			timeoutSeconds: timeout / 1000,
 		});
 
-		const found = await waitForElement(this.page, SELECTORS.leaveButton, {
-			timeout,
-		});
+		while (Date.now() - startTime < timeout) {
+			// Check if we're still in waiting room
+			const stillInWaitingRoom = await this.isStillInWaitingRoom();
 
-		if (!found) {
-			throw new WaitingRoomTimeoutError(
-				`Bot was not admitted within ${timeout / 1000}s`,
-			);
+			if (!stillInWaitingRoom) {
+				// Verify we're actually in the call with UI indicators
+				const isInCall = await this.hasInCallIndicators();
+
+				if (isInCall) {
+					this.logger.debug("Admission confirmed via in-call indicators");
+
+					return;
+				}
+
+				// Also check for admission confirmation text
+				const hasAdmissionText = await this.hasAdmissionConfirmation();
+
+				if (hasAdmissionText) {
+					this.logger.debug("Admission confirmed via confirmation text");
+
+					return;
+				}
+			}
+
+			await setTimeout(checkInterval);
 		}
+
+		throw new WaitingRoomTimeoutError(
+			`Bot was not admitted within ${timeout / 1000}s`,
+		);
+	}
+
+	/**
+	 * Check if bot is still in waiting room by looking for waiting room texts.
+	 */
+	private async isStillInWaitingRoom(): Promise<boolean> {
+		if (!this.page) return false;
+
+		try {
+			const pageText = await this.page.textContent("body");
+
+			if (!pageText) return false;
+
+			for (const text of WAITING_ROOM_TEXTS) {
+				if (pageText.toLowerCase().includes(text.toLowerCase())) {
+					return true;
+				}
+			}
+
+			return false;
+		} catch {
+			return false;
+		}
+	}
+
+	/**
+	 * Check for admission confirmation texts on the page.
+	 */
+	private async hasAdmissionConfirmation(): Promise<boolean> {
+		if (!this.page) return false;
+
+		try {
+			const pageText = await this.page.textContent("body");
+
+			if (!pageText) return false;
+
+			for (const text of ADMISSION_CONFIRMATION_TEXTS) {
+				if (pageText.toLowerCase().includes(text.toLowerCase())) {
+					return true;
+				}
+			}
+
+			return false;
+		} catch {
+			return false;
+		}
+	}
+
+	/**
+	 * Check for in-call UI indicators (People button, Chat button, etc.).
+	 */
+	private async hasInCallIndicators(): Promise<boolean> {
+		if (!this.page) return false;
+
+		for (const selector of SELECTORS.inCallIndicators) {
+			if (await elementExists(this.page, selector)) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/**
