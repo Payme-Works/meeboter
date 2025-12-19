@@ -468,16 +468,15 @@ export class CoolifyService {
 	/**
 	 * Waits for a Coolify application deployment to complete
 	 *
-	 * Two-phase approach:
-	 * 1. Check Coolify deployment API status (queued, in_progress, finished, failed)
-	 *    - If deployment failed at Coolify level, fail immediately and trigger retry
-	 *    - If deployment is in progress, continue polling
-	 * 2. Once deployment is finished, check container status for health
-	 *    - If container is running/healthy, success
-	 *    - If container crashed repeatedly, fail and trigger retry
+	 * Polls the Coolify deployment API to check deployment status:
+	 * - queued: waiting in deployment queue, continue polling
+	 * - in_progress: deployment is running, continue polling
+	 * - finished: deployment completed successfully
+	 * - failed: deployment failed (image pull error, config issue, etc.)
 	 *
-	 * This approach detects deployment failures faster by checking the deployment
-	 * API instead of waiting for container status to stabilize.
+	 * This approach uses Coolify's deployment status as the source of truth,
+	 * rather than checking container status which can be unreliable during
+	 * deployment transitions.
 	 */
 	async waitForDeployment(
 		applicationUuid: string,
@@ -486,126 +485,45 @@ export class CoolifyService {
 	): Promise<DeploymentStatusResult> {
 		const startTime = Date.now();
 
-		// Container health check settings (used after deployment finishes)
-		const containerHealthTimeoutMs = 2 * 60 * 1000; // 2 minutes for container to become healthy
-		const consecutiveFailureThreshold = 5;
-		let consecutiveExitedCount = 0;
-		let deploymentFinishedAt: number | null = null;
-
-		// Container status categories
-		const successStatuses = ["running", "healthy"];
-		const progressStatuses = ["starting", "restarting"];
-		const alwaysFailedStatuses = ["error", "degraded"];
-		const exitedPrefixes = ["exited", "stopped"];
-
 		while (Date.now() - startTime < timeoutMs) {
 			try {
 				const elapsedMs = Date.now() - startTime;
-
-				// Phase 1: Check Coolify deployment status
 				const deployment = await this.getLatestDeployment(applicationUuid);
 
-				if (deployment) {
-					const deploymentStatus = deployment.status.toLowerCase();
-
+				if (!deployment) {
 					console.log(
-						`[CoolifyService] Application ${applicationUuid} deployment: ${deployment.status} (elapsed: ${Math.round(elapsedMs / 1000)}s)`,
+						`[CoolifyService] No deployment found for ${applicationUuid}, waiting...`,
 					);
 
-					// Deployment failed at Coolify level (image pull failed, etc.)
-					if (deploymentStatus === "failed") {
-						return {
-							success: false,
-							status: deployment.status,
-							error: `Coolify deployment failed (deployment UUID: ${deployment.uuid})`,
-						};
-					}
+					await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
 
-					// Deployment still in progress, continue polling
-					if (
-						deploymentStatus === "queued" ||
-						deploymentStatus === "in_progress"
-					) {
-						await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
-
-						continue;
-					}
-
-					// Deployment finished, mark the time for container health timeout
-					if (deploymentStatus === "finished" && !deploymentFinishedAt) {
-						deploymentFinishedAt = Date.now();
-
-						console.log(
-							`[CoolifyService] Deployment finished, checking container health...`,
-						);
-					}
+					continue;
 				}
 
-				// Phase 2: Check container status (after deployment finishes)
-				const containerStatus =
-					await this.getApplicationStatus(applicationUuid);
-
-				const statusLower = containerStatus.toLowerCase();
-
-				// Check if this is an exited/stopped status
-				const isExitedStatus = exitedPrefixes.some((prefix) =>
-					statusLower.startsWith(prefix),
-				);
-
-				// Track consecutive exited statuses for fast failure detection
-				if (isExitedStatus) {
-					consecutiveExitedCount++;
-				} else if (
-					progressStatuses.some((s) => statusLower.startsWith(s)) ||
-					successStatuses.includes(statusLower)
-				) {
-					consecutiveExitedCount = 0;
-				}
+				const deploymentStatus = deployment.status.toLowerCase();
 
 				console.log(
-					`[CoolifyService] Application ${applicationUuid} container: ${containerStatus} (elapsed: ${Math.round(elapsedMs / 1000)}s, consecutiveExited: ${consecutiveExitedCount})`,
+					`[CoolifyService] Application ${applicationUuid} deployment: ${deployment.status} (elapsed: ${Math.round(elapsedMs / 1000)}s)`,
 				);
 
-				// Container is healthy
-				if (successStatuses.includes(statusLower)) {
-					return { success: true, status: containerStatus };
-				}
-
-				// Critical container errors
-				if (alwaysFailedStatuses.includes(statusLower)) {
+				// Deployment completed successfully
+				if (deploymentStatus === "finished") {
 					return {
-						success: false,
-						status: containerStatus,
-						error: `Container failed with status: ${containerStatus}`,
+						success: true,
+						status: deployment.status,
 					};
 				}
 
-				// Container crashed repeatedly
-				if (consecutiveExitedCount >= consecutiveFailureThreshold) {
-					console.log(
-						`[CoolifyService] Container crashed: ${consecutiveExitedCount} consecutive exited statuses`,
-					);
-
+				// Deployment failed (image pull error, config issue, container crash, etc.)
+				if (deploymentStatus === "failed") {
 					return {
 						success: false,
-						status: containerStatus,
-						error: `Container crashed repeatedly (${consecutiveExitedCount} consecutive exited statuses)`,
+						status: deployment.status,
+						error: `Coolify deployment failed (deployment UUID: ${deployment.uuid})`,
 					};
 				}
 
-				// Container health timeout (after deployment finished)
-				if (deploymentFinishedAt && isExitedStatus) {
-					const healthCheckElapsed = Date.now() - deploymentFinishedAt;
-
-					if (healthCheckElapsed > containerHealthTimeoutMs) {
-						return {
-							success: false,
-							status: containerStatus,
-							error: `Container failed to start after deployment (status: ${containerStatus})`,
-						};
-					}
-				}
-
+				// Deployment still in progress (queued or in_progress), continue polling
 				await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
 			} catch (error) {
 				console.error(
