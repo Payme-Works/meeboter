@@ -443,13 +443,42 @@ export class BotPoolService {
 			botConfig.meetingInfo.platform,
 		);
 
+		// Check if a deployment is already in progress or was recently triggered
+		// (e.g., from instant_deploy: true on slot creation)
+		// This prevents triggering duplicate deployments
+		const existingDeployment = await this.coolify.getLatestDeployment(
+			activeSlot.coolifyServiceUuid,
+		);
+
+		const deploymentStatus = existingDeployment?.status.toLowerCase();
+
+		const isDeploymentInProgress =
+			deploymentStatus === "queued" || deploymentStatus === "in_progress";
+
+		// Also skip if deployment was created in the last 30 seconds (likely from instant_deploy)
+		const isRecentDeployment =
+			existingDeployment?.createdAt &&
+			Date.now() - existingDeployment.createdAt.getTime() < 30_000;
+
+		const shouldSkipDeploy = isDeploymentInProgress || isRecentDeployment;
+
 		// Acquire image pull lock to prevent parallel pulls of the same image
 		// This ensures only the first deployment pulls the image, others wait and use cache
 		const { release: releaseLock, isFirstDeployer } =
 			await this.imagePullLock.acquireLock(platformName, image.tag);
 
-		console.log(`[Pool] Starting container for slot ${activeSlot.slotName}`);
-		await this.coolify.startApplication(activeSlot.coolifyServiceUuid);
+		if (shouldSkipDeploy) {
+			const reason = isDeploymentInProgress
+				? `in progress (${existingDeployment?.status})`
+				: `recent (${Math.round((Date.now() - (existingDeployment?.createdAt?.getTime() ?? 0)) / 1000)}s ago)`;
+
+			console.log(
+				`[Pool] Deployment already ${reason} for slot ${activeSlot.slotName}, skipping startApplication`,
+			);
+		} else {
+			console.log(`[Pool] Starting container for slot ${activeSlot.slotName}`);
+			await this.coolify.startApplication(activeSlot.coolifyServiceUuid);
+		}
 
 		if (isFirstDeployer) {
 			// First deployer: wait for deployment to complete before releasing lock

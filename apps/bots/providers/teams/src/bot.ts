@@ -404,14 +404,36 @@ export class MicrosoftTeamsBot extends Bot {
 			console.log("Recording is disabled for this bot");
 		}
 
-		// Then wait for meeting to end by watching for the "Leave" button to disappear
-		await this.page.waitForFunction(
-			(selector) => !document.querySelector(selector),
-			{ timeout: 0 }, // Wait indefinitely
-			leaveButtonSelector,
-		);
+		// Wait for meeting to end by watching for the "Leave" button to disappear
+		// OR user requesting leave via UI (LEAVING status)
+		const checkLeaveRequested = async (): Promise<"USER_REQUESTED"> => {
+			while (!this.leaveRequested) {
+				await new Promise((resolve) => setTimeout(resolve, 1000));
+			}
 
-		console.log("Meeting ended");
+			console.log(
+				"Leaving: User requested bot removal via UI (LEAVING status)",
+			);
+
+			return "USER_REQUESTED";
+		};
+
+		const waitForMeetingEnd = async (): Promise<"MEETING_ENDED"> => {
+			await this.page.waitForFunction(
+				(selector) => !document.querySelector(selector),
+				{ timeout: 0 },
+				leaveButtonSelector,
+			);
+
+			return "MEETING_ENDED";
+		};
+
+		const leaveReason = await Promise.race([
+			checkLeaveRequested(),
+			waitForMeetingEnd(),
+		]);
+
+		console.log(`Meeting ended, reason: ${leaveReason}`);
 
 		// Clear the participants checking interval
 		clearInterval(this.participantsIntervalId);

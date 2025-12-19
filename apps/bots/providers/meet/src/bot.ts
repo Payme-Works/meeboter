@@ -1289,6 +1289,17 @@ export class GoogleMeetBot extends Bot {
 		console.log("Waiting until a leave condition is fulfilled..");
 
 		while (true) {
+			// Check if user requested leave via UI (heartbeat received shouldLeave)
+			if (this.leaveRequested) {
+				console.log(
+					"Leaving: User requested bot removal via UI (LEAVING status)",
+				);
+
+				console.log("Leave reason: USER_REQUESTED");
+
+				break; // Exit loop
+			}
+
 			// DISABLED: Check if it's only me in the meeting
 			// This functionality has been temporarily disabled due to false positives
 			// where the bot incorrectly detects it's alone when other participants are present

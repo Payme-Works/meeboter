@@ -75,6 +75,12 @@ export interface BotInterface {
 	 * @returns Promise that resolves to true if message was sent successfully, false otherwise
 	 */
 	sendChatMessage(message: string): Promise<boolean>;
+
+	/**
+	 * Requests the bot to leave the meeting gracefully.
+	 * Called when user requests bot removal via the UI.
+	 */
+	requestLeave(): void;
 }
 
 /**
@@ -99,6 +105,12 @@ export class Bot implements BotInterface {
 	 * tRPC client instance for making API calls to the backend
 	 */
 	protected trpc: TRPCClient<AppRouter>;
+
+	/**
+	 * Flag indicating if a leave has been requested via user action.
+	 * When true, the bot's main loop should exit gracefully.
+	 */
+	protected leaveRequested: boolean = false;
 
 	/**
 	 * Creates a new Bot instance with the provided configuration and event handler.
@@ -235,6 +247,15 @@ export class Bot implements BotInterface {
 
 	async sendChatMessage(_message: string): Promise<boolean> {
 		throw new Error("Method not implemented.");
+	}
+
+	/**
+	 * Requests the bot to leave the meeting gracefully.
+	 * Sets the leaveRequested flag which should be checked in the bot's main loop.
+	 */
+	requestLeave(): void {
+		console.log("Leave requested by user, setting leaveRequested flag");
+		this.leaveRequested = true;
 	}
 }
 

@@ -391,7 +391,7 @@ export class ZoomBot extends Bot {
 							resolve();
 						}
 					} catch (err) {
-						// Only treat a timeout as “meeting ended”; rethrow anything else.
+						// Only treat a timeout as "meeting ended"; rethrow anything else.
 						// @ts-expect-error
 						if (err?.name === "TimeoutError") {
 							console.error("Meeting ended unexpectedly");
@@ -409,8 +409,37 @@ export class ZoomBot extends Bot {
 				poll();
 			});
 
-		// Start both meeting end checks in parallel and return once either of them finishes
-		await Promise.race([checkMeetingEnd(), checkIfMeetingRunning()]);
+		// Check if user requested leave via UI (LEAVING status)
+		const checkLeaveRequested = () =>
+			new Promise<void>((resolve) => {
+				const poll = () => {
+					if (this.leaveRequested) {
+						console.log(
+							"Leaving: User requested bot removal via UI (LEAVING status)",
+						);
+
+						console.log("Leave reason: USER_REQUESTED");
+
+						this.stopRecording();
+						this.endLife();
+
+						resolve();
+
+						return;
+					}
+
+					setTimeout(poll, 1000);
+				};
+
+				poll();
+			});
+
+		// Start all meeting end checks in parallel and return once any of them finishes
+		await Promise.race([
+			checkMeetingEnd(),
+			checkIfMeetingRunning(),
+			checkLeaveRequested(),
+		]);
 	}
 
 	/**

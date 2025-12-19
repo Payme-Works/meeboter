@@ -119,7 +119,11 @@ export const main = async () => {
 		const heartbeatInterval = botData.heartbeatInterval ?? 10000; // Default to 10 seconds if not set
 
 		// Start both heartbeat and duration monitoring
-		startHeartbeat(botId, monitoringController.signal, heartbeatInterval);
+		// Pass callback to trigger graceful leave when user requests bot removal
+		startHeartbeat(botId, monitoringController.signal, heartbeatInterval, () =>
+			bot.requestLeave(),
+		);
+
 		startDurationMonitor(botId, botStartTime, monitoringController.signal);
 	}
 

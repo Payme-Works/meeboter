@@ -76,6 +76,7 @@ export const startHeartbeat = async (
 	botId: number,
 	abortSignal: AbortSignal,
 	intervalMs: number = 10000,
+	onLeaveRequested?: () => void,
 ) => {
 	while (!abortSignal.aborted) {
 		const result = await retryOperation(async () => {
@@ -84,6 +85,20 @@ export const startHeartbeat = async (
 
 		if (result !== null) {
 			console.log(`[${new Date().toISOString()}] Heartbeat sent`);
+
+			// Check if user requested bot to leave (LEAVING status in backend)
+			if (result.shouldLeave) {
+				console.log(
+					`[${new Date().toISOString()}] Received leave request from backend, signaling bot to leave`,
+				);
+
+				if (onLeaveRequested) {
+					onLeaveRequested();
+				}
+
+				// Stop heartbeat loop - bot is leaving
+				return;
+			}
 		} else {
 			// Do not log the entire heartbeat error if the user has set HEARTBEAT_DEBUG to false
 			if (env.HEARTBEAT_DEBUG) {

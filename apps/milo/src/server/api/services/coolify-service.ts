@@ -140,9 +140,9 @@ export class CoolifyService {
 					description: `Bot ${botId} for ${botConfig.meetingInfo.platform} meeting`,
 					ports_exposes: "3000",
 					instant_deploy: true,
-					// Resource limits matching AWS ECS task definitions (512 CPU units, 1024 MB)
-					limits_cpus: "0.5",
-					limits_memory: "1024m",
+					// Resource limits for bot containers
+					limits_cpus: "0.25",
+					limits_memory: "512m",
 				}),
 			},
 		);
@@ -422,7 +422,7 @@ export class CoolifyService {
 	 */
 	async getLatestDeployment(
 		applicationUuid: string,
-	): Promise<{ status: string; uuid: string } | null> {
+	): Promise<{ status: string; uuid: string; createdAt: Date | null } | null> {
 		// Correct endpoint per Coolify API docs: /deployments/applications/{uuid}
 		// NOT /applications/{uuid}/deployments
 		const url = `${this.config.apiUrl}/deployments/applications/${applicationUuid}?take=1`;
@@ -451,6 +451,7 @@ export class CoolifyService {
 			deployments: Array<{
 				status: string;
 				deployment_uuid: string;
+				created_at?: string;
 			}>;
 		};
 
@@ -463,6 +464,7 @@ export class CoolifyService {
 		return {
 			status: deployment.status,
 			uuid: deployment.deployment_uuid,
+			createdAt: deployment.created_at ? new Date(deployment.created_at) : null,
 		};
 	}
 
