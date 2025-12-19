@@ -913,14 +913,18 @@ export class BotPoolService {
 
 	/**
 	 * Atomically acquires an idle slot using SELECT FOR UPDATE SKIP LOCKED
+	 *
+	 * Note: Drizzle ORM transforms raw SQL result columns back to TypeScript
+	 * property names based on schema mapping, so we access results using
+	 * camelCase (coolifyServiceUuid) not snake_case (coolify_service_uuid).
 	 */
 	private async acquireIdleSlot(botId: number): Promise<PoolSlot | null> {
 		const result = await this.db.execute<{
 			id: number;
-			coolify_service_uuid: string;
-			slot_name: string;
+			coolifyServiceUuid: string;
+			slotName: string;
 			status: "idle" | "deploying" | "busy" | "error";
-			assigned_bot_id: number | null;
+			assignedBotId: number | null;
 		}>(sql`
 			UPDATE ${botPoolSlotsTable}
 			SET
@@ -945,22 +949,16 @@ export class BotPoolService {
 
 		const row = result[0];
 
-		// Debug logging to diagnose column mapping issues
-		console.log(`[Pool] acquireIdleSlot raw result for bot ${botId}:`, {
-			rowKeys: Object.keys(row),
-			id: row.id,
-			coolify_service_uuid: row.coolify_service_uuid,
-			slot_name: row.slot_name,
-			status: row.status,
-			assigned_bot_id: row.assigned_bot_id,
-		});
+		console.log(
+			`[Pool] Acquired idle slot ${row.slotName} (id=${row.id}) for bot ${botId}`,
+		);
 
 		return {
 			id: row.id,
-			coolifyServiceUuid: row.coolify_service_uuid,
-			slotName: row.slot_name,
+			coolifyServiceUuid: row.coolifyServiceUuid,
+			slotName: row.slotName,
 			status: row.status,
-			assignedBotId: row.assigned_bot_id,
+			assignedBotId: row.assignedBotId,
 		};
 	}
 
@@ -1024,7 +1022,8 @@ export class BotPoolService {
 			// Now safe to read and calculate next slot number
 			const prefix = `pool-${platformName}-`;
 
-			const existingSlots = await tx.execute<{ slot_name: string }>(sql`
+			// Note: Drizzle transforms column names to TypeScript property names
+			const existingSlots = await tx.execute<{ slotName: string }>(sql`
 				SELECT "slot_name"
 				FROM ${botPoolSlotsTable}
 				WHERE "slot_name" LIKE ${`${prefix}%`}
@@ -1034,7 +1033,7 @@ export class BotPoolService {
 			const usedNumbers = new Set<number>();
 
 			for (const row of existingSlots) {
-				const match = row.slot_name.match(/(\d+)$/);
+				const match = row.slotName.match(/(\d+)$/);
 
 				if (match) {
 					usedNumbers.add(Number.parseInt(match[1], 10));
