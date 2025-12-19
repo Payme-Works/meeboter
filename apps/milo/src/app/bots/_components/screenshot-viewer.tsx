@@ -226,6 +226,7 @@ export function ScreenshotViewer({
 				<DialogContent
 					className="max-w-5xl p-0 gap-0 overflow-hidden"
 					aria-describedby={undefined}
+					disableCloseButton
 				>
 					<DialogHeader className="px-4 py-3 border-b">
 						<div className="flex items-center justify-between">
@@ -253,11 +254,13 @@ export function ScreenshotViewer({
 									</>
 								) : null}
 							</DialogTitle>
+
 							<div className="flex items-center gap-2">
 								<span className="text-xs text-muted-foreground tabular-nums">
 									{selectedIndex !== null ? selectedIndex + 1 : 0} /{" "}
 									{screenshots.length}
 								</span>
+
 								<Button
 									variant="ghost"
 									size="icon"
