@@ -3,7 +3,9 @@ import "./globals.css";
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import { headers } from "next/headers";
+import { NuqsAdapter } from "nuqs/adapters/next/app";
 import { Toaster } from "sonner";
+
 import { auth } from "@/server/auth";
 import { TRPCReactProvider } from "@/trpc/react";
 import Footer from "./_components/footer";
@@ -30,16 +32,18 @@ export default async function RootLayout({
 	return (
 		<html lang="en" className={satoshi.variable}>
 			<body>
-				<TRPCReactProvider>
-					<div className="flex flex-col min-h-screen">
-						<NavigationBar session={session} />
+				<NuqsAdapter>
+					<TRPCReactProvider>
+						<div className="flex flex-col min-h-screen">
+							<NavigationBar session={session} />
 
-						<main className="grow space-y-4 pt-10 pb-20">{children}</main>
+							<main className="grow space-y-4 pt-10 pb-20">{children}</main>
 
-						<Footer />
-					</div>
-					<Toaster position="bottom-right" richColors closeButton />
-				</TRPCReactProvider>
+							<Footer />
+						</div>
+						<Toaster position="bottom-right" richColors closeButton />
+					</TRPCReactProvider>
+				</NuqsAdapter>
 			</body>
 		</html>
 	);
