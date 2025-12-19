@@ -368,7 +368,7 @@ export class CoolifyService {
 	}
 
 	/**
-	 * Gets the status of a Coolify application
+	 * Gets the status of a Coolify application (container status)
 	 */
 	async getApplicationStatus(applicationUuid: string): Promise<string> {
 		const response = await fetch(
@@ -390,6 +390,48 @@ export class CoolifyService {
 		const data = (await response.json()) as { status: string };
 
 		return data.status;
+	}
+
+	/**
+	 * Gets the latest deployment for a Coolify application
+	 *
+	 * Returns the most recent deployment with its status:
+	 * - queued: waiting in queue
+	 * - in_progress: currently deploying
+	 * - finished: completed successfully
+	 * - failed: deployment failed
+	 */
+	async getLatestDeployment(
+		applicationUuid: string,
+	): Promise<{ status: string; uuid: string } | null> {
+		const response = await fetch(
+			`${this.config.apiUrl}/deployments/applications/${applicationUuid}?take=1`,
+			{
+				method: "GET",
+				headers: {
+					Authorization: `Bearer ${this.config.apiToken}`,
+				},
+			},
+		);
+
+		if (!response.ok) {
+			console.error(
+				`[CoolifyService] Failed to get deployments for ${applicationUuid}: ${response.statusText}`,
+			);
+
+			return null;
+		}
+
+		const data = (await response.json()) as Array<{
+			status: string;
+			uuid: string;
+		}>;
+
+		if (data.length === 0) {
+			return null;
+		}
+
+		return data[0];
 	}
 
 	/**
@@ -426,14 +468,16 @@ export class CoolifyService {
 	/**
 	 * Waits for a Coolify application deployment to complete
 	 *
-	 * Uses a grace period to handle the delay between calling startApplication
-	 * and the container actually beginning to start. During the grace period,
-	 * "exited"/"stopped" statuses are not treated as failures since they may
-	 * represent the old state before Coolify processes the start command.
+	 * Two-phase approach:
+	 * 1. Check Coolify deployment API status (queued, in_progress, finished, failed)
+	 *    - If deployment failed at Coolify level, fail immediately and trigger retry
+	 *    - If deployment is in progress, continue polling
+	 * 2. Once deployment is finished, check container status for health
+	 *    - If container is running/healthy, success
+	 *    - If container crashed repeatedly, fail and trigger retry
 	 *
-	 * However, if we see consecutive "exited" statuses without any progress
-	 * (no "starting" or "running" in between), the container has crashed and
-	 * we fail fast without waiting for the full grace period.
+	 * This approach detects deployment failures faster by checking the deployment
+	 * API instead of waiting for container status to stabilize.
 	 */
 	async waitForDeployment(
 		applicationUuid: string,
@@ -442,37 +486,69 @@ export class CoolifyService {
 	): Promise<DeploymentStatusResult> {
 		const startTime = Date.now();
 
-		// Grace period before treating exited/stopped as failures (20 minutes)
-		// Deployments (image pull, extract, container creation) take 5-25min
-		// During this time status may show "exited"/"stopped" which is normal
-		const gracePeriodMs = 20 * 60 * 1000;
-
-		// Consecutive failure threshold: if we see this many "exited" statuses
-		// in a row without any progress, the container has clearly crashed
+		// Container health check settings (used after deployment finishes)
+		const containerHealthTimeoutMs = 2 * 60 * 1000; // 2 minutes for container to become healthy
 		const consecutiveFailureThreshold = 5;
 		let consecutiveExitedCount = 0;
+		let deploymentFinishedAt: number | null = null;
 
-		// Success: container is running and ready
+		// Container status categories
 		const successStatuses = ["running", "healthy"];
-		// In-progress: container is still starting up, keep polling
-		// These statuses indicate progress and reset the consecutive failure counter
 		const progressStatuses = ["starting", "restarting"];
-		// Always failures: something is critically wrong
 		const alwaysFailedStatuses = ["error", "degraded"];
-		// Delayed failures: only treat as failure after grace period
-		// (container may show "exited"/"stopped" briefly during startup)
-		// Uses prefix matching to handle compound statuses like "exited:unhealthy"
-		const delayedFailedPrefixes = ["exited", "stopped"];
+		const exitedPrefixes = ["exited", "stopped"];
 
 		while (Date.now() - startTime < timeoutMs) {
 			try {
-				const status = await this.getApplicationStatus(applicationUuid);
-				const statusLower = status.toLowerCase();
 				const elapsedMs = Date.now() - startTime;
-				const isGracePeriod = elapsedMs < gracePeriodMs;
+
+				// Phase 1: Check Coolify deployment status
+				const deployment = await this.getLatestDeployment(applicationUuid);
+
+				if (deployment) {
+					const deploymentStatus = deployment.status.toLowerCase();
+
+					console.log(
+						`[CoolifyService] Application ${applicationUuid} deployment: ${deployment.status} (elapsed: ${Math.round(elapsedMs / 1000)}s)`,
+					);
+
+					// Deployment failed at Coolify level (image pull failed, etc.)
+					if (deploymentStatus === "failed") {
+						return {
+							success: false,
+							status: deployment.status,
+							error: `Coolify deployment failed (deployment UUID: ${deployment.uuid})`,
+						};
+					}
+
+					// Deployment still in progress, continue polling
+					if (
+						deploymentStatus === "queued" ||
+						deploymentStatus === "in_progress"
+					) {
+						await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+
+						continue;
+					}
+
+					// Deployment finished, mark the time for container health timeout
+					if (deploymentStatus === "finished" && !deploymentFinishedAt) {
+						deploymentFinishedAt = Date.now();
+
+						console.log(
+							`[CoolifyService] Deployment finished, checking container health...`,
+						);
+					}
+				}
+
+				// Phase 2: Check container status (after deployment finishes)
+				const containerStatus =
+					await this.getApplicationStatus(applicationUuid);
+
+				const statusLower = containerStatus.toLowerCase();
 
 				// Check if this is an exited/stopped status
-				const isExitedStatus = delayedFailedPrefixes.some((prefix) =>
+				const isExitedStatus = exitedPrefixes.some((prefix) =>
 					statusLower.startsWith(prefix),
 				);
 
@@ -483,48 +559,51 @@ export class CoolifyService {
 					progressStatuses.some((s) => statusLower.startsWith(s)) ||
 					successStatuses.includes(statusLower)
 				) {
-					// Reset counter on progress or success
 					consecutiveExitedCount = 0;
 				}
 
 				console.log(
-					`[CoolifyService] Application ${applicationUuid} status: ${status} (elapsed: ${Math.round(elapsedMs / 1000)}s, grace: ${isGracePeriod}, consecutiveExited: ${consecutiveExitedCount})`,
+					`[CoolifyService] Application ${applicationUuid} container: ${containerStatus} (elapsed: ${Math.round(elapsedMs / 1000)}s, consecutiveExited: ${consecutiveExitedCount})`,
 				);
 
+				// Container is healthy
 				if (successStatuses.includes(statusLower)) {
-					return { success: true, status };
+					return { success: true, status: containerStatus };
 				}
 
-				// Always treat these as failures
+				// Critical container errors
 				if (alwaysFailedStatuses.includes(statusLower)) {
 					return {
 						success: false,
-						status,
-						error: `Deployment failed with status: ${status}`,
+						status: containerStatus,
+						error: `Container failed with status: ${containerStatus}`,
 					};
 				}
 
-				// Fast failure: if we've seen too many consecutive exited statuses,
-				// the container is clearly crashing repeatedly, don't wait for grace period
+				// Container crashed repeatedly
 				if (consecutiveExitedCount >= consecutiveFailureThreshold) {
 					console.log(
-						`[CoolifyService] Container crashed: ${consecutiveExitedCount} consecutive exited statuses, failing fast`,
+						`[CoolifyService] Container crashed: ${consecutiveExitedCount} consecutive exited statuses`,
 					);
 
 					return {
 						success: false,
-						status,
+						status: containerStatus,
 						error: `Container crashed repeatedly (${consecutiveExitedCount} consecutive exited statuses)`,
 					};
 				}
 
-				// Only treat exited/stopped as failures after grace period
-				if (!isGracePeriod && isExitedStatus) {
-					return {
-						success: false,
-						status,
-						error: `Deployment failed with status: ${status}`,
-					};
+				// Container health timeout (after deployment finished)
+				if (deploymentFinishedAt && isExitedStatus) {
+					const healthCheckElapsed = Date.now() - deploymentFinishedAt;
+
+					if (healthCheckElapsed > containerHealthTimeoutMs) {
+						return {
+							success: false,
+							status: containerStatus,
+							error: `Container failed to start after deployment (status: ${containerStatus})`,
+						};
+					}
 				}
 
 				await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
