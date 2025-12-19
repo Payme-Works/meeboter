@@ -2,6 +2,7 @@
 
 import { RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
+import { LiveIndicator } from "@/components/live-indicator";
 import {
 	PageHeader,
 	PageHeaderActions,
@@ -11,7 +12,6 @@ import {
 } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { api } from "@/trpc/react";
-import { LiveIndicator } from "./_components/live-indicator";
 import { PoolQueueSection } from "./_components/pool-queue-section";
 import { PoolSlotsTable } from "./_components/pool-slots-table";
 import { PoolStatsCards } from "./_components/pool-stats-cards";
@@ -29,22 +29,25 @@ export default function PoolPage() {
 	// Pool statistics query
 	const poolStats = api.pool.statistics.getPool.useQuery(undefined, {
 		refetchInterval: REFRESH_INTERVAL,
+		refetchOnWindowFocus: true,
 	});
 
 	// Queue statistics query
 	const queueStats = api.pool.statistics.getQueue.useQuery(undefined, {
 		refetchInterval: REFRESH_INTERVAL,
+		refetchOnWindowFocus: true,
 	});
 
 	// Slots list query with filtering
 	const slots = api.pool.slots.list.useQuery(
 		statusFilter.length > 0 ? { status: statusFilter } : undefined,
-		{ refetchInterval: REFRESH_INTERVAL },
+		{ refetchInterval: REFRESH_INTERVAL, refetchOnWindowFocus: true },
 	);
 
 	// Queue entries query
 	const queueEntries = api.pool.queue.list.useQuery(undefined, {
 		refetchInterval: REFRESH_INTERVAL,
+		refetchOnWindowFocus: true,
 	});
 
 	// Update last updated timestamp when data changes

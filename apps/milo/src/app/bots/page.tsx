@@ -8,6 +8,7 @@ import {
 	ExternalLink,
 	MessageSquare,
 	PhoneOff,
+	RefreshCw,
 	Rocket,
 	Video,
 	X,
@@ -15,12 +16,13 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { parseAsInteger, useQueryState } from "nuqs";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
 	DataTable,
 	type RowSelectionState,
 } from "@/components/custom/data-table";
+import { LiveIndicator } from "@/components/live-indicator";
 import {
 	PageHeader,
 	PageHeaderActions,
@@ -118,6 +120,9 @@ function formatStatus(status: string): string {
 		.join(" ");
 }
 
+/** Refresh interval in milliseconds (5 seconds) */
+const REFRESH_INTERVAL = 5000;
+
 export default function BotsPage() {
 	const [page, setPage] = useQueryState("page", parseAsInteger.withDefault(1));
 
@@ -126,6 +131,8 @@ export default function BotsPage() {
 		parseAsInteger.withDefault(10),
 	);
 
+	const [lastUpdated, setLastUpdated] = useState<Date | undefined>(undefined);
+	const [isManualRefreshing, setIsManualRefreshing] = useState(false);
 	const [selectedBot, setSelectedBot] = useState<number | null>(null);
 	const [multiBotDialogOpen, setMultiBotDialogOpen] = useState(false);
 	const [broadcastCenterOpen, setBroadcastCenterOpen] = useState(false);
@@ -150,7 +157,15 @@ export default function BotsPage() {
 	const { data: session } = useSession();
 	const utils = api.useUtils();
 
-	const { data: bots = [], isLoading, error } = api.bots.getBots.useQuery();
+	const {
+		data: bots = [],
+		isLoading,
+		error,
+		refetch,
+	} = api.bots.getBots.useQuery(undefined, {
+		refetchInterval: REFRESH_INTERVAL,
+		refetchOnWindowFocus: true,
+	});
 
 	const cancelDeploymentsMutation = api.bots.cancelDeployments.useMutation({
 		onSuccess: (data) => {
@@ -187,6 +202,24 @@ export default function BotsPage() {
 			toast.error(`Failed to remove bots from call: ${error.message}`);
 		},
 	});
+
+	// Update last updated timestamp when data changes
+	useEffect(() => {
+		if (bots.length > 0 || !isLoading) {
+			setLastUpdated(new Date());
+		}
+	}, [bots, isLoading]);
+
+	const handleManualRefresh = async () => {
+		setIsManualRefreshing(true);
+
+		try {
+			await refetch();
+			setLastUpdated(new Date());
+		} finally {
+			setIsManualRefreshing(false);
+		}
+	};
 
 	type Bot = (typeof bots)[number];
 
@@ -399,6 +432,18 @@ export default function BotsPage() {
 				</PageHeaderContent>
 
 				<PageHeaderActions>
+					<LiveIndicator lastUpdated={lastUpdated} />
+					<Button
+						variant="outline"
+						size="sm"
+						onClick={handleManualRefresh}
+						disabled={isManualRefreshing}
+					>
+						<RefreshCw
+							className={`h-4 w-4 ${isManualRefreshing ? "animate-spin" : ""}`}
+						/>
+						Refresh
+					</Button>
 					<Button
 						variant="outline"
 						onClick={() => setBroadcastCenterOpen(true)}
