@@ -406,6 +406,7 @@ export const botsRouter = createTRPCRouter({
 						status: typeof input.status;
 						recording?: string;
 						speakerTimeframes?: typeof input.speakerTimeframes;
+						coolifyServiceUuid?: null;
 					} = {
 						status: input.status,
 					};
@@ -414,6 +415,12 @@ export const botsRouter = createTRPCRouter({
 					if (input.status === "DONE") {
 						updateData.recording = input.recording;
 						updateData.speakerTimeframes = input.speakerTimeframes;
+					}
+
+					// Clear coolifyServiceUuid when bot reaches terminal state
+					// This prevents conflicts when the slot is reused for another bot
+					if (input.status === "DONE" || input.status === "FATAL") {
+						updateData.coolifyServiceUuid = null;
 					}
 
 					const result = await tx
@@ -900,46 +907,28 @@ export const botsRouter = createTRPCRouter({
 			// Terminal states - bots in these states should NOT be restarted
 			const terminalStatuses = ["DONE", "FATAL"] as const;
 
-			// Look up the bot directly by coolifyServiceUuid
-			// This works even after the slot is released (assignedBotId = null)
-			// because the bot's coolifyServiceUuid persists
-			const botResult = await ctx.db
-				.select()
-				.from(botsTable)
-				.where(eq(botsTable.coolifyServiceUuid, input.poolSlotUuid))
+			// Primary lookup: check the slot's assignedBotId (authoritative source)
+			const slotResult = await ctx.db
+				.select({
+					assignedBotId: botPoolSlotsTable.assignedBotId,
+				})
+				.from(botPoolSlotsTable)
+				.where(eq(botPoolSlotsTable.coolifyServiceUuid, input.poolSlotUuid))
 				.limit(1);
 
-			if (!botResult[0]) {
-				// Fallback: check the slot's assignedBotId for backwards compatibility
-				const slotResult = await ctx.db
-					.select({
-						assignedBotId: botPoolSlotsTable.assignedBotId,
-					})
-					.from(botPoolSlotsTable)
-					.where(eq(botPoolSlotsTable.coolifyServiceUuid, input.poolSlotUuid))
-					.limit(1);
-
-				if (!slotResult[0]) {
-					throw new Error(`Pool slot not found: ${input.poolSlotUuid}`);
-				}
-
-				if (!slotResult[0].assignedBotId) {
-					throw new Error(
-						`No bot assigned to pool slot: ${input.poolSlotUuid}`,
-					);
-				}
-
-				const fallbackBotResult = await ctx.db
+			if (slotResult[0]?.assignedBotId) {
+				// Slot has an assigned bot - use that
+				const botResult = await ctx.db
 					.select()
 					.from(botsTable)
 					.where(eq(botsTable.id, slotResult[0].assignedBotId))
 					.limit(1);
 
-				if (!fallbackBotResult[0]) {
+				if (!botResult[0]) {
 					throw new Error(`Bot not found: ${slotResult[0].assignedBotId}`);
 				}
 
-				const bot = fallbackBotResult[0];
+				const bot = botResult[0];
 
 				// Prevent restarting bots that have already finished
 				if (
@@ -967,6 +956,22 @@ export const botsRouter = createTRPCRouter({
 					callbackUrl: bot.callbackUrl ?? undefined,
 					chatEnabled: bot.chatEnabled,
 				};
+			}
+
+			// Fallback: look up bot by coolifyServiceUuid (for backwards compatibility)
+			const botResult = await ctx.db
+				.select()
+				.from(botsTable)
+				.where(eq(botsTable.coolifyServiceUuid, input.poolSlotUuid))
+				.limit(1);
+
+			if (!botResult[0]) {
+				// No bot found by either method
+				if (!slotResult[0]) {
+					throw new Error(`Pool slot not found: ${input.poolSlotUuid}`);
+				}
+
+				throw new Error(`No bot assigned to pool slot: ${input.poolSlotUuid}`);
 			}
 
 			const bot = botResult[0];
