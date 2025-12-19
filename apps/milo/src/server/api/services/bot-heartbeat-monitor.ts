@@ -17,7 +17,7 @@ async function getServices(): Promise<Services> {
 const MONITOR_INTERVAL_MS = 5 * 60 * 1000;
 
 /** Timeout for heartbeat before marking bot as FATAL (5 minutes) */
-const HEARTBEAT_TIMEOUT_MS = 5 * 60 * 1000;
+const HEARTBEAT_TIMEOUT_MS = 10 * 60 * 1000;
 
 /** Timeout for DEPLOYING bots that never sent a heartbeat (30 minutes) */
 const DEPLOYMENT_TIMEOUT_MS = 30 * 60 * 1000;
