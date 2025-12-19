@@ -1,3 +1,5 @@
+import { env } from "@/env";
+
 /**
  * Service for limiting concurrent bot deployments on Coolify.
  *
@@ -41,7 +43,7 @@ export interface DeploymentQueueStats {
  * Similar pattern to ImagePullLockService but as a counting semaphore.
  */
 export class DeploymentQueueService {
-	private readonly maxConcurrent = 4;
+	private readonly maxConcurrent = env.DEPLOYMENT_QUEUE_MAX_CONCURRENT;
 	private readonly timeoutMs = 30 * 60 * 1000; // 30 minutes
 
 	private activeDeployments = new Set<string>();

@@ -56,6 +56,9 @@ export const env = createEnv({
 			.enum(["coolify", "aws", "local", "auto"])
 			.default("auto"),
 
+		// Deployment Queue Configuration
+		DEPLOYMENT_QUEUE_MAX_CONCURRENT: z.coerce.number().int().min(1).default(4),
+
 		// AWS ECS Configuration (required when DEPLOYMENT_PLATFORM=aws)
 		AWS_REGION: z.string().optional(),
 		ECS_CLUSTER: z.string().optional(),
@@ -115,6 +118,10 @@ export const env = createEnv({
 
 		// Platform Selection
 		DEPLOYMENT_PLATFORM: process.env.DEPLOYMENT_PLATFORM,
+
+		// Deployment Queue
+		DEPLOYMENT_QUEUE_MAX_CONCURRENT:
+			process.env.DEPLOYMENT_QUEUE_MAX_CONCURRENT,
 
 		// AWS ECS
 		AWS_REGION: process.env.AWS_REGION,
