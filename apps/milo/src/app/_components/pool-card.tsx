@@ -112,18 +112,16 @@ export function PoolCard({
 						<span>idle</span>
 					</span>
 					<span className="text-muted-foreground/40">·</span>
-					{deploying > 0 ? (
-						<>
-							<span className="flex items-center gap-1">
-								<span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-								<span className="tabular-nums font-medium text-foreground/80">
-									{deploying}
-								</span>
-								<span>deploying</span>
-							</span>
-							<span className="text-muted-foreground/40">·</span>
-						</>
-					) : null}
+					<span className="flex items-center gap-1">
+						<span
+							className={`w-1.5 h-1.5 rounded-full bg-blue-500 ${deploying > 0 ? "animate-pulse" : "opacity-40"}`}
+						/>
+						<span className="tabular-nums font-medium text-foreground/80">
+							{deploying}
+						</span>
+						<span>deploying</span>
+					</span>
+					<span className="text-muted-foreground/40">·</span>
 					<span className="flex items-center gap-1">
 						<span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
 						<span className="tabular-nums font-medium text-foreground/80">
