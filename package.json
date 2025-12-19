@@ -40,9 +40,11 @@
 		"apps/**",
 		"apps/bots/providers/**",
 		"packages/**",
-
 		"!**/node_modules/**",
 		"!**/.next/**",
 		"!**/dist/**"
-	]
+	],
+	"dependencies": {
+		"nuqs": "^2.8.5"
+	}
 }

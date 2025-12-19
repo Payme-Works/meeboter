@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { parseAsInteger, useQueryState } from "nuqs";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
@@ -118,6 +119,13 @@ function formatStatus(status: string): string {
 }
 
 export default function BotsPage() {
+	const [page, setPage] = useQueryState("page", parseAsInteger.withDefault(1));
+
+	const [pageSize, setPageSize] = useQueryState(
+		"pageSize",
+		parseAsInteger.withDefault(10),
+	);
+
 	const [selectedBot, setSelectedBot] = useState<number | null>(null);
 	const [multiBotDialogOpen, setMultiBotDialogOpen] = useState(false);
 	const [broadcastCenterOpen, setBroadcastCenterOpen] = useState(false);
@@ -461,6 +469,10 @@ export default function BotsPage() {
 				rowSelection={rowSelection}
 				onRowSelectionChange={setRowSelection}
 				getRowId={(row) => row.id.toString()}
+				pageIndex={page - 1}
+				pageSize={pageSize}
+				onPageIndexChange={(idx) => setPage(idx + 1)}
+				onPageSizeChange={setPageSize}
 			/>
 
 			<BotDetailsDialog

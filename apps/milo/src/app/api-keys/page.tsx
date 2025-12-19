@@ -1,5 +1,6 @@
 "use client";
 
+import { parseAsInteger, useQueryState } from "nuqs";
 import { useState } from "react";
 import { DataTable } from "@/components/custom/data-table";
 import {
@@ -15,6 +16,13 @@ import { CreateApiKeyDialog } from "./_components/create-api-key-dialog";
 import { ViewLogsDialog } from "./_components/view-logs-dialog";
 
 export default function Keys() {
+	const [page, setPage] = useQueryState("page", parseAsInteger.withDefault(1));
+
+	const [pageSize, setPageSize] = useQueryState(
+		"pageSize",
+		parseAsInteger.withDefault(10),
+	);
+
 	const [selectedViewLogsKeyId, setSelectedViewLogsKeyId] = useState<
 		number | null
 	>(null);
@@ -45,6 +53,10 @@ export default function Keys() {
 				data={apiKeys}
 				isLoading={isLoading}
 				errorMessage={error?.message}
+				pageIndex={page - 1}
+				pageSize={pageSize}
+				onPageIndexChange={(idx) => setPage(idx + 1)}
+				onPageSizeChange={setPageSize}
 			/>
 
 			<ViewLogsDialog

@@ -3,6 +3,7 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import { formatDistanceToNow } from "date-fns";
 import { Edit2, Plus, Trash2 } from "lucide-react";
+import { parseAsInteger, useQueryState } from "nuqs";
 import { useState } from "react";
 import { DataTable } from "@/components/custom/data-table";
 import {
@@ -21,6 +22,13 @@ import { DeleteTemplateDialog } from "./_components/delete-template-dialog";
 import { EditTemplateDialog } from "./_components/edit-template-dialog";
 
 export default function TemplatesPage() {
+	const [page, setPage] = useQueryState("page", parseAsInteger.withDefault(1));
+
+	const [pageSize, setPageSize] = useQueryState(
+		"pageSize",
+		parseAsInteger.withDefault(10),
+	);
+
 	const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
 	const [editingTemplate, setEditingTemplate] =
@@ -152,6 +160,10 @@ export default function TemplatesPage() {
 				data={templates}
 				isLoading={isLoading}
 				errorMessage={error?.message}
+				pageIndex={page - 1}
+				pageSize={pageSize}
+				onPageIndexChange={(idx) => setPage(idx + 1)}
+				onPageSizeChange={setPageSize}
 			/>
 
 			<CreateTemplateDialog

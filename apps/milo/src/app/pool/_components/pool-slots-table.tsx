@@ -4,6 +4,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { formatDistanceToNow } from "date-fns";
 import { ChevronDown, MoreHorizontal, Trash2, X } from "lucide-react";
 import { motion } from "motion/react";
+import { parseAsInteger, useQueryState } from "nuqs";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
@@ -103,6 +104,16 @@ export function PoolSlotsTable({
 	statusFilter,
 	onStatusFilterChange,
 }: PoolSlotsTableProps) {
+	const [page, setPage] = useQueryState(
+		"poolPage",
+		parseAsInteger.withDefault(1),
+	);
+
+	const [pageSize, setPageSize] = useQueryState(
+		"poolPageSize",
+		parseAsInteger.withDefault(20),
+	);
+
 	const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 	const [slotsToDelete, setSlotsToDelete] = useState<PoolSlot[]>([]);
@@ -406,6 +417,10 @@ export function PoolSlotsTable({
 				rowSelection={rowSelection}
 				onRowSelectionChange={setRowSelection}
 				getRowId={(row) => String(row.id)}
+				pageIndex={page - 1}
+				pageSize={pageSize}
+				onPageIndexChange={(idx) => setPage(idx + 1)}
+				onPageSizeChange={setPageSize}
 			/>
 
 			{/* Delete confirmation dialog */}

@@ -48,6 +48,21 @@ type DataTableProps<TData, TValue> = {
 
 	/** Callback to expose the table instance */
 	onTableReady?: (table: TanstackTable<TData>) => void;
+
+	/** External pagination control: current page index (0-indexed) */
+	pageIndex?: number;
+
+	/** External pagination control: page size */
+	pageSize?: number;
+
+	/** Callback when page index changes */
+	onPageIndexChange?: (pageIndex: number) => void;
+
+	/** Callback when page size changes */
+	onPageSizeChange?: (pageSize: number) => void;
+
+	/** Total page count (for external pagination display) */
+	pageCount?: number;
 };
 
 export function DataTable<TData, TValue>({
@@ -60,6 +75,11 @@ export function DataTable<TData, TValue>({
 	onRowSelectionChange,
 	getRowId,
 	onTableReady,
+	pageIndex: controlledPageIndex,
+	pageSize: controlledPageSize,
+	onPageIndexChange,
+	onPageSizeChange,
+	pageCount: controlledPageCount,
 }: DataTableProps<TData, TValue>) {
 	const [internalRowSelection, setInternalRowSelection] =
 		useState<RowSelectionState>({});
@@ -82,25 +102,61 @@ export function DataTable<TData, TValue>({
 		}
 	};
 
-	// Track pagination state internally to preserve it across data changes
-	const [pagination, setPagination] = useState<PaginationState>({
-		pageIndex: 0,
-		pageSize: 10,
-	});
+	// Determine if pagination is externally controlled
+	const isExternalPagination =
+		controlledPageIndex !== undefined && onPageIndexChange !== undefined;
 
-	// Reset to first page if current page would be empty after data changes
+	// Track pagination state internally to preserve it across data changes
+	const [internalPagination, setInternalPagination] = useState<PaginationState>(
+		{
+			pageIndex: controlledPageIndex ?? 0,
+			pageSize: controlledPageSize ?? 10,
+		},
+	);
+
+	// Use controlled pagination if provided, otherwise use internal state
+	const pagination: PaginationState = isExternalPagination
+		? {
+				pageIndex: controlledPageIndex,
+				pageSize: controlledPageSize ?? 10,
+			}
+		: internalPagination;
+
+	const handlePaginationChange = (
+		updater: PaginationState | ((prev: PaginationState) => PaginationState),
+	) => {
+		const newPagination =
+			typeof updater === "function" ? updater(pagination) : updater;
+
+		if (isExternalPagination) {
+			if (newPagination.pageIndex !== pagination.pageIndex) {
+				onPageIndexChange(newPagination.pageIndex);
+			}
+
+			if (onPageSizeChange && newPagination.pageSize !== pagination.pageSize) {
+				onPageSizeChange(newPagination.pageSize);
+			}
+		} else {
+			setInternalPagination(newPagination);
+		}
+	};
+
+	// Reset to first page if current page would be empty after data changes (only for internal pagination)
 	useEffect(() => {
-		if (data) {
+		if (!isExternalPagination && data) {
 			const maxPageIndex = Math.max(
 				0,
 				Math.ceil(data.length / pagination.pageSize) - 1,
 			);
 
 			if (pagination.pageIndex > maxPageIndex) {
-				setPagination((prev) => ({ ...prev, pageIndex: maxPageIndex }));
+				setInternalPagination((prev) => ({
+					...prev,
+					pageIndex: maxPageIndex,
+				}));
 			}
 		}
-	}, [data, pagination.pageSize, pagination.pageIndex]);
+	}, [data, pagination.pageSize, pagination.pageIndex, isExternalPagination]);
 
 	const table = useReactTable({
 		data: data ?? [],
@@ -109,7 +165,9 @@ export function DataTable<TData, TValue>({
 		getPaginationRowModel: getPaginationRowModel(),
 		enableRowSelection: enableRowSelection ?? false,
 		onRowSelectionChange: handleRowSelectionChange,
-		onPaginationChange: setPagination,
+		onPaginationChange: handlePaginationChange,
+		manualPagination: isExternalPagination && controlledPageCount !== undefined,
+		pageCount: controlledPageCount,
 		state: {
 			rowSelection,
 			pagination,
