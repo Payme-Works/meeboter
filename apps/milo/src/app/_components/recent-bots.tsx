@@ -90,8 +90,9 @@ export function RecentBots() {
 	return (
 		<div className="border bg-card h-full flex flex-col min-h-[400px]">
 			<div className="p-4 border-b flex items-center justify-between">
-				<div className="flex items-center gap-2">
+				<div className="flex items-center gap-3">
 					<h3 className="font-semibold">Recent Bots</h3>
+
 					{hasActiveBots && (
 						<Badge
 							variant="secondary"
