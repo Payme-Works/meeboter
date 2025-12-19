@@ -897,6 +897,9 @@ export const botsRouter = createTRPCRouter({
 		)
 		.output(botConfigSchema)
 		.query(async ({ input, ctx }): Promise<typeof botConfigSchema._output> => {
+			// Terminal states - bots in these states should NOT be restarted
+			const terminalStatuses = ["DONE", "FATAL"] as const;
+
 			// Look up the bot directly by coolifyServiceUuid
 			// This works even after the slot is released (assignedBotId = null)
 			// because the bot's coolifyServiceUuid persists
@@ -938,6 +941,17 @@ export const botsRouter = createTRPCRouter({
 
 				const bot = fallbackBotResult[0];
 
+				// Prevent restarting bots that have already finished
+				if (
+					terminalStatuses.includes(
+						bot.status as (typeof terminalStatuses)[number],
+					)
+				) {
+					throw new Error(
+						`Bot ${bot.id} has already finished (status: ${bot.status}). Container should exit.`,
+					);
+				}
+
 				return {
 					id: bot.id,
 					userId: bot.userId,
@@ -956,6 +970,17 @@ export const botsRouter = createTRPCRouter({
 			}
 
 			const bot = botResult[0];
+
+			// Prevent restarting bots that have already finished
+			if (
+				terminalStatuses.includes(
+					bot.status as (typeof terminalStatuses)[number],
+				)
+			) {
+				throw new Error(
+					`Bot ${bot.id} has already finished (status: ${bot.status}). Container should exit.`,
+				);
+			}
 
 			// Return the bot config in the expected format
 			return {
