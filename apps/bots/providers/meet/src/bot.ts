@@ -55,6 +55,18 @@ const waitingRoomIndicators = [
 	"Someone will let you in",
 	"waiting for the host",
 	"Wait for the host",
+	"Ready to join?", // Pre-join screen indicator
+];
+
+// Admission confirmation texts - these appear when successfully joined the call
+// Based on recall.ai's approach: https://www.recall.ai/blog/how-i-built-an-in-house-google-meet-bot
+const admissionConfirmationIndicators = [
+	"You've been admitted",
+	"You're the only one here",
+	"You are the only one here",
+	"No one else is here",
+	"Waiting for others",
+	"Waiting for others to join",
 ];
 
 // Blocking screen selectors for pre-join detection
@@ -632,46 +644,127 @@ export class GoogleMeetBot extends Bot {
 		/**
 		 * Check if we're in the actual call by detecting in-call UI elements.
 		 * Returns true if we've successfully joined the call.
+		 *
+		 * Detection strategy (ordered by reliability):
+		 * 1. Check for admission confirmation text (most reliable)
+		 * 2. Check waiting room indicators are NOT present
+		 * 3. Check for leave button (required)
+		 * 4. Check for in-call UI indicators
 		 */
-		const checkIfInCall = async (): Promise<boolean> => {
+		const checkIfInCall = async (enableDebugLog = false): Promise<boolean> => {
 			if (!this.page) {
 				return false;
 			}
 
-			// Check for waiting room indicators in page text
+			// Get page text for text-based detection
 			const bodyText = await this.page
 				.locator("body")
 				.innerText()
 				.catch(() => "");
 
+			const bodyTextLower = bodyText.toLowerCase();
+
+			// STRATEGY 1: Check for admission confirmation text (positive signal)
+			// This is the most reliable indicator that we've been admitted
+			const hasAdmissionConfirmation = admissionConfirmationIndicators.some(
+				(text) => bodyTextLower.includes(text.toLowerCase()),
+			);
+
+			if (hasAdmissionConfirmation) {
+				if (enableDebugLog) {
+					this.logger.debug("Detected admission confirmation text");
+				}
+
+				return true;
+			}
+
+			// STRATEGY 2: Check for waiting room indicators (negative signal)
 			const stillInWaitingRoom = waitingRoomIndicators.some((text) =>
-				bodyText.toLowerCase().includes(text.toLowerCase()),
+				bodyTextLower.includes(text.toLowerCase()),
 			);
 
 			if (stillInWaitingRoom) {
+				if (enableDebugLog) {
+					const matchedIndicator = waitingRoomIndicators.find((text) =>
+						bodyTextLower.includes(text.toLowerCase()),
+					);
+
+					this.logger.debug(
+						`Still in waiting room, matched indicator: "${matchedIndicator}"`,
+					);
+				}
+
 				return false;
 			}
 
-			// Check for leave button (required)
-			const leaveButton = await this.page.$('button[aria-label="Leave call"]');
+			// STRATEGY 3: Check for leave button using contains selector for resilience
+			// Use contains (*=) instead of exact match for more resilient detection
+			const leaveButtonSelectors = [
+				'button[aria-label*="Leave call"]',
+				'button[aria-label*="Leave meeting"]',
+				'button[aria-label="Leave call"]',
+			];
 
-			if (!leaveButton) {
+			let hasLeaveButton = false;
+
+			for (const selector of leaveButtonSelectors) {
+				const button = await this.page.$(selector);
+
+				if (button) {
+					hasLeaveButton = true;
+
+					break;
+				}
+			}
+
+			if (!hasLeaveButton) {
+				if (enableDebugLog) {
+					this.logger.debug("Leave button not found");
+				}
+
 				return false;
 			}
 
-			// Check for in-call indicators (any one is sufficient)
+			// STRATEGY 4: Check for in-call indicators (any one is sufficient)
+			// Use contains selectors (*=) for more resilient detection
 			const inCallIndicators = [
+				// Primary controls (using contains for resilience)
+				'button[aria-label*="People"]',
+				'button[aria-label*="Participants"]',
+				'button[aria-label*="Chat"]',
+				// Exact matches as fallback
 				'button[aria-label="People"]',
 				'[aria-label="Participants"]',
 				'button[aria-label="Chat with everyone"]',
+				// Additional indicators
+				'[aria-label*="Mute"]',
+				'[aria-label*="Turn on microphone"]',
+				'[aria-label*="Turn off microphone"]',
+				'button[aria-label*="More options"]',
+				// Video controls (strong indicator of being in call)
+				'[aria-label*="Turn on camera"]',
+				'[aria-label*="Turn off camera"]',
+				// Meeting info indicators
+				'button[aria-label*="Meeting details"]',
+				"[data-meeting-title]",
 			];
 
 			for (const selector of inCallIndicators) {
 				const element = await this.page.$(selector);
 
 				if (element) {
+					if (enableDebugLog) {
+						this.logger.debug(`Detected in-call indicator: "${selector}"`);
+					}
+
 					return true;
 				}
+			}
+
+			if (enableDebugLog) {
+				this.logger.debug(
+					"No in-call indicators found despite leave button being present",
+				);
 			}
 
 			return false;
@@ -679,19 +772,33 @@ export class GoogleMeetBot extends Bot {
 
 		try {
 			// Polling loop to check for call entry
+			let pollCount = 0;
+			const debugLogInterval = 10; // Log debug info every 10 polls (10 seconds)
+
 			while (Date.now() - startTime < timeout) {
-				const inCall = await checkIfInCall();
+				pollCount++;
+
+				// Enable debug logging every 10 seconds to help diagnose issues
+				const shouldDebugLog = pollCount % debugLogInterval === 0;
+				const inCall = await checkIfInCall(shouldDebugLog);
 
 				if (inCall) {
 					break;
+				}
+
+				// Log progress every 30 seconds
+				if (pollCount % 30 === 0) {
+					const elapsed = Math.round((Date.now() - startTime) / 1000);
+
+					this.logger.debug(`Still waiting for call entry after ${elapsed}s`);
 				}
 
 				// Wait before next check
 				await setTimeout(pollInterval);
 			}
 
-			// Final check after loop ends
-			const finalCheck = await checkIfInCall();
+			// Final check with debug logging enabled
+			const finalCheck = await checkIfInCall(true);
 
 			if (!finalCheck) {
 				throw new Error("Timed out waiting for call entry");

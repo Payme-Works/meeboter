@@ -53,15 +53,55 @@ export const WAITING_ROOM_INDICATORS = [
 	"Someone will let you in",
 	"waiting for the host",
 	"Wait for the host",
+	"Ready to join?",
+] as const;
+
+/**
+ * Admission confirmation texts, these appear when successfully joined the call.
+ * Based on recall.ai's approach: https://www.recall.ai/blog/how-i-built-an-in-house-google-meet-bot
+ */
+export const ADMISSION_CONFIRMATION_INDICATORS = [
+	"You've been admitted",
+	"You're the only one here",
+	"You are the only one here",
+	"No one else is here",
+	"Waiting for others",
+	"Waiting for others to join",
 ] as const;
 
 /**
  * In-call indicator selectors (any one indicates successful join)
+ * Uses contains selectors (*=) for more resilient detection across UI changes
  */
 export const IN_CALL_INDICATORS = [
+	// Primary controls (using contains for resilience)
+	'button[aria-label*="People"]',
+	'button[aria-label*="Participants"]',
+	'button[aria-label*="Chat"]',
+	// Exact matches as fallback
 	'button[aria-label="People"]',
 	'[aria-label="Participants"]',
 	'button[aria-label="Chat with everyone"]',
+	// Additional indicators
+	'[aria-label*="Mute"]',
+	'[aria-label*="Turn on microphone"]',
+	'[aria-label*="Turn off microphone"]',
+	'button[aria-label*="More options"]',
+	// Video controls (strong indicator of being in call)
+	'[aria-label*="Turn on camera"]',
+	'[aria-label*="Turn off camera"]',
+	// Meeting info indicators
+	'button[aria-label*="Meeting details"]',
+	"[data-meeting-title]",
+] as const;
+
+/**
+ * Leave button selectors with fallbacks
+ */
+export const LEAVE_BUTTON_SELECTORS = [
+	'button[aria-label*="Leave call"]',
+	'button[aria-label*="Leave meeting"]',
+	'button[aria-label="Leave call"]',
 ] as const;
 
 /**
