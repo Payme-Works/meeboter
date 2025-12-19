@@ -186,6 +186,10 @@ export class CoolifyService {
 
 		const data = (await response.json()) as CoolifyCreateResponse;
 
+		console.log(
+			`[CoolifyService] Created application ${data.uuid} for bot ${botId}`,
+		);
+
 		// Set environment variables for the application
 		// POOL_SLOT_UUID allows bot container to fetch its config from API on startup
 		// MILO_URL is the API base URL for all tRPC calls
@@ -201,6 +205,10 @@ export class CoolifyService {
 			{ key: "NODE_ENV", value: "production" },
 		];
 
+		console.log(
+			`[CoolifyService] Setting env vars for ${data.uuid}: POOL_SLOT_UUID=${data.uuid}, MILO_URL=${this.botEnvConfig.miloUrl}`,
+		);
+
 		const envResponse = await fetch(
 			`${this.config.apiUrl}/applications/${data.uuid}/envs/bulk`,
 			{
@@ -214,11 +222,20 @@ export class CoolifyService {
 		);
 
 		if (!envResponse.ok) {
+			const errorText = await envResponse.text();
+
 			console.error(
-				`[CoolifyService] Failed to set environment variables for slot ${data.uuid}:`,
-				await envResponse.text(),
+				`[CoolifyService] Failed to set environment variables for ${data.uuid}:`,
+				errorText,
+			);
+
+			// Throw error to prevent deployment without env vars
+			throw new CoolifyDeploymentError(
+				`Failed to set environment variables: ${errorText}`,
 			);
 		}
+
+		console.log(`[CoolifyService] Successfully set env vars for ${data.uuid}`);
 
 		return data.uuid;
 	}

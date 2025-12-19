@@ -26,7 +26,8 @@ export const env = createEnv({
 	server: {
 		// Required
 		NODE_ENV: z.enum(["development", "production", "test"]),
-		POOL_SLOT_UUID: z.uuid(),
+		// Coolify uses its own ID format (e.g., "wcw0o088ogsk0c8cgsg0ko0w"), not standard UUIDs
+		POOL_SLOT_UUID: z.string().min(1),
 
 		// Backend API
 		MILO_URL: z.url(),
