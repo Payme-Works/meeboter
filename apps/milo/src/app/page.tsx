@@ -297,7 +297,14 @@ function ResourceCardsSkeleton() {
 // ─── Resource Cards, for Welcome Dashboard ──────────────────────
 
 async function ResourceCardsSection() {
-	const keys = await api.apiKeys.getApiKeyCount();
+	const [keys, poolStats] = await Promise.all([
+		api.apiKeys.getApiKeyCount(),
+		api.pool.statistics.getPool().catch(() => null),
+	]);
+
+	const capacityPercent = poolStats
+		? Math.round((poolStats.total / poolStats.maxSize) * 100)
+		: 0;
 
 	return (
 		<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
@@ -325,10 +332,29 @@ async function ResourceCardsSection() {
 					</StatCardIcon>
 					<StatCardTitle>Pool</StatCardTitle>
 				</StatCardHeader>
-				<StatCardDescription>
-					Monitor bot pool capacity, view deployment queue, and track slot
-					availability.
-				</StatCardDescription>
+				{poolStats ? (
+					<>
+						<StatCardValue>
+							{poolStats.idle}
+							<span className="text-lg text-muted-foreground font-normal ml-1">
+								/{poolStats.total} idle
+							</span>
+						</StatCardValue>
+						<StatCardContent>
+							<div className="space-y-1">
+								<Progress value={capacityPercent} className="h-1.5" />
+								<p className="text-xs text-muted-foreground">
+									{capacityPercent}% capacity ({poolStats.total}/{poolStats.maxSize} slots)
+								</p>
+							</div>
+						</StatCardContent>
+					</>
+				) : (
+					<StatCardDescription>
+						Pool statistics unavailable. Monitor bot pool capacity and
+						deployment queue.
+					</StatCardDescription>
+				)}
 				<StatCardFooter className="border-t-0 pt-0 mt-4">
 					<StatCardLink href="/pool">View Pool</StatCardLink>
 				</StatCardFooter>
