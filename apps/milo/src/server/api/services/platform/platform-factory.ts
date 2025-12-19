@@ -4,6 +4,7 @@ import { env } from "@/env";
 import { db } from "@/server/database/db";
 import { BotPoolService } from "../bot-pool-service";
 import { CoolifyService } from "../coolify-service";
+import { DeploymentQueueService } from "../deployment-queue-service";
 import { ImagePullLockService } from "../image-pull-lock-service";
 import {
 	type AWSBotEnvConfig,
@@ -99,7 +100,14 @@ function createCoolifyPlatformService(): CoolifyPlatformService {
 	);
 
 	const imagePullLock = new ImagePullLockService();
-	const poolService = new BotPoolService(db, coolifyService, imagePullLock);
+	const deploymentQueue = new DeploymentQueueService();
+
+	const poolService = new BotPoolService(
+		db,
+		coolifyService,
+		imagePullLock,
+		deploymentQueue,
+	);
 
 	return new CoolifyPlatformService(poolService, coolifyService);
 }

@@ -9,6 +9,7 @@ import {
 	botsTable,
 } from "@/server/database/schema";
 import type { CoolifyService } from "./coolify-service";
+import type { DeploymentQueueService } from "./deployment-queue-service";
 import type { ImagePullLockService } from "./image-pull-lock-service";
 
 /** Maximum number of pool slots allowed */
@@ -132,6 +133,7 @@ export class BotPoolService {
 		private readonly db: PostgresJsDatabase<typeof schema>,
 		private readonly coolify: CoolifyService,
 		private readonly imagePullLock: ImagePullLockService,
+		private readonly deploymentQueue: DeploymentQueueService,
 	) {}
 
 	// ─────────────────────────────────────────────────────────────────────────
@@ -405,12 +407,10 @@ export class BotPoolService {
 	 * If the Coolify application has been deleted externally, this function
 	 * will automatically recreate it and update the slot in the database.
 	 *
-	 * Uses image pull lock to coordinate deployments:
-	 * - First deployer: waits for deployment to complete (pulls image), then releases lock
-	 * - Subsequent deployers: waited for lock, image is cached, can fire-and-forget
+	 * Uses deployment queue to limit concurrent deployments (max 4).
+	 * Uses image pull lock to coordinate Docker image pulls.
 	 *
-	 * Returns immediately with `deploying` status for optimistic UI feedback
-	 * (except for first deployer which waits for image pull).
+	 * Returns immediately with `deploying` status for optimistic UI feedback.
 	 */
 	async configureAndStartSlot(
 		slot: PoolSlot,
@@ -455,85 +455,105 @@ export class BotPoolService {
 			botConfig.meetingInfo.platform,
 		);
 
-		// Check if a deployment is already in progress or was recently triggered
-		// (e.g., from instant_deploy: true on slot creation)
-		// This prevents triggering duplicate deployments
-		const existingDeployment = await this.coolify.getLatestDeployment(
-			activeSlot.coolifyServiceUuid,
-		);
+		// Acquire deployment queue slot to limit concurrent deployments
+		// This prevents overwhelming the Coolify server with too many simultaneous deploys
+		await this.deploymentQueue.acquireSlot(String(botConfig.id));
 
-		const deploymentStatus = existingDeployment?.status.toLowerCase();
-
-		const isDeploymentInProgress =
-			deploymentStatus === "queued" || deploymentStatus === "in_progress";
-
-		// Also skip if deployment was created in the last 30 seconds (likely from instant_deploy)
-		const isRecentDeployment =
-			existingDeployment?.createdAt &&
-			Date.now() - existingDeployment.createdAt.getTime() < 30_000;
-
-		const shouldSkipDeploy = isDeploymentInProgress || isRecentDeployment;
-
-		// Acquire image pull lock to prevent parallel pulls of the same image
-		// This ensures only the first deployment pulls the image, others wait and use cache
-		const { release: releaseLock, isFirstDeployer } =
-			await this.imagePullLock.acquireLock(platformName, image.tag);
-
-		if (shouldSkipDeploy) {
-			const reason = isDeploymentInProgress
-				? `in progress (${existingDeployment?.status})`
-				: `recent (${Math.round((Date.now() - (existingDeployment?.createdAt?.getTime() ?? 0)) / 1000)}s ago)`;
-
-			console.log(
-				`[BotPoolService] Deployment already ${reason} for slot ${activeSlot.slotName}, skipping startApplication`,
-			);
-		} else {
-			console.log(
-				`[BotPoolService] Starting container for slot ${activeSlot.slotName}`,
+		try {
+			// Check if a deployment is already in progress or was recently triggered
+			// (e.g., from instant_deploy: true on slot creation)
+			// This prevents triggering duplicate deployments
+			const existingDeployment = await this.coolify.getLatestDeployment(
+				activeSlot.coolifyServiceUuid,
 			);
 
-			await this.coolify.startApplication(activeSlot.coolifyServiceUuid);
-		}
+			const deploymentStatus = existingDeployment?.status.toLowerCase();
 
-		if (isFirstDeployer) {
-			// First deployer: hold lock in background until deployment completes
-			// This ensures image is fully pulled and cached before others proceed
-			// Fire-and-forget to avoid HTTP timeout, but release lock when done
-			console.log(
-				`[BotPoolService] First deployer for ${platformName}:${image.tag}, starting deployment in background...`,
-			);
+			const isDeploymentInProgress =
+				deploymentStatus === "queued" || deploymentStatus === "in_progress";
 
-			this.waitAndTransitionStatus(activeSlot, botConfig.id)
-				.then(() => {
-					console.log(
-						`[BotPoolService] First deployer completed for ${platformName}:${image.tag}, releasing lock`,
-					);
+			// Also skip if deployment was created in the last 30 seconds (likely from instant_deploy)
+			const isRecentDeployment =
+				existingDeployment?.createdAt &&
+				Date.now() - existingDeployment.createdAt.getTime() < 30_000;
 
-					releaseLock();
-				})
-				.catch((error) => {
-					console.error(
-						`[BotPoolService] First deployer failed for ${activeSlot.slotName}:`,
-						error,
-					);
+			const shouldSkipDeploy = isDeploymentInProgress || isRecentDeployment;
 
-					releaseLock(
-						error instanceof Error ? error : new Error(String(error)),
-					);
-				});
-		} else {
-			// Not first deployer: image is cached, can fire-and-forget
-			// This provides optimistic feedback to the user
-			console.log(
-				`[BotPoolService] Image cached for ${platformName}:${image.tag}, proceeding with background deployment`,
-			);
+			// Acquire image pull lock to prevent parallel pulls of the same image
+			// This ensures only the first deployment pulls the image, others wait and use cache
+			const { release: releaseLock, isFirstDeployer } =
+				await this.imagePullLock.acquireLock(platformName, image.tag);
 
-			this.waitAndTransitionStatus(activeSlot, botConfig.id).catch((error) => {
-				console.error(
-					`[BotPoolService] Background status transition failed for ${activeSlot.slotName}:`,
-					error,
+			if (shouldSkipDeploy) {
+				const reason = isDeploymentInProgress
+					? `in progress (${existingDeployment?.status})`
+					: `recent (${Math.round((Date.now() - (existingDeployment?.createdAt?.getTime() ?? 0)) / 1000)}s ago)`;
+
+				console.log(
+					`[BotPoolService] Deployment already ${reason} for slot ${activeSlot.slotName}, skipping startApplication`,
 				);
-			});
+			} else {
+				console.log(
+					`[BotPoolService] Starting container for slot ${activeSlot.slotName}`,
+				);
+
+				await this.coolify.startApplication(activeSlot.coolifyServiceUuid);
+			}
+
+			if (isFirstDeployer) {
+				// First deployer: hold lock in background until deployment completes
+				// This ensures image is fully pulled and cached before others proceed
+				// Fire-and-forget to avoid HTTP timeout, but release lock when done
+				console.log(
+					`[BotPoolService] First deployer for ${platformName}:${image.tag}, starting deployment in background...`,
+				);
+
+				this.waitAndTransitionStatus(activeSlot, botConfig.id)
+					.then(() => {
+						console.log(
+							`[BotPoolService] First deployer completed for ${platformName}:${image.tag}, releasing lock`,
+						);
+
+						releaseLock();
+					})
+					.catch((error) => {
+						console.error(
+							`[BotPoolService] First deployer failed for ${activeSlot.slotName}:`,
+							error,
+						);
+
+						releaseLock(
+							error instanceof Error ? error : new Error(String(error)),
+						);
+					})
+					.finally(() => {
+						// Release deployment queue slot when deployment completes
+						this.deploymentQueue.release(String(botConfig.id));
+					});
+			} else {
+				// Not first deployer: image is cached, can fire-and-forget
+				// This provides optimistic feedback to the user
+				console.log(
+					`[BotPoolService] Image cached for ${platformName}:${image.tag}, proceeding with background deployment`,
+				);
+
+				this.waitAndTransitionStatus(activeSlot, botConfig.id)
+					.catch((error) => {
+						console.error(
+							`[BotPoolService] Background status transition failed for ${activeSlot.slotName}:`,
+							error,
+						);
+					})
+					.finally(() => {
+						// Release deployment queue slot when deployment completes
+						this.deploymentQueue.release(String(botConfig.id));
+					});
+			}
+		} catch (error) {
+			// Release deployment queue slot on error
+			this.deploymentQueue.release(String(botConfig.id));
+
+			throw error;
 		}
 
 		// Return immediately with deploying status for optimistic UI feedback

@@ -3,6 +3,7 @@ import { db } from "@/server/database/db";
 import { BotDeploymentService } from "./bot-deployment-service";
 import { BotPoolService } from "./bot-pool-service";
 import { CoolifyService } from "./coolify-service";
+import { DeploymentQueueService } from "./deployment-queue-service";
 import { ImagePullLockService } from "./image-pull-lock-service";
 import {
 	createPlatformService,
@@ -65,7 +66,13 @@ function createServices(): Services {
 		);
 
 		const imagePullLock = new ImagePullLockService();
-		const pool = new BotPoolService(db, coolify, imagePullLock);
+		const deploymentQueue = new DeploymentQueueService();
+		const pool = new BotPoolService(
+			db,
+			coolify,
+			imagePullLock,
+			deploymentQueue,
+		);
 
 		services.coolify = coolify;
 		services.pool = pool;
@@ -106,6 +113,12 @@ export type {
 	ImageConfig,
 } from "./coolify-service";
 export { CoolifyDeploymentError, CoolifyService } from "./coolify-service";
+// Deployment queue service exports (limits concurrent Coolify deployments)
+export type { DeploymentQueueStats } from "./deployment-queue-service";
+export {
+	DeploymentQueueService,
+	DeploymentQueueTimeoutError,
+} from "./deployment-queue-service";
 // Platform abstraction exports
 export type {
 	PlatformBotStatus,
