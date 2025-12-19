@@ -1021,7 +1021,7 @@ export class GoogleMeetBot extends Bot {
 		}
 
 		try {
-			const queuedMessage = await this.trpc.chat.getNextQueuedMessage.query({
+			const queuedMessage = await this.trpc.bots.chat.dequeueMessage.query({
 				botId: this.settings.id.toString(),
 			});
 

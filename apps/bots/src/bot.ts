@@ -381,7 +381,7 @@ export const createBot = async (
 		(bot: Bot) =>
 		async (eventType: EventCode, data?: Record<string, unknown>) => {
 			// Report the event to the events log
-			await trpc.bots.reportEvent.mutate({
+			await trpc.bots.events.report.mutate({
 				id: String(botId),
 				event: {
 					eventType,
@@ -398,7 +398,7 @@ export const createBot = async (
 
 			// Also update status if this is a status-changing event
 			if (STATUS_EVENT_CODES.includes(eventType)) {
-				await trpc.bots.updateBotStatus.mutate({
+				await trpc.bots.updateStatus.mutate({
 					id: String(botId),
 					status: eventType as unknown as Status,
 				});

@@ -82,7 +82,7 @@ export class BotService {
 			(bot: BotInterface) =>
 			async (eventType: EventCode, data?: Record<string, unknown>) => {
 				// Report the event to the events log
-				await this.trpc.bots.reportEvent.mutate({
+				await this.trpc.bots.events.report.mutate({
 					id: String(config.id),
 					event: {
 						eventType,
@@ -99,7 +99,7 @@ export class BotService {
 
 				// Also update status if this is a status-changing event
 				if (STATUS_EVENT_CODES.includes(eventType)) {
-					await this.trpc.bots.updateBotStatus.mutate({
+					await this.trpc.bots.updateStatus.mutate({
 						id: String(config.id),
 						status: eventType as unknown as Status,
 					});
@@ -240,7 +240,7 @@ export class BotService {
 			if (screenshotData) {
 				// Save to backend
 				try {
-					await this.trpc.bots.appendScreenshot.mutate({
+					await this.trpc.bots.addScreenshot.mutate({
 						id: String(this.bot.settings.id),
 						screenshot: {
 							...screenshotData,

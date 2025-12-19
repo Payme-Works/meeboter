@@ -75,7 +75,7 @@ export class MessageQueueWorker {
 		while (!abortSignal.aborted) {
 			try {
 				const queuedMessage =
-					await this.trpc.chat.getNextQueuedMessage.query({
+					await this.trpc.bots.chat.dequeueMessage.query({
 						botId: String(botId),
 					});
 

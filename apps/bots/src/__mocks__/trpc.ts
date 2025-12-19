@@ -3,7 +3,7 @@ import { jest } from "@jest/globals";
 console.log("Mocking trpc.ts");
 
 /**
- * Default mock bot data returned by getPoolSlot.
+ * Default mock bot data returned by pool.getSlot.
  * Tests can override this by modifying mockBotData before running.
  */
 export const mockBotData = {
@@ -27,47 +27,63 @@ export const trpc = {
 		},
 	],
 	bots: {
-		getPoolSlot: {
-			query: jest.fn(() => {
-				console.log("Mock getPoolSlot query called");
+		// Sub-routers
+		pool: {
+			getSlot: {
+				query: jest.fn(() => {
+					console.log("Mock pool.getSlot query called");
 
-				return Promise.resolve(mockBotData);
-			}),
+					return Promise.resolve(mockBotData);
+				}),
+			},
 		},
-		heartbeat: {
+		events: {
+			report: {
+				mutate: jest.fn(() => {
+					console.log("Mock events.report mutate called");
+
+					return new Promise((resolve) => {
+						resolve({});
+					});
+				}),
+			},
+		},
+		chat: {
+			dequeueMessage: {
+				query: jest.fn(() => {
+					console.log("Mock chat.dequeueMessage query called");
+
+					return Promise.resolve(null);
+				}),
+			},
+		},
+
+		// Flat procedures
+		sendHeartbeat: {
 			mutate: jest.fn(() => {
-				console.log("Mock heartbeat mutate called");
+				console.log("Mock sendHeartbeat mutate called");
 
 				return new Promise((resolve) => {
 					resolve({});
 				});
 			}),
 		},
-		reportEvent: {
+		updateStatus: {
 			mutate: jest.fn(() => {
-				console.log("Mock reportEvent mutate called");
+				console.log("Mock updateStatus mutate called");
 
 				return new Promise((resolve) => {
 					resolve({});
 				});
 			}),
 		},
-		updateBotStatus: {
+		addScreenshot: {
 			mutate: jest.fn(() => {
-				console.log("Mock reportEvent mutate called");
+				console.log("Mock addScreenshot mutate called");
 
 				return new Promise((resolve) => {
 					resolve({});
 				});
-			}),
-		},
-	},
-	chat: {
-		getNextQueuedMessage: {
-			query: jest.fn(() => {
-				console.log("Mock getNextQueuedMessage query called");
-
-				return Promise.resolve(null);
 			}),
 		},
 	},

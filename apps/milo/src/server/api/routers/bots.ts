@@ -75,11 +75,269 @@ async function processBatchedEvents(db: Db, botId: number) {
 	}
 }
 
+// ============================================================================
+// Sub-routers
+// ============================================================================
+
+/**
+ * Pool sub-router for pool slot operations
+ */
+const poolSubRouter = createTRPCRouter({
+	/**
+	 * Retrieves bot configuration for a pool slot (called by bot containers on startup).
+	 * Uses POOL_SLOT_UUID env var to identify which slot is requesting its config.
+	 * @param input - Object containing the pool slot UUID
+	 * @param input.poolSlotUuid - The Coolify service UUID for the pool slot
+	 * @returns Promise<BotConfig> The bot configuration for the assigned bot
+	 * @throws Error if pool slot not found, no bot assigned, or bot not found
+	 */
+	getSlot: publicProcedure
+		.meta({
+			openapi: {
+				method: "GET",
+				path: "/bots/pool/{poolSlotUuid}",
+				description:
+					"Get bot configuration for a pool slot (called by bot containers)",
+			},
+		})
+		.input(
+			z.object({
+				poolSlotUuid: z.string(),
+			}),
+		)
+		.output(botConfigSchema)
+		.query(async ({ input, ctx }): Promise<typeof botConfigSchema._output> => {
+			// Terminal states - bots in these states should NOT be restarted
+			const terminalStatuses = ["DONE", "FATAL"] as const;
+
+			// Primary lookup: check the slot's assignedBotId (authoritative source)
+			const slotResult = await ctx.db
+				.select({
+					assignedBotId: botPoolSlotsTable.assignedBotId,
+				})
+				.from(botPoolSlotsTable)
+				.where(eq(botPoolSlotsTable.coolifyServiceUuid, input.poolSlotUuid))
+				.limit(1);
+
+			if (slotResult[0]?.assignedBotId) {
+				// Slot has an assigned bot - use that
+				const botResult = await ctx.db
+					.select()
+					.from(botsTable)
+					.where(eq(botsTable.id, slotResult[0].assignedBotId))
+					.limit(1);
+
+				if (!botResult[0]) {
+					throw new Error(`Bot not found: ${slotResult[0].assignedBotId}`);
+				}
+
+				const bot = botResult[0];
+
+				// Prevent restarting bots that have already finished
+				if (
+					terminalStatuses.includes(
+						bot.status as (typeof terminalStatuses)[number],
+					)
+				) {
+					throw new TRPCError({
+						code: "PRECONDITION_FAILED",
+						message: `Bot ${bot.id} has already finished (status: ${bot.status}). Container should exit.`,
+					});
+				}
+
+				return {
+					id: bot.id,
+					userId: bot.userId,
+					meetingInfo: bot.meetingInfo,
+					meetingTitle: bot.meetingTitle,
+					startTime: bot.startTime,
+					endTime: bot.endTime,
+					botDisplayName: bot.botDisplayName,
+					botImage: bot.botImage ?? undefined,
+					recordingEnabled: bot.recordingEnabled,
+					heartbeatInterval: bot.heartbeatInterval,
+					automaticLeave: bot.automaticLeave,
+					callbackUrl: bot.callbackUrl ?? undefined,
+					chatEnabled: bot.chatEnabled,
+				};
+			}
+
+			// Fallback: look up bot by coolifyServiceUuid (for backwards compatibility)
+			const botResult = await ctx.db
+				.select()
+				.from(botsTable)
+				.where(eq(botsTable.coolifyServiceUuid, input.poolSlotUuid))
+				.limit(1);
+
+			if (!botResult[0]) {
+				// No bot found by either method
+				if (!slotResult[0]) {
+					throw new Error(`Pool slot not found: ${input.poolSlotUuid}`);
+				}
+
+				throw new Error(`No bot assigned to pool slot: ${input.poolSlotUuid}`);
+			}
+
+			const bot = botResult[0];
+
+			// Prevent restarting bots that have already finished
+			if (
+				terminalStatuses.includes(
+					bot.status as (typeof terminalStatuses)[number],
+				)
+			) {
+				throw new TRPCError({
+					code: "PRECONDITION_FAILED",
+					message: `Bot ${bot.id} has already finished (status: ${bot.status}). Container should exit.`,
+				});
+			}
+
+			// Return the bot config in the expected format
+			return {
+				id: bot.id,
+				userId: bot.userId,
+				meetingInfo: bot.meetingInfo,
+				meetingTitle: bot.meetingTitle,
+				startTime: bot.startTime,
+				endTime: bot.endTime,
+				botDisplayName: bot.botDisplayName,
+				botImage: bot.botImage ?? undefined,
+				recordingEnabled: bot.recordingEnabled,
+				heartbeatInterval: bot.heartbeatInterval,
+				automaticLeave: bot.automaticLeave,
+				callbackUrl: bot.callbackUrl ?? undefined,
+				chatEnabled: bot.chatEnabled,
+			};
+		}),
+});
+
+/**
+ * Events sub-router for bot event operations
+ */
+const eventsSubRouter = createTRPCRouter({
+	/**
+	 * Records events that occur during a bot session.
+	 * Uses batch processing for optimal database performance.
+	 * @param input - Object containing bot ID and event data
+	 * @param input.id - The ID of the bot reporting the event
+	 * @param input.event - The event data to record
+	 * @returns Promise<void> Void promise
+	 */
+	report: publicProcedure
+		.meta({
+			openapi: {
+				method: "POST",
+				path: "/bots/{id}/events",
+				description: "Batch events for efficient database insertion",
+			},
+		})
+		.input(
+			z.object({
+				id: z.string().transform((val) => Number(val)),
+				event: insertEventSchema.omit({ botId: true }),
+			}),
+		)
+		.output(z.void())
+		.mutation(async ({ input, ctx }): Promise<void> => {
+			// Initialize queue for this bot if needed
+			if (!eventQueue.has(input.id)) {
+				eventQueue.set(input.id, []);
+			}
+
+			// Add event to queue
+			eventQueue.get(input.id)?.push({
+				...input.event,
+				botId: input.id,
+			});
+
+			// Clear existing timer if any
+			if (batchTimers.has(input.id)) {
+				const timer = batchTimers.get(input.id);
+
+				if (timer) clearTimeout(timer);
+			}
+
+			// Process immediately if batch size reached
+			if ((eventQueue.get(input.id)?.length ?? 0) >= EVENT_BATCH_SIZE) {
+				await processBatchedEvents(ctx.db, input.id);
+			} else {
+				// Otherwise, set timer for batch interval
+				const timer = setTimeout(async () => {
+					await processBatchedEvents(ctx.db, input.id);
+					batchTimers.delete(input.id);
+				}, EVENT_BATCH_INTERVAL);
+
+				batchTimers.set(input.id, timer);
+			}
+		}),
+});
+
+// Message queue for bot chat message processing (moved from chat router)
+const botChatMessageQueues = new Map<
+	number,
+	Array<{
+		messageText: string;
+		templateId?: number;
+		userId: string;
+	}>
+>();
+
+/**
+ * Chat sub-router for bot chat operations
+ */
+const chatSubRouter = createTRPCRouter({
+	/**
+	 * Gets the next queued message for a specific bot and removes it from the queue.
+	 * @param input - Object containing the bot ID
+	 * @returns Promise<QueuedMessage | null> Next queued message or null if none
+	 */
+	dequeueMessage: publicProcedure
+		.meta({
+			openapi: {
+				method: "GET",
+				path: "/bots/{botId}/chat/dequeue",
+				description: "Get and remove the next queued message for a bot",
+			},
+		})
+		.input(
+			z.object({
+				botId: z.string(),
+			}),
+		)
+		.output(
+			z
+				.object({
+					messageText: z.string(),
+					templateId: z.number().optional(),
+					userId: z.string(),
+				})
+				.nullable(),
+		)
+		.query(async ({ input }) => {
+			const queue = botChatMessageQueues.get(parseInt(input.botId, 10));
+
+			if (!queue || queue.length === 0) {
+				return null;
+			}
+
+			return queue.shift() || null;
+		}),
+});
+
+// ============================================================================
+// Main bots router
+// ============================================================================
+
 /**
  * TRPC router implementation for bot management operations.
  * Provides endpoints for creating, updating, deleting, and managing bots.
  */
 export const botsRouter = createTRPCRouter({
+	// Sub-routers
+	pool: poolSubRouter,
+	events: eventsSubRouter,
+	chat: chatSubRouter,
+
 	/**
 	 * Retrieves all bots belonging to the authenticated user.
 	 * @returns Promise<Bot[]> Array of bot objects ordered by creation date
@@ -368,7 +626,7 @@ export const botsRouter = createTRPCRouter({
 	 * @returns Promise<Bot> The updated bot object
 	 * @throws Error if bot is not found or recording is required but missing
 	 */
-	updateBotStatus: publicProcedure
+	updateStatus: publicProcedure
 		.meta({
 			openapi: {
 				method: "PATCH",
@@ -833,7 +1091,7 @@ export const botsRouter = createTRPCRouter({
 	 * @param input.id - The ID of the bot sending the heartbeat
 	 * @returns Promise<{shouldLeave: boolean, logLevel: string | null}> Whether the bot should leave and current log level
 	 */
-	heartbeat: publicProcedure
+	sendHeartbeat: publicProcedure
 		.meta({
 			openapi: {
 				method: "POST",
@@ -889,62 +1147,6 @@ export const botsRouter = createTRPCRouter({
 				return { shouldLeave, logLevel };
 			},
 		),
-
-	/**
-	 * Records events that occur during a bot session.
-	 * Uses batch processing for optimal database performance.
-	 * @param input - Object containing bot ID and event data
-	 * @param input.id - The ID of the bot reporting the event
-	 * @param input.event - The event data to record
-	 * @returns Promise<void> Void promise
-	 */
-	reportEvent: publicProcedure
-		.meta({
-			openapi: {
-				method: "POST",
-				path: "/bots/{id}/events",
-				description: "Batch events for efficient database insertion",
-			},
-		})
-		.input(
-			z.object({
-				id: z.string().transform((val) => Number(val)),
-				event: insertEventSchema.omit({ botId: true }),
-			}),
-		)
-		.output(z.void())
-		.mutation(async ({ input, ctx }): Promise<void> => {
-			// Initialize queue for this bot if needed
-			if (!eventQueue.has(input.id)) {
-				eventQueue.set(input.id, []);
-			}
-
-			// Add event to queue
-			eventQueue.get(input.id)?.push({
-				...input.event,
-				botId: input.id,
-			});
-
-			// Clear existing timer if any
-			if (batchTimers.has(input.id)) {
-				const timer = batchTimers.get(input.id);
-
-				if (timer) clearTimeout(timer);
-			}
-
-			// Process immediately if batch size reached
-			if ((eventQueue.get(input.id)?.length ?? 0) >= EVENT_BATCH_SIZE) {
-				await processBatchedEvents(ctx.db, input.id);
-			} else {
-				// Otherwise, set timer for batch interval
-				const timer = setTimeout(async () => {
-					await processBatchedEvents(ctx.db, input.id);
-					batchTimers.delete(input.id);
-				}, EVENT_BATCH_INTERVAL);
-
-				batchTimers.set(input.id, timer);
-			}
-		}),
 
 	/**
 	 * Deploys a bot by provisioning necessary resources and starting it up.
@@ -1156,133 +1358,6 @@ export const botsRouter = createTRPCRouter({
 				};
 			},
 		),
-
-	/**
-	 * Retrieves bot configuration for a pool slot (called by bot containers on startup).
-	 * Uses POOL_SLOT_UUID env var to identify which slot is requesting its config.
-	 * @param input - Object containing the pool slot UUID
-	 * @param input.poolSlotUuid - The Coolify service UUID for the pool slot
-	 * @returns Promise<BotConfig> The bot configuration for the assigned bot
-	 * @throws Error if pool slot not found, no bot assigned, or bot not found
-	 */
-	getPoolSlot: publicProcedure
-		.meta({
-			openapi: {
-				method: "GET",
-				path: "/bots/pool-slot/{poolSlotUuid}",
-				description:
-					"Get bot configuration for a pool slot (called by bot containers)",
-			},
-		})
-		.input(
-			z.object({
-				poolSlotUuid: z.string(),
-			}),
-		)
-		.output(botConfigSchema)
-		.query(async ({ input, ctx }): Promise<typeof botConfigSchema._output> => {
-			// Terminal states - bots in these states should NOT be restarted
-			const terminalStatuses = ["DONE", "FATAL"] as const;
-
-			// Primary lookup: check the slot's assignedBotId (authoritative source)
-			const slotResult = await ctx.db
-				.select({
-					assignedBotId: botPoolSlotsTable.assignedBotId,
-				})
-				.from(botPoolSlotsTable)
-				.where(eq(botPoolSlotsTable.coolifyServiceUuid, input.poolSlotUuid))
-				.limit(1);
-
-			if (slotResult[0]?.assignedBotId) {
-				// Slot has an assigned bot - use that
-				const botResult = await ctx.db
-					.select()
-					.from(botsTable)
-					.where(eq(botsTable.id, slotResult[0].assignedBotId))
-					.limit(1);
-
-				if (!botResult[0]) {
-					throw new Error(`Bot not found: ${slotResult[0].assignedBotId}`);
-				}
-
-				const bot = botResult[0];
-
-				// Prevent restarting bots that have already finished
-				if (
-					terminalStatuses.includes(
-						bot.status as (typeof terminalStatuses)[number],
-					)
-				) {
-					throw new TRPCError({
-						code: "PRECONDITION_FAILED",
-						message: `Bot ${bot.id} has already finished (status: ${bot.status}). Container should exit.`,
-					});
-				}
-
-				return {
-					id: bot.id,
-					userId: bot.userId,
-					meetingInfo: bot.meetingInfo,
-					meetingTitle: bot.meetingTitle,
-					startTime: bot.startTime,
-					endTime: bot.endTime,
-					botDisplayName: bot.botDisplayName,
-					botImage: bot.botImage ?? undefined,
-					recordingEnabled: bot.recordingEnabled,
-					heartbeatInterval: bot.heartbeatInterval,
-					automaticLeave: bot.automaticLeave,
-					callbackUrl: bot.callbackUrl ?? undefined,
-					chatEnabled: bot.chatEnabled,
-				};
-			}
-
-			// Fallback: look up bot by coolifyServiceUuid (for backwards compatibility)
-			const botResult = await ctx.db
-				.select()
-				.from(botsTable)
-				.where(eq(botsTable.coolifyServiceUuid, input.poolSlotUuid))
-				.limit(1);
-
-			if (!botResult[0]) {
-				// No bot found by either method
-				if (!slotResult[0]) {
-					throw new Error(`Pool slot not found: ${input.poolSlotUuid}`);
-				}
-
-				throw new Error(`No bot assigned to pool slot: ${input.poolSlotUuid}`);
-			}
-
-			const bot = botResult[0];
-
-			// Prevent restarting bots that have already finished
-			if (
-				terminalStatuses.includes(
-					bot.status as (typeof terminalStatuses)[number],
-				)
-			) {
-				throw new TRPCError({
-					code: "PRECONDITION_FAILED",
-					message: `Bot ${bot.id} has already finished (status: ${bot.status}). Container should exit.`,
-				});
-			}
-
-			// Return the bot config in the expected format
-			return {
-				id: bot.id,
-				userId: bot.userId,
-				meetingInfo: bot.meetingInfo,
-				meetingTitle: bot.meetingTitle,
-				startTime: bot.startTime,
-				endTime: bot.endTime,
-				botDisplayName: bot.botDisplayName,
-				botImage: bot.botImage ?? undefined,
-				recordingEnabled: bot.recordingEnabled,
-				heartbeatInterval: bot.heartbeatInterval,
-				automaticLeave: bot.automaticLeave,
-				callbackUrl: bot.callbackUrl ?? undefined,
-				chatEnabled: bot.chatEnabled,
-			};
-		}),
 
 	/**
 	 * Removes a bot from an active call manually.
@@ -1523,7 +1598,7 @@ export const botsRouter = createTRPCRouter({
 	 * @param input.screenshot - The screenshot metadata to append
 	 * @returns Promise<{success: boolean, totalScreenshots: number}> Success status and total count
 	 */
-	appendScreenshot: publicProcedure
+	addScreenshot: publicProcedure
 		.meta({
 			openapi: {
 				method: "POST",

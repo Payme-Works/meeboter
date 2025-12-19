@@ -24,7 +24,7 @@ async function reportEventWithStatus(
 	data?: { message?: string; description?: string; sub_code?: string },
 ): Promise<void> {
 	// Report the event to the events log
-	await trpc.bots.reportEvent.mutate({
+	await trpc.bots.events.report.mutate({
 		id: String(botId),
 		event: {
 			eventType,
@@ -40,7 +40,7 @@ async function reportEventWithStatus(
 
 	// Also update status if this is a status-changing event
 	if (STATUS_EVENT_CODES.includes(eventType)) {
-		await trpc.bots.updateBotStatus.mutate({
+		await trpc.bots.updateStatus.mutate({
 			id: String(botId),
 			status: eventType as unknown as Status,
 		});
@@ -64,7 +64,7 @@ export const main = async () => {
 	});
 
 	// Fetch bot configuration
-	const botConfig = await bootstrapTrpc.bots.getPoolSlot.query({
+	const botConfig = await bootstrapTrpc.bots.pool.getSlot.query({
 		poolSlotUuid,
 	});
 
@@ -201,7 +201,7 @@ export const main = async () => {
 
 		logger.debug("Speaker timeframes", { count: speakerTimeframes.length });
 
-		await trpc.bots.updateBotStatus.mutate({
+		await trpc.bots.updateStatus.mutate({
 			id: String(botId),
 			status: Status.DONE,
 			recording: recordingKey || undefined,
