@@ -430,6 +430,10 @@ export class CoolifyService {
 	 * and the container actually beginning to start. During the grace period,
 	 * "exited"/"stopped" statuses are not treated as failures since they may
 	 * represent the old state before Coolify processes the start command.
+	 *
+	 * However, if we see consecutive "exited" statuses without any progress
+	 * (no "starting" or "running" in between), the container has crashed and
+	 * we fail fast without waiting for the full grace period.
 	 */
 	async waitForDeployment(
 		applicationUuid: string,
@@ -443,10 +447,16 @@ export class CoolifyService {
 		// During this time status may show "exited"/"stopped" which is normal
 		const gracePeriodMs = 20 * 60 * 1000;
 
+		// Consecutive failure threshold: if we see this many "exited" statuses
+		// in a row without any progress, the container has clearly crashed
+		const consecutiveFailureThreshold = 5;
+		let consecutiveExitedCount = 0;
+
 		// Success: container is running and ready
 		const successStatuses = ["running", "healthy"];
 		// In-progress: container is still starting up, keep polling
-		// (starting, restarting will fall through and continue polling)
+		// These statuses indicate progress and reset the consecutive failure counter
+		const progressStatuses = ["starting", "restarting"];
 		// Always failures: something is critically wrong
 		const alwaysFailedStatuses = ["error", "degraded"];
 		// Delayed failures: only treat as failure after grace period
@@ -461,8 +471,24 @@ export class CoolifyService {
 				const elapsedMs = Date.now() - startTime;
 				const isGracePeriod = elapsedMs < gracePeriodMs;
 
+				// Check if this is an exited/stopped status
+				const isExitedStatus = delayedFailedPrefixes.some((prefix) =>
+					statusLower.startsWith(prefix),
+				);
+
+				// Track consecutive exited statuses for fast failure detection
+				if (isExitedStatus) {
+					consecutiveExitedCount++;
+				} else if (
+					progressStatuses.some((s) => statusLower.startsWith(s)) ||
+					successStatuses.includes(statusLower)
+				) {
+					// Reset counter on progress or success
+					consecutiveExitedCount = 0;
+				}
+
 				console.log(
-					`[CoolifyService] Application ${applicationUuid} status: ${status} (elapsed: ${Math.round(elapsedMs / 1000)}s, grace: ${isGracePeriod})`,
+					`[CoolifyService] Application ${applicationUuid} status: ${status} (elapsed: ${Math.round(elapsedMs / 1000)}s, grace: ${isGracePeriod}, consecutiveExited: ${consecutiveExitedCount})`,
 				);
 
 				if (successStatuses.includes(statusLower)) {
@@ -478,13 +504,22 @@ export class CoolifyService {
 					};
 				}
 
-				// Only treat exited/stopped as failures after grace period
-				// Use prefix matching to handle compound statuses like "exited:unhealthy"
-				const isDelayedFailure = delayedFailedPrefixes.some((prefix) =>
-					statusLower.startsWith(prefix),
-				);
+				// Fast failure: if we've seen too many consecutive exited statuses,
+				// the container is clearly crashing repeatedly, don't wait for grace period
+				if (consecutiveExitedCount >= consecutiveFailureThreshold) {
+					console.log(
+						`[CoolifyService] Container crashed: ${consecutiveExitedCount} consecutive exited statuses, failing fast`,
+					);
 
-				if (!isGracePeriod && isDelayedFailure) {
+					return {
+						success: false,
+						status,
+						error: `Container crashed repeatedly (${consecutiveExitedCount} consecutive exited statuses)`,
+					};
+				}
+
+				// Only treat exited/stopped as failures after grace period
+				if (!isGracePeriod && isExitedStatus) {
 					return {
 						success: false,
 						status,
