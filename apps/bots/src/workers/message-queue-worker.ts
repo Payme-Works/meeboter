@@ -2,7 +2,7 @@ import { setTimeout } from "node:timers/promises";
 
 import type { BotLogger } from "../logger";
 import type { BotService } from "../services/bot-service";
-import type { TrpcService } from "../services/trpc-service";
+import type { TrpcClient } from "../trpc";
 
 /**
  * Worker for processing queued chat messages.
@@ -13,7 +13,7 @@ export class MessageQueueWorker {
 	private running = false;
 
 	constructor(
-		private readonly trpc: TrpcService,
+		private readonly trpc: TrpcClient,
 		private readonly bot: BotService,
 		private readonly logger: BotLogger,
 		private readonly intervalMs = 5000,
@@ -75,7 +75,7 @@ export class MessageQueueWorker {
 		while (!abortSignal.aborted) {
 			try {
 				const queuedMessage =
-					await this.trpc.client.chat.getNextQueuedMessage.query({
+					await this.trpc.chat.getNextQueuedMessage.query({
 						botId: String(botId),
 					});
 

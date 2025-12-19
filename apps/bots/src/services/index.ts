@@ -1,11 +1,11 @@
 import { env } from "../config/env";
 import { BotLogger, parseLogLevel } from "../logger";
+import { createTrpcClient, type TrpcClient } from "../trpc";
 import { DurationMonitorWorker } from "../workers/duration-monitor-worker";
 import { HeartbeatWorker } from "../workers/heartbeat-worker";
 import { MessageQueueWorker } from "../workers/message-queue-worker";
 import { BotService } from "./bot-service";
 import { S3Service } from "./s3-service";
-import { TrpcService } from "./trpc-service";
 
 export {
 	BotLogger,
@@ -27,21 +27,22 @@ export {
 export {
 	type AutomaticLeave,
 	type BotConfig,
+	createTrpcClient,
 	EventCode,
 	type MeetingInfo,
 	type SpeakerTimeframe,
 	STATUS_EVENT_CODES,
 	Status,
-	TrpcService,
-	type TrpcServiceOptions,
-} from "./trpc-service";
+	type TrpcClient,
+	type TrpcClientOptions,
+} from "../trpc";
 
 /**
  * Container for all services in the application
  */
 export interface Services {
 	logger: BotLogger;
-	trpc: TrpcService;
+	trpc: TrpcClient;
 	s3: S3Service;
 	bot: BotService;
 	workers: {
@@ -70,7 +71,7 @@ export function createServices(options: CreateServicesOptions): Services {
 
 	const logger = new BotLogger(options.botId, { logLevel });
 
-	const trpc = new TrpcService({
+	const trpc = createTrpcClient({
 		url: env.MILO_URL,
 		authToken: env.MILO_AUTH_TOKEN,
 	});

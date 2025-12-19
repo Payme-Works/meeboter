@@ -4,12 +4,13 @@ import { env } from "./config/env";
 import { BotLogger, parseLogLevel } from "./logger";
 import {
 	type BotConfig,
+	createTrpcClient,
 	type EventCode,
 	type SpeakerTimeframe,
 	STATUS_EVENT_CODES,
 	Status,
-	TrpcService,
-} from "./services";
+	type TrpcClient,
+} from "./trpc";
 
 /**
  * Interface defining the contract for all bot implementations.
@@ -147,10 +148,10 @@ export class Bot implements BotInterface {
 		// Create default tRPC client if not provided (for backward compatibility with tests)
 		this.trpc =
 			trpcInstance ??
-			new TrpcService({
+			createTrpcClient({
 				url: env.MILO_URL,
 				authToken: env.MILO_AUTH_TOKEN,
-			}).client;
+			});
 
 		this.logger = logger || new BotLogger(settings.id);
 	}
@@ -366,8 +367,8 @@ export const createBot = async (
 
 	logger.info(`Creating bot for platform: ${platform}`);
 
-	// Create TrpcService for event reporting
-	const trpcService = new TrpcService({
+	// Create tRPC client for event reporting
+	const trpc = createTrpcClient({
 		url: env.MILO_URL,
 		authToken: env.MILO_AUTH_TOKEN,
 	});
@@ -380,7 +381,7 @@ export const createBot = async (
 		(bot: Bot) =>
 		async (eventType: EventCode, data?: Record<string, unknown>) => {
 			// Report the event to the events log
-			await trpcService.client.bots.reportEvent.mutate({
+			await trpc.bots.reportEvent.mutate({
 				id: String(botId),
 				event: {
 					eventType,
@@ -397,7 +398,7 @@ export const createBot = async (
 
 			// Also update status if this is a status-changing event
 			if (STATUS_EVENT_CODES.includes(eventType)) {
-				await trpcService.client.bots.updateBotStatus.mutate({
+				await trpc.bots.updateBotStatus.mutate({
 					id: String(botId),
 					status: eventType as unknown as Status,
 				});
@@ -417,16 +418,13 @@ export const createBot = async (
 	// Will be replaced with the full handler after bot creation
 	const placeholderHandler = async () => {};
 
-	// Get the raw tRPC client for the bot
-	const trpcClient = trpcService.client;
-
 	let bot: Bot;
 
 	switch (botData.meetingInfo.platform) {
 		case "google": {
 			const { GoogleMeetBot } = await import("../providers/meet/src/bot");
 
-			bot = new GoogleMeetBot(botData, placeholderHandler, trpcClient, logger);
+			bot = new GoogleMeetBot(botData, placeholderHandler, trpc, logger);
 
 			break;
 		}
@@ -437,7 +435,7 @@ export const createBot = async (
 			bot = new MicrosoftTeamsBot(
 				botData,
 				placeholderHandler,
-				trpcClient,
+				trpc,
 				logger,
 			);
 
@@ -447,7 +445,7 @@ export const createBot = async (
 		case "zoom": {
 			const { ZoomBot } = await import("../providers/zoom/src/bot");
 
-			bot = new ZoomBot(botData, placeholderHandler, trpcClient, logger);
+			bot = new ZoomBot(botData, placeholderHandler, trpc, logger);
 
 			break;
 		}

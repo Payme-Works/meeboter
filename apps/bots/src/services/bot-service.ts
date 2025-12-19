@@ -5,15 +5,15 @@ import {
 	UnsupportedPlatformError,
 } from "../errors/bot-errors";
 import type { BotLogger, ScreenshotData } from "../logger";
-import type { S3Service } from "./s3-service";
 import {
 	type BotConfig,
 	type EventCode,
 	type SpeakerTimeframe,
 	STATUS_EVENT_CODES,
 	type Status,
-	type TrpcService,
-} from "./trpc-service";
+	type TrpcClient,
+} from "../trpc";
+import type { S3Service } from "./s3-service";
 
 /**
  * Interface defining the contract for all bot implementations.
@@ -58,7 +58,7 @@ export class BotService {
 
 	constructor(
 		private readonly logger: BotLogger,
-		private readonly trpc: TrpcService,
+		private readonly trpc: TrpcClient,
 		private readonly s3: S3Service,
 	) {}
 
@@ -82,7 +82,7 @@ export class BotService {
 			(bot: BotInterface) =>
 			async (eventType: EventCode, data?: Record<string, unknown>) => {
 				// Report the event to the events log
-				await this.trpc.client.bots.reportEvent.mutate({
+				await this.trpc.bots.reportEvent.mutate({
 					id: String(config.id),
 					event: {
 						eventType,
@@ -99,7 +99,7 @@ export class BotService {
 
 				// Also update status if this is a status-changing event
 				if (STATUS_EVENT_CODES.includes(eventType)) {
-					await this.trpc.client.bots.updateBotStatus.mutate({
+					await this.trpc.bots.updateBotStatus.mutate({
 						id: String(config.id),
 						status: eventType as unknown as Status,
 					});
@@ -131,7 +131,7 @@ export class BotService {
 					bot = new GoogleMeetBot(
 						config,
 						placeholderHandler,
-						this.trpc.client,
+						this.trpc,
 						this.logger,
 					);
 
@@ -146,7 +146,7 @@ export class BotService {
 					bot = new MicrosoftTeamsBot(
 						config,
 						placeholderHandler,
-						this.trpc.client,
+						this.trpc,
 						this.logger,
 					);
 
@@ -159,7 +159,7 @@ export class BotService {
 					bot = new ZoomBot(
 						config,
 						placeholderHandler,
-						this.trpc.client,
+						this.trpc,
 						this.logger,
 					);
 
@@ -240,7 +240,7 @@ export class BotService {
 			if (screenshotData) {
 				// Save to backend
 				try {
-					await this.trpc.client.bots.appendScreenshot.mutate({
+					await this.trpc.bots.appendScreenshot.mutate({
 						id: String(this.bot.settings.id),
 						screenshot: {
 							...screenshotData,

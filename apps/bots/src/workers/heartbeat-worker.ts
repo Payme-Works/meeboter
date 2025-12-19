@@ -2,7 +2,7 @@ import { setTimeout } from "node:timers/promises";
 
 import { env } from "../config/env";
 import type { BotLogger } from "../logger";
-import type { TrpcService } from "../services/trpc-service";
+import type { TrpcClient } from "../trpc";
 
 /**
  * Retry configuration for backend communication
@@ -80,7 +80,7 @@ export class HeartbeatWorker {
 	private lastLogLevel: string | null = null;
 
 	constructor(
-		private readonly trpc: TrpcService,
+		private readonly trpc: TrpcClient,
 		private readonly logger: BotLogger,
 		private readonly intervalMs = 10000,
 	) {}
@@ -131,7 +131,7 @@ export class HeartbeatWorker {
 	): Promise<void> {
 		while (!abortSignal.aborted) {
 			const result = await retryOperation(async () => {
-				return await this.trpc.client.bots.heartbeat.mutate({
+				return await this.trpc.bots.heartbeat.mutate({
 					id: String(botId),
 				});
 			}, "Heartbeat");
