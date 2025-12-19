@@ -201,9 +201,9 @@ export function BotDetailsDialog({ botId, onClose }: BotDetailsDialogProps) {
 
 	return (
 		<Dialog open={!!botId} onOpenChange={onClose}>
-			<DialogContent className="max-w-5xl p-0 gap-0 overflow-hidden border-0 [&_[data-slot=dialog-close]]:text-white">
+			<DialogContent className="max-w-5xl p-0 gap-0 overflow-hidden border-0 [&_button]:text-white">
 				{/* Header */}
-				<div className="bg-gradient-to-r from-zinc-900 to-zinc-800 px-6 py-5 border-b border-zinc-700">
+				<div className="bg-linear-to-r from-zinc-900 to-zinc-800 px-6 py-5 border-b border-zinc-700">
 					<DialogHeader className="space-y-3">
 						<div className="flex items-start justify-between">
 							<div className="flex items-center gap-4">
