@@ -135,13 +135,14 @@ export function ScreenshotViewer({
 										config.bgColor,
 									)}
 								>
-									{/* Thumbnail */}
+									{/* Thumbnail - unoptimized to bypass Next.js proxy (MinIO access) */}
 									<Image
 										src={screenshot.url}
 										alt={`Screenshot ${index + 1}`}
 										fill
 										className="object-cover"
 										sizes="144px"
+										unoptimized
 									/>
 
 									{/* Overlay with metadata */}
@@ -251,7 +252,7 @@ export function ScreenshotViewer({
 							<ChevronRight className="h-5 w-5" />
 						</Button>
 
-						{/* Image */}
+						{/* Image - unoptimized to bypass Next.js proxy (MinIO access) */}
 						{selectedScreenshot ? (
 							<div className="relative w-full aspect-video">
 								<Image
@@ -261,6 +262,7 @@ export function ScreenshotViewer({
 									className="object-contain"
 									sizes="(max-width: 1280px) 100vw, 1280px"
 									priority
+									unoptimized
 								/>
 							</div>
 						) : null}
