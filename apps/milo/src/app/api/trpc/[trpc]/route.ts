@@ -1,9 +1,22 @@
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
+import type { TRPC_ERROR_CODE_KEY } from "@trpc/server/unstable-core-do-not-import";
 import type { NextRequest } from "next/server";
 
 import { env } from "@/env";
 import { appRouter } from "@/server/api/root";
 import { createTRPCContext } from "@/server/api/trpc";
+
+// Expected client errors that should be logged at info level, not error
+const clientErrorCodes = new Set<TRPC_ERROR_CODE_KEY>([
+	"BAD_REQUEST",
+	"UNAUTHORIZED",
+	"FORBIDDEN",
+	"NOT_FOUND",
+	"PRECONDITION_FAILED",
+	"PAYLOAD_TOO_LARGE",
+	"PARSE_ERROR",
+	"UNPROCESSABLE_CONTENT",
+]);
 
 /**
  * This wraps the `createTRPCContext` helper and provides the required context for the tRPC API when
@@ -30,13 +43,23 @@ const handler = async (req: NextRequest): Promise<Response> => {
 			router: appRouter,
 			createContext: () => createContext(req),
 			onError: ({ path, error }) => {
-				// Always log errors (don't expose details to clients, but log them server-side)
-				console.error(`❌ tRPC failed on ${path ?? "<no-path>"}:`, {
-					message: error.message,
-					code: error.code,
-					cause: error.cause,
-					stack: env.NODE_ENV === "development" ? error.stack : undefined,
-				});
+				// Only log unexpected server errors at error level
+				// Expected client errors are logged at info level to reduce noise
+				const isClientError = clientErrorCodes.has(error.code);
+
+				if (isClientError) {
+					console.log(`[tRPC] Client error on ${path ?? "<no-path>"}:`, {
+						code: error.code,
+						message: error.message,
+					});
+				} else {
+					console.error(`❌ tRPC server error on ${path ?? "<no-path>"}:`, {
+						code: error.code,
+						message: error.message,
+						cause: error.cause,
+						stack: env.NODE_ENV === "development" ? error.stack : undefined,
+					});
+				}
 			},
 		});
 

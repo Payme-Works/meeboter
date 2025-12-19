@@ -941,9 +941,10 @@ export const botsRouter = createTRPCRouter({
 						bot.status as (typeof terminalStatuses)[number],
 					)
 				) {
-					throw new Error(
-						`Bot ${bot.id} has already finished (status: ${bot.status}). Container should exit.`,
-					);
+					throw new TRPCError({
+						code: "PRECONDITION_FAILED",
+						message: `Bot ${bot.id} has already finished (status: ${bot.status}). Container should exit.`,
+					});
 				}
 
 				return {
@@ -987,9 +988,10 @@ export const botsRouter = createTRPCRouter({
 					bot.status as (typeof terminalStatuses)[number],
 				)
 			) {
-				throw new Error(
-					`Bot ${bot.id} has already finished (status: ${bot.status}). Container should exit.`,
-				);
+				throw new TRPCError({
+					code: "PRECONDITION_FAILED",
+					message: `Bot ${bot.id} has already finished (status: ${bot.status}). Container should exit.`,
+				});
 			}
 
 			// Return the bot config in the expected format

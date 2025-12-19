@@ -79,19 +79,41 @@ export const createTRPCContext = async (opts: { headers: Headers }) => {
 /**
  * The main tRPC instance with context, transformer, and error formatting
  */
+// Expected client errors that should be logged at info/warn level, not error
+const clientErrorCodes = new Set([
+	"BAD_REQUEST",
+	"UNAUTHORIZED",
+	"FORBIDDEN",
+	"NOT_FOUND",
+	"PRECONDITION_FAILED",
+	"PAYLOAD_TOO_LARGE",
+	"PARSE_ERROR",
+	"UNPROCESSABLE_CONTENT",
+]);
+
 const t = initTRPC
 	.meta<OpenApiMeta>()
 	.context<typeof createTRPCContext>()
 	.create({
 		transformer: superjson,
 		errorFormatter({ shape, error }) {
-			// Enhanced logging for better debugging
-			console.error("tRPC Error Details:", {
-				code: error.code,
-				message: error.message,
-				cause: error.cause,
-				stack: error.stack,
-			});
+			// Only log unexpected server errors at error level
+			// Expected client errors are logged at info level to reduce noise
+			const isClientError = clientErrorCodes.has(error.code);
+
+			if (isClientError) {
+				console.log("[tRPC] Client error:", {
+					code: error.code,
+					message: error.message,
+				});
+			} else {
+				console.error("[tRPC] Server error:", {
+					code: error.code,
+					message: error.message,
+					cause: error.cause,
+					stack: error.stack,
+				});
+			}
 
 			return {
 				...shape,
