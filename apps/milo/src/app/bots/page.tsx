@@ -433,6 +433,7 @@ export default function BotsPage() {
 
 				<PageHeaderActions>
 					<LiveIndicator lastUpdated={lastUpdated} />
+
 					<Button
 						variant="outline"
 						size="sm"
@@ -444,15 +445,19 @@ export default function BotsPage() {
 						/>
 						Refresh
 					</Button>
+
 					<Button
 						variant="outline"
+						size="sm"
 						onClick={() => setBroadcastCenterOpen(true)}
 						disabled={!session?.user}
 					>
 						<MessageSquare className="h-4 w-4" />
 						Broadcast
 					</Button>
+
 					<Button
+						size="sm"
 						onClick={() => setMultiBotDialogOpen(true)}
 						disabled={!session?.user}
 					>

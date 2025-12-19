@@ -1,8 +1,10 @@
 "use client";
 
 import { motion } from "motion/react";
+import { cn } from "@/lib/utils";
 
 interface LiveIndicatorProps {
+	className?: string;
 	lastUpdated?: Date;
 }
 
@@ -12,7 +14,7 @@ interface LiveIndicatorProps {
  * Displays a green pulsing dot with "LIVE" text in terminal style.
  * Shows relative time since last update on hover (via title).
  */
-export function LiveIndicator({ lastUpdated }: LiveIndicatorProps) {
+export function LiveIndicator({ className, lastUpdated }: LiveIndicatorProps) {
 	const getTimeSinceUpdate = () => {
 		if (!lastUpdated) return "Connecting...";
 
@@ -27,7 +29,10 @@ export function LiveIndicator({ lastUpdated }: LiveIndicatorProps) {
 
 	return (
 		<div
-			className="flex items-center gap-2 px-2.5 h-8 bg-emerald-500/10 border border-emerald-500/20"
+			className={cn(
+				"flex items-center gap-2 px-2.5 h-8 bg-emerald-500/10 border border-emerald-500/20",
+				className,
+			)}
 			title={`Last updated: ${getTimeSinceUpdate()}`}
 		>
 			{/* Pulsing dot */}
