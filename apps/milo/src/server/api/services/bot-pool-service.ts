@@ -900,24 +900,24 @@ export class BotPoolService {
 	private async acquireIdleSlot(botId: number): Promise<PoolSlot | null> {
 		const result = await this.db.execute<{
 			id: number;
-			coolifyServiceUuid: string;
-			slotName: string;
+			coolify_service_uuid: string;
+			slot_name: string;
 			status: "idle" | "deploying" | "busy" | "error";
-			assignedBotId: number | null;
+			assigned_bot_id: number | null;
 		}>(sql`
 			UPDATE ${botPoolSlotsTable}
 			SET
 				status = 'deploying',
-				"assignedBotId" = ${botId},
-				"lastUsedAt" = NOW()
+				"assigned_bot_id" = ${botId},
+				"last_used_at" = NOW()
 			WHERE id = (
 				SELECT id FROM ${botPoolSlotsTable}
 				WHERE status = 'idle'
-				ORDER BY "lastUsedAt" ASC NULLS FIRST
+				ORDER BY "last_used_at" ASC NULLS FIRST
 				LIMIT 1
 				FOR UPDATE SKIP LOCKED
 			)
-			RETURNING id, "coolifyServiceUuid", "slotName", status, "assignedBotId"
+			RETURNING id, "coolify_service_uuid", "slot_name", status, "assigned_bot_id"
 		`);
 
 		if (result.length === 0) {
@@ -928,10 +928,10 @@ export class BotPoolService {
 
 		return {
 			id: row.id,
-			coolifyServiceUuid: row.coolifyServiceUuid,
-			slotName: row.slotName,
+			coolifyServiceUuid: row.coolify_service_uuid,
+			slotName: row.slot_name,
 			status: row.status,
-			assignedBotId: row.assignedBotId,
+			assignedBotId: row.assigned_bot_id,
 		};
 	}
 
@@ -995,17 +995,17 @@ export class BotPoolService {
 			// Now safe to read and calculate next slot number
 			const prefix = `pool-${platformName}-`;
 
-			const existingSlots = await tx.execute<{ slotName: string }>(sql`
-				SELECT "slotName"
+			const existingSlots = await tx.execute<{ slot_name: string }>(sql`
+				SELECT "slot_name"
 				FROM ${botPoolSlotsTable}
-				WHERE "slotName" LIKE ${`${prefix}%`}
+				WHERE "slot_name" LIKE ${`${prefix}%`}
 			`);
 
 			// Calculate next available number (finds first gap in sequence)
 			const usedNumbers = new Set<number>();
 
 			for (const row of existingSlots) {
-				const match = row.slotName.match(/(\d+)$/);
+				const match = row.slot_name.match(/(\d+)$/);
 
 				if (match) {
 					usedNumbers.add(Number.parseInt(match[1], 10));
