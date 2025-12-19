@@ -48,6 +48,14 @@ const cameraOffButton = `[aria-label*="Turn off camera"]`;
 
 const infoPopupClick = `//button[.//span[text()="Got it"]]`;
 
+// Waiting room indicator texts - these appear when still waiting for host acceptance
+const waitingRoomIndicators = [
+	"Asking to be let in",
+	"Someone will let you in",
+	"waiting for the host",
+	"Wait for the host",
+];
+
 // Blocking screen selectors for pre-join detection
 const signInButton = '//button[.//span[text()="Sign in"]]';
 const signInPrompt = '[data-identifier="signInButton"], [aria-label="Sign in"]';
@@ -606,22 +614,69 @@ export class GoogleMeetBot extends Bot {
 			`Waiting for host acceptance (timeout: ${timeout / 1000} seconds)...`,
 		);
 
-		// Wait for the leave button to appear (meaning we've joined the meeting)
+		// Wait for actual call entry by detecting in-call indicators
+		// The Leave button alone is NOT reliable - it appears in the waiting room too
+		const startTime = Date.now();
+
 		try {
-			await this.page.waitForSelector(leaveButton, {
-				timeout: timeout,
-			});
+			await this.page.waitForFunction(
+				(indicators: string[]) => {
+					// Check if we still see waiting room indicators
+					const bodyText = document.body.innerText;
+					const inWaitingRoom = indicators.some((text) =>
+						bodyText.toLowerCase().includes(text.toLowerCase()),
+					);
+
+					if (inWaitingRoom) {
+						return false;
+					}
+
+					// Check for in-call indicators:
+					// 1. People icon (appears only in actual call)
+					const peopleIcon = Array.from(document.querySelectorAll("i")).find(
+						(el) => el.textContent?.trim() === "people",
+					);
+
+					// 2. People button with aria-label (appears only in actual call)
+					const peopleButton = document.querySelector(
+						'button[aria-label="People"]',
+					);
+
+					// 3. Participants panel (appears only in actual call)
+					const participantsPanel = document.querySelector(
+						'[aria-label="Participants"]',
+					);
+
+					// 4. Chat button (appears only in actual call)
+					const chatButton = document.querySelector(
+						'button[aria-label="Chat with everyone"]',
+					);
+
+					// 5. Leave button must also be present
+					const leaveBtn = document.querySelector(
+						'button[aria-label="Leave call"]',
+					);
+
+					// We're in the call if we have the leave button AND any in-call indicator
+					return (
+						leaveBtn && (peopleIcon || peopleButton || participantsPanel || chatButton)
+					);
+				},
+				waitingRoomIndicators,
+				{ timeout },
+			);
 		} catch (_e) {
+			const elapsedTime = Date.now() - startTime;
 			const errorMessage = isWaitingRoom
-				? "Bot was not accepted into the meeting within the timeout period"
-				: "Failed to join the meeting within the timeout period";
+				? `Bot was not accepted into the meeting within the timeout period (waited ${Math.round(elapsedTime / 1000)}s)`
+				: `Failed to join the meeting within the timeout period (waited ${Math.round(elapsedTime / 1000)}s)`;
 
 			console.error(errorMessage);
 
 			throw new WaitingRoomTimeoutError(errorMessage);
 		}
 
-		console.log("Joined call");
+		console.log("Joined call (verified by in-call indicators)");
 
 		await this.onEvent(EventCode.IN_CALL);
 
