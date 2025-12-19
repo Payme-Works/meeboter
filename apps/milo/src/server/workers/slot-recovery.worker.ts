@@ -37,7 +37,7 @@ export interface SlotRecoveryResult extends WorkerResult {
  * - Bot FATAL marking: marks assigned bots as FATAL when recovering/deleting
  */
 export class SlotRecoveryWorker extends BaseWorker<SlotRecoveryResult> {
-	readonly name = "SlotRecovery";
+	readonly name = "SlotRecoveryWorker";
 
 	protected async execute(): Promise<SlotRecoveryResult> {
 		const result: SlotRecoveryResult = {

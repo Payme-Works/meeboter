@@ -43,7 +43,7 @@ function logSlotTransition(log: SlotTransitionLog): void {
 	const botInfo = log.botId ? `bot=${log.botId}` : "bot=none";
 
 	console.log(
-		`[Pool] Slot ${log.slotName} (${log.slotId}): ${stateChange} | ${botInfo} | coolify=${log.coolifyUuid} | reason="${log.reason}"`,
+		`[BotPoolService] Slot ${log.slotName} (${log.slotId}): ${stateChange} | ${botInfo} | coolify=${log.coolifyUuid} | reason="${log.reason}"`,
 	);
 }
 
@@ -215,7 +215,7 @@ export class BotPoolService {
 			.limit(1);
 
 		if (!slotResult[0]) {
-			console.warn(`[Pool] Cannot release slot ${slotId}: not found`);
+			console.warn(`[BotPoolService] Cannot release slot ${slotId}: not found`);
 
 			return null;
 		}
@@ -269,7 +269,7 @@ export class BotPoolService {
 			// Validate that coolifyServiceUuid was returned from the query
 			if (!idleSlot.coolifyServiceUuid) {
 				console.error(
-					`[Pool] CRITICAL: acquireIdleSlot returned slot with missing coolifyServiceUuid`,
+					`[BotPoolService] CRITICAL: acquireIdleSlot returned slot with missing coolifyServiceUuid`,
 					{
 						slotId: idleSlot.id,
 						slotName: idleSlot.slotName,
@@ -311,14 +311,14 @@ export class BotPoolService {
 
 		if (currentPoolSize >= MAX_POOL_SIZE) {
 			console.log(
-				`[Pool] Pool exhausted (${currentPoolSize}/${MAX_POOL_SIZE}), bot ${botId} must queue`,
+				`[BotPoolService] Pool exhausted (${currentPoolSize}/${MAX_POOL_SIZE}), bot ${botId} must queue`,
 			);
 
 			return null;
 		}
 
 		console.log(
-			`[Pool] Creating new slot for bot ${botId} (current size: ${currentPoolSize})`,
+			`[BotPoolService] Creating new slot for bot ${botId} (current size: ${currentPoolSize})`,
 		);
 
 		return await this.createAndAcquireNewSlot(botId);
@@ -340,7 +340,9 @@ export class BotPoolService {
 			.limit(1);
 
 		if (!slotResult[0]) {
-			console.warn(`[Pool] No slot found for bot ${botId}, nothing to release`);
+			console.warn(
+				`[BotPoolService] No slot found for bot ${botId}, nothing to release`,
+			);
 
 			return;
 		}
@@ -348,7 +350,10 @@ export class BotPoolService {
 		const slot = slotResult[0];
 
 		try {
-			console.log(`[Pool] Stopping container for slot ${slot.slotName}`);
+			console.log(
+				`[BotPoolService] Stopping container for slot ${slot.slotName}`,
+			);
+
 			await this.coolify.stopApplication(slot.coolifyServiceUuid);
 
 			// Use centralized release function
@@ -359,7 +364,10 @@ export class BotPoolService {
 			const errorMessage =
 				error instanceof Error ? error.message : "Unknown error";
 
-			console.error(`[Pool] Error releasing slot ${slot.slotName}:`, error);
+			console.error(
+				`[BotPoolService] Error releasing slot ${slot.slotName}:`,
+				error,
+			);
 
 			await this.db
 				.update(botPoolSlotsTable)
@@ -409,7 +417,7 @@ export class BotPoolService {
 		botConfig: BotConfig,
 	): Promise<PoolSlot> {
 		console.log(
-			`[Pool] Starting slot ${slot.slotName} for bot ${botConfig.id} (config fetched via API)`,
+			`[BotPoolService] Starting slot ${slot.slotName} for bot ${botConfig.id} (config fetched via API)`,
 		);
 
 		const appExists = await this.coolify.applicationExists(
@@ -420,13 +428,13 @@ export class BotPoolService {
 
 		if (!appExists) {
 			console.warn(
-				`[Pool] Coolify application ${slot.coolifyServiceUuid} not found for slot ${slot.slotName}. Recreating...`,
+				`[BotPoolService] Coolify application ${slot.coolifyServiceUuid} not found for slot ${slot.slotName}. Recreating...`,
 			);
 
 			activeSlot = await this.recreateSlotApplication(slot, botConfig);
 
 			console.log(
-				`[Pool] Recreated slot ${activeSlot.slotName} with new UUID ${activeSlot.coolifyServiceUuid}`,
+				`[BotPoolService] Recreated slot ${activeSlot.slotName} with new UUID ${activeSlot.coolifyServiceUuid}`,
 			);
 		}
 
@@ -477,10 +485,13 @@ export class BotPoolService {
 				: `recent (${Math.round((Date.now() - (existingDeployment?.createdAt?.getTime() ?? 0)) / 1000)}s ago)`;
 
 			console.log(
-				`[Pool] Deployment already ${reason} for slot ${activeSlot.slotName}, skipping startApplication`,
+				`[BotPoolService] Deployment already ${reason} for slot ${activeSlot.slotName}, skipping startApplication`,
 			);
 		} else {
-			console.log(`[Pool] Starting container for slot ${activeSlot.slotName}`);
+			console.log(
+				`[BotPoolService] Starting container for slot ${activeSlot.slotName}`,
+			);
+
 			await this.coolify.startApplication(activeSlot.coolifyServiceUuid);
 		}
 
@@ -489,20 +500,20 @@ export class BotPoolService {
 			// This ensures image is fully pulled and cached before others proceed
 			// Fire-and-forget to avoid HTTP timeout, but release lock when done
 			console.log(
-				`[Pool] First deployer for ${platformName}:${image.tag}, starting deployment in background...`,
+				`[BotPoolService] First deployer for ${platformName}:${image.tag}, starting deployment in background...`,
 			);
 
 			this.waitAndTransitionStatus(activeSlot, botConfig.id)
 				.then(() => {
 					console.log(
-						`[Pool] First deployer completed for ${platformName}:${image.tag}, releasing lock`,
+						`[BotPoolService] First deployer completed for ${platformName}:${image.tag}, releasing lock`,
 					);
 
 					releaseLock();
 				})
 				.catch((error) => {
 					console.error(
-						`[Pool] First deployer failed for ${activeSlot.slotName}:`,
+						`[BotPoolService] First deployer failed for ${activeSlot.slotName}:`,
 						error,
 					);
 
@@ -514,12 +525,12 @@ export class BotPoolService {
 			// Not first deployer: image is cached, can fire-and-forget
 			// This provides optimistic feedback to the user
 			console.log(
-				`[Pool] Image cached for ${platformName}:${image.tag}, proceeding with background deployment`,
+				`[BotPoolService] Image cached for ${platformName}:${image.tag}, proceeding with background deployment`,
 			);
 
 			this.waitAndTransitionStatus(activeSlot, botConfig.id).catch((error) => {
 				console.error(
-					`[Pool] Background status transition failed for ${activeSlot.slotName}:`,
+					`[BotPoolService] Background status transition failed for ${activeSlot.slotName}:`,
 					error,
 				);
 			});
@@ -540,7 +551,7 @@ export class BotPoolService {
 		botId: number,
 	): Promise<void> {
 		console.log(
-			`[Pool] Background: Waiting for container ${slot.slotName} to be running...`,
+			`[BotPoolService] Background: Waiting for container ${slot.slotName} to be running...`,
 		);
 
 		const deploymentResult = await this.coolify.waitForDeployment(
@@ -1025,7 +1036,7 @@ export class BotPoolService {
 		`);
 
 		if (result.length === 0) {
-			console.log(`[Pool] No idle slots available for bot ${botId}`);
+			console.log(`[BotPoolService] No idle slots available for bot ${botId}`);
 
 			return null;
 		}
@@ -1033,7 +1044,7 @@ export class BotPoolService {
 		const row = result[0];
 
 		console.log(
-			`[Pool] Acquired idle slot ${row.slotName} (id=${row.id}) for bot ${botId}`,
+			`[BotPoolService] Acquired idle slot ${row.slotName} (id=${row.id}) for bot ${botId}`,
 		);
 
 		return {
@@ -1153,7 +1164,7 @@ export class BotPoolService {
 		});
 
 		// Create Coolify application (outside transaction to release lock quickly)
-		console.log(`[Pool] Creating Coolify application ${slotName}...`);
+		console.log(`[BotPoolService] Creating Coolify application ${slotName}...`);
 
 		const placeholderConfig: BotConfig = {
 			id: botId,
@@ -1215,7 +1226,7 @@ export class BotPoolService {
 		} catch (error) {
 			// Clean up the reserved slot on Coolify failure
 			console.error(
-				`[Pool] Failed to create Coolify app for ${slotName}, cleaning up:`,
+				`[BotPoolService] Failed to create Coolify app for ${slotName}, cleaning up:`,
 				error,
 			);
 
@@ -1240,7 +1251,7 @@ export class BotPoolService {
 		const image = this.coolify.selectBotImage(botConfig.meetingInfo);
 
 		console.log(
-			`[Pool] Creating new Coolify app for slot ${slot.slotName} (old UUID: ${slot.coolifyServiceUuid}, slot ID: ${slot.id})`,
+			`[BotPoolService] Creating new Coolify app for slot ${slot.slotName} (old UUID: ${slot.coolifyServiceUuid}, slot ID: ${slot.id})`,
 		);
 
 		const newCoolifyUuid = await this.coolify.createApplication(
@@ -1268,7 +1279,7 @@ export class BotPoolService {
 			.where(eq(botsTable.id, botConfig.id));
 
 		console.log(
-			`[Pool] Updated slot ${slot.slotName} and bot ${botConfig.id} with new UUID ${newCoolifyUuid}`,
+			`[BotPoolService] Updated slot ${slot.slotName} and bot ${botConfig.id} with new UUID ${newCoolifyUuid}`,
 		);
 
 		return {

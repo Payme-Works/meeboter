@@ -39,7 +39,7 @@ export interface BotHealthResult extends WorkerResult {
  * SlotRecoveryWorker which owns the full slot lifecycle including deployment.
  */
 export class BotHealthWorker extends BaseWorker<BotHealthResult> {
-	readonly name = "BotHealth";
+	readonly name = "BotHealthWorker";
 
 	protected async execute(): Promise<BotHealthResult> {
 		const result: BotHealthResult = {

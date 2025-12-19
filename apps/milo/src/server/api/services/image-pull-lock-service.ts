@@ -54,17 +54,19 @@ export class ImagePullLockService {
 		const existingLock = this.locks.get(key);
 
 		if (existingLock) {
-			console.log(`[ImagePullLock] Waiting for existing image pull: ${key}`);
+			console.log(
+				`[ImagePullLockService] Waiting for existing image pull: ${key}`,
+			);
 
 			try {
 				await existingLock.promise;
 
 				console.log(
-					`[ImagePullLock] Existing pull completed, proceeding with cached image: ${key}`,
+					`[ImagePullLockService] Existing pull completed, proceeding with cached image: ${key}`,
 				);
 			} catch {
 				console.log(
-					`[ImagePullLock] Previous pull failed, will attempt fresh pull: ${key}`,
+					`[ImagePullLockService] Previous pull failed, will attempt fresh pull: ${key}`,
 				);
 			}
 
@@ -88,7 +90,7 @@ export class ImagePullLockService {
 
 		this.locks.set(key, lock);
 
-		console.log(`[ImagePullLock] Acquired lock for image pull: ${key}`);
+		console.log(`[ImagePullLockService] Acquired lock for image pull: ${key}`);
 
 		let released = false;
 
@@ -102,12 +104,15 @@ export class ImagePullLockService {
 			if (currentLock === lock) {
 				if (error) {
 					console.log(
-						`[ImagePullLock] Releasing lock with error: ${key} - ${error.message}`,
+						`[ImagePullLockService] Releasing lock with error: ${key} - ${error.message}`,
 					);
 
 					lock.reject(error);
 				} else {
-					console.log(`[ImagePullLock] Releasing lock (success): ${key}`);
+					console.log(
+						`[ImagePullLockService] Releasing lock (success): ${key}`,
+					);
+
 					lock.resolve();
 				}
 

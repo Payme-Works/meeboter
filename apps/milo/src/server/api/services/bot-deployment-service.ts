@@ -148,7 +148,7 @@ export class BotDeploymentService {
 				}
 
 				console.log(
-					`[BotDeployment] Bot ${botId} queued at position ${deployResult.queuePosition}`,
+					`[BotDeploymentService] Bot ${botId} queued at position ${deployResult.queuePosition}`,
 				);
 
 				return {
@@ -184,7 +184,7 @@ export class BotDeploymentService {
 				: "";
 
 			console.log(
-				`[BotDeployment] Bot ${botId} deployed via ${this.platform.platformName}${slotInfo}`,
+				`[BotDeploymentService] Bot ${botId} deployed via ${this.platform.platformName}${slotInfo}`,
 			);
 
 			return { bot: deployedBot, queued: false };
