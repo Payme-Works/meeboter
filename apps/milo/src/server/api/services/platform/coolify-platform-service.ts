@@ -32,20 +32,25 @@ export class CoolifyPlatformService implements PlatformService {
 		const slot = await this.poolService.acquireOrCreateSlot(botId);
 
 		if (slot) {
-			// Got a slot, configure and start it
-			const activeSlot = await this.poolService.configureAndStartSlot(
-				slot,
-				botConfig,
-			);
+			// Got a slot, fire-and-forget configuration and start
+			// This avoids HTTP timeout when waiting for image pull lock
+			// The slot is already in "deploying" state from acquireOrCreateSlot
+			this.poolService.configureAndStartSlot(slot, botConfig).catch((error) => {
+				console.error(
+					`[CoolifyPlatform] Failed to configure slot ${slot.slotName} for bot ${botId}:`,
+					error,
+				);
+				// configureAndStartSlot handles error state internally
+			});
 
 			console.log(
-				`[CoolifyPlatform] Bot ${botId} deployed to slot ${activeSlot.slotName}`,
+				`[CoolifyPlatform] Bot ${botId} assigned to slot ${slot.slotName}, configuring in background`,
 			);
 
 			return {
 				success: true,
-				identifier: activeSlot.coolifyServiceUuid,
-				slotName: activeSlot.slotName,
+				identifier: slot.coolifyServiceUuid,
+				slotName: slot.slotName,
 			};
 		}
 
