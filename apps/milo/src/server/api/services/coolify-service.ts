@@ -141,8 +141,8 @@ export class CoolifyService {
 					ports_exposes: "3000",
 					instant_deploy: false,
 					// Resource limits for bot containers
-					limits_cpus: "0.25",
-					limits_memory: "512m",
+					limits_cpus: "0.375",
+					limits_memory: "768m",
 				}),
 			},
 		);
@@ -509,7 +509,7 @@ export class CoolifyService {
 		applicationUuid: string,
 		limits: { cpus?: string; memory?: string } = {},
 	): Promise<void> {
-		const { cpus = "0.25", memory = "512m" } = limits;
+		const { cpus = "0.375", memory = "768m" } = limits;
 
 		try {
 			const response = await fetch(
