@@ -484,7 +484,7 @@ export const botsTable = pgTable(
  */
 export const insertBotSchema = z.object({
 	botDisplayName: z.string().optional(),
-	botImage: z.string().url().optional(),
+	botImage: z.url().optional(),
 	meetingTitle: z.string().optional(),
 	meetingInfo: meetingInfoSchema,
 	startTime: z.date().optional(),
@@ -524,7 +524,7 @@ export const botConfigSchema = z.object({
 	startTime: z.date(),
 	endTime: z.date(),
 	botDisplayName: z.string(),
-	botImage: z.string().url().optional(),
+	botImage: z.url().optional(),
 	recordingEnabled: z.boolean(),
 	heartbeatInterval: z.number(),
 	automaticLeave: automaticLeaveSchema,

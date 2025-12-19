@@ -28,7 +28,7 @@ export const env = createEnv({
 			.transform((val) => val === "true"),
 
 		// Coolify API Configuration
-		COOLIFY_API_URL: z.string().url(),
+		COOLIFY_API_URL: z.url(),
 		COOLIFY_API_TOKEN: z.string(),
 		COOLIFY_PROJECT_UUID: z.string(),
 		COOLIFY_SERVER_UUID: z.string(),
@@ -40,7 +40,7 @@ export const env = createEnv({
 		BOT_IMAGE_TAG: z.string().default("latest"),
 
 		// S3-Compatible Storage (MinIO or AWS S3)
-		S3_ENDPOINT: z.string().url(),
+		S3_ENDPOINT: z.url(),
 		S3_ACCESS_KEY: z.string(),
 		S3_SECRET_KEY: z.string(),
 		S3_BUCKET_NAME: z.string(),
@@ -72,7 +72,7 @@ export const env = createEnv({
 	 * Prefix with `NEXT_PUBLIC_` to expose to the client.
 	 */
 	client: {
-		NEXT_PUBLIC_APP_ORIGIN_URL: z.string().url(),
+		NEXT_PUBLIC_APP_ORIGIN_URL: z.url(),
 	},
 
 	/**
