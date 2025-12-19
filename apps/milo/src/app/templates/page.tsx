@@ -40,11 +40,13 @@ export default function TemplatesPage() {
 	const { data: session } = useSession();
 
 	const {
-		data: templates = [],
+		data: templatesResponse,
 		isLoading,
 		error,
 		refetch,
-	} = api.chat.getMessageTemplates.useQuery();
+	} = api.chat.getMessageTemplates.useQuery({ page, pageSize });
+
+	const templates = templatesResponse?.data ?? [];
 
 	type Template = (typeof templates)[number];
 
@@ -167,6 +169,10 @@ export default function TemplatesPage() {
 				pageSize={pageSize}
 				onPageIndexChange={(idx) => setPage(idx + 1)}
 				onPageSizeChange={setPageSize}
+				totalCount={templatesResponse?.total}
+				pageCount={templatesResponse?.pageCount}
+				hasNextPage={templatesResponse?.hasNextPage}
+				hasPreviousPage={templatesResponse?.hasPreviousPage}
 			/>
 
 			<CreateTemplateDialog

@@ -197,7 +197,7 @@ async function StatCardsSection({ timeZone }: { timeZone: string }) {
 }
 
 async function RecentBotsWithPrefetch() {
-	await api.bots.getBots.prefetch();
+	await api.bots.getBots.prefetch({ page: 1, pageSize: 10 });
 
 	return <RecentBots />;
 }

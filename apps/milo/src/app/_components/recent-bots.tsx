@@ -49,7 +49,12 @@ function formatStatus(status: string): string {
 }
 
 export function RecentBots() {
-	const { data: bots = [], isLoading } = api.bots.getBots.useQuery();
+	const { data: botsResponse, isLoading } = api.bots.getBots.useQuery({
+		page: 1,
+		pageSize: 10,
+	});
+
+	const bots = botsResponse?.data ?? [];
 
 	const [botToRemove, setBotToRemove] = useState<{
 		id: number;

@@ -2,6 +2,7 @@
 
 import { keepPreviousData } from "@tanstack/react-query";
 import { RefreshCw, RefreshCwOff } from "lucide-react";
+import { parseAsInteger, useQueryState } from "nuqs";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { LiveIndicator } from "@/components/live-indicator";
@@ -28,6 +29,14 @@ export default function PoolPage() {
 	const [statusFilter, setStatusFilter] = useState<PoolSlotStatus[]>([]);
 	const [isManualRefreshing, setIsManualRefreshing] = useState(false);
 
+	// Pagination state for pool slots
+	const [page, setPage] = useQueryState("page", parseAsInteger.withDefault(1));
+
+	const [pageSize, setPageSize] = useQueryState(
+		"pageSize",
+		parseAsInteger.withDefault(20),
+	);
+
 	// Pool statistics query
 	const poolStats = api.pool.statistics.getPool.useQuery(undefined, {
 		refetchInterval: REFRESH_INTERVAL,
@@ -42,9 +51,13 @@ export default function PoolPage() {
 		placeholderData: keepPreviousData,
 	});
 
-	// Slots list query with filtering
-	const slots = api.pool.slots.list.useQuery(
-		statusFilter.length > 0 ? { status: statusFilter } : undefined,
+	// Slots list query with filtering and pagination
+	const slotsResponse = api.pool.slots.list.useQuery(
+		{
+			page,
+			pageSize,
+			status: statusFilter.length > 0 ? statusFilter : undefined,
+		},
 		{
 			refetchInterval: REFRESH_INTERVAL,
 			refetchOnWindowFocus: true,
@@ -77,7 +90,7 @@ export default function PoolPage() {
 
 			// Refresh data after sync
 			void poolStats.refetch();
-			void slots.refetch();
+			void slotsResponse.refetch();
 		},
 		onError: (error) => {
 			toast.error("Sync failed", {
@@ -88,10 +101,10 @@ export default function PoolPage() {
 
 	// Update last updated timestamp when data changes
 	useEffect(() => {
-		if (poolStats.data || slots.data) {
+		if (poolStats.data || slotsResponse.data) {
 			setLastUpdated(new Date());
 		}
-	}, [poolStats.data, slots.data]);
+	}, [poolStats.data, slotsResponse.data]);
 
 	const handleManualRefresh = async () => {
 		setIsManualRefreshing(true);
@@ -100,7 +113,7 @@ export default function PoolPage() {
 			await Promise.all([
 				poolStats.refetch(),
 				queueStats.refetch(),
-				slots.refetch(),
+				slotsResponse.refetch(),
 				queueEntries.refetch(),
 			]);
 
@@ -160,10 +173,18 @@ export default function PoolPage() {
 
 			{/* Slots table */}
 			<PoolSlotsTable
-				slots={slots.data}
-				isLoading={slots.isLoading}
+				slots={slotsResponse.data?.data}
+				isLoading={slotsResponse.isLoading}
 				statusFilter={statusFilter}
 				onStatusFilterChange={setStatusFilter}
+				pageIndex={page - 1}
+				pageSize={pageSize}
+				onPageIndexChange={(idx) => setPage(idx + 1)}
+				onPageSizeChange={setPageSize}
+				totalCount={slotsResponse.data?.total}
+				pageCount={slotsResponse.data?.pageCount}
+				hasNextPage={slotsResponse.data?.hasNextPage}
+				hasPreviousPage={slotsResponse.data?.hasPreviousPage}
 			/>
 		</div>
 	);

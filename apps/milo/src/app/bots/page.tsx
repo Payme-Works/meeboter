@@ -159,15 +159,20 @@ export default function BotsPage() {
 	const utils = api.useUtils();
 
 	const {
-		data: bots = [],
+		data: botsResponse,
 		isLoading,
 		error,
 		refetch,
-	} = api.bots.getBots.useQuery(undefined, {
-		refetchInterval: REFRESH_INTERVAL,
-		refetchOnWindowFocus: true,
-		placeholderData: keepPreviousData,
-	});
+	} = api.bots.getBots.useQuery(
+		{ page, pageSize },
+		{
+			refetchInterval: REFRESH_INTERVAL,
+			refetchOnWindowFocus: true,
+			placeholderData: keepPreviousData,
+		},
+	);
+
+	const bots = botsResponse?.data ?? [];
 
 	const cancelDeploymentsMutation = api.bots.cancelDeployments.useMutation({
 		onSuccess: (data) => {
@@ -533,6 +538,10 @@ export default function BotsPage() {
 				pageSize={pageSize}
 				onPageIndexChange={(idx) => setPage(idx + 1)}
 				onPageSizeChange={setPageSize}
+				totalCount={botsResponse?.total}
+				pageCount={botsResponse?.pageCount}
+				hasNextPage={botsResponse?.hasNextPage}
+				hasPreviousPage={botsResponse?.hasPreviousPage}
 			/>
 
 			<BotDetailsDialog

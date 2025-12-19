@@ -45,7 +45,12 @@ export function BroadcastCenterDialog({
 	const [customMessage, setCustomMessage] = useState("");
 	const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
 
-	const { data: templates = [] } = api.chat.getMessageTemplates.useQuery();
+	const { data: templatesResponse } = api.chat.getMessageTemplates.useQuery({
+		page: 1,
+		pageSize: 100,
+	});
+
+	const templates = templatesResponse?.data ?? [];
 
 	const sendTemplate = api.chat.sendTemplateToMultipleBots.useMutation({
 		onSuccess: (result) => {

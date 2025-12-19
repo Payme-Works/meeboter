@@ -1,6 +1,11 @@
 import { randomBytes } from "node:crypto";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
+import {
+	buildPaginatedResponse,
+	type PaginatedResponse,
+	paginationInput,
+} from "@/lib/pagination";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import {
 	apiKeysTable,
@@ -63,26 +68,49 @@ export const apiKeysRouter = createTRPCRouter({
 		}),
 
 	/**
-	 * Retrieves all API keys owned by the authenticated user
+	 * Retrieves paginated API keys owned by the authenticated user
 	 * Returns list of API keys without exposing the actual key values
-	 * @returns {Promise<object[]>} Array of user's API keys
+	 * @param input - Pagination parameters (page, pageSize)
+	 * @returns {Promise<PaginatedResponse<object>>} Paginated API keys
 	 */
 	listApiKeys: protectedProcedure
 		.meta({
 			openapi: {
 				method: "GET",
 				path: "/api-keys",
-				description: "List all API keys for the specified user",
+				description: "List paginated API keys for the specified user",
 			},
 		})
-		.input(z.void())
-		.output(z.array(selectApiKeySchema))
-		.query(async ({ ctx }) => {
-			return await ctx.db
-				.select()
-				.from(apiKeysTable)
-				.where(eq(apiKeysTable.userId, ctx.session.user.id));
-		}),
+		.input(paginationInput)
+		.query(
+			async ({
+				ctx,
+				input,
+			}): Promise<PaginatedResponse<typeof selectApiKeySchema._output>> => {
+				const { page, pageSize } = input;
+				const offset = (page - 1) * pageSize;
+
+				const [data, countResult] = await Promise.all([
+					ctx.db
+						.select()
+						.from(apiKeysTable)
+						.where(eq(apiKeysTable.userId, ctx.session.user.id))
+						.orderBy(desc(apiKeysTable.createdAt))
+						.limit(pageSize)
+						.offset(offset),
+					ctx.db
+						.select({ count: sql<number>`count(*)` })
+						.from(apiKeysTable)
+						.where(eq(apiKeysTable.userId, ctx.session.user.id)),
+				]);
+
+				const total = Number(countResult[0]?.count ?? 0);
+
+				return buildPaginatedResponse(data, total, page, pageSize, (item) =>
+					String(item.id),
+				);
+			},
+		),
 
 	/**
 	 * Revokes an API key by setting its revoked status to true

@@ -234,11 +234,12 @@ describe("botsRouter", () => {
 			}),
 		);
 
-		const result = await caller.getBots();
+		const result = await caller.getBots({ page: 1, pageSize: 10 });
 
 		expect(result).toBeDefined();
-		expect(Array.isArray(result)).toBe(true);
-		expect(result.length).toBeGreaterThan(0);
+		expect(Array.isArray(result.data)).toBe(true);
+		expect(result.data.length).toBeGreaterThan(0);
+		expect(result.total).toBeGreaterThan(0);
 	}, 15000);
 
 	it("should get a specific bot by ID", async () => {

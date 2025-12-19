@@ -61,8 +61,17 @@ type DataTableProps<TData, TValue> = {
 	/** Callback when page size changes */
 	onPageSizeChange?: (pageSize: number) => void;
 
-	/** Total page count (for external pagination display) */
+	/** Total page count (for server-side pagination) */
 	pageCount?: number;
+
+	/** Total item count (enables server-side pagination when provided) */
+	totalCount?: number;
+
+	/** Has next page (server-side pagination) */
+	hasNextPage?: boolean;
+
+	/** Has previous page (server-side pagination) */
+	hasPreviousPage?: boolean;
 };
 
 export function DataTable<TData, TValue>({
@@ -80,7 +89,13 @@ export function DataTable<TData, TValue>({
 	onPageIndexChange,
 	onPageSizeChange,
 	pageCount: controlledPageCount,
+	totalCount,
+	hasNextPage,
+	hasPreviousPage,
 }: DataTableProps<TData, TValue>) {
+	// Server-side pagination is enabled when totalCount is provided
+	const isServerSidePagination = totalCount !== undefined;
+
 	const [internalRowSelection, setInternalRowSelection] =
 		useState<RowSelectionState>({});
 
@@ -158,6 +173,12 @@ export function DataTable<TData, TValue>({
 		}
 	}, [data, pagination.pageSize, pagination.pageIndex, isExternalPagination]);
 
+	// Calculate page count for server-side pagination
+	const serverPageCount =
+		isServerSidePagination && totalCount !== undefined
+			? Math.ceil(totalCount / pagination.pageSize)
+			: undefined;
+
 	const table = useReactTable({
 		data: data ?? [],
 		columns: columns ?? [],
@@ -166,8 +187,10 @@ export function DataTable<TData, TValue>({
 		enableRowSelection: enableRowSelection ?? false,
 		onRowSelectionChange: handleRowSelectionChange,
 		onPaginationChange: handlePaginationChange,
-		manualPagination: isExternalPagination && controlledPageCount !== undefined,
-		pageCount: controlledPageCount,
+		manualPagination:
+			isServerSidePagination ||
+			(isExternalPagination && controlledPageCount !== undefined),
+		pageCount: controlledPageCount ?? serverPageCount,
 		autoResetPageIndex: false,
 		state: {
 			rowSelection,
@@ -261,7 +284,11 @@ export function DataTable<TData, TValue>({
 								variant="outline"
 								size="sm"
 								onClick={() => table?.previousPage()}
-								disabled={!table?.getCanPreviousPage() || !table}
+								disabled={
+									isServerSidePagination
+										? hasPreviousPage === false
+										: !table?.getCanPreviousPage() || !table
+								}
 							>
 								Previous
 							</Button>
@@ -269,7 +296,11 @@ export function DataTable<TData, TValue>({
 								variant="outline"
 								size="sm"
 								onClick={() => table?.nextPage()}
-								disabled={!table?.getCanNextPage() || !table}
+								disabled={
+									isServerSidePagination
+										? hasNextPage === false
+										: !table?.getCanNextPage() || !table
+								}
 							>
 								Next
 							</Button>

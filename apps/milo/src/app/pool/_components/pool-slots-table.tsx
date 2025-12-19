@@ -4,7 +4,6 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { formatDistanceToNow } from "date-fns";
 import { ChevronDown, MoreHorizontal, Trash2, X } from "lucide-react";
 import { motion } from "motion/react";
-import { parseAsInteger, useQueryState } from "nuqs";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -50,6 +49,30 @@ interface PoolSlotsTableProps {
 	isLoading: boolean;
 	statusFilter: PoolSlotStatus[];
 	onStatusFilterChange: (statuses: PoolSlotStatus[]) => void;
+
+	/** Current page index (0-indexed) */
+	pageIndex: number;
+
+	/** Page size */
+	pageSize: number;
+
+	/** Callback when page index changes */
+	onPageIndexChange: (pageIndex: number) => void;
+
+	/** Callback when page size changes */
+	onPageSizeChange: (pageSize: number) => void;
+
+	/** Total count for server-side pagination */
+	totalCount?: number;
+
+	/** Page count for server-side pagination */
+	pageCount?: number;
+
+	/** Has next page */
+	hasNextPage?: boolean;
+
+	/** Has previous page */
+	hasPreviousPage?: boolean;
 }
 
 const STATUS_CONFIG: Record<
@@ -103,17 +126,15 @@ export function PoolSlotsTable({
 	isLoading,
 	statusFilter,
 	onStatusFilterChange,
+	pageIndex,
+	pageSize,
+	onPageIndexChange,
+	onPageSizeChange,
+	totalCount,
+	pageCount,
+	hasNextPage,
+	hasPreviousPage,
 }: PoolSlotsTableProps) {
-	const [page, setPage] = useQueryState(
-		"poolPage",
-		parseAsInteger.withDefault(1),
-	);
-
-	const [pageSize, setPageSize] = useQueryState(
-		"poolPageSize",
-		parseAsInteger.withDefault(20),
-	);
-
 	const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 	const [slotsToDelete, setSlotsToDelete] = useState<PoolSlot[]>([]);
@@ -422,10 +443,14 @@ export function PoolSlotsTable({
 				rowSelection={rowSelection}
 				onRowSelectionChange={setRowSelection}
 				getRowId={(row) => String(row.id)}
-				pageIndex={page - 1}
+				pageIndex={pageIndex}
 				pageSize={pageSize}
-				onPageIndexChange={(idx) => setPage(idx + 1)}
-				onPageSizeChange={setPageSize}
+				onPageIndexChange={onPageIndexChange}
+				onPageSizeChange={onPageSizeChange}
+				totalCount={totalCount}
+				pageCount={pageCount}
+				hasNextPage={hasNextPage}
+				hasPreviousPage={hasPreviousPage}
 			/>
 
 			{/* Delete confirmation dialog */}

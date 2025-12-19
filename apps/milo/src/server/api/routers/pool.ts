@@ -1,6 +1,11 @@
 import { TRPCError } from "@trpc/server";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
+import {
+	buildPaginatedResponse,
+	type PaginatedResponse,
+	paginationInput,
+} from "@/lib/pagination";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import {
 	botPoolQueueTable,
@@ -114,43 +119,59 @@ const deleteResultSchema = z.object({
  */
 const slotsRouter = createTRPCRouter({
 	/**
-	 * List all pool slots with optional status filtering
+	 * List all pool slots with optional status filtering and pagination
 	 */
 	list: protectedProcedure
 		.input(
-			z
-				.object({
-					status: z.array(poolSlotStatus).optional(),
-				})
-				.optional(),
+			paginationInput.extend({
+				status: z.array(poolSlotStatus).optional(),
+			}),
 		)
-		.output(z.array(poolSlotViewSchema))
-		.query(async ({ ctx, input }) => {
-			const statusFilter = input?.status;
+		.query(
+			async ({
+				ctx,
+				input,
+			}): Promise<PaginatedResponse<typeof poolSlotViewSchema._output>> => {
+				const { page, pageSize, status: statusFilter } = input;
+				const offset = (page - 1) * pageSize;
 
-			let query = ctx.db
-				.select({
-					id: botPoolSlotsTable.id,
-					slotName: botPoolSlotsTable.slotName,
-					status: botPoolSlotsTable.status,
-					assignedBotId: botPoolSlotsTable.assignedBotId,
-					coolifyServiceUuid: botPoolSlotsTable.coolifyServiceUuid,
-					lastUsedAt: botPoolSlotsTable.lastUsedAt,
-					errorMessage: botPoolSlotsTable.errorMessage,
-					recoveryAttempts: botPoolSlotsTable.recoveryAttempts,
-					createdAt: botPoolSlotsTable.createdAt,
-				})
-				.from(botPoolSlotsTable)
-				.$dynamic();
+				// Build the where condition
+				const whereCondition =
+					statusFilter && statusFilter.length > 0
+						? inArray(botPoolSlotsTable.status, statusFilter)
+						: undefined;
 
-			if (statusFilter && statusFilter.length > 0) {
-				query = query.where(inArray(botPoolSlotsTable.status, statusFilter));
-			}
+				const [data, countResult] = await Promise.all([
+					ctx.db
+						.select({
+							id: botPoolSlotsTable.id,
+							slotName: botPoolSlotsTable.slotName,
+							status: botPoolSlotsTable.status,
+							assignedBotId: botPoolSlotsTable.assignedBotId,
+							coolifyServiceUuid: botPoolSlotsTable.coolifyServiceUuid,
+							lastUsedAt: botPoolSlotsTable.lastUsedAt,
+							errorMessage: botPoolSlotsTable.errorMessage,
+							recoveryAttempts: botPoolSlotsTable.recoveryAttempts,
+							createdAt: botPoolSlotsTable.createdAt,
+						})
+						.from(botPoolSlotsTable)
+						.where(whereCondition)
+						.orderBy(botPoolSlotsTable.slotName)
+						.limit(pageSize)
+						.offset(offset),
+					ctx.db
+						.select({ count: sql<number>`count(*)` })
+						.from(botPoolSlotsTable)
+						.where(whereCondition),
+				]);
 
-			const slots = await query.orderBy(botPoolSlotsTable.slotName);
+				const total = Number(countResult[0]?.count ?? 0);
 
-			return slots;
-		}),
+				return buildPaginatedResponse(data, total, page, pageSize, (item) =>
+					String(item.id),
+				);
+			},
+		),
 
 	/**
 	 * Delete pool slots by IDs

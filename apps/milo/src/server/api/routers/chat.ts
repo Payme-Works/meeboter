@@ -1,5 +1,10 @@
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
+import {
+	buildPaginatedResponse,
+	type PaginatedResponse,
+	paginationInput,
+} from "@/lib/pagination";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import {
 	botChatMessagesTable,
@@ -26,48 +31,50 @@ const messageQueues = new Map<
  */
 export const chatRouter = createTRPCRouter({
 	/**
-	 * Retrieves all message templates belonging to the authenticated user.
-	 * @returns Promise<MessageTemplate[]> Array of message template objects
+	 * Retrieves paginated message templates belonging to the authenticated user.
+	 * @param input - Pagination parameters (page, pageSize)
+	 * @returns Promise<PaginatedResponse<MessageTemplate>> Paginated message template objects
 	 */
 	getMessageTemplates: protectedProcedure
 		.meta({
 			openapi: {
 				method: "GET",
 				path: "/chat/templates",
-				description: "Retrieve a list of all message templates",
+				description: "Retrieve a paginated list of message templates",
 			},
 		})
-		.input(z.void())
-		.output(z.array(selectMessageTemplateSchema))
-		.query(async ({ ctx }) => {
-			try {
-				console.log(
-					"Attempting to query message_templates table for user:",
-					ctx.session.user.id,
+		.input(paginationInput)
+		.query(
+			async ({
+				ctx,
+				input,
+			}): Promise<
+				PaginatedResponse<typeof selectMessageTemplateSchema._output>
+			> => {
+				const { page, pageSize } = input;
+				const offset = (page - 1) * pageSize;
+
+				const [data, countResult] = await Promise.all([
+					ctx.db
+						.select()
+						.from(messageTemplatesTable)
+						.where(eq(messageTemplatesTable.userId, ctx.session.user.id))
+						.orderBy(desc(messageTemplatesTable.createdAt))
+						.limit(pageSize)
+						.offset(offset),
+					ctx.db
+						.select({ count: sql<number>`count(*)` })
+						.from(messageTemplatesTable)
+						.where(eq(messageTemplatesTable.userId, ctx.session.user.id)),
+				]);
+
+				const total = Number(countResult[0]?.count ?? 0);
+
+				return buildPaginatedResponse(data, total, page, pageSize, (item) =>
+					String(item.id),
 				);
-
-				const result = await ctx.db
-					.select()
-					.from(messageTemplatesTable)
-					.where(eq(messageTemplatesTable.userId, ctx.session.user.id))
-					.orderBy(messageTemplatesTable.createdAt);
-
-				console.log("Successfully retrieved message templates:", result.length);
-
-				return result;
-			} catch (error) {
-				console.error("Database query failed for message_templates:", {
-					error: error instanceof Error ? error.message : error,
-					stack: error instanceof Error ? error.stack : undefined,
-					userId: ctx.session.user.id,
-					tableName: "message_templates",
-				});
-
-				throw new Error(
-					`Database query failed: ${error instanceof Error ? error.message : "Unknown error"}`,
-				);
-			}
-		}),
+			},
+		),
 
 	/**
 	 * Creates a new message template with an array of message variations.

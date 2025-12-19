@@ -2,6 +2,11 @@ import { TRPCError } from "@trpc/server";
 import { and, desc, eq, inArray, notInArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import {
+	buildPaginatedResponse,
+	type PaginatedResponse,
+	paginationInput,
+} from "@/lib/pagination";
+import {
 	createTRPCRouter,
 	protectedProcedure,
 	publicProcedure,
@@ -339,26 +344,48 @@ export const botsRouter = createTRPCRouter({
 	chat: chatSubRouter,
 
 	/**
-	 * Retrieves all bots belonging to the authenticated user.
-	 * @returns Promise<Bot[]> Array of bot objects ordered by creation date
+	 * Retrieves paginated bots belonging to the authenticated user.
+	 * @param input - Pagination parameters (page, pageSize)
+	 * @returns Promise<PaginatedResponse<Bot>> Paginated bot objects ordered by creation date
 	 */
 	getBots: protectedProcedure
 		.meta({
 			openapi: {
 				method: "GET",
 				path: "/bots",
-				description: "Retrieve a list of all bots",
+				description: "Retrieve a paginated list of bots",
 			},
 		})
-		.input(z.void())
-		.output(z.array(selectBotSchema))
-		.query(async ({ ctx }): Promise<(typeof selectBotSchema._output)[]> => {
-			return await ctx.db
-				.select()
-				.from(botsTable)
-				.where(eq(botsTable.userId, ctx.session.user.id))
-				.orderBy(desc(botsTable.createdAt));
-		}),
+		.input(paginationInput)
+		.query(
+			async ({
+				ctx,
+				input,
+			}): Promise<PaginatedResponse<typeof selectBotSchema._output>> => {
+				const { page, pageSize } = input;
+				const offset = (page - 1) * pageSize;
+
+				const [data, countResult] = await Promise.all([
+					ctx.db
+						.select()
+						.from(botsTable)
+						.where(eq(botsTable.userId, ctx.session.user.id))
+						.orderBy(desc(botsTable.createdAt))
+						.limit(pageSize)
+						.offset(offset),
+					ctx.db
+						.select({ count: sql<number>`count(*)` })
+						.from(botsTable)
+						.where(eq(botsTable.userId, ctx.session.user.id)),
+				]);
+
+				const total = Number(countResult[0]?.count ?? 0);
+
+				return buildPaginatedResponse(data, total, page, pageSize, (item) =>
+					String(item.id),
+				);
+			},
+		),
 
 	/**
 	 * Retrieves a specific bot by its ID.

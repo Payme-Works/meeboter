@@ -28,10 +28,12 @@ export default function Keys() {
 	>(null);
 
 	const {
-		data: apiKeys,
+		data: apiKeysResponse,
 		isLoading,
 		error,
-	} = api.apiKeys.listApiKeys.useQuery();
+	} = api.apiKeys.listApiKeys.useQuery({ page, pageSize });
+
+	const apiKeys = apiKeysResponse?.data ?? [];
 
 	const memoizedColumns = useMemo(() => columns(setSelectedViewLogsKeyId), []);
 
@@ -59,6 +61,10 @@ export default function Keys() {
 				pageSize={pageSize}
 				onPageIndexChange={(idx) => setPage(idx + 1)}
 				onPageSizeChange={setPageSize}
+				totalCount={apiKeysResponse?.total}
+				pageCount={apiKeysResponse?.pageCount}
+				hasNextPage={apiKeysResponse?.hasNextPage}
+				hasPreviousPage={apiKeysResponse?.hasPreviousPage}
 			/>
 
 			<ViewLogsDialog
