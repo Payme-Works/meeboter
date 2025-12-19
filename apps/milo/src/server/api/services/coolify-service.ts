@@ -397,46 +397,32 @@ export class CoolifyService {
 	/**
 	 * Lists all pool applications from Coolify
 	 *
-	 * Fetches applications from the configured project and filters
-	 * by "pool-" prefix to identify pool slot applications.
+	 * Fetches all applications and filters by "pool-" prefix
+	 * to identify pool slot applications.
 	 */
 	async listPoolApplications(): Promise<CoolifyApplicationSummary[]> {
-		const response = await fetch(
-			`${this.config.apiUrl}/projects/${this.config.projectUuid}`,
-			{
-				method: "GET",
-				headers: {
-					Authorization: `Bearer ${this.config.apiToken}`,
-				},
+		const response = await fetch(`${this.config.apiUrl}/applications`, {
+			method: "GET",
+			headers: {
+				Authorization: `Bearer ${this.config.apiToken}`,
 			},
-		);
+		});
 
 		if (!response.ok) {
 			console.error(
-				`[CoolifyService] Failed to list project applications: ${response.status} ${response.statusText}`,
+				`[CoolifyService] Failed to list applications: ${response.status} ${response.statusText}`,
 			);
 
 			return [];
 		}
 
-		const data = (await response.json()) as {
-			environments?: Array<{
-				name: string;
-				applications?: Array<{ uuid: string; name: string }>;
-			}>;
-		};
-
-		// Find our environment and extract applications
-		const environment = data.environments?.find(
-			(env) => env.name === this.config.environmentName,
-		);
-
-		if (!environment?.applications) {
-			return [];
-		}
+		const data = (await response.json()) as Array<{
+			uuid: string;
+			name: string;
+		}>;
 
 		// Filter to only pool applications (prefixed with "pool-")
-		return environment.applications
+		return data
 			.filter((app) => app.name.startsWith("pool-"))
 			.map((app) => ({ uuid: app.uuid, name: app.name }));
 	}
