@@ -1,15 +1,14 @@
 import type { AppRouter } from "@meeboter/milo";
 import type { TRPCClient } from "@trpc/client";
-import { env } from "./env";
+import { env } from "./config/env";
 import { BotLogger, parseLogLevel } from "./logger";
-import { reportEvent } from "./monitoring";
-import { trpc } from "./trpc";
 import {
 	type BotConfig,
 	type EventCode,
 	type SpeakerTimeframe,
 	Status,
-} from "./types";
+	TrpcService,
+} from "./services";
 
 /**
  * Interface defining the contract for all bot implementations.
@@ -129,7 +128,7 @@ export class Bot implements BotInterface {
 	 *
 	 * @param settings - Bot configuration containing meeting info and other parameters
 	 * @param onEvent - Event handler function for reporting bot events
-	 * @param trpcInstance - tRPC client instance for backend API calls
+	 * @param trpcInstance - tRPC client instance for backend API calls (optional, creates default if not provided)
 	 * @param logger - Optional logger instance (created if not provided)
 	 */
 	constructor(
@@ -143,7 +142,15 @@ export class Bot implements BotInterface {
 	) {
 		this.settings = settings;
 		this.onEvent = onEvent;
-		this.trpc = trpcInstance || trpc;
+
+		// Create default tRPC client if not provided (for backward compatibility with tests)
+		this.trpc =
+			trpcInstance ??
+			new TrpcService({
+				url: env.MILO_URL,
+				authToken: env.MILO_AUTH_TOKEN,
+			}).getClient();
+
 		this.logger = logger || new BotLogger(settings.id);
 	}
 
@@ -358,6 +365,12 @@ export const createBot = async (
 
 	logger.info(`Creating bot for platform: ${platform}`);
 
+	// Create TrpcService for event reporting
+	const trpcService = new TrpcService({
+		url: env.MILO_URL,
+		authToken: env.MILO_AUTH_TOKEN,
+	});
+
 	/**
 	 * Creates an event handler that reports events and triggers status change callbacks.
 	 * The bot instance is captured in a closure to enable screenshot capture on status changes.
@@ -365,7 +378,7 @@ export const createBot = async (
 	const createEventHandler =
 		(bot: Bot) =>
 		async (eventType: EventCode, data?: Record<string, unknown>) => {
-			await reportEvent(botId, eventType, data);
+			await trpcService.reportEvent(botId, eventType, data ?? null);
 
 			// Trigger onStatusChange callback for status events (non-blocking)
 			if (onStatusChange && eventType in Status) {
@@ -381,13 +394,16 @@ export const createBot = async (
 	// Will be replaced with the full handler after bot creation
 	const placeholderHandler = async () => {};
 
+	// Get the raw tRPC client for the bot
+	const trpcClient = trpcService.getClient();
+
 	let bot: Bot;
 
 	switch (botData.meetingInfo.platform) {
 		case "google": {
 			const { GoogleMeetBot } = await import("../providers/meet/src/bot");
 
-			bot = new GoogleMeetBot(botData, placeholderHandler, trpc, logger);
+			bot = new GoogleMeetBot(botData, placeholderHandler, trpcClient, logger);
 
 			break;
 		}
@@ -395,7 +411,12 @@ export const createBot = async (
 		case "teams": {
 			const { MicrosoftTeamsBot } = await import("../providers/teams/src/bot");
 
-			bot = new MicrosoftTeamsBot(botData, placeholderHandler, trpc, logger);
+			bot = new MicrosoftTeamsBot(
+				botData,
+				placeholderHandler,
+				trpcClient,
+				logger,
+			);
 
 			break;
 		}
@@ -403,7 +424,7 @@ export const createBot = async (
 		case "zoom": {
 			const { ZoomBot } = await import("../providers/zoom/src/bot");
 
-			bot = new ZoomBot(botData, placeholderHandler, trpc, logger);
+			bot = new ZoomBot(botData, placeholderHandler, trpcClient, logger);
 
 			break;
 		}
