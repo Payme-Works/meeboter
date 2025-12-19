@@ -55,7 +55,7 @@ export type PlatformBotStatus =
  */
 export interface PlatformService {
 	/** Platform name for logging and identification */
-	readonly platformName: "coolify" | "aws";
+	readonly platformName: "coolify" | "aws" | "local";
 
 	/**
 	 * Deploys a bot using the platform's deployment mechanism

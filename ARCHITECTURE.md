@@ -2,7 +2,7 @@
 
 > Comprehensive technical documentation for the Meeboter meeting bot platform
 
-**Last Updated:** December 2024
+**Last Updated:** December 2024 (Image Pull Lock added)
 **Status:** Production (Coolify-hosted)
 
 ---
@@ -80,6 +80,7 @@ Meeboter is a meeting bot platform that joins video conferences (Google Meet, Mi
 | Bot Runtime | Docker containers | Puppeteer-based meeting bots |
 | Orchestration | Coolify | Container management, deployment |
 | Bot Pool | Custom implementation | Reusable bot slots for fast deployment |
+| Image Pull Lock | In-memory coordination | Prevents redundant parallel image pulls |
 
 ---
 
@@ -194,6 +195,78 @@ idle → deploying (on acquire/create) → busy (when container starts) → idle
 | First bot (new slot) | ~7 min | ~7 min |
 | Subsequent bots | ~7 min | **~30 sec** |
 | Pool exhausted | N/A | Queued + wait |
+
+### Image Pull Lock
+
+When multiple bots of the same platform are deployed simultaneously, each would trigger a separate Docker image pull for the same image. The **Image Pull Lock** service coordinates these pulls to prevent redundant parallel downloads.
+
+> **Design Document:** [`docs/plans/2025-01-19-image-pull-lock-design.md`](docs/plans/2025-01-19-image-pull-lock-design.md)
+
+**Problem:**
+```
+Bot A (google-meet) → createSlot() → image pull starts (~30-60s)
+Bot B (google-meet) → createSlot() → image pull starts (duplicate!)
+Bot C (google-meet) → createSlot() → image pull starts (duplicate!)
+
+Bandwidth: 3x image size
+```
+
+**Solution:**
+```
+Bot A (google-meet) → createSlot() → image pull starts
+Bot B (google-meet) → waits for A's pull...
+Bot C (google-meet) → waits for A's pull...
+                      ↓
+              A's pull completes (image cached)
+                      ↓
+Bot B → createSlot() → uses cached image (fast!)
+Bot C → createSlot() → uses cached image (fast!)
+
+Bandwidth: 1x image size
+```
+
+**Implementation:**
+- Uses in-memory `Map<string, Promise>` keyed by `platform:imageTag`
+- First deployment acquires lock, subsequent deployments wait
+- Lock released on success or failure
+- Different platforms can pull in parallel (separate keys)
+
+**Key Files:**
+| File | Purpose |
+|------|---------|
+| `image-pull-lock-service.ts` | Lock coordination service |
+| `bot-pool-service.ts` | Uses lock in `createAndAcquireNewSlot()` |
+
+### Slot Recovery
+
+Slots in `error` state or stuck in `deploying` state are unusable, reducing pool capacity. The **Slot Recovery** background job attempts to recover these slots by stopping and resetting them.
+
+> **Design Documents:**
+> - [`docs/plans/2025-12-16-error-slot-recovery-design.md`](docs/plans/2025-12-16-error-slot-recovery-design.md)
+> - [`docs/plans/2025-12-17-deploying-slot-status-design.md`](docs/plans/2025-12-17-deploying-slot-status-design.md)
+
+**Implementation Details:**
+| Component | Description |
+|-----------|-------------|
+| `slot-recovery.ts` | Background job service with `startSlotRecoveryJob()` |
+| `recoveryAttempts` column | Tracks attempts per slot (schema + migration) |
+| `db.ts` | Starts job in production via global flag pattern |
+
+**Key Decisions:**
+| Decision | Choice |
+|----------|--------|
+| Attempt tracking | `recoveryAttempts` integer column |
+| Job scheduling | `setInterval` in server process (5 min) |
+| Recovery action | Stop container → Reset to idle |
+| Max attempts exceeded | Delete slot from DB + Coolify (pool self-heals) |
+
+**Configuration:**
+| Parameter | Default |
+|-----------|---------|
+| Recovery interval | 5 minutes |
+| Max recovery attempts | 3 |
+
+**Migration:** `drizzle/0008_minor_ravenous.sql`
 
 ### Queue System
 
@@ -716,7 +789,6 @@ Note: Bot containers fetch their configuration from the `getPoolSlot` API endpoi
 | Priority | Enhancement | Effort | Impact | Status |
 |----------|-------------|--------|--------|--------|
 | **High** | Pool Pre-Warming | Medium | Eliminates cold-start latency | Planned |
-| **High** | Slot Recovery | Low | Increases pool availability | ✅ Implemented |
 | **High** | Background Queue Processor | Medium | Faster queue processing | Planned |
 | **Medium** | Multi-Platform Pools | High | Platform isolation | Planned |
 | **Medium** | Pool Auto-Scaling | High | Cost optimization | Planned |
@@ -727,6 +799,8 @@ Note: Bot containers fetch their configuration from the `getPoolSlot` API endpoi
 | **Low** | Geographic Distribution | Very High | Global scale | Planned |
 | **Low** | Recording Transcoding | Medium | Storage optimization | Planned |
 | **Low** | Scheduled Maintenance | Medium | Proactive health | Planned |
+
+> **Note:** Implemented features (Slot Recovery, Image Pull Lock) have been moved to their respective sections in [Bot Pool System](#3-bot-pool-system).
 
 ---
 
@@ -808,42 +882,7 @@ POOL_PREWARM_ON_STARTUP=true      # Enable pre-warming
 
 ---
 
-#### 2. Slot Recovery ✅ Implemented
-
-> **Design Documents:**
-> - [`docs/plans/2025-12-16-error-slot-recovery-design.md`](docs/plans/2025-12-16-error-slot-recovery-design.md)
-> - [`docs/plans/2025-12-17-deploying-slot-status-design.md`](docs/plans/2025-12-17-deploying-slot-status-design.md)
-
-**Problem:** Slots in `error` state or stuck in `deploying` state are unusable, reducing pool capacity.
-
-**Solution:** Background job that attempts to recover error slots and stale deploying slots (>5 min) by stopping and resetting them.
-
-**Implementation Details:**
-| Component | Description |
-|-----------|-------------|
-| `slot-recovery.ts` | Background job service with `startSlotRecoveryJob()` |
-| `recoveryAttempts` column | Tracks attempts per slot (schema + migration) |
-| `db.ts` | Starts job in production via global flag pattern |
-
-**Key Decisions:**
-| Decision | Choice |
-|----------|--------|
-| Attempt tracking | `recoveryAttempts` integer column |
-| Job scheduling | `setInterval` in server process (5 min) |
-| Recovery action | Stop container → Reset to idle |
-| Max attempts exceeded | Delete slot from DB + Coolify (pool self-heals) |
-
-**Configuration:**
-| Parameter | Default |
-|-----------|---------|
-| Recovery interval | 5 minutes |
-| Max recovery attempts | 3 |
-
-**Migration:** `drizzle/0008_minor_ravenous.sql`
-
----
-
-#### 3. Background Queue Processor
+#### 2. Background Queue Processor
 
 **Problem:** Queue only processes when slots are released, causing delays.
 
@@ -956,7 +995,7 @@ async function deployQueuedBot(
 
 ### Medium Priority
 
-#### 4. Multi-Platform Pools
+#### 3. Multi-Platform Pools
 
 **Current State:** Single pool supporting all platforms with mixed slots.
 
@@ -1041,7 +1080,7 @@ export async function acquireSlotForPlatform(
 
 ---
 
-#### 5. Pool Auto-Scaling
+#### 4. Pool Auto-Scaling
 
 **Concept:** Automatically adjust pool size based on utilization patterns.
 
@@ -1131,7 +1170,7 @@ async function scaleDown(count: number, db: Database): Promise<void> {
 
 ---
 
-#### 6. Health Monitoring Dashboard
+#### 5. Health Monitoring Dashboard
 
 **Metrics to Expose:**
 
@@ -1204,7 +1243,7 @@ export function getMetrics(): Promise<string> {
 
 ---
 
-#### 7. Webhook Notifications
+#### 6. Webhook Notifications
 
 **Events to Notify:**
 
@@ -1260,7 +1299,7 @@ async function notifyBotQueued(bot: Bot, queuePosition: number): Promise<void> {
 
 ---
 
-#### 8. Priority Queue Tiers
+#### 7. Priority Queue Tiers
 
 **Concept:** Different priority levels for different subscription tiers.
 
@@ -1290,7 +1329,7 @@ async function addToQueueWithPriority(
 
 ### Low Priority
 
-#### 9. Slot Affinity
+#### 8. Slot Affinity
 
 **Concept:** Prefer assigning bots to slots that previously ran the same platform.
 
@@ -1325,7 +1364,7 @@ async function acquireIdleSlotWithAffinity(
 
 ---
 
-#### 10. Geographic Distribution
+#### 9. Geographic Distribution
 
 **Concept:** Deploy pool servers in multiple regions for lower latency.
 
@@ -1354,7 +1393,7 @@ async function acquireIdleSlotWithAffinity(
 
 ---
 
-#### 11. Recording Transcoding Pipeline
+#### 10. Recording Transcoding Pipeline
 
 **Concept:** Post-process recordings for optimal file sizes.
 
@@ -1392,7 +1431,7 @@ function getTranscodeCommand(input: string, output: string): string {
 
 ---
 
-#### 12. Scheduled Slot Maintenance
+#### 11. Scheduled Slot Maintenance
 
 **Concept:** Proactively refresh slots during low-usage periods.
 

@@ -6,9 +6,8 @@ import {
 	Circle,
 	ExternalLink,
 	MessageSquare,
-	PhoneOff,
-	Plus,
-	XCircle,
+	Rocket,
+	Video,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -24,16 +23,18 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/lib/auth-client";
+import { cn } from "@/lib/utils";
 import { api } from "@/trpc/react";
+import { BotActionsDropdown } from "./_components/bot-actions-dropdown";
 import { BotDetailsDialog } from "./_components/bot-details-dialog";
+import { BroadcastCenterDialog } from "./_components/broadcast-center-dialog";
 import { CancelDeploymentDialog } from "./_components/cancel-deployment-dialog";
-import { MultiBotChatDialog } from "./_components/multi-bot-chat-dialog";
 import { MultiBotJoinDialog } from "./_components/multi-bot-join-dialog";
 import { RemoveFromCallDialog } from "./_components/remove-from-call-dialog";
 
 const STATUS_CONFIG: Record<
 	string,
-	{ color: string; bgColor: string; dotColor: string }
+	{ color: string; bgColor: string; dotColor: string; pulse?: boolean }
 > = {
 	CREATED: {
 		color: "text-slate-600 dark:text-slate-400",
@@ -44,28 +45,44 @@ const STATUS_CONFIG: Record<
 		color: "text-blue-600 dark:text-blue-400",
 		bgColor: "bg-blue-50 dark:bg-blue-950",
 		dotColor: "text-blue-500",
+		pulse: true,
 	},
 	JOINING_CALL: {
 		color: "text-amber-600 dark:text-amber-400",
 		bgColor: "bg-amber-50 dark:bg-amber-950",
 		dotColor: "text-amber-500",
+		pulse: true,
+	},
+	IN_WAITING_ROOM: {
+		color: "text-amber-600 dark:text-amber-400",
+		bgColor: "bg-amber-50 dark:bg-amber-950",
+		dotColor: "text-amber-500",
+		pulse: true,
 	},
 	IN_CALL: {
 		color: "text-green-600 dark:text-green-400",
 		bgColor: "bg-green-50 dark:bg-green-950",
 		dotColor: "text-green-500",
+		pulse: true,
 	},
 	RECORDING: {
 		color: "text-red-600 dark:text-red-400",
 		bgColor: "bg-red-50 dark:bg-red-950",
 		dotColor: "text-red-500",
+		pulse: true,
 	},
 	LEAVING: {
 		color: "text-orange-600 dark:text-orange-400",
 		bgColor: "bg-orange-50 dark:bg-orange-950",
 		dotColor: "text-orange-500",
+		pulse: true,
 	},
 	CALL_ENDED: {
+		color: "text-slate-600 dark:text-slate-400",
+		bgColor: "bg-slate-100 dark:bg-slate-800",
+		dotColor: "text-slate-400",
+	},
+	DONE: {
 		color: "text-slate-600 dark:text-slate-400",
 		bgColor: "bg-slate-100 dark:bg-slate-800",
 		dotColor: "text-slate-400",
@@ -84,12 +101,10 @@ function formatStatus(status: string): string {
 		.join(" ");
 }
 
-const ACTIVE_CALL_STATUSES = ["IN_WAITING_ROOM", "IN_CALL", "RECORDING"];
-
 export default function BotsPage() {
 	const [selectedBot, setSelectedBot] = useState<number | null>(null);
 	const [multiBotDialogOpen, setMultiBotDialogOpen] = useState(false);
-	const [multiBotChatDialogOpen, setMultiBotChatDialogOpen] = useState(false);
+	const [broadcastCenterOpen, setBroadcastCenterOpen] = useState(false);
 
 	const [botToRemove, setBotToRemove] = useState<{
 		id: number;
@@ -150,11 +165,26 @@ export default function BotsPage() {
 				return (
 					<Badge
 						variant="outline"
-						className={`${config.bgColor} ${config.color} border-transparent`}
+						className={cn(
+							config.bgColor,
+							config.color,
+							"border-transparent transition-all duration-200",
+						)}
 					>
-						<Circle
-							className={`h-2 w-2 fill-current ${config.dotColor} mr-1.5`}
-						/>
+						<span className="relative flex h-2 w-2 mr-1.5">
+							{config.pulse ? (
+								<span
+									className={cn(
+										"absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping",
+										config.dotColor,
+										"bg-current",
+									)}
+								/>
+							) : null}
+							<Circle
+								className={cn("relative h-2 w-2 fill-current", config.dotColor)}
+							/>
+						</span>
 						{formatStatus(status)}
 					</Badge>
 				);
@@ -167,17 +197,18 @@ export default function BotsPage() {
 				const recording = row.original.recording;
 
 				if (!recording) {
-					return <span className="text-muted-foreground">—</span>;
+					return <span className="text-muted-foreground/50">—</span>;
 				}
 
 				return (
 					<Link
 						href={recording}
 						target="_blank"
-						className="flex items-center gap-1 text-accent hover:underline"
+						className="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors"
 					>
+						<Video className="h-3.5 w-3.5" />
 						View
-						<ExternalLink className="h-3 w-3" />
+						<ExternalLink className="h-3 w-3 opacity-50" />
 					</Link>
 				);
 			},
@@ -199,52 +230,29 @@ export default function BotsPage() {
 		},
 		{
 			id: "actions",
+			header: () => <span className="sr-only">Actions</span>,
 			cell: ({ row }) => {
-				const isInActiveCall = ACTIVE_CALL_STATUSES.includes(
-					row.original.status,
-				);
-
-				const isDeploying = row.original.status === "DEPLOYING";
-
 				return (
-					<div className="flex items-center gap-2">
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={() => setSelectedBot(row.original.id)}
-						>
-							Details
-						</Button>
-						{isInActiveCall ? (
-							<Button
-								variant="destructive"
-								size="sm"
-								onClick={() =>
-									setBotToRemove({
-										id: row.original.id,
-										name: row.original.botDisplayName,
-									})
-								}
-							>
-								<PhoneOff className="h-4 w-4" />
-								Remove from Call
-							</Button>
-						) : null}
-						{isDeploying ? (
-							<Button
-								variant="secondary"
-								size="sm"
-								onClick={() =>
-									setBotToCancel({
-										id: row.original.id,
-										name: row.original.botDisplayName,
-									})
-								}
-							>
-								<XCircle className="h-4 w-4" />
-								Cancel
-							</Button>
-						) : null}
+					<div className="flex items-center justify-end">
+						<BotActionsDropdown
+							botId={row.original.id}
+							botName={row.original.botDisplayName}
+							status={row.original.status}
+							recording={row.original.recording}
+							onViewDetails={() => setSelectedBot(row.original.id)}
+							onRemoveFromCall={() =>
+								setBotToRemove({
+									id: row.original.id,
+									name: row.original.botDisplayName,
+								})
+							}
+							onCancelDeployment={() =>
+								setBotToCancel({
+									id: row.original.id,
+									name: row.original.botDisplayName,
+								})
+							}
+						/>
 					</div>
 				);
 			},
@@ -264,17 +272,17 @@ export default function BotsPage() {
 				<PageHeaderActions>
 					<Button
 						variant="outline"
-						onClick={() => setMultiBotChatDialogOpen(true)}
+						onClick={() => setBroadcastCenterOpen(true)}
 						disabled={!session?.user}
 					>
 						<MessageSquare className="h-4 w-4" />
-						Multi-Bot Chat
+						Broadcast
 					</Button>
 					<Button
 						onClick={() => setMultiBotDialogOpen(true)}
 						disabled={!session?.user}
 					>
-						<Plus className="h-4 w-4" />
+						<Rocket className="h-4 w-4" />
 						Deploy Bots
 					</Button>
 				</PageHeaderActions>
@@ -297,9 +305,9 @@ export default function BotsPage() {
 				onClose={() => setMultiBotDialogOpen(false)}
 			/>
 
-			<MultiBotChatDialog
-				open={multiBotChatDialogOpen}
-				onClose={() => setMultiBotChatDialogOpen(false)}
+			<BroadcastCenterDialog
+				open={broadcastCenterOpen}
+				onClose={() => setBroadcastCenterOpen(false)}
 				bots={bots}
 			/>
 

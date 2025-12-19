@@ -1,21 +1,10 @@
-import { spawn } from "node:child_process";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { eq } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 
-import { env } from "@/env";
 import type * as schema from "@/server/database/schema";
-import {
-	type BotConfig,
-	botPoolSlotsTable,
-	botsTable,
-} from "@/server/database/schema";
+import { type BotConfig, botsTable } from "@/server/database/schema";
 import { CoolifyDeploymentError } from "./coolify-service";
 import type { PlatformService } from "./platform";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 /**
  * Custom error for bot deployment failures
@@ -51,7 +40,7 @@ export class BotDeploymentService {
 	) {}
 
 	/**
-	 * Deploys a bot either locally (development) or via platform (production)
+	 * Deploys a bot via the configured platform service (local, Coolify, or AWS)
 	 *
 	 * @param botId - The ID of the bot to deploy
 	 * @param queueTimeoutMs - How long to wait in queue if resources exhausted (Coolify only)
@@ -71,7 +60,6 @@ export class BotDeploymentService {
 		}
 
 		const bot = botResult[0];
-		const isDev = env.NODE_ENV === "development";
 
 		const config: BotConfig = {
 			id: botId,
@@ -88,10 +76,6 @@ export class BotDeploymentService {
 			automaticLeave: bot.automaticLeave,
 			callbackUrl: bot.callbackUrl ?? undefined,
 		};
-
-		if (isDev) {
-			return await this.deployLocally(botId);
-		}
 
 		return await this.deployViaPlatform(botId, config, queueTimeoutMs);
 	}
@@ -119,69 +103,7 @@ export class BotDeploymentService {
 	}
 
 	/**
-	 * Deploys a bot locally for development
-	 */
-	private async deployLocally(botId: number): Promise<DeployBotResult> {
-		await this.db
-			.update(botsTable)
-			.set({ status: "DEPLOYING" })
-			.where(eq(botsTable.id, botId));
-
-		const botsDir = path.resolve(__dirname, "../../../../../bots");
-
-		// For local development, create a mock pool slot so bot can fetch config via API
-		// This mirrors the production flow where bots fetch config using POOL_SLOT_UUID
-		const mockPoolSlotUuid = `local-dev-${botId}-${Date.now()}`;
-
-		// Insert mock pool slot for local dev
-		await this.db.insert(botPoolSlotsTable).values({
-			coolifyServiceUuid: mockPoolSlotUuid,
-			slotName: `local-bot-${botId}`,
-			status: "busy",
-			assignedBotId: botId,
-			lastUsedAt: new Date(),
-		});
-
-		const botProcess = spawn("pnpm", ["start"], {
-			cwd: botsDir,
-			env: {
-				...process.env,
-				POOL_SLOT_UUID: mockPoolSlotUuid,
-				MILO_URL: env.NEXT_PUBLIC_APP_ORIGIN_URL,
-				MILO_AUTH_TOKEN: process.env.MILO_AUTH_TOKEN,
-			},
-		});
-
-		botProcess.stdout.on("data", (data) => {
-			console.log(`Bot ${botId} stdout: ${data}`);
-		});
-
-		botProcess.stderr.on("data", (data) => {
-			console.error(`Bot ${botId} stderr: ${data}`);
-		});
-
-		botProcess.on("error", (error) => {
-			console.error(`Bot ${botId} process error:`, error);
-		});
-
-		// Status stays as DEPLOYING - the bot itself will update to JOINING_CALL
-		// when it actually starts attempting to join the meeting
-		const result = await this.db
-			.select()
-			.from(botsTable)
-			.where(eq(botsTable.id, botId));
-
-		const updatedBot = result[0];
-
-		if (!updatedBot) {
-			throw new BotDeploymentError("Failed to retrieve bot after local deploy");
-		}
-
-		return { bot: updatedBot, queued: false };
-	}
-
-	/**
-	 * Deploys a bot via the configured platform (Coolify or AWS)
+	 * Deploys a bot via the configured platform (local, Coolify, or AWS)
 	 */
 	private async deployViaPlatform(
 		botId: number,

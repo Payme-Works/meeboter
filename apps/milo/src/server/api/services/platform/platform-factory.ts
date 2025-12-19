@@ -4,28 +4,44 @@ import { env } from "@/env";
 import { db } from "@/server/database/db";
 import { BotPoolService } from "../bot-pool-service";
 import { CoolifyService } from "../coolify-service";
+import { ImagePullLockService } from "../image-pull-lock-service";
 import {
 	type AWSBotEnvConfig,
 	type AWSPlatformConfig,
 	AWSPlatformService,
 } from "./aws-platform-service";
 import { CoolifyPlatformService } from "./coolify-platform-service";
+import { LocalPlatformService } from "./local-platform-service";
 import type { PlatformService } from "./platform-service";
 
 /**
  * Platform type for deployment
  */
-export type PlatformType = "coolify" | "aws" | "auto";
+export type PlatformType = "coolify" | "aws" | "local" | "auto";
 
 /**
  * Detects which platform to use based on available environment variables
  *
  * Priority:
- * 1. Coolify (if COOLIFY_API_URL is set and not a fake placeholder)
- * 2. AWS (if AWS_REGION and ECS_CLUSTER are set)
- * 3. Error if neither is configured
+ * 1. Local (in development mode, to avoid accidentally using production services)
+ * 2. Coolify (if COOLIFY_API_URL is set and not a fake placeholder)
+ * 3. AWS (if AWS_REGION and ECS_CLUSTER are set)
+ * 4. Error if neither is configured
+ *
+ * To use Coolify or AWS in development, explicitly set DEPLOYMENT_PLATFORM.
  */
-function detectPlatform(): "coolify" | "aws" {
+function detectPlatform(): "coolify" | "aws" | "local" {
+	// In development, default to local to avoid accidentally using production services
+	// Use DEPLOYMENT_PLATFORM=coolify or DEPLOYMENT_PLATFORM=aws to override
+	if (env.NODE_ENV === "development") {
+		console.log(
+			"[PlatformFactory] Development mode, defaulting to local platform. " +
+				"Set DEPLOYMENT_PLATFORM=coolify or DEPLOYMENT_PLATFORM=aws to override.",
+		);
+
+		return "local";
+	}
+
 	// Check for Coolify configuration
 	// Note: env.js provides fake defaults for development, so we check for real values
 	const hasCoolify =
@@ -45,23 +61,17 @@ function detectPlatform(): "coolify" | "aws" {
 		return "aws";
 	}
 
-	// In development or during build (SKIP_ENV_VALIDATION), default to Coolify
-	const isDevelopmentOrBuild =
-		env.NODE_ENV === "development" || process.env.SKIP_ENV_VALIDATION;
-
-	if (isDevelopmentOrBuild) {
-		console.log(
-			"[PlatformFactory] Development/build mode, defaulting to Coolify",
-		);
-
-		return "coolify";
+	// During build (SKIP_ENV_VALIDATION), default to local
+	if (process.env.SKIP_ENV_VALIDATION) {
+		return "local";
 	}
 
 	throw new Error(
 		"Unable to detect deployment platform. " +
 			"Set DEPLOYMENT_PLATFORM environment variable or provide platform-specific configuration. " +
 			"For Coolify: COOLIFY_API_URL, COOLIFY_API_TOKEN. " +
-			"For AWS: AWS_REGION, ECS_CLUSTER, ECS_SUBNETS.",
+			"For AWS: AWS_REGION, ECS_CLUSTER, ECS_SUBNETS. " +
+			"For Local: Set DEPLOYMENT_PLATFORM=local.",
 	);
 }
 
@@ -93,7 +103,8 @@ function createCoolifyPlatformService(): CoolifyPlatformService {
 		},
 	);
 
-	const poolService = new BotPoolService(db, coolifyService);
+	const imagePullLock = new ImagePullLockService();
+	const poolService = new BotPoolService(db, coolifyService, imagePullLock);
 
 	return new CoolifyPlatformService(poolService, coolifyService);
 }
@@ -136,15 +147,52 @@ function createAWSPlatformService(): AWSPlatformService {
 }
 
 /**
+ * Creates a local platform service instance for development
+ */
+function createLocalPlatformService(): LocalPlatformService {
+	return new LocalPlatformService({
+		miloUrl: env.NEXT_PUBLIC_APP_ORIGIN_URL,
+		miloAuthToken: env.MILO_AUTH_TOKEN ?? "",
+		s3Endpoint: env.S3_ENDPOINT,
+		s3AccessKey: env.S3_ACCESS_KEY,
+		s3SecretKey: env.S3_SECRET_KEY,
+		s3BucketName: env.S3_BUCKET_NAME,
+		s3Region: env.S3_REGION,
+	});
+}
+
+/**
  * Creates a platform service based on configuration
  *
  * Uses DEPLOYMENT_PLATFORM environment variable if set,
  * otherwise auto-detects based on available configuration.
  *
+ * In development mode, ALWAYS defaults to local platform to prevent
+ * accidentally using production services. Set DEPLOYMENT_PLATFORM=coolify
+ * or DEPLOYMENT_PLATFORM=aws AND FORCE_REMOTE_PLATFORM=true to override.
+ *
  * @returns Configured platform service instance
  */
 export function createPlatformService(): PlatformService {
 	const configuredPlatform = env.DEPLOYMENT_PLATFORM;
+
+	// In development mode, ALWAYS use local unless explicitly forced
+	if (env.NODE_ENV === "development" && configuredPlatform !== "local") {
+		const forceRemote = process.env.FORCE_REMOTE_PLATFORM === "true";
+
+		if (!forceRemote) {
+			console.log(
+				"[PlatformFactory] Development mode, using local platform. " +
+					`To use ${configuredPlatform}, set FORCE_REMOTE_PLATFORM=true`,
+			);
+
+			return createLocalPlatformService();
+		}
+
+		console.log(
+			`[PlatformFactory] Development mode, FORCE_REMOTE_PLATFORM=true, using ${configuredPlatform}`,
+		);
+	}
 
 	const platform =
 		configuredPlatform === "auto" ? detectPlatform() : configuredPlatform;
@@ -159,6 +207,10 @@ export function createPlatformService(): PlatformService {
 		return createAWSPlatformService();
 	}
 
+	if (platform === "local") {
+		return createLocalPlatformService();
+	}
+
 	throw new Error(`Unknown deployment platform: ${platform}`);
 }
 
@@ -166,9 +218,19 @@ export function createPlatformService(): PlatformService {
  * Gets the currently configured platform type
  *
  * Useful for conditional logic based on platform without creating the service.
+ * Returns "local" in development mode unless FORCE_REMOTE_PLATFORM=true.
  */
-export function getPlatformType(): "coolify" | "aws" {
+export function getPlatformType(): "coolify" | "aws" | "local" {
 	const configuredPlatform = env.DEPLOYMENT_PLATFORM;
+
+	// In development mode, ALWAYS return local unless explicitly forced
+	if (env.NODE_ENV === "development" && configuredPlatform !== "local") {
+		const forceRemote = process.env.FORCE_REMOTE_PLATFORM === "true";
+
+		if (!forceRemote) {
+			return "local";
+		}
+	}
 
 	return configuredPlatform === "auto" ? detectPlatform() : configuredPlatform;
 }

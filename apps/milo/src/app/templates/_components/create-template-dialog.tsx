@@ -1,8 +1,9 @@
 "use client";
 
-import { Plus, X } from "lucide-react";
+import { GripVertical, Loader2, Plus, Shuffle, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -14,6 +15,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 import { api } from "@/trpc/react";
 
 interface CreateTemplateDialogProps {
@@ -95,90 +98,166 @@ export function CreateTemplateDialog({
 		});
 	};
 
+	const filledCount = messages.filter((m) => m.value.trim()).length;
+
 	return (
 		<Dialog open={open} onOpenChange={handleClose}>
 			<DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
 				<DialogHeader>
 					<DialogTitle>Create Message Template</DialogTitle>
 					<DialogDescription>
-						Create a template with multiple message variations. Each bot will
-						randomly select one variation when sending.
+						Build a template with multiple variations for natural, randomized
+						messaging
 					</DialogDescription>
 				</DialogHeader>
 
-				<form onSubmit={handleSubmit} className="space-y-4">
-					<div className="space-y-2">
-						<Label htmlFor="templateName">Template Name</Label>
+				<form onSubmit={handleSubmit} className="space-y-6">
+					{/* Template Name */}
+					<div>
+						<Label htmlFor="templateName" className="text-sm font-medium">
+							Template Name
+						</Label>
 						<Input
 							id="templateName"
 							value={templateName}
 							onChange={(e) => setTemplateName(e.target.value)}
-							placeholder="Enter template name..."
+							placeholder="e.g., Greeting Messages, Follow-up Reminders..."
+							className="mt-2"
 							required
 						/>
 					</div>
 
-					<div className="space-y-2">
-						<Label>Message Variations</Label>
-						<p className="text-sm text-muted-foreground">
-							Add multiple message variations. Each bot will randomly choose one
-							when sending.
-						</p>
+					{/* Message Variations */}
+					<div className="space-y-4">
+						<div className="flex items-center justify-between">
+							<div className="flex items-center gap-2">
+								<Label className="text-sm font-medium">
+									Message Variations
+								</Label>
+								<Badge
+									variant="secondary"
+									className={cn(
+										"text-xs",
+										filledCount > 0
+											? "bg-primary/10 text-primary border-primary/20"
+											: "bg-muted text-muted-foreground",
+									)}
+								>
+									{filledCount} of {messages.length}
+								</Badge>
+							</div>
+							<div className="flex items-center gap-1 text-xs text-muted-foreground">
+								<Shuffle className="h-3 w-3" />
+								Random selection
+							</div>
+						</div>
 
 						<div className="space-y-3">
 							{messages.map((message, index) => (
-								<div key={message.id} className="flex gap-2">
-									<div className="flex-1 space-y-1">
-										<Label className="text-xs text-muted-foreground">
-											Variation {index + 1}
-										</Label>
-										<Input
-											value={message.value}
-											onChange={(e) =>
-												updateMessage(message.id, e.target.value)
-											}
-											placeholder={`Enter message variation ${index + 1}...`}
-											className="min-h-[40px]"
-										/>
+								<div
+									key={message.id}
+									className="group relative bg-muted/30 border rounded-lg p-3 transition-all duration-150 hover:border-primary/30 focus-within:border-primary/50 focus-within:bg-muted/50"
+								>
+									{/* Card Header */}
+									<div className="flex items-center justify-between mb-2">
+										<div className="flex items-center gap-2">
+											<div className="flex items-center gap-1 text-muted-foreground/50">
+												<GripVertical className="h-4 w-4" />
+											</div>
+											<Badge
+												variant="outline"
+												className="h-5 px-1.5 text-[10px] font-mono bg-background"
+											>
+												#{index + 1}
+											</Badge>
+										</div>
+
+										<div className="flex items-center gap-2">
+											<span
+												className={cn(
+													"text-[10px] font-mono transition-colors",
+													message.value.length > 0
+														? "text-muted-foreground"
+														: "text-muted-foreground/40",
+												)}
+											>
+												{message.value.length}/500
+											</span>
+
+											{messages.length > 1 && (
+												<Button
+													type="button"
+													variant="ghost"
+													size="icon"
+													onClick={() => removeMessage(message.id)}
+													className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-white hover:bg-destructive"
+												>
+													<Trash2 className="h-3 w-3" />
+												</Button>
+											)}
+										</div>
 									</div>
 
-									{messages.length > 1 && (
-										<Button
-											type="button"
-											variant="ghost"
-											size="sm"
-											onClick={() => removeMessage(message.id)}
-											className="mt-6 text-destructive hover:text-destructive"
-										>
-											<X className="h-4 w-4" />
-										</Button>
-									)}
+									{/* Message Input */}
+									<Textarea
+										value={message.value}
+										onChange={(e) => updateMessage(message.id, e.target.value)}
+										placeholder={getPlaceholder(index)}
+										maxLength={500}
+										className="min-h-[60px] resize-none border-0 bg-transparent p-0 focus-visible:ring-0 text-sm placeholder:text-muted-foreground/50"
+									/>
 								</div>
 							))}
-						</div>
 
-						<Button
-							type="button"
-							variant="outline"
-							size="sm"
-							onClick={addMessage}
-							className="w-full"
-						>
-							<Plus className="h-4 w-4 mr-2" />
-							Add Another Variation
-						</Button>
+							{/* Add Variation Button */}
+							<button
+								type="button"
+								onClick={addMessage}
+								className="w-full flex items-center justify-center gap-2 py-4 border-2 border-dashed rounded-lg text-sm text-muted-foreground hover:text-primary hover:border-primary/50 hover:bg-primary/5 transition-all duration-150"
+							>
+								<Plus className="h-4 w-4" />
+								Add Variation
+							</button>
+						</div>
 					</div>
 
-					<DialogFooter className="flex gap-2">
-						<Button type="button" variant="outline" onClick={handleClose}>
-							Cancel
-						</Button>
-						<Button type="submit" disabled={createTemplate.isPending}>
-							{createTemplate.isPending ? "Creating..." : "Create Template"}
-						</Button>
+					<DialogFooter className="flex-col sm:flex-row sm:justify-between gap-4">
+						<p className="text-xs text-muted-foreground">
+							Bots randomly select one variation per message
+						</p>
+						<div className="flex gap-2">
+							<Button type="button" variant="outline" onClick={handleClose}>
+								Cancel
+							</Button>
+							<Button
+								type="submit"
+								disabled={createTemplate.isPending || filledCount === 0}
+							>
+								{createTemplate.isPending ? (
+									<>
+										<Loader2 className="h-4 w-4 animate-spin" />
+										Creating...
+									</>
+								) : (
+									"Create Template"
+								)}
+							</Button>
+						</div>
 					</DialogFooter>
 				</form>
 			</DialogContent>
 		</Dialog>
 	);
+}
+
+function getPlaceholder(index: number): string {
+	const placeholders = [
+		"Hi there! Just wanted to check in...",
+		"Hey! Hope you're doing well...",
+		"Hello! Quick question for you...",
+		"Hi! Following up on our conversation...",
+		"Hey there! Just a friendly reminder...",
+	];
+
+	return placeholders[index % placeholders.length] ?? "Enter your message...";
 }

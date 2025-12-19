@@ -75,7 +75,9 @@ export const env = createEnv({
 		NEXT_PUBLIC_APP_ORIGIN_URL: z.url(),
 
 		// Platform Selection
-		DEPLOYMENT_PLATFORM: z.enum(["coolify", "aws", "auto"]).default("auto"),
+		DEPLOYMENT_PLATFORM: z
+			.enum(["coolify", "aws", "local", "auto"])
+			.default("auto"),
 
 		// AWS ECS Configuration (required when DEPLOYMENT_PLATFORM=aws)
 		AWS_REGION: z.string().optional(),

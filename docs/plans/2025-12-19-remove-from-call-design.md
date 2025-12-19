@@ -1,5 +1,7 @@
 # Remove from Call Feature Design
 
+**Status**: ✅ Implemented
+
 ## Overview
 
 Add a "Remove from Call" action allowing users to manually remove bots from meetings. This addresses three user scenarios:

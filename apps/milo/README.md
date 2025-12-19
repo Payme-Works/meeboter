@@ -1,178 +1,210 @@
-# Meeboter Next.JS Server
+# Milo - Meeboter API Server
 
-The `server` folder contains the backend implementation of the Meeboter application.
-It is built using **Next.js** and includes APIs, database configurations, authentication, and other server-side utilities.
+The Milo app is the backend API server for Meeboter, built with **Next.js** and **tRPC**. It manages bot deployments, authentication, pool management, and API endpoints for the meeting bot platform.
 
-This document provides an overview of the folder structure and how the components work together.
+## Getting Started
 
-## **Getting Started**
-
-To run the server locally, follow these steps:
-
-Copy the `.env.example` file to `.env` and set the environment variables.
+Copy the `.env.example` file to `.env` and configure the environment variables:
 
 ```bash
 cp .env.example .env
 ```
 
-Install dependencies:
+Install dependencies and run the development server:
 
 ```bash
 bun install
-```
-
-Run the development server:
-
-```bash
 bun dev
 ```
 
----
-
-## **Folder Structure**
-
-### **public**
-
-Provides assets and static files for the front-end application.
-This includes images, fonts, and other resources that are publicly accessible.
+The server runs on `http://localhost:3000` by default.
 
 ---
 
-### **drizzle**
-
-Contains database migration files and schema definitions for the application.
-
-- **Migrations**: SQL files for creating and updating database tables.
-- **Schema Definitions**: Defines the structure of tables and relationships using Drizzle ORM.
-
----
-
-### **tests-e2e**
-
-Contains end-to-end tests for the frontend and backend application -- ensuring the application works as expected from a user's perspective.
-It also includes Frontend component tests to ensure our visual components are working as expected.
-
----
+## Architecture Overview
 
 ```
-src/server
-├── README.md
-├── jest.setup.js
-├── next.config.js
-├── playwright.config.ts
-├── package.json (with workspaces)
-├── postcss.config.js
-├── prettier.config.js
-├── drizzle
-│ ├── 0000_square_exiles.sql
-│ └── config.ts
-|
-├── public
-│ └── platform-logos
-|
-├── src
-│ ├── app                  # The Actual Endpoint Routes
-│ │ ├── tests
-│ │ ├── api                 # Backend API routes for the application.
-│ │ │ ├── auth
-│ │ │ │ └── route.ts
-│ │ │ ├── trpc
-│ │ │ │ └── [trpc]
-│ │ │ │   └── route.ts
-│ │ │ └── [...trpc]
-│ │ │   └── route.ts
-│ │ ├── bots                # (Page) Bots page for managing bots.
-│ │ │ └── page.tsx
-│ │ ├── components          # Reusable components for the application.
-│ │ ├── docs                # (Page) Documentation page for the application.
-│ │ ├── keys                # (Page) Key management page for managing API keys.
-│ │ ├── usage               # (Page) Usage page for displaying usage statistics.
-│ │ ├── page.tsx            # (Page) Main page of the frontend application.
-│ │ └── __tests__           # tests for frontend
-│ |
-│ ├── components
-│ ├── lib
-│ ├── styles                # Global Styles
-| ├── trpc                  # tRPC access
-| |
-| ├── server                  # Configuration files for the server-side application
-│ │ ├── api
-│ │ │ ├── routers             # tRPC endPoints -- the actual backend APIS
-│ │ │ │ ├── apiKeys.ts           # API keys management APIs
-│ │ │ │ ├── bots.ts              # Bots management APIs
-│ │ │ │ ├── events.ts            # Event APIs
-│ │ │ │ └── usage.ts             # Usage Rate APIs
-│ │ │ ├── services            # Service functions for backend to use
-│ │ │ │ └── botDeployment.ts    # Deploying Bot functionality
-│ │ │ ├── root.ts             # Main Router
-│ │ │ └── trpc.ts
-│ │ |
-│ │ ├── auth               # Authentication Configuration
-│ │ │ ├── config.ts
-│ │ │ └── index.ts
-│ │ ├── db                 # Database configuration and schema definitions.
-│ │ │ ├── index.ts
-│ │ │ └── schema.ts
-│ │ ├── utils              # Utility functions and helpers for the server-side application.
-│ │ │ └── s3.ts
-│ │ └── botDeployment.ts   # File for deploying bots to the server.
+apps/milo/
+├── drizzle/                    # Database migrations
+├── public/                     # Static assets
+├── src/
+│   ├── app/                    # Next.js App Router pages
+│   │   ├── api/                # API routes (tRPC, auth)
+│   │   ├── bots/               # Bot management UI
+│   │   ├── docs/               # API documentation
+│   │   ├── keys/               # API key management
+│   │   └── usage/              # Usage statistics
+│   │
+│   ├── components/             # React components
+│   ├── lib/                    # Utilities and helpers
+│   ├── styles/                 # Global styles
+│   ├── trpc/                   # tRPC client configuration
+│   │
+│   └── server/                 # Backend implementation
+│       ├── api/
+│       │   ├── routers/        # tRPC endpoints
+│       │   ├── services/       # Core business logic
+│       │   ├── root.ts         # Main tRPC router
+│       │   └── trpc.ts         # tRPC setup & middleware
+│       │
+│       ├── auth/               # Authentication (Better-Auth)
+│       └── database/           # Drizzle ORM configuration
+│
+└── tests-e2e/                  # End-to-end tests
 ```
 
-In essense:
+---
 
-- `src/server/src/app` contains the frontend application code, pages, and components.
-- `src/server/src/server` contains the backend application code, including API routes, authentication, database configuration, and utility functions.
-- `src/server/src/app/api` gives access to the backend API routes.
+## Core Services
+
+### Platform Abstraction (`services/platform/`)
+
+Meeboter supports multiple deployment platforms through a unified interface:
+
+| File | Description |
+|------|-------------|
+| `platform-service.ts` | Abstract platform interface |
+| `platform-factory.ts` | Creates platform service based on config |
+| `coolify-platform-service.ts` | Coolify pool-based deployment |
+| `aws-platform-service.ts` | AWS ECS task-based deployment |
+| `local-platform-service.ts` | Local development mode |
+
+### Bot Pool Service (`bot-pool-service.ts`)
+
+Manages the Coolify-based bot container pool:
+
+- **Slot allocation**: Assigns idle slots to incoming bots
+- **Queue management**: Queues bots when pool is exhausted
+- **Advisory locking**: Prevents race conditions with PostgreSQL locks
+- **Slot lifecycle**: Handles slot creation, configuration, and release
+
+### Image Pull Lock Service (`image-pull-lock-service.ts`)
+
+Coordinates Docker image pulls to prevent redundant parallel downloads:
+
+- When multiple bots deploy simultaneously, only the first pulls the image
+- Subsequent deployments wait for the pull to complete, then use cached image
+- Reduces bandwidth usage and deployment time
+
+### Slot Recovery Service (`slot-recovery.ts`)
+
+Recovers orphaned or error-state pool slots:
+
+- Detects stuck deployments via timeout
+- Recovers error slots by recreating Coolify applications
+- Cleans up slots that cannot be recovered
+
+### Bot Heartbeat Monitor (`bot-heartbeat-monitor.ts`)
+
+Monitors bot health through heartbeat signals:
+
+- Tracks last heartbeat timestamp for each active bot
+- Marks bots as failed if heartbeat timeout exceeded
+- Releases slots when bots become unresponsive
+
+### Coolify Service (`coolify-service.ts`)
+
+Interfaces with the Coolify API for container management:
+
+- Creates and configures Coolify applications
+- Starts/stops containers
+- Manages environment variables
+- Handles deployment callbacks
+
+### Bot Deployment Service (`bot-deployment-service.ts`)
+
+High-level orchestration of bot deployments:
+
+- Coordinates between platform service and database
+- Handles deployment lifecycle events
+- Manages bot status transitions
 
 ---
 
-## **Key Components**
+## tRPC Routers (`routers/`)
 
-### **tRPC API**
-
-- The tRPC API is initialized in `api/trpc.ts`.
-- Provides a type-safe way to define and consume APIs.
-- Includes middleware for authentication and request timing.
-
-### **Authentication**
-
-- Authentication is handled using NextAuth in `auth`.
-- Supports session-based authentication and API key-based authentication.
-
-### **Database**
-
-- The database is configured using Drizzle ORM in `db`.
-- Schema definitions include tables for users, API keys, and request logs.
-
-### **Styling**
-
-- Global styles are defined in `/globals.css`.
-- Uses TailwindCSS for utility-first styling.
+| Router | Purpose |
+|--------|---------|
+| `bots.ts` | Bot CRUD, deployment, status updates, remove from call |
+| `pool.ts` | Pool statistics, slot configuration endpoints |
+| `api-keys.ts` | API key management |
+| `events.ts` | Bot event logging and retrieval |
+| `usage.ts` | Usage statistics and billing |
+| `chat.ts` | Meeting chat/transcript functionality |
 
 ---
 
-## **How It Works**
+## Key Features
 
-1. **API Requests**:
-   - API requests are routed through tRPC procedures defined in `api/trpc.ts`.
-   - Middleware ensures authentication and logs request details.
+### Bot Deployment Flow
 
-2. **Authentication**:
-   - Users can authenticate using NextAuth or API keys.
-   - API keys are validated against the database and logged for auditing.
+1. User creates bot with meeting details
+2. System acquires pool slot (or queues if pool exhausted)
+3. Image pull lock coordinates container image download
+4. Coolify configures and starts the container
+5. Bot joins meeting and sends heartbeats
+6. On completion, slot is released and returned to pool
 
-3. **Database Operations**:
-   - Database interactions are performed using Drizzle ORM.
-   - Schema definitions ensure type safety and consistency.
+### Pool Management
 
-4. **Styling**:
-   - TailwindCSS utilities are applied globally through `globals.css`.
-   - Themes and custom variants are defined for consistent styling.
+- Up to 100 concurrent bot slots
+- Queue system for overflow (FIFO with estimated wait time)
+- Automatic slot recovery for failed deployments
+- Per-platform slot naming (google-meet-slot-001, etc.)
+
+### Authentication
+
+- Session-based authentication via Better-Auth
+- API key authentication for programmatic access
+- Protected tRPC procedures for authenticated endpoints
 
 ---
 
-## **Development Notes**
+## Database
 
-- Use `bun` for managing dependencies. The workspace is defined in the root `package.json`.
-- Jest is configured for testing with `jest.setup.js`.
-- Follow the folder structure and naming conventions for consistency.
+Uses **Drizzle ORM** with PostgreSQL:
+
+- `drizzle/` - SQL migration files
+- `server/database/db.ts` - Database client
+- `server/database/schema.ts` - Table definitions
+
+Key tables: `bots`, `bot_pool_slots`, `api_keys`, `events`, `users`
+
+---
+
+## Development
+
+### Running Tests
+
+```bash
+bun run test          # Unit tests
+bun run test:e2e      # E2E tests with Playwright
+```
+
+### Type Checking and Linting
+
+```bash
+bun run typecheck
+bun run lint
+```
+
+### Building
+
+```bash
+bun run build
+```
+
+---
+
+## Environment Variables
+
+See `.env.example` for required configuration. Key variables:
+
+| Variable | Purpose |
+|----------|---------|
+| `DATABASE_URL` | PostgreSQL connection string |
+| `DEPLOYMENT_PLATFORM` | `coolify`, `aws`, or `auto` |
+| `COOLIFY_API_URL` | Coolify API endpoint |
+| `COOLIFY_API_TOKEN` | Coolify authentication token |
+| `MILO_AUTH_TOKEN` | Token for bot-to-API authentication |
+| `S3_*` | Object storage configuration |

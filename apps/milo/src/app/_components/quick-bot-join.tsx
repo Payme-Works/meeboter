@@ -346,7 +346,7 @@ export function QuickBotJoin() {
 								) : (
 									<>
 										<Rocket className="h-4 w-4" />
-										Deploy {botCount > 1 ? `${botCount} Bots` : "Bot"}
+										Deploy {botCount > 1 ? `${botCount} Bots` : ""}
 									</>
 								)}
 							</Button>

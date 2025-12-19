@@ -3,6 +3,7 @@ import { db } from "@/server/database/db";
 import { BotDeploymentService } from "./bot-deployment-service";
 import { BotPoolService } from "./bot-pool-service";
 import { CoolifyService } from "./coolify-service";
+import { ImagePullLockService } from "./image-pull-lock-service";
 import {
 	createPlatformService,
 	getPlatformType,
@@ -63,7 +64,8 @@ function createServices(): Services {
 			},
 		);
 
-		const pool = new BotPoolService(db, coolify);
+		const imagePullLock = new ImagePullLockService();
+		const pool = new BotPoolService(db, coolify, imagePullLock);
 
 		services.coolify = coolify;
 		services.pool = pool;

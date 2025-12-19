@@ -9,6 +9,7 @@ import {
 	botsTable,
 } from "@/server/database/schema";
 import type { CoolifyService } from "./coolify-service";
+import type { ImagePullLockService } from "./image-pull-lock-service";
 
 /** Maximum number of pool slots allowed */
 const MAX_POOL_SIZE = 100;
@@ -130,6 +131,7 @@ export class BotPoolService {
 	constructor(
 		private readonly db: PostgresJsDatabase<typeof schema>,
 		private readonly coolify: CoolifyService,
+		private readonly imagePullLock: ImagePullLockService,
 	) {}
 
 	// ─────────────────────────────────────────────────────────────────────────
@@ -391,8 +393,12 @@ export class BotPoolService {
 	 * If the Coolify application has been deleted externally, this function
 	 * will automatically recreate it and update the slot in the database.
 	 *
-	 * Returns immediately with `deploying` status for optimistic UI feedback.
-	 * The status transition to `busy` or `error` happens in the background.
+	 * Uses image pull lock to coordinate deployments:
+	 * - First deployer: waits for deployment to complete (pulls image), then releases lock
+	 * - Subsequent deployers: waited for lock, image is cached, can fire-and-forget
+	 *
+	 * Returns immediately with `deploying` status for optimistic UI feedback
+	 * (except for first deployer which waits for image pull).
 	 */
 	async configureAndStartSlot(
 		slot: PoolSlot,
@@ -430,17 +436,50 @@ export class BotPoolService {
 			botConfig.id,
 		);
 
+		// Get platform info for image pull lock
+		const image = this.coolify.selectBotImage(botConfig.meetingInfo);
+
+		const platformName = this.getPlatformSlotName(
+			botConfig.meetingInfo.platform,
+		);
+
+		// Acquire image pull lock to prevent parallel pulls of the same image
+		// This ensures only the first deployment pulls the image, others wait and use cache
+		const { release: releaseLock, isFirstDeployer } =
+			await this.imagePullLock.acquireLock(platformName, image.tag);
+
 		console.log(`[Pool] Starting container for slot ${activeSlot.slotName}`);
 		await this.coolify.startApplication(activeSlot.coolifyServiceUuid);
 
-		// Fire-and-forget: wait for deployment in background, return immediately
-		// This provides optimistic feedback to the user
-		this.waitAndTransitionStatus(activeSlot, botConfig.id).catch((error) => {
-			console.error(
-				`[Pool] Background status transition failed for ${activeSlot.slotName}:`,
-				error,
+		if (isFirstDeployer) {
+			// First deployer: wait for deployment to complete before releasing lock
+			// This ensures image is fully pulled and cached before others proceed
+			console.log(
+				`[Pool] First deployer for ${platformName}:${image.tag}, waiting for deployment to complete...`,
 			);
-		});
+
+			try {
+				await this.waitAndTransitionStatus(activeSlot, botConfig.id);
+				releaseLock();
+			} catch (error) {
+				releaseLock(error instanceof Error ? error : new Error(String(error)));
+
+				throw error;
+			}
+		} else {
+			// Not first deployer: image is cached, can fire-and-forget
+			// This provides optimistic feedback to the user
+			console.log(
+				`[Pool] Image cached for ${platformName}:${image.tag}, proceeding with background deployment`,
+			);
+
+			this.waitAndTransitionStatus(activeSlot, botConfig.id).catch((error) => {
+				console.error(
+					`[Pool] Background status transition failed for ${activeSlot.slotName}:`,
+					error,
+				);
+			});
+		}
 
 		// Return immediately with deploying status for optimistic UI feedback
 		return { ...activeSlot, status: "deploying" as const };
@@ -1088,8 +1127,10 @@ export class BotPoolService {
 			callbackUrl: bot.callbackUrl ?? undefined,
 		};
 
+		let coolifyServiceUuid: string;
+
 		try {
-			const coolifyServiceUuid = await this.coolify.createApplication(
+			coolifyServiceUuid = await this.coolify.createApplication(
 				botId,
 				image,
 				placeholderConfig,
