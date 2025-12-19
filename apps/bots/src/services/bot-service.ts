@@ -156,12 +156,7 @@ export class BotService {
 				case "zoom": {
 					const { ZoomBot } = await import("../../providers/zoom/src/bot");
 
-					bot = new ZoomBot(
-						config,
-						placeholderHandler,
-						this.trpc,
-						this.logger,
-					);
+					bot = new ZoomBot(config, placeholderHandler, this.trpc, this.logger);
 
 					break;
 				}

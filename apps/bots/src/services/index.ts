@@ -13,17 +13,6 @@ export {
 	parseLogLevel,
 	type ScreenshotData,
 } from "../logger";
-// Re-export services and types for convenience
-export {
-	type BotInterface,
-	BotService,
-	type CreateBotOptions,
-} from "./bot-service";
-export {
-	createS3ServiceFromEnv,
-	S3Service,
-	type S3ServiceConfig,
-} from "./s3-service";
 export {
 	type AutomaticLeave,
 	type BotConfig,
@@ -36,6 +25,17 @@ export {
 	type TrpcClient,
 	type TrpcClientOptions,
 } from "../trpc";
+// Re-export services and types for convenience
+export {
+	type BotInterface,
+	BotService,
+	type CreateBotOptions,
+} from "./bot-service";
+export {
+	createS3ServiceFromEnv,
+	S3Service,
+	type S3ServiceConfig,
+} from "./s3-service";
 
 /**
  * Container for all services in the application

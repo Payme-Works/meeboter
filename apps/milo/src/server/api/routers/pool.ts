@@ -8,6 +8,10 @@ import {
 	botsTable,
 	poolSlotStatus,
 } from "@/server/database/schema";
+import {
+	type PoolSlotSyncResult,
+	PoolSlotSyncWorker,
+} from "@/server/workers/pool-slot-sync.worker";
 import { services } from "../services";
 
 /**
@@ -288,16 +292,55 @@ const queueRouter = createTRPCRouter({
 });
 
 /**
+ * Output schema for sync result
+ */
+const syncResultSchema = z.object({
+	coolifyOrphansDeleted: z.number(),
+	databaseOrphansDeleted: z.number(),
+	totalCoolifyApps: z.number(),
+	totalDatabaseSlots: z.number(),
+});
+
+/**
  * Main pool router with nested sub-routers
  *
  * Structure:
  * - pool.statistics.getPool
  * - pool.statistics.getQueue
  * - pool.slots.list
+ * - pool.slots.delete
  * - pool.queue.list
+ * - pool.sync
  */
 export const poolRouter = createTRPCRouter({
 	statistics: statisticsRouter,
 	slots: slotsRouter,
 	queue: queueRouter,
+
+	/**
+	 * Manually trigger pool slot synchronization.
+	 *
+	 * Compares Coolify applications with database pool slots and removes orphans:
+	 * - Coolify apps not in database are deleted from Coolify
+	 * - Database slots not in Coolify are deleted from database
+	 */
+	sync: protectedProcedure
+		.input(z.void())
+		.output(syncResultSchema)
+		.mutation(async ({ ctx }): Promise<PoolSlotSyncResult> => {
+			if (!services.coolify) {
+				throw new TRPCError({
+					code: "NOT_IMPLEMENTED",
+					message: "Pool sync is only available when using Coolify platform",
+				});
+			}
+
+			// Create a worker instance for manual execution (no interval)
+			const syncWorker = new PoolSlotSyncWorker(ctx.db, services, {
+				intervalMs: 0,
+				runOnStart: false,
+			});
+
+			return await syncWorker.executeNow();
+		}),
 });

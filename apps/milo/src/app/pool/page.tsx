@@ -1,7 +1,8 @@
 "use client";
 
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, RefreshCwOff } from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { LiveIndicator } from "@/components/live-indicator";
 import {
 	PageHeader,
@@ -50,6 +51,33 @@ export default function PoolPage() {
 		refetchOnWindowFocus: true,
 	});
 
+	// Sync mutation for manual pool synchronization
+	const syncMutation = api.pool.sync.useMutation({
+		onSuccess: (result) => {
+			const totalDeleted =
+				result.coolifyOrphansDeleted + result.databaseOrphansDeleted;
+
+			if (totalDeleted === 0) {
+				toast.success("Pool is in sync", {
+					description: `${result.totalCoolifyApps} Coolify apps, ${result.totalDatabaseSlots} database slots`,
+				});
+			} else {
+				toast.success("Pool synchronized", {
+					description: `Deleted ${result.coolifyOrphansDeleted} Coolify orphans, ${result.databaseOrphansDeleted} database orphans`,
+				});
+			}
+
+			// Refresh data after sync
+			void poolStats.refetch();
+			void slots.refetch();
+		},
+		onError: (error) => {
+			toast.error("Sync failed", {
+				description: error.message,
+			});
+		},
+	});
+
 	// Update last updated timestamp when data changes
 	useEffect(() => {
 		if (poolStats.data || slots.data) {
@@ -86,6 +114,17 @@ export default function PoolPage() {
 
 				<PageHeaderActions>
 					<LiveIndicator lastUpdated={lastUpdated} />
+					<Button
+						variant="outline"
+						size="sm"
+						onClick={() => syncMutation.mutate()}
+						disabled={syncMutation.isPending}
+					>
+						<RefreshCwOff
+							className={`h-4 w-4 ${syncMutation.isPending ? "animate-spin" : ""}`}
+						/>
+						Sync
+					</Button>
 					<Button
 						variant="outline"
 						size="sm"

@@ -9,7 +9,6 @@ import {
 	type SpeakerTimeframe,
 	STATUS_EVENT_CODES,
 	Status,
-	type TrpcClient,
 } from "./trpc";
 
 /**
@@ -432,12 +431,7 @@ export const createBot = async (
 		case "teams": {
 			const { MicrosoftTeamsBot } = await import("../providers/teams/src/bot");
 
-			bot = new MicrosoftTeamsBot(
-				botData,
-				placeholderHandler,
-				trpc,
-				logger,
-			);
+			bot = new MicrosoftTeamsBot(botData, placeholderHandler, trpc, logger);
 
 			break;
 		}

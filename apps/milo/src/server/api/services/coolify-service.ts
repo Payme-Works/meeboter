@@ -77,6 +77,14 @@ export class CoolifyDeploymentError extends Error {
 }
 
 /**
+ * Coolify application summary for listing
+ */
+export interface CoolifyApplicationSummary {
+	uuid: string;
+	name: string;
+}
+
+/**
  * Service for interacting with Coolify API
  *
  * Handles all Coolify operations: creating, starting, stopping,
@@ -384,6 +392,53 @@ export class CoolifyService {
 		);
 
 		return response.ok;
+	}
+
+	/**
+	 * Lists all pool applications from Coolify
+	 *
+	 * Fetches applications from the configured project and filters
+	 * by "pool-" prefix to identify pool slot applications.
+	 */
+	async listPoolApplications(): Promise<CoolifyApplicationSummary[]> {
+		const response = await fetch(
+			`${this.config.apiUrl}/projects/${this.config.projectUuid}`,
+			{
+				method: "GET",
+				headers: {
+					Authorization: `Bearer ${this.config.apiToken}`,
+				},
+			},
+		);
+
+		if (!response.ok) {
+			console.error(
+				`[CoolifyService] Failed to list project applications: ${response.status} ${response.statusText}`,
+			);
+
+			return [];
+		}
+
+		const data = (await response.json()) as {
+			environments?: Array<{
+				name: string;
+				applications?: Array<{ uuid: string; name: string }>;
+			}>;
+		};
+
+		// Find our environment and extract applications
+		const environment = data.environments?.find(
+			(env) => env.name === this.config.environmentName,
+		);
+
+		if (!environment?.applications) {
+			return [];
+		}
+
+		// Filter to only pool applications (prefixed with "pool-")
+		return environment.applications
+			.filter((app) => app.name.startsWith("pool-"))
+			.map((app) => ({ uuid: app.uuid, name: app.name }));
 	}
 
 	/**
