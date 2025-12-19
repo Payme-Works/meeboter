@@ -530,9 +530,9 @@ export const botsRouter = createTRPCRouter({
 					automaticLeave: input.automaticLeave
 						? {
 								waitingRoomTimeout: Math.max(
-									input.automaticLeave.waitingRoomTimeout ?? 300000,
-									5 * 60 * 1000,
-								), // Minimum 5 minutes
+									input.automaticLeave.waitingRoomTimeout ?? 600000,
+									10 * 60 * 1000,
+								), // Minimum 10 minutes
 								noOneJoinedTimeout: Math.max(
 									input.automaticLeave.noOneJoinedTimeout ?? 300000,
 									60 * 1000,
@@ -547,7 +547,7 @@ export const botsRouter = createTRPCRouter({
 								), // Minimum 5 minutes
 							}
 						: {
-								waitingRoomTimeout: 5 * 60 * 1000, // 5 minutes (default)
+								waitingRoomTimeout: 10 * 60 * 1000, // 10 minutes (default)
 								noOneJoinedTimeout: 60 * 1000, // 60 seconds (default)
 								everyoneLeftTimeout: 60 * 1000, // 60 seconds (default)
 								inactivityTimeout: 5 * 60 * 1000, // 5 minutes (default)
