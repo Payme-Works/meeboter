@@ -275,14 +275,24 @@ export type SpeakerTimeframe = z.infer<typeof speakerTimeframeSchema>;
 /**
  * Schema for bot screenshot data
  * Captures screenshots during bot lifecycle for debugging
+ * Supports both legacy 'url' field and new 'key' field for backwards compatibility
  */
-export const screenshotDataSchema = z.object({
-	key: z.string(),
-	capturedAt: z.coerce.date(),
-	type: z.enum(["error", "fatal", "manual", "state_change"]),
-	state: z.string(),
-	trigger: z.string().optional(),
-});
+export const screenshotDataSchema = z
+	.object({
+		key: z.string().optional(),
+		url: z.string().optional(),
+		capturedAt: z.coerce.date(),
+		type: z.enum(["error", "fatal", "manual", "state_change"]),
+		state: z.string(),
+		trigger: z.string().optional(),
+	})
+	.transform((data) => ({
+		key: data.key ?? data.url ?? "",
+		capturedAt: data.capturedAt,
+		type: data.type,
+		state: data.state,
+		trigger: data.trigger,
+	}));
 export type ScreenshotData = z.infer<typeof screenshotDataSchema>;
 
 /**
