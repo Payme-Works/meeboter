@@ -140,9 +140,9 @@ export class CoolifyService {
 					description: `Bot ${botId} for ${botConfig.meetingInfo.platform} meeting`,
 					ports_exposes: "3000",
 					instant_deploy: false,
-					// Resource limits for bot containers
-					limits_cpus: "0.375",
-					limits_memory: "768m",
+					// Resource limits for bot containers (minimum viable for headless browser)
+					limits_cpus: "0.25",
+					limits_memory: "512m",
 				}),
 			},
 		);
@@ -509,7 +509,7 @@ export class CoolifyService {
 		applicationUuid: string,
 		limits: { cpus?: string; memory?: string } = {},
 	): Promise<void> {
-		const { cpus = "0.375", memory = "768m" } = limits;
+		const { cpus = "0.25", memory = "512m" } = limits;
 
 		try {
 			const response = await fetch(
