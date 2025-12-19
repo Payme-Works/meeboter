@@ -404,8 +404,10 @@ export class CoolifyService {
 	async getLatestDeployment(
 		applicationUuid: string,
 	): Promise<{ status: string; uuid: string } | null> {
+		// Correct endpoint per Coolify API docs: /deployments/applications/{uuid}
+		// NOT /applications/{uuid}/deployments
 		const response = await fetch(
-			`${this.config.apiUrl}/applications/${applicationUuid}/deployments?take=1`,
+			`${this.config.apiUrl}/deployments/applications/${applicationUuid}?take=1`,
 			{
 				method: "GET",
 				headers: {
