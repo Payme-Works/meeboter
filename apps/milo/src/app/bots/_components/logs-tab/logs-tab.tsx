@@ -34,21 +34,21 @@ interface LogsTabProps {
 }
 
 const LEVEL_COLORS: Record<string, string> = {
-	TRACE: "text-zinc-400",
-	DEBUG: "text-blue-400",
-	INFO: "text-green-400",
-	WARN: "text-yellow-400",
-	ERROR: "text-red-400",
-	FATAL: "text-red-500 font-bold",
+	TRACE: "text-zinc-300",
+	DEBUG: "text-blue-300",
+	INFO: "text-green-300",
+	WARN: "text-yellow-300",
+	ERROR: "text-red-300",
+	FATAL: "text-red-200 font-bold",
 };
 
 const LEVEL_BG_COLORS: Record<string, string> = {
-	TRACE: "bg-zinc-800",
-	DEBUG: "bg-blue-950",
-	INFO: "bg-green-950",
-	WARN: "bg-yellow-950",
-	ERROR: "bg-red-950",
-	FATAL: "bg-red-900",
+	TRACE: "bg-zinc-800/50",
+	DEBUG: "bg-blue-900/40",
+	INFO: "bg-green-900/40",
+	WARN: "bg-yellow-900/40",
+	ERROR: "bg-red-900/40",
+	FATAL: "bg-red-800/60",
 };
 
 interface TerminalContentProps {
@@ -83,23 +83,23 @@ function TerminalContent({
 	}
 
 	return (
-		<div className="p-2 space-y-0.5">
+		<div className="p-2 space-y-0.5 min-w-max">
 			{filteredLogs.map((log) => (
 				<div
 					key={log.id}
 					className={cn(
-						"flex gap-2 px-2 py-0.5 rounded",
+						"flex gap-2 px-2 py-0.5 rounded whitespace-nowrap",
 						LEVEL_BG_COLORS[log.level] ?? "",
 					)}
 				>
 					{showTimestamps ? (
-						<span className="text-zinc-500 shrink-0">
+						<span className="text-zinc-400 shrink-0">
 							{formatTimestamp(log.timestamp)}
 						</span>
 					) : null}
 					<span
 						className={cn(
-							"shrink-0 w-12 uppercase",
+							"shrink-0 w-12 uppercase font-medium",
 							LEVEL_COLORS[log.level] ?? "",
 						)}
 					>
@@ -108,14 +108,14 @@ function TerminalContent({
 					{log.state ? (
 						<Badge
 							variant="outline"
-							className="shrink-0 h-4 text-[10px] bg-zinc-800 border-zinc-700"
+							className="shrink-0 h-4 text-[10px] bg-zinc-700/50 border-zinc-600 text-zinc-300"
 						>
 							{log.state}
 						</Badge>
 					) : null}
-					<span className="text-zinc-200 break-all">{log.message}</span>
+					<span className="text-zinc-100 whitespace-nowrap">{log.message}</span>
 					{log.location ? (
-						<span className="text-zinc-600 shrink-0 ml-auto">
+						<span className="text-zinc-500 shrink-0 ml-auto text-[11px]">
 							{log.location}
 						</span>
 					) : null}
