@@ -315,6 +315,7 @@ export const status = z.enum([
 	"JOINING_CALL",
 	"IN_WAITING_ROOM",
 	"IN_CALL",
+	"LEAVING", // User requested bot to leave, waiting for graceful exit
 	"CALL_ENDED",
 	"DONE",
 	"FATAL",
@@ -350,6 +351,8 @@ export const EVENT_DESCRIPTIONS = {
 		"The bot has acknowledged the request to join the call, and is in the process of connecting.",
 	IN_WAITING_ROOM: "The bot is in the waiting room of the meeting.",
 	IN_CALL: "The bot is in the meeting, and is currently recording audio.",
+	LEAVING:
+		"The user has requested the bot to leave. The bot is gracefully exiting the meeting.",
 	CALL_ENDED:
 		"The bot has left the call. The data.sub_code and data.description will contain the reason for why the call ended.",
 	DONE: "The bot has shut down.",

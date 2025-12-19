@@ -47,15 +47,10 @@ export function RemoveFromCallDialog({
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className="sm:max-w-md">
 				<DialogHeader>
-					<div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-destructive/10">
-						<PhoneOff className="h-7 w-7 text-destructive" />
-					</div>
-					<DialogTitle className="text-center">
-						Remove Bot from Call?
-					</DialogTitle>
-					<DialogDescription className="text-center space-y-3 pt-2">
+					<DialogTitle>Remove Bot from Call?</DialogTitle>
+					<DialogDescription className="space-y-3 pt-2">
 						<span className="block">
-							This will immediately disconnect{" "}
+							This will disconnect{" "}
 							<span className="font-semibold text-foreground">
 								&quot;{botName}&quot;
 							</span>{" "}

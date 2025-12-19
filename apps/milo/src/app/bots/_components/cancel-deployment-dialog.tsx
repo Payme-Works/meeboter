@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, XCircle } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -47,11 +47,8 @@ export function CancelDeploymentDialog({
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className="sm:max-w-md">
 				<DialogHeader>
-					<div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-muted">
-						<XCircle className="h-7 w-7 text-muted-foreground" />
-					</div>
-					<DialogTitle className="text-center">Cancel Deployment?</DialogTitle>
-					<DialogDescription className="text-center pt-2">
+					<DialogTitle>Cancel Deployment?</DialogTitle>
+					<DialogDescription className="pt-2">
 						This will stop the deployment of{" "}
 						<span className="font-semibold text-foreground">
 							&quot;{botName}&quot;

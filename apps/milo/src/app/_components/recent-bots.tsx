@@ -16,6 +16,7 @@ const STATUS_COLORS: Record<string, string> = {
 	JOINING_CALL: "text-amber-500",
 	IN_CALL: "text-green-500",
 	RECORDING: "text-red-500",
+	LEAVING: "text-orange-500",
 	CALL_ENDED: "text-muted-foreground",
 	FATAL: "text-destructive",
 	DEPLOYING: "text-blue-500",
@@ -25,6 +26,7 @@ const STATUS_COLORS: Record<string, string> = {
 const ACTIVE_STATUSES = [
 	"IN_CALL",
 	"RECORDING",
+	"LEAVING",
 	"IN_WAITING_ROOM",
 	"JOINING_CALL",
 	"DEPLOYING",

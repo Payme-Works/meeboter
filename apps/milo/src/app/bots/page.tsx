@@ -60,6 +60,11 @@ const STATUS_CONFIG: Record<
 		bgColor: "bg-red-50 dark:bg-red-950",
 		dotColor: "text-red-500",
 	},
+	LEAVING: {
+		color: "text-orange-600 dark:text-orange-400",
+		bgColor: "bg-orange-50 dark:bg-orange-950",
+		dotColor: "text-orange-500",
+	},
 	CALL_ENDED: {
 		color: "text-slate-600 dark:text-slate-400",
 		bgColor: "bg-slate-100 dark:bg-slate-800",

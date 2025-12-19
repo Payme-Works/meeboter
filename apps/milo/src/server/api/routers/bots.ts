@@ -564,17 +564,17 @@ export const botsRouter = createTRPCRouter({
 
 	/**
 	 * Processes heartbeat signals from bot scripts to indicate the bot is still running.
-	 * Uses fire-and-forget pattern for optimal performance.
+	 * Returns shouldLeave flag if the bot has been requested to leave the call.
 	 * @param input - Object containing the bot ID
 	 * @param input.id - The ID of the bot sending the heartbeat
-	 * @returns Promise<void> Returns immediately without waiting for database
+	 * @returns Promise<{shouldLeave: boolean}> Whether the bot should gracefully leave the call
 	 */
 	heartbeat: publicProcedure
 		.meta({
 			openapi: {
 				method: "POST",
 				path: "/bots/{id}/heartbeat",
-				description: "Lightweight heartbeat with no return data",
+				description: "Heartbeat with leave signal for graceful termination",
 			},
 		})
 		.input(
@@ -582,35 +582,40 @@ export const botsRouter = createTRPCRouter({
 				id: z.string().transform((val) => Number(val)),
 			}),
 		)
-		.output(z.void())
-		.mutation(async ({ input, ctx }): Promise<void> => {
+		.output(
+			z.object({
+				shouldLeave: z.boolean(),
+			}),
+		)
+		.mutation(async ({ input, ctx }): Promise<{ shouldLeave: boolean }> => {
 			const startTime = Date.now();
 
-			// Fire and forget pattern, don't wait for response
-			ctx.db
-				.update(botsTable)
-				.set({ lastHeartbeat: new Date() })
-				.where(eq(botsTable.id, input.id))
-				.execute()
-				.then(() => {
-					const duration = Date.now() - startTime;
+			// Get current status and update heartbeat in parallel
+			const [statusResult] = await Promise.all([
+				ctx.db
+					.select({ status: botsTable.status })
+					.from(botsTable)
+					.where(eq(botsTable.id, input.id))
+					.limit(1),
+				ctx.db
+					.update(botsTable)
+					.set({ lastHeartbeat: new Date() })
+					.where(eq(botsTable.id, input.id))
+					.execute(),
+			]);
 
-					if (duration > 1000) {
-						console.warn(
-							`[DB] heartbeat query took ${duration}ms for bot ${input.id}`,
-						);
-					}
-				})
-				.catch((error) => {
-					const duration = Date.now() - startTime;
+			const duration = Date.now() - startTime;
 
-					console.error(
-						`[DB] heartbeat failed after ${duration}ms for bot ${input.id}:`,
-						error.message,
-					);
-				});
+			if (duration > 1000) {
+				console.warn(
+					`[DB] heartbeat query took ${duration}ms for bot ${input.id}`,
+				);
+			}
 
-			// Return immediately without waiting
+			// Return shouldLeave if bot status is LEAVING
+			const shouldLeave = statusResult[0]?.status === "LEAVING";
+
+			return { shouldLeave };
 		}),
 
 	/**
@@ -1075,19 +1080,12 @@ export const botsRouter = createTRPCRouter({
 				},
 			});
 
+			// Set status to LEAVING - bot will see this and gracefully exit
+			// Bot will then set status to DONE, which triggers container release
 			await ctx.db
 				.update(botsTable)
-				.set({ status: "DONE" })
+				.set({ status: "LEAVING" })
 				.where(eq(botsTable.id, input.id));
-
-			if (bot[0].coolifyServiceUuid) {
-				void services.deployment.release(input.id).catch((error) => {
-					console.error(
-						`Failed to release pool slot for bot ${input.id}:`,
-						error,
-					);
-				});
-			}
 
 			return { success: true };
 		}),
