@@ -30,6 +30,7 @@ const ACTIVE_STATUSES: Status[] = [
 	"JOINING_CALL",
 	"IN_WAITING_ROOM",
 	"IN_CALL",
+	"LEAVING",
 ];
 
 interface MonitorResult {
