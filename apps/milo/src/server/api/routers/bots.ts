@@ -573,6 +573,195 @@ export const botsRouter = createTRPCRouter({
 		),
 
 	/**
+	 * Cancels multiple bot deployments by their IDs.
+	 * Only works for bots in pre-call states (READY_TO_DEPLOY, QUEUED, DEPLOYING, JOINING_CALL).
+	 * @param input - Object containing an array of bot IDs
+	 * @param input.ids - Array of bot IDs to cancel
+	 * @returns Promise<{cancelled: number, failed: number}> Count of cancelled and failed cancellations
+	 */
+	cancelDeployments: protectedProcedure
+		.input(
+			z.object({
+				ids: z.array(z.number()).min(1, "At least one bot ID is required"),
+			}),
+		)
+		.output(
+			z.object({
+				cancelled: z.number(),
+				failed: z.number(),
+			}),
+		)
+		.mutation(
+			async ({
+				input,
+				ctx,
+			}): Promise<{ cancelled: number; failed: number }> => {
+				// Only pre-call statuses can be cancelled
+				const cancellableStatuses = [
+					"READY_TO_DEPLOY",
+					"QUEUED",
+					"DEPLOYING",
+					"JOINING_CALL",
+				] as const;
+
+				// Get all bots that belong to the user and are in a cancellable state
+				const userBots = await ctx.db
+					.select({
+						id: botsTable.id,
+						status: botsTable.status,
+						coolifyServiceUuid: botsTable.coolifyServiceUuid,
+					})
+					.from(botsTable)
+					.where(
+						and(
+							inArray(botsTable.id, input.ids),
+							eq(botsTable.userId, ctx.session.user.id),
+						),
+					);
+
+				const validBots = userBots.filter((b) =>
+					(cancellableStatuses as readonly string[]).includes(b.status),
+				);
+
+				const invalidCount = input.ids.length - validBots.length;
+
+				if (validBots.length === 0) {
+					return { cancelled: 0, failed: input.ids.length };
+				}
+
+				let cancelledCount = 0;
+
+				for (const bot of validBots) {
+					try {
+						// Log the cancellation event
+						await ctx.db.insert(events).values({
+							botId: bot.id,
+							eventType: "USER_CANCELLED_DEPLOYMENT",
+							eventTime: new Date(),
+							data: {
+								description: "Bot deployment cancelled by user (bulk action)",
+							},
+						});
+
+						// Set to DONE directly for pre-call bots
+						await ctx.db
+							.update(botsTable)
+							.set({ status: "DONE" })
+							.where(eq(botsTable.id, bot.id));
+
+						// Release pool slot if applicable
+						if (bot.coolifyServiceUuid) {
+							void services.deployment.release(bot.id).catch((error) => {
+								console.error(
+									`Failed to release pool slot for bot ${bot.id}:`,
+									error,
+								);
+							});
+						}
+
+						cancelledCount++;
+					} catch (error) {
+						console.error(`Failed to cancel bot ${bot.id}:`, error);
+					}
+				}
+
+				console.log(
+					`[Bots] Bulk cancel deployments: ${cancelledCount} cancelled, ${invalidCount + (validBots.length - cancelledCount)} failed`,
+				);
+
+				return {
+					cancelled: cancelledCount,
+					failed: invalidCount + (validBots.length - cancelledCount),
+				};
+			},
+		),
+
+	/**
+	 * Removes multiple bots from their active calls.
+	 * Only works for bots in IN_WAITING_ROOM or IN_CALL states.
+	 * @param input - Object containing an array of bot IDs
+	 * @param input.ids - Array of bot IDs to remove from call
+	 * @returns Promise<{removed: number, failed: number}> Count of removed and failed removals
+	 */
+	removeBotsFromCall: protectedProcedure
+		.input(
+			z.object({
+				ids: z.array(z.number()).min(1, "At least one bot ID is required"),
+			}),
+		)
+		.output(
+			z.object({
+				removed: z.number(),
+				failed: z.number(),
+			}),
+		)
+		.mutation(
+			async ({ input, ctx }): Promise<{ removed: number; failed: number }> => {
+				// Only in-call statuses can be removed
+				const removableStatuses = ["IN_WAITING_ROOM", "IN_CALL"] as const;
+
+				// Get all bots that belong to the user and are in a removable state
+				const userBots = await ctx.db
+					.select({
+						id: botsTable.id,
+						status: botsTable.status,
+					})
+					.from(botsTable)
+					.where(
+						and(
+							inArray(botsTable.id, input.ids),
+							eq(botsTable.userId, ctx.session.user.id),
+						),
+					);
+
+				const validBots = userBots.filter((b) =>
+					(removableStatuses as readonly string[]).includes(b.status),
+				);
+
+				const invalidCount = input.ids.length - validBots.length;
+
+				if (validBots.length === 0) {
+					return { removed: 0, failed: input.ids.length };
+				}
+
+				let removedCount = 0;
+
+				for (const bot of validBots) {
+					try {
+						// Log the removal event
+						await ctx.db.insert(events).values({
+							botId: bot.id,
+							eventType: "USER_REMOVED_FROM_CALL",
+							eventTime: new Date(),
+							data: {
+								description: "Bot removed from call by user (bulk action)",
+							},
+						});
+
+						// Set to LEAVING for graceful exit
+						await ctx.db
+							.update(botsTable)
+							.set({ status: "LEAVING" })
+							.where(eq(botsTable.id, bot.id));
+
+						removedCount++;
+					} catch (error) {
+						console.error(`Failed to remove bot ${bot.id} from call:`, error);
+					}
+				}
+
+				console.log(
+					`[Bots] Bulk remove from call: ${removedCount} removed, ${invalidCount + (validBots.length - removedCount)} failed`,
+				);
+
+				return {
+					removed: removedCount,
+					failed: invalidCount + (validBots.length - removedCount),
+				};
+			},
+		),
+
+	/**
 	 * Generates a signed URL for accessing a bot's recording.
 	 * @param input - Object containing the bot ID
 	 * @param input.id - The ID of the bot whose recording URL is requested

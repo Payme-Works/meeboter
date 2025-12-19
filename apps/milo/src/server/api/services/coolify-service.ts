@@ -139,7 +139,7 @@ export class CoolifyService {
 					name: applicationName,
 					description: `Bot ${botId} for ${botConfig.meetingInfo.platform} meeting`,
 					ports_exposes: "3000",
-					instant_deploy: true,
+					instant_deploy: false,
 					// Resource limits for bot containers
 					limits_cpus: "0.25",
 					limits_memory: "512m",

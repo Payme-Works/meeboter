@@ -3,11 +3,12 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import { formatDistanceToNow } from "date-fns";
 import {
+	Ban,
 	Circle,
 	ExternalLink,
 	MessageSquare,
+	PhoneOff,
 	Rocket,
-	Trash2,
 	Video,
 	X,
 } from "lucide-react";
@@ -121,7 +122,12 @@ export default function BotsPage() {
 	const [multiBotDialogOpen, setMultiBotDialogOpen] = useState(false);
 	const [broadcastCenterOpen, setBroadcastCenterOpen] = useState(false);
 	const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
-	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+
+	const [cancelDeploymentsDialogOpen, setCancelDeploymentsDialogOpen] =
+		useState(false);
+
+	const [removeFromCallDialogOpen, setRemoveFromCallDialogOpen] =
+		useState(false);
 
 	const [botToRemove, setBotToRemove] = useState<{
 		id: number;
@@ -138,21 +144,39 @@ export default function BotsPage() {
 
 	const { data: bots = [], isLoading, error } = api.bots.getBots.useQuery();
 
-	const deleteBotsMutation = api.bots.deleteBots.useMutation({
+	const cancelDeploymentsMutation = api.bots.cancelDeployments.useMutation({
 		onSuccess: (data) => {
-			if (data.deleted > 0) {
-				toast.success(`Successfully deleted ${data.deleted} bot(s)`);
+			if (data.cancelled > 0) {
+				toast.success(`Successfully cancelled ${data.cancelled} deployment(s)`);
 			}
 
 			if (data.failed > 0) {
-				toast.error(`Failed to delete ${data.failed} bot(s)`);
+				toast.error(`Failed to cancel ${data.failed} deployment(s)`);
 			}
 
 			setRowSelection({});
 			utils.bots.getBots.invalidate();
 		},
 		onError: (error) => {
-			toast.error(`Failed to delete bots: ${error.message}`);
+			toast.error(`Failed to cancel deployments: ${error.message}`);
+		},
+	});
+
+	const removeFromCallMutation = api.bots.removeBotsFromCall.useMutation({
+		onSuccess: (data) => {
+			if (data.removed > 0) {
+				toast.success(`Successfully removed ${data.removed} bot(s) from call`);
+			}
+
+			if (data.failed > 0) {
+				toast.error(`Failed to remove ${data.failed} bot(s) from call`);
+			}
+
+			setRowSelection({});
+			utils.bots.getBots.invalidate();
+		},
+		onError: (error) => {
+			toast.error(`Failed to remove bots from call: ${error.message}`);
 		},
 	});
 
@@ -163,11 +187,38 @@ export default function BotsPage() {
 		.filter((key) => rowSelection[key])
 		.map((id) => Number.parseInt(id, 10));
 
-	const handleBulkDelete = () => {
-		if (selectedBotIds.length === 0) return;
+	// Determine which bots can be cancelled (deploying) vs removed from call
+	const deployingStatuses = [
+		"READY_TO_DEPLOY",
+		"QUEUED",
+		"DEPLOYING",
+		"JOINING_CALL",
+	];
 
-		deleteBotsMutation.mutate({ ids: selectedBotIds });
-		setDeleteDialogOpen(false);
+	const inCallStatuses = ["IN_WAITING_ROOM", "IN_CALL"];
+
+	const selectedBots = bots.filter((bot) => selectedBotIds.includes(bot.id));
+
+	const deployingBotIds = selectedBots
+		.filter((bot) => deployingStatuses.includes(bot.status))
+		.map((bot) => bot.id);
+
+	const inCallBotIds = selectedBots
+		.filter((bot) => inCallStatuses.includes(bot.status))
+		.map((bot) => bot.id);
+
+	const handleCancelDeployments = () => {
+		if (deployingBotIds.length === 0) return;
+
+		cancelDeploymentsMutation.mutate({ ids: deployingBotIds });
+		setCancelDeploymentsDialogOpen(false);
+	};
+
+	const handleRemoveFromCall = () => {
+		if (inCallBotIds.length === 0) return;
+
+		removeFromCallMutation.mutate({ ids: inCallBotIds });
+		setRemoveFromCallDialogOpen(false);
 	};
 
 	const columns: ColumnDef<Bot>[] = [
@@ -375,15 +426,28 @@ export default function BotsPage() {
 						</Button>
 					</div>
 					<div className="flex items-center gap-2">
-						<Button
-							variant="destructive"
-							size="sm"
-							onClick={() => setDeleteDialogOpen(true)}
-							disabled={deleteBotsMutation.isPending}
-						>
-							<Trash2 className="h-4 w-4" />
-							Delete Selected
-						</Button>
+						{deployingBotIds.length > 0 ? (
+							<Button
+								variant="destructive"
+								size="sm"
+								onClick={() => setCancelDeploymentsDialogOpen(true)}
+								disabled={cancelDeploymentsMutation.isPending}
+							>
+								<Ban className="h-4 w-4" />
+								Cancel Deployments ({deployingBotIds.length})
+							</Button>
+						) : null}
+						{inCallBotIds.length > 0 ? (
+							<Button
+								variant="destructive"
+								size="sm"
+								onClick={() => setRemoveFromCallDialogOpen(true)}
+								disabled={removeFromCallMutation.isPending}
+							>
+								<PhoneOff className="h-4 w-4" />
+								Remove from Call ({inCallBotIds.length})
+							</Button>
+						) : null}
 					</div>
 				</div>
 			) : null}
@@ -433,29 +497,71 @@ export default function BotsPage() {
 				}}
 			/>
 
-			{/* Bulk Delete Confirmation Dialog */}
-			<Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+			{/* Bulk Cancel Deployments Dialog */}
+			<Dialog
+				open={cancelDeploymentsDialogOpen}
+				onOpenChange={setCancelDeploymentsDialogOpen}
+			>
 				<DialogContent>
 					<DialogHeader>
-						<DialogTitle>Delete {selectedBotIds.length} bot(s)?</DialogTitle>
+						<DialogTitle>
+							Cancel {deployingBotIds.length} deployment(s)?
+						</DialogTitle>
 						<DialogDescription>
-							This action cannot be undone. This will permanently delete the
-							selected bots and their associated data.
+							This will cancel the selected bot deployments. Bots that haven't
+							joined a call yet will be stopped.
 						</DialogDescription>
 					</DialogHeader>
 					<DialogFooter>
 						<Button
 							variant="outline"
-							onClick={() => setDeleteDialogOpen(false)}
+							onClick={() => setCancelDeploymentsDialogOpen(false)}
 						>
-							Cancel
+							Go Back
 						</Button>
 						<Button
 							variant="destructive"
-							onClick={handleBulkDelete}
-							disabled={deleteBotsMutation.isPending}
+							onClick={handleCancelDeployments}
+							disabled={cancelDeploymentsMutation.isPending}
 						>
-							{deleteBotsMutation.isPending ? "Deleting..." : "Delete"}
+							{cancelDeploymentsMutation.isPending
+								? "Cancelling..."
+								: "Cancel Deployments"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Bulk Remove from Call Dialog */}
+			<Dialog
+				open={removeFromCallDialogOpen}
+				onOpenChange={setRemoveFromCallDialogOpen}
+			>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>
+							Remove {inCallBotIds.length} bot(s) from call?
+						</DialogTitle>
+						<DialogDescription>
+							This will gracefully remove the selected bots from their active
+							calls.
+						</DialogDescription>
+					</DialogHeader>
+					<DialogFooter>
+						<Button
+							variant="outline"
+							onClick={() => setRemoveFromCallDialogOpen(false)}
+						>
+							Go Back
+						</Button>
+						<Button
+							variant="destructive"
+							onClick={handleRemoveFromCall}
+							disabled={removeFromCallMutation.isPending}
+						>
+							{removeFromCallMutation.isPending
+								? "Removing..."
+								: "Remove from Call"}
 						</Button>
 					</DialogFooter>
 				</DialogContent>

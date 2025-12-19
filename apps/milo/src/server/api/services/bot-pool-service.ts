@@ -485,20 +485,31 @@ export class BotPoolService {
 		}
 
 		if (isFirstDeployer) {
-			// First deployer: wait for deployment to complete before releasing lock
+			// First deployer: hold lock in background until deployment completes
 			// This ensures image is fully pulled and cached before others proceed
+			// Fire-and-forget to avoid HTTP timeout, but release lock when done
 			console.log(
-				`[Pool] First deployer for ${platformName}:${image.tag}, waiting for deployment to complete...`,
+				`[Pool] First deployer for ${platformName}:${image.tag}, starting deployment in background...`,
 			);
 
-			try {
-				await this.waitAndTransitionStatus(activeSlot, botConfig.id);
-				releaseLock();
-			} catch (error) {
-				releaseLock(error instanceof Error ? error : new Error(String(error)));
+			this.waitAndTransitionStatus(activeSlot, botConfig.id)
+				.then(() => {
+					console.log(
+						`[Pool] First deployer completed for ${platformName}:${image.tag}, releasing lock`,
+					);
 
-				throw error;
-			}
+					releaseLock();
+				})
+				.catch((error) => {
+					console.error(
+						`[Pool] First deployer failed for ${activeSlot.slotName}:`,
+						error,
+					);
+
+					releaseLock(
+						error instanceof Error ? error : new Error(String(error)),
+					);
+				});
 		} else {
 			// Not first deployer: image is cached, can fire-and-forget
 			// This provides optimistic feedback to the user
