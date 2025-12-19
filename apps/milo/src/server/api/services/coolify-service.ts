@@ -429,16 +429,18 @@ export class CoolifyService {
 		// Success: container is running and ready
 		const successStatuses = ["running", "healthy"];
 		// In-progress: container is still starting up, keep polling
-		// (starting, restarting, unhealthy will fall through and continue polling)
+		// (starting, restarting will fall through and continue polling)
 		// Always failures: something is critically wrong
 		const alwaysFailedStatuses = ["error", "degraded"];
 		// Delayed failures: only treat as failure after grace period
 		// (container may show "exited"/"stopped" briefly during startup)
-		const delayedFailedStatuses = ["exited", "stopped"];
+		// Uses prefix matching to handle compound statuses like "exited:unhealthy"
+		const delayedFailedPrefixes = ["exited", "stopped"];
 
 		while (Date.now() - startTime < timeoutMs) {
 			try {
 				const status = await this.getApplicationStatus(applicationUuid);
+				const statusLower = status.toLowerCase();
 				const elapsedMs = Date.now() - startTime;
 				const isGracePeriod = elapsedMs < gracePeriodMs;
 
@@ -446,12 +448,12 @@ export class CoolifyService {
 					`[CoolifyService] Application ${applicationUuid} status: ${status} (elapsed: ${Math.round(elapsedMs / 1000)}s, grace: ${isGracePeriod})`,
 				);
 
-				if (successStatuses.includes(status.toLowerCase())) {
+				if (successStatuses.includes(statusLower)) {
 					return { success: true, status };
 				}
 
 				// Always treat these as failures
-				if (alwaysFailedStatuses.includes(status.toLowerCase())) {
+				if (alwaysFailedStatuses.includes(statusLower)) {
 					return {
 						success: false,
 						status,
@@ -460,10 +462,12 @@ export class CoolifyService {
 				}
 
 				// Only treat exited/stopped as failures after grace period
-				if (
-					!isGracePeriod &&
-					delayedFailedStatuses.includes(status.toLowerCase())
-				) {
+				// Use prefix matching to handle compound statuses like "exited:unhealthy"
+				const isDelayedFailure = delayedFailedPrefixes.some((prefix) =>
+					statusLower.startsWith(prefix),
+				);
+
+				if (!isGracePeriod && isDelayedFailure) {
 					return {
 						success: false,
 						status,

@@ -33,8 +33,8 @@ export const env = createEnv({
 
 		// Coolify API Configuration
 		COOLIFY_API_URL: !isProduction
-			? z.preprocess(() => "http://localhost:8000/api/v1", z.string().url())
-			: z.string().url(),
+			? z.preprocess(() => "http://localhost:8000/api/v1", z.url())
+			: z.url(),
 		COOLIFY_API_TOKEN: !isProduction
 			? z.preprocess(() => "fake_coolify_token", z.string())
 			: z.string(),
@@ -57,8 +57,8 @@ export const env = createEnv({
 
 		// S3-Compatible Storage (MinIO or AWS S3)
 		S3_ENDPOINT: !isProduction
-			? z.preprocess(() => "http://localhost:9000", z.string().url())
-			: z.string().url(),
+			? z.preprocess(() => "http://localhost:9000", z.url())
+			: z.url(),
 		S3_ACCESS_KEY: !isProduction
 			? z.preprocess(() => "fake_s3_access_key", z.string())
 			: z.string(),
@@ -72,7 +72,7 @@ export const env = createEnv({
 
 		MILO_AUTH_TOKEN: z.string(),
 
-		NEXT_PUBLIC_APP_ORIGIN_URL: z.string().url(),
+		NEXT_PUBLIC_APP_ORIGIN_URL: z.url(),
 
 		// Platform Selection
 		DEPLOYMENT_PLATFORM: z.enum(["coolify", "aws", "auto"]).default("auto"),
