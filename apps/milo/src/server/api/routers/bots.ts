@@ -897,35 +897,62 @@ export const botsRouter = createTRPCRouter({
 		)
 		.output(botConfigSchema)
 		.query(async ({ input, ctx }): Promise<typeof botConfigSchema._output> => {
-			// Look up the pool slot by Coolify service UUID
-			const slotResult = await ctx.db
-				.select({
-					assignedBotId: botPoolSlotsTable.assignedBotId,
-					status: botPoolSlotsTable.status,
-				})
-				.from(botPoolSlotsTable)
-				.where(eq(botPoolSlotsTable.coolifyServiceUuid, input.poolSlotUuid))
-				.limit(1);
-
-			if (!slotResult[0]) {
-				throw new Error(`Pool slot not found: ${input.poolSlotUuid}`);
-			}
-
-			const slot = slotResult[0];
-
-			if (!slot.assignedBotId) {
-				throw new Error(`No bot assigned to pool slot: ${input.poolSlotUuid}`);
-			}
-
-			// Get the assigned bot's full configuration
+			// Look up the bot directly by coolifyServiceUuid
+			// This works even after the slot is released (assignedBotId = null)
+			// because the bot's coolifyServiceUuid persists
 			const botResult = await ctx.db
 				.select()
 				.from(botsTable)
-				.where(eq(botsTable.id, slot.assignedBotId))
+				.where(eq(botsTable.coolifyServiceUuid, input.poolSlotUuid))
 				.limit(1);
 
 			if (!botResult[0]) {
-				throw new Error(`Bot not found: ${slot.assignedBotId}`);
+				// Fallback: check the slot's assignedBotId for backwards compatibility
+				const slotResult = await ctx.db
+					.select({
+						assignedBotId: botPoolSlotsTable.assignedBotId,
+					})
+					.from(botPoolSlotsTable)
+					.where(eq(botPoolSlotsTable.coolifyServiceUuid, input.poolSlotUuid))
+					.limit(1);
+
+				if (!slotResult[0]) {
+					throw new Error(`Pool slot not found: ${input.poolSlotUuid}`);
+				}
+
+				if (!slotResult[0].assignedBotId) {
+					throw new Error(
+						`No bot assigned to pool slot: ${input.poolSlotUuid}`,
+					);
+				}
+
+				const fallbackBotResult = await ctx.db
+					.select()
+					.from(botsTable)
+					.where(eq(botsTable.id, slotResult[0].assignedBotId))
+					.limit(1);
+
+				if (!fallbackBotResult[0]) {
+					throw new Error(`Bot not found: ${slotResult[0].assignedBotId}`);
+				}
+
+				const bot = fallbackBotResult[0];
+
+				return {
+					id: bot.id,
+					userId: bot.userId,
+					meetingInfo: bot.meetingInfo,
+					meetingTitle: bot.meetingTitle,
+					startTime: bot.startTime,
+					endTime: bot.endTime,
+					botDisplayName: bot.botDisplayName,
+					botImage: bot.botImage ?? undefined,
+					recordingEnabled: bot.recordingEnabled,
+					heartbeatInterval: bot.heartbeatInterval,
+					automaticLeave: bot.automaticLeave,
+					callbackUrl: bot.callbackUrl ?? undefined,
+					chatEnabled: bot.chatEnabled,
+				};
 			}
 
 			const bot = botResult[0];
