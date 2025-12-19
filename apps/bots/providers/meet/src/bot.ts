@@ -624,57 +624,78 @@ export class GoogleMeetBot extends Bot {
 
 		// Wait for actual call entry by detecting in-call indicators
 		// The Leave button alone is NOT reliable - it appears in the waiting room too
+		// NOTE: We use a polling loop instead of page.waitForFunction() because Google Meet
+		// has strict CSP with Trusted Types that blocks JavaScript string evaluation
 		const startTime = Date.now();
+		const pollInterval = 1000; // Check every 1 second
+
+		/**
+		 * Check if we're in the actual call by detecting in-call UI elements.
+		 * Returns true if we've successfully joined the call.
+		 */
+		const checkIfInCall = async (): Promise<boolean> => {
+			if (!this.page) {
+				return false;
+			}
+
+			// Check for waiting room indicators in page text
+			const bodyText = await this.page
+				.locator("body")
+				.innerText()
+				.catch(() => "");
+
+			const stillInWaitingRoom = waitingRoomIndicators.some((text) =>
+				bodyText.toLowerCase().includes(text.toLowerCase()),
+			);
+
+			if (stillInWaitingRoom) {
+				return false;
+			}
+
+			// Check for leave button (required)
+			const leaveButton = await this.page.$('button[aria-label="Leave call"]');
+
+			if (!leaveButton) {
+				return false;
+			}
+
+			// Check for in-call indicators (any one is sufficient)
+			const inCallIndicators = [
+				'button[aria-label="People"]',
+				'[aria-label="Participants"]',
+				'button[aria-label="Chat with everyone"]',
+			];
+
+			for (const selector of inCallIndicators) {
+				const element = await this.page.$(selector);
+
+				if (element) {
+					return true;
+				}
+			}
+
+			return false;
+		};
 
 		try {
-			await this.page.waitForFunction(
-				(indicators: string[]) => {
-					// Check if we still see waiting room indicators
-					const bodyText = document.body.innerText;
+			// Polling loop to check for call entry
+			while (Date.now() - startTime < timeout) {
+				const inCall = await checkIfInCall();
 
-					const inWaitingRoom = indicators.some((text) =>
-						bodyText.toLowerCase().includes(text.toLowerCase()),
-					);
+				if (inCall) {
+					break;
+				}
 
-					if (inWaitingRoom) {
-						return false;
-					}
+				// Wait before next check
+				await setTimeout(pollInterval);
+			}
 
-					// Check for in-call indicators:
-					// 1. People icon (appears only in actual call)
-					const peopleIcon = Array.from(document.querySelectorAll("i")).find(
-						(el) => el.textContent?.trim() === "people",
-					);
+			// Final check after loop ends
+			const finalCheck = await checkIfInCall();
 
-					// 2. People button with aria-label (appears only in actual call)
-					const peopleButton = document.querySelector(
-						'button[aria-label="People"]',
-					);
-
-					// 3. Participants panel (appears only in actual call)
-					const participantsPanel = document.querySelector(
-						'[aria-label="Participants"]',
-					);
-
-					// 4. Chat button (appears only in actual call)
-					const chatButton = document.querySelector(
-						'button[aria-label="Chat with everyone"]',
-					);
-
-					// 5. Leave button must also be present
-					const leaveBtn = document.querySelector(
-						'button[aria-label="Leave call"]',
-					);
-
-					// We're in the call if we have the leave button AND any in-call indicator
-					return (
-						leaveBtn &&
-						(peopleIcon || peopleButton || participantsPanel || chatButton)
-					);
-				},
-				waitingRoomIndicators,
-				{ timeout },
-			);
+			if (!finalCheck) {
+				throw new Error("Timed out waiting for call entry");
+			}
 		} catch (error) {
 			const elapsedTime = Date.now() - startTime;
 			const elapsedSeconds = Math.round(elapsedTime / 1000);
