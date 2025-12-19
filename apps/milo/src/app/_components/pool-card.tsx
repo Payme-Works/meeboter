@@ -19,12 +19,12 @@ export function PoolCard({ idle, busy, total, maxSize }: PoolCardProps) {
 	const idleDash = total > 0 ? (idle / total) * capacityDash : 0;
 
 	return (
-		<div className="group border bg-card p-5 flex flex-col h-full min-h-[180px] relative overflow-hidden transition-all duration-300 hover:border-accent/30">
+		<div className="group border bg-card p-4 flex flex-col h-full min-h-[180px] relative overflow-hidden transition-all duration-300 hover:border-accent/30">
 			{/* Subtle gradient overlay on hover */}
 			<div className="absolute inset-0 bg-gradient-to-br from-accent/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
 
 			{/* Header */}
-			<div className="flex items-center gap-3 mb-4 relative">
+			<div className="flex items-center gap-3 mb-3 relative">
 				<div className="h-10 w-10 bg-accent/10 flex items-center justify-center text-accent">
 					<Server className="h-5 w-5" />
 				</div>
@@ -32,7 +32,7 @@ export function PoolCard({ idle, busy, total, maxSize }: PoolCardProps) {
 			</div>
 
 			{/* Main content - circular viz + stats */}
-			<div className="flex items-center gap-5 flex-1 relative">
+			<div className="flex items-center gap-4 flex-1 relative">
 				{/* Circular capacity indicator */}
 				<div className="relative w-[100px] h-[100px] shrink-0">
 					<svg
@@ -125,7 +125,7 @@ export function PoolCard({ idle, busy, total, maxSize }: PoolCardProps) {
 			</div>
 
 			{/* Footer */}
-			<div className="mt-4 pt-3 border-t relative">
+			<div className="mt-auto pt-3 border-t relative">
 				<Link
 					href="/pool"
 					className="text-sm text-muted-foreground hover:text-accent flex items-center gap-1 transition-colors"
@@ -140,15 +140,15 @@ export function PoolCard({ idle, busy, total, maxSize }: PoolCardProps) {
 
 export function PoolCardSkeleton() {
 	return (
-		<div className="border bg-card p-5 flex flex-col h-full min-h-[180px]">
+		<div className="border bg-card p-4 flex flex-col h-full min-h-[180px]">
 			{/* Header */}
-			<div className="flex items-center gap-3 mb-4">
+			<div className="flex items-center gap-3 mb-3">
 				<div className="h-10 w-10 bg-muted animate-pulse" />
 				<div className="h-5 w-12 bg-muted animate-pulse" />
 			</div>
 
 			{/* Content */}
-			<div className="flex items-center gap-5 flex-1">
+			<div className="flex items-center gap-4 flex-1">
 				{/* Circle skeleton */}
 				<div className="w-[100px] h-[100px] shrink-0 bg-muted animate-pulse rounded-full" />
 
@@ -172,7 +172,7 @@ export function PoolCardSkeleton() {
 			</div>
 
 			{/* Footer */}
-			<div className="mt-4 pt-3 border-t">
+			<div className="mt-auto pt-3 border-t">
 				<div className="h-4 w-20 bg-muted animate-pulse" />
 			</div>
 		</div>
@@ -181,9 +181,9 @@ export function PoolCardSkeleton() {
 
 export function PoolCardUnavailable() {
 	return (
-		<div className="border bg-card p-5 flex flex-col h-full min-h-[180px]">
+		<div className="border bg-card p-4 flex flex-col h-full min-h-[180px]">
 			{/* Header */}
-			<div className="flex items-center gap-3 mb-4">
+			<div className="flex items-center gap-3 mb-3">
 				<div className="h-10 w-10 bg-muted flex items-center justify-center text-muted-foreground">
 					<Server className="h-5 w-5" />
 				</div>
@@ -202,7 +202,7 @@ export function PoolCardUnavailable() {
 			</div>
 
 			{/* Footer */}
-			<div className="mt-4 pt-3 border-t">
+			<div className="mt-auto pt-3 border-t">
 				<Link
 					href="/pool"
 					className="text-sm text-muted-foreground hover:text-accent flex items-center gap-1 transition-colors"

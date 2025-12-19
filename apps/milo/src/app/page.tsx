@@ -262,6 +262,7 @@ function StatCardsSkeleton() {
 function ResourceCardsSkeleton() {
 	return (
 		<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
+			<PoolCardSkeleton />
 			<StatCard className="min-h-[180px]">
 				<StatCardHeader className="justify-start gap-3">
 					<StatCardIconSkeleton />
@@ -273,7 +274,6 @@ function ResourceCardsSkeleton() {
 					<StatCardLinkSkeleton />
 				</StatCardFooter>
 			</StatCard>
-			<PoolCardSkeleton />
 			<StatCard className="min-h-[180px]">
 				<StatCardHeader className="justify-start gap-3">
 					<StatCardIconSkeleton />
@@ -299,6 +299,17 @@ async function ResourceCardsSection() {
 
 	return (
 		<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
+			{poolStats ? (
+				<PoolCard
+					idle={poolStats.idle}
+					busy={poolStats.busy}
+					total={poolStats.total}
+					maxSize={poolStats.maxSize}
+				/>
+			) : (
+				<PoolCardUnavailable />
+			)}
+
 			<StatCard className="min-h-[180px]">
 				<StatCardHeader className="justify-start gap-3">
 					<StatCardIcon>
@@ -315,17 +326,6 @@ async function ResourceCardsSection() {
 					<StatCardLink href="/api-keys">Manage Keys</StatCardLink>
 				</StatCardFooter>
 			</StatCard>
-
-			{poolStats ? (
-				<PoolCard
-					idle={poolStats.idle}
-					busy={poolStats.busy}
-					total={poolStats.total}
-					maxSize={poolStats.maxSize}
-				/>
-			) : (
-				<PoolCardUnavailable />
-			)}
 
 			<StatCard className="min-h-[180px]">
 				<StatCardHeader className="justify-start gap-3">
