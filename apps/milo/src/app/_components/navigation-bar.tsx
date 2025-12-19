@@ -20,7 +20,7 @@ export default function NavigationBar({ session }: NavigationBarProps) {
 	return (
 		<header className="border-b border-border/50">
 			<div className="container mx-auto px-4">
-				<nav className="flex items-center justify-between h-16">
+				<nav className="flex items-center justify-between h-20">
 					{/* Logo + Wordmark */}
 					<Link
 						href="/"
