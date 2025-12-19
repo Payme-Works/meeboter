@@ -182,7 +182,10 @@ export function ScreenshotViewer({
 				open={selectedIndex !== null}
 				onOpenChange={() => setSelectedIndex(null)}
 			>
-				<DialogContent className="max-w-5xl p-0 gap-0 overflow-hidden">
+				<DialogContent
+					className="max-w-5xl p-0 gap-0 overflow-hidden"
+					aria-describedby={undefined}
+				>
 					<DialogHeader className="px-4 py-3 border-b">
 						<div className="flex items-center justify-between">
 							<DialogTitle className="text-sm font-medium flex items-center gap-2">
