@@ -76,6 +76,9 @@ export function createServices(options: CreateServicesOptions): Services {
 		authToken: env.MILO_AUTH_TOKEN,
 	});
 
+	// Enable log streaming to backend
+	logger.enableStreaming({ trpcClient: trpc });
+
 	const s3 = new S3Service({
 		endpoint: env.S3_ENDPOINT,
 		region: env.S3_REGION,

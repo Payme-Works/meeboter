@@ -207,6 +207,9 @@ export const main = async () => {
 		});
 	}
 
+	// Flush any remaining logs before exit
+	await logger.shutdown();
+
 	process.exit(hasErrorOccurred ? 1 : 0);
 };
 

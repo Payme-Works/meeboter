@@ -273,6 +273,53 @@ export const speakerTimeframeSchema = z.object({
 export type SpeakerTimeframe = z.infer<typeof speakerTimeframeSchema>;
 
 /**
+ * Log levels for bot instance logs
+ */
+export const logLevelSchema = z.enum([
+	"TRACE",
+	"DEBUG",
+	"INFO",
+	"WARN",
+	"ERROR",
+	"FATAL",
+]);
+export type LogLevel = z.infer<typeof logLevelSchema>;
+
+/**
+ * Schema for structured log entries from bot instances
+ * Used for real-time log streaming and S3 archival
+ */
+export const logEntrySchema = z.object({
+	/** Unique identifier for deduplication */
+	id: z.string(),
+
+	/** Bot instance ID */
+	botId: z.number(),
+
+	/** When the log was generated */
+	timestamp: z.coerce.date(),
+
+	/** Log level */
+	level: logLevelSchema,
+
+	/** Log message */
+	message: z.string(),
+
+	/** Bot state when log was generated */
+	state: z.string().optional(),
+
+	/** Source file:line location */
+	location: z.string().optional(),
+
+	/** Additional structured context data */
+	context: z.record(z.string(), z.unknown()).optional(),
+
+	/** Elapsed time since bot start */
+	elapsed: z.string().optional(),
+});
+export type LogEntry = z.infer<typeof logEntrySchema>;
+
+/**
  * Schema for bot screenshot data
  * Captures screenshots during bot lifecycle for debugging
  * 'key' is the S3 object key for the screenshot

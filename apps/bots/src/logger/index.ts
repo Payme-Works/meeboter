@@ -1,5 +1,7 @@
+import { randomUUID } from "node:crypto";
 import type { Page } from "playwright";
 
+import type { TrpcClient } from "../trpc";
 import {
 	colorizeBotId,
 	colorizeBreadcrumbLevel,
@@ -20,6 +22,21 @@ export enum LogLevel {
 	WARN = 3,
 	ERROR = 4,
 	FATAL = 5,
+}
+
+/**
+ * Structured log entry for streaming to backend
+ */
+export interface LogEntry {
+	id: string;
+	botId: number;
+	timestamp: Date;
+	level: "TRACE" | "DEBUG" | "INFO" | "WARN" | "ERROR" | "FATAL";
+	message: string;
+	state?: string;
+	location?: string;
+	context?: Record<string, unknown>;
+	elapsed?: string;
 }
 
 /**
@@ -62,8 +79,25 @@ interface LogContext {
 }
 
 /**
+ * Configuration for log streaming
+ */
+interface StreamingConfig {
+	/** tRPC client for backend communication */
+	trpcClient: TrpcClient;
+
+	/** Interval for flushing logs to backend (ms) */
+	flushInterval?: number;
+
+	/** Maximum entries to buffer before forcing flush */
+	maxBufferSize?: number;
+}
+
+const DEFAULT_FLUSH_INTERVAL = 2000; // 2 seconds
+const DEFAULT_MAX_BUFFER_SIZE = 100;
+
+/**
  * Centralized logger for bot instances with structured output,
- * breadcrumb tracking, and screenshot capture.
+ * breadcrumb tracking, screenshot capture, and log streaming.
  */
 export class BotLogger {
 	private readonly botId: number;
@@ -74,6 +108,12 @@ export class BotLogger {
 
 	private currentState = "INITIALIZING";
 	private logLevel: LogLevel = LogLevel.TRACE;
+
+	// Streaming configuration
+	private streamingConfig?: StreamingConfig;
+	private logBuffer: LogEntry[] = [];
+	private flushTimer?: NodeJS.Timeout;
+	private isShuttingDown = false;
 
 	constructor(
 		botId: number,
@@ -88,6 +128,142 @@ export class BotLogger {
 		this.page = options?.page;
 		this.logLevel = options?.logLevel ?? LogLevel.TRACE;
 		this.maxBreadcrumbs = options?.maxBreadcrumbs ?? 20;
+	}
+
+	/**
+	 * Enables log streaming to the backend.
+	 * @param config - Streaming configuration with tRPC client
+	 */
+	enableStreaming(config: StreamingConfig): void {
+		this.streamingConfig = {
+			...config,
+			flushInterval: config.flushInterval ?? DEFAULT_FLUSH_INTERVAL,
+			maxBufferSize: config.maxBufferSize ?? DEFAULT_MAX_BUFFER_SIZE,
+		};
+
+		// Start the flush timer
+		this.startFlushTimer();
+
+		this.debug("Log streaming enabled", {
+			flushInterval: this.streamingConfig.flushInterval,
+			maxBufferSize: this.streamingConfig.maxBufferSize,
+		});
+	}
+
+	/**
+	 * Starts the periodic flush timer
+	 */
+	private startFlushTimer(): void {
+		if (this.flushTimer || !this.streamingConfig) return;
+
+		this.flushTimer = setInterval(() => {
+			void this.flushToBackend();
+		}, this.streamingConfig.flushInterval);
+	}
+
+	/**
+	 * Stops the flush timer
+	 */
+	private stopFlushTimer(): void {
+		if (this.flushTimer) {
+			clearInterval(this.flushTimer);
+			this.flushTimer = undefined;
+		}
+	}
+
+	/**
+	 * Flushes buffered logs to the backend
+	 */
+	private async flushToBackend(): Promise<void> {
+		if (!this.streamingConfig || this.logBuffer.length === 0) return;
+
+		const entriesToSend = [...this.logBuffer];
+
+		this.logBuffer = [];
+
+		try {
+			await this.streamingConfig.trpcClient.bots.logs.stream.mutate({
+				botId: String(this.botId),
+				entries: entriesToSend,
+			});
+		} catch (error) {
+			// Re-queue failed entries (but limit to prevent memory issues)
+			const maxRequeue = 500;
+			const requeuable = entriesToSend.slice(-maxRequeue);
+
+			this.logBuffer = [...requeuable, ...this.logBuffer].slice(-maxRequeue);
+
+			// Only log error if not shutting down
+			if (!this.isShuttingDown) {
+				console.error(
+					`[BotLogger] Failed to stream ${entriesToSend.length} log entries:`,
+					error instanceof Error ? error.message : String(error),
+				);
+			}
+		}
+	}
+
+	/**
+	 * Adds a log entry to the buffer for streaming
+	 */
+	private bufferLogEntry(
+		level: LogLevel,
+		message: string,
+		location: string,
+		elapsed: string,
+		context?: LogContext,
+	): void {
+		if (!this.streamingConfig) return;
+
+		const entry: LogEntry = {
+			id: randomUUID(),
+			botId: this.botId,
+			timestamp: new Date(),
+			level: LOG_LEVEL_NAMES[level] as LogEntry["level"],
+			message,
+			state: this.currentState,
+			location,
+			context: context as Record<string, unknown>,
+			elapsed,
+		};
+
+		this.logBuffer.push(entry);
+
+		// Force flush if buffer is full
+		if (
+			this.streamingConfig.maxBufferSize &&
+			this.logBuffer.length >= this.streamingConfig.maxBufferSize
+		) {
+			void this.flushToBackend();
+		}
+	}
+
+	/**
+	 * Gracefully shuts down the logger, flushing all pending logs.
+	 * Call this when the bot is exiting.
+	 */
+	async shutdown(): Promise<void> {
+		this.isShuttingDown = true;
+		this.stopFlushTimer();
+
+		// Final flush of any remaining logs
+		if (this.streamingConfig && this.logBuffer.length > 0) {
+			await this.flushToBackend();
+		}
+
+		// Tell backend to flush to S3
+		if (this.streamingConfig) {
+			try {
+				await this.streamingConfig.trpcClient.bots.logs.flush.mutate({
+					botId: String(this.botId),
+				});
+			} catch (error) {
+				console.error(
+					"[BotLogger] Failed to trigger S3 flush:",
+					error instanceof Error ? error.message : String(error),
+				);
+			}
+		}
 	}
 
 	/**
@@ -242,6 +418,9 @@ export class BotLogger {
 
 		// Add to breadcrumbs
 		this.addBreadcrumb(levelName, message);
+
+		// Buffer for streaming to backend
+		this.bufferLogEntry(level, message, location, elapsed, context);
 
 		// Build the log line
 		const parts = [

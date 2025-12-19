@@ -12,6 +12,7 @@ import {
 	MessageSquare,
 	Radio,
 	Server,
+	Terminal,
 	Video,
 } from "lucide-react";
 import Image from "next/image";
@@ -31,6 +32,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { api } from "@/trpc/react";
 import { ChatHistoryPanel } from "./chat-history-panel";
+import { LogsTab } from "./logs-tab";
 import { ScreenshotViewer } from "./screenshot-viewer";
 
 interface BotDetailsDialogProps {
@@ -109,7 +111,7 @@ function formatStatus(status: string): string {
 
 export function BotDetailsDialog({ botId, onClose }: BotDetailsDialogProps) {
 	const [activeTab, setActiveTab] = useState<
-		"details" | "events" | "screenshots" | "chat"
+		"details" | "events" | "logs" | "screenshots" | "chat"
 	>("details");
 
 	const {
@@ -185,6 +187,7 @@ export function BotDetailsDialog({ botId, onClose }: BotDetailsDialogProps) {
 	const tabs = [
 		{ id: "details" as const, label: "Overview", icon: Radio },
 		{ id: "events" as const, label: "Events", icon: Activity },
+		{ id: "logs" as const, label: "Logs", icon: Terminal },
 		...(hasScreenshots
 			? [
 					{
@@ -419,6 +422,10 @@ export function BotDetailsDialog({ botId, onClose }: BotDetailsDialogProps) {
 							/>
 						</div>
 					)}
+
+					{activeTab === "logs" && botId ? (
+						<LogsTab botId={botId} botStatus={bot?.status} />
+					) : null}
 
 					{activeTab === "screenshots" && (
 						<div className="p-6">
