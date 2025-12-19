@@ -623,6 +623,7 @@ export class GoogleMeetBot extends Bot {
 				(indicators: string[]) => {
 					// Check if we still see waiting room indicators
 					const bodyText = document.body.innerText;
+
 					const inWaitingRoom = indicators.some((text) =>
 						bodyText.toLowerCase().includes(text.toLowerCase()),
 					);
@@ -659,17 +660,43 @@ export class GoogleMeetBot extends Bot {
 
 					// We're in the call if we have the leave button AND any in-call indicator
 					return (
-						leaveBtn && (peopleIcon || peopleButton || participantsPanel || chatButton)
+						leaveBtn &&
+						(peopleIcon || peopleButton || participantsPanel || chatButton)
 					);
 				},
 				waitingRoomIndicators,
 				{ timeout },
 			);
-		} catch (_e) {
+		} catch (error) {
 			const elapsedTime = Date.now() - startTime;
-			const errorMessage = isWaitingRoom
-				? `Bot was not accepted into the meeting within the timeout period (waited ${Math.round(elapsedTime / 1000)}s)`
-				: `Failed to join the meeting within the timeout period (waited ${Math.round(elapsedTime / 1000)}s)`;
+			const elapsedSeconds = Math.round(elapsedTime / 1000);
+			const timeoutSeconds = Math.round(timeout / 1000);
+
+			// Log the actual error for debugging
+			console.error(
+				"waitForFunction failed:",
+				error instanceof Error ? error.message : String(error),
+			);
+
+			// Differentiate between actual timeout and immediate failures
+			// If elapsed time is less than 90% of timeout, something unexpected happened
+			const isActualTimeout = elapsedTime >= timeout * 0.9;
+
+			let errorMessage: string;
+
+			if (isActualTimeout) {
+				errorMessage = isWaitingRoom
+					? `Bot was not accepted into the meeting within the timeout period (waited ${elapsedSeconds}s)`
+					: `Failed to join the meeting within the timeout period (waited ${elapsedSeconds}s)`;
+			} else {
+				// Immediate failure - something unexpected happened (page crash, navigation, etc.)
+				const actualError =
+					error instanceof Error ? error.message : String(error);
+
+				errorMessage = isWaitingRoom
+					? `Bot encountered an error in waiting room after ${elapsedSeconds}s (timeout was ${timeoutSeconds}s): ${actualError}`
+					: `Bot encountered an error while joining after ${elapsedSeconds}s (timeout was ${timeoutSeconds}s): ${actualError}`;
+			}
 
 			console.error(errorMessage);
 

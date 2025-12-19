@@ -1,4 +1,4 @@
-import { Activity, Bot, File, Key, LogIn } from "lucide-react";
+import { Activity, Bot, File, Key, LogIn, Server } from "lucide-react";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -271,6 +271,17 @@ function ResourceCardsSkeleton() {
 			<StatCard className="min-h-[180px]">
 				<StatCardHeader className="justify-start gap-3">
 					<StatCardIconSkeleton />
+					<Skeleton className="h-5 w-12" />
+				</StatCardHeader>
+				<Skeleton className="h-4 w-full mb-1" />
+				<Skeleton className="h-4 w-3/4 flex-1" />
+				<StatCardFooter className="border-t-0 pt-0 mt-4">
+					<StatCardLinkSkeleton />
+				</StatCardFooter>
+			</StatCard>
+			<StatCard className="min-h-[180px]">
+				<StatCardHeader className="justify-start gap-3">
+					<StatCardIconSkeleton />
 					<Skeleton className="h-5 w-24" />
 				</StatCardHeader>
 				<Skeleton className="h-4 w-full mb-1" />
@@ -304,6 +315,22 @@ async function ResourceCardsSection() {
 				</StatCardDescription>
 				<StatCardFooter className="border-t-0 pt-0 mt-4">
 					<StatCardLink href="/api-keys">Manage Keys</StatCardLink>
+				</StatCardFooter>
+			</StatCard>
+
+			<StatCard className="min-h-[180px]">
+				<StatCardHeader className="justify-start gap-3">
+					<StatCardIcon>
+						<Server className="h-5 w-5" />
+					</StatCardIcon>
+					<StatCardTitle>Pool</StatCardTitle>
+				</StatCardHeader>
+				<StatCardDescription>
+					Monitor bot pool capacity, view deployment queue, and track slot
+					availability.
+				</StatCardDescription>
+				<StatCardFooter className="border-t-0 pt-0 mt-4">
+					<StatCardLink href="/pool">View Pool</StatCardLink>
 				</StatCardFooter>
 			</StatCard>
 
