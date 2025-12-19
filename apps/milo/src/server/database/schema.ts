@@ -331,6 +331,7 @@ const allEventCodes = [
 	"PARTICIPANT_LEAVE",
 	"LOG",
 	"USER_REMOVED_FROM_CALL",
+	"USER_CANCELLED_DEPLOYMENT",
 ] as const;
 
 /**
@@ -357,6 +358,8 @@ export const EVENT_DESCRIPTIONS = {
 	LOG: "Catch-all for any logs that were produced that don't fit any other event type. The data.message will contain the log contents.",
 	USER_REMOVED_FROM_CALL:
 		"The bot was manually removed from the call by the user through the dashboard.",
+	USER_CANCELLED_DEPLOYMENT:
+		"The bot deployment was cancelled by the user before joining the call.",
 } as const;
 
 /**

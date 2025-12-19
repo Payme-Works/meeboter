@@ -8,6 +8,7 @@ import {
 	MessageSquare,
 	PhoneOff,
 	Plus,
+	XCircle,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -25,6 +26,7 @@ import { Button } from "@/components/ui/button";
 import { useSession } from "@/lib/auth-client";
 import { api } from "@/trpc/react";
 import { BotDetailsDialog } from "./_components/bot-details-dialog";
+import { CancelDeploymentDialog } from "./_components/cancel-deployment-dialog";
 import { MultiBotChatDialog } from "./_components/multi-bot-chat-dialog";
 import { MultiBotJoinDialog } from "./_components/multi-bot-join-dialog";
 import { RemoveFromCallDialog } from "./_components/remove-from-call-dialog";
@@ -85,6 +87,11 @@ export default function BotsPage() {
 	const [multiBotChatDialogOpen, setMultiBotChatDialogOpen] = useState(false);
 
 	const [botToRemove, setBotToRemove] = useState<{
+		id: number;
+		name: string;
+	} | null>(null);
+
+	const [botToCancel, setBotToCancel] = useState<{
 		id: number;
 		name: string;
 	} | null>(null);
@@ -192,6 +199,8 @@ export default function BotsPage() {
 					row.original.status,
 				);
 
+				const isDeploying = row.original.status === "DEPLOYING";
+
 				return (
 					<div className="flex items-center gap-2">
 						<Button
@@ -214,6 +223,21 @@ export default function BotsPage() {
 							>
 								<PhoneOff className="h-4 w-4" />
 								Remove from Call
+							</Button>
+						) : null}
+						{isDeploying ? (
+							<Button
+								variant="secondary"
+								size="sm"
+								onClick={() =>
+									setBotToCancel({
+										id: row.original.id,
+										name: row.original.botDisplayName,
+									})
+								}
+							>
+								<XCircle className="h-4 w-4" />
+								Cancel
 							</Button>
 						) : null}
 					</div>
@@ -280,6 +304,15 @@ export default function BotsPage() {
 				open={!!botToRemove}
 				onOpenChange={(open) => {
 					if (!open) setBotToRemove(null);
+				}}
+			/>
+
+			<CancelDeploymentDialog
+				botId={botToCancel?.id ?? null}
+				botName={botToCancel?.name ?? ""}
+				open={!!botToCancel}
+				onOpenChange={(open) => {
+					if (!open) setBotToCancel(null);
 				}}
 			/>
 		</div>

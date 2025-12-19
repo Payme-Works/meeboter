@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/trpc/react";
+import { CancelDeploymentDialog } from "../bots/_components/cancel-deployment-dialog";
 import { RemoveFromCallDialog } from "../bots/_components/remove-from-call-dialog";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -49,6 +50,11 @@ export function RecentBots() {
 	const { data: bots = [], isLoading } = api.bots.getBots.useQuery();
 
 	const [botToRemove, setBotToRemove] = useState<{
+		id: number;
+		name: string;
+	} | null>(null);
+
+	const [botToCancel, setBotToCancel] = useState<{
 		id: number;
 		name: string;
 	} | null>(null);
@@ -126,6 +132,7 @@ export function RecentBots() {
 								STATUS_COLORS[bot.status] || "text-muted-foreground";
 
 							const canRemove = REMOVABLE_STATUSES.includes(bot.status);
+							const canCancel = bot.status === "DEPLOYING";
 
 							return (
 								<div
@@ -190,6 +197,22 @@ export function RecentBots() {
 												<X className="h-4 w-4" />
 											</Button>
 										) : null}
+										{canCancel ? (
+											<Button
+												variant="ghost"
+												size="icon"
+												className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-muted-foreground/80"
+												onClick={() =>
+													setBotToCancel({
+														id: bot.id,
+														name: bot.botDisplayName,
+													})
+												}
+												title="Cancel Deployment"
+											>
+												<X className="h-4 w-4" />
+											</Button>
+										) : null}
 									</div>
 								</div>
 							);
@@ -204,6 +227,15 @@ export function RecentBots() {
 				open={!!botToRemove}
 				onOpenChange={(open) => {
 					if (!open) setBotToRemove(null);
+				}}
+			/>
+
+			<CancelDeploymentDialog
+				botId={botToCancel?.id ?? null}
+				botName={botToCancel?.name ?? ""}
+				open={!!botToCancel}
+				onOpenChange={(open) => {
+					if (!open) setBotToCancel(null);
 				}}
 			/>
 		</div>

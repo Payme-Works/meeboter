@@ -1093,6 +1093,91 @@ export const botsRouter = createTRPCRouter({
 		}),
 
 	/**
+	 * Cancels a bot deployment before it joins a call.
+	 * Only works for bots in DEPLOYING status.
+	 * @param input - Object containing the bot ID
+	 * @param input.id - The ID of the bot to cancel
+	 * @returns Promise<{success: boolean}> Success status
+	 * @throws TRPCError if bot is not found, doesn't belong to user, or is not deploying
+	 */
+	cancelDeployment: protectedProcedure
+		.meta({
+			openapi: {
+				method: "POST",
+				path: "/bots/{id}/cancel",
+				description: "Cancel a bot deployment",
+			},
+		})
+		.input(
+			z.object({
+				id: z.string().transform((val) => Number(val)),
+			}),
+		)
+		.output(
+			z.object({
+				success: z.boolean(),
+			}),
+		)
+		.mutation(async ({ input, ctx }): Promise<{ success: boolean }> => {
+			const bot = await ctx.db
+				.select({
+					id: botsTable.id,
+					userId: botsTable.userId,
+					status: botsTable.status,
+					coolifyServiceUuid: botsTable.coolifyServiceUuid,
+				})
+				.from(botsTable)
+				.where(eq(botsTable.id, input.id))
+				.limit(1);
+
+			if (!bot[0]) {
+				throw new TRPCError({
+					code: "NOT_FOUND",
+					message: "Bot not found",
+				});
+			}
+
+			if (bot[0].userId !== ctx.session.user.id) {
+				throw new TRPCError({
+					code: "FORBIDDEN",
+					message: "Bot not found",
+				});
+			}
+
+			if (bot[0].status !== "DEPLOYING") {
+				throw new TRPCError({
+					code: "BAD_REQUEST",
+					message: "Bot is not deploying",
+				});
+			}
+
+			await ctx.db.insert(events).values({
+				botId: input.id,
+				eventType: "USER_CANCELLED_DEPLOYMENT",
+				eventTime: new Date(),
+				data: {
+					description: "Bot deployment cancelled by user",
+				},
+			});
+
+			await ctx.db
+				.update(botsTable)
+				.set({ status: "DONE" })
+				.where(eq(botsTable.id, input.id));
+
+			if (bot[0].coolifyServiceUuid) {
+				void services.deployment.release(input.id).catch((error) => {
+					console.error(
+						`Failed to release pool slot for bot ${input.id}:`,
+						error,
+					);
+				});
+			}
+
+			return { success: true };
+		}),
+
+	/**
 	 * Retrieves the current bot pool statistics for monitoring.
 	 * Shows idle, busy, and error slot counts.
 	 * @returns Promise<PoolStats> Pool statistics
