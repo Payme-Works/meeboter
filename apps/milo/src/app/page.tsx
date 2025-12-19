@@ -302,6 +302,7 @@ async function ResourceCardsSection() {
 			{poolStats ? (
 				<PoolCard
 					idle={poolStats.idle}
+					deploying={poolStats.deploying}
 					busy={poolStats.busy}
 					total={poolStats.total}
 					maxSize={poolStats.maxSize}

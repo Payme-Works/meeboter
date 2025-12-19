@@ -5,12 +5,13 @@ import Link from "next/link";
 
 interface PoolCardProps {
 	idle: number;
+	deploying: number;
 	busy: number;
 	total: number;
 	maxSize: number;
 }
 
-type SlotStatus = "idle" | "busy" | "empty";
+type SlotStatus = "idle" | "deploying" | "busy" | "empty";
 
 function SlotDot({ status, index }: { status: SlotStatus; index: number }) {
 	const baseClasses =
@@ -18,12 +19,15 @@ function SlotDot({ status, index }: { status: SlotStatus; index: number }) {
 
 	const statusClasses: Record<SlotStatus, string> = {
 		idle: "bg-accent shadow-[0_0_6px_rgba(var(--accent),0.4)]",
+		deploying:
+			"bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.4)] animate-pulse",
 		busy: "bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.4)]",
 		empty: "bg-transparent border border-muted-foreground/20",
 	};
 
 	const hoverClasses: Record<SlotStatus, string> = {
 		idle: "group-hover/card:shadow-[0_0_8px_rgba(var(--accent),0.5)]",
+		deploying: "group-hover/card:shadow-[0_0_8px_rgba(59,130,246,0.5)]",
 		busy: "group-hover/card:shadow-[0_0_8px_rgba(245,158,11,0.5)]",
 		empty: "group-hover/card:border-muted-foreground/30",
 	};
@@ -39,13 +43,24 @@ function SlotDot({ status, index }: { status: SlotStatus; index: number }) {
 	);
 }
 
-export function PoolCard({ idle, busy, total, maxSize }: PoolCardProps) {
+export function PoolCard({
+	idle,
+	deploying,
+	busy,
+	total,
+	maxSize,
+}: PoolCardProps) {
 	// Build array of slot statuses
 	const slots: SlotStatus[] = [];
 
 	// Add idle slots first
 	for (let i = 0; i < idle; i++) {
 		slots.push("idle");
+	}
+
+	// Add deploying slots
+	for (let i = 0; i < deploying; i++) {
+		slots.push("deploying");
 	}
 
 	// Add busy slots
@@ -80,7 +95,7 @@ export function PoolCard({ idle, busy, total, maxSize }: PoolCardProps) {
 				<div
 					className="flex flex-wrap gap-1.5 mb-4"
 					role="img"
-					aria-label={`Pool status: ${idle} idle, ${busy} busy, ${empty} empty slots`}
+					aria-label={`Pool status: ${idle} idle, ${deploying} deploying, ${busy} busy, ${empty} empty slots`}
 				>
 					{slots.map((status, index) => (
 						<SlotDot key={index} status={status} index={index} />
@@ -97,6 +112,18 @@ export function PoolCard({ idle, busy, total, maxSize }: PoolCardProps) {
 						<span>idle</span>
 					</span>
 					<span className="text-muted-foreground/40">·</span>
+					{deploying > 0 ? (
+						<>
+							<span className="flex items-center gap-1">
+								<span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+								<span className="tabular-nums font-medium text-foreground/80">
+									{deploying}
+								</span>
+								<span>deploying</span>
+							</span>
+							<span className="text-muted-foreground/40">·</span>
+						</>
+					) : null}
 					<span className="flex items-center gap-1">
 						<span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
 						<span className="tabular-nums font-medium text-foreground/80">

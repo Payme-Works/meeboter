@@ -210,6 +210,7 @@ export function QuickBotJoin() {
 			await Promise.all(botCreationPromises);
 			await utils.bots.getBots.invalidate();
 			await utils.bots.getDailyUsage.invalidate();
+			await utils.pool.statistics.getPool.invalidate();
 
 			const platformName = getPlatformDisplayName(platform);
 

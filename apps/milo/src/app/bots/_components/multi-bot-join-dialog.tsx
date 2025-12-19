@@ -159,9 +159,10 @@ export function MultiBotJoinDialog({ open, onClose }: MultiBotJoinDialogProps) {
 
 			await Promise.all(botCreationPromises);
 
-			// Refresh bots list and usage data
+			// Refresh bots list, usage data, and pool stats
 			await utils.bots.getBots.invalidate();
 			await utils.bots.getDailyUsage.invalidate();
+			await utils.pool.statistics.getPool.invalidate();
 
 			form.reset();
 
