@@ -434,19 +434,47 @@ export class GoogleMeetBot extends Bot {
 			'Waiting for either the "Join now" or "Ask to join" button to appear...',
 		);
 
-		const entryButton = await Promise.race([
-			this.page
-				.waitForSelector(joinNowButton, { timeout: 60000 })
-				.then(() => joinNowButton),
-			this.page
-				.waitForSelector(askToJoinButton, { timeout: 60000 })
-				.then(() => askToJoinButton),
-		]);
+		let isWaitingRoom = false;
 
-		await this.page.click(entryButton);
+		try {
+			const entryButton = await Promise.race([
+				this.page
+					.waitForSelector(joinNowButton, { timeout: 60000 })
+					.then(() => joinNowButton),
+				this.page
+					.waitForSelector(askToJoinButton, { timeout: 60000 })
+					.then(() => {
+						isWaitingRoom = true;
+
+						return askToJoinButton;
+					}),
+			]);
+
+			console.log(
+				`Found entry button: ${isWaitingRoom ? "Ask to join (waiting room)" : "Join now"}`,
+			);
+
+			await this.page.click(entryButton);
+		} catch (error) {
+			console.error("Failed to find join/ask button within 60 seconds:", error);
+
+			throw new WaitingRoomTimeoutError(
+				"Could not find join button - meeting may be invalid or unavailable",
+			);
+		}
+
+		// If we clicked "Ask to join", report that we're in the waiting room
+		if (isWaitingRoom) {
+			console.log("Bot is now in waiting room, awaiting host acceptance...");
+			await this.onEvent(EventCode.IN_WAITING_ROOM);
+		}
 
 		// Should exit after the waiting room timeout if we're in the waiting room
 		const timeout = this.settings.automaticLeave.waitingRoomTimeout; // in milliseconds
+
+		console.log(
+			`Waiting for host acceptance (timeout: ${timeout / 1000} seconds)...`,
+		);
 
 		// Wait for the leave button to appear (meaning we've joined the meeting)
 		try {
@@ -454,7 +482,13 @@ export class GoogleMeetBot extends Bot {
 				timeout: timeout,
 			});
 		} catch (_e) {
-			throw new WaitingRoomTimeoutError();
+			const errorMessage = isWaitingRoom
+				? "Bot was not accepted into the meeting within the timeout period"
+				: "Failed to join the meeting within the timeout period";
+
+			console.error(errorMessage);
+
+			throw new WaitingRoomTimeoutError(errorMessage);
 		}
 
 		console.log("Joined call");
