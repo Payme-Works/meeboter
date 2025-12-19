@@ -515,10 +515,33 @@ export class CoolifyService {
 				const deployment = await this.getLatestDeployment(applicationUuid);
 
 				if (!deployment) {
+					// Fallback: check container status directly
+					// If container is running/healthy, consider deployment successful
+					const containerStatus =
+						await this.getApplicationStatus(applicationUuid);
+
+					const normalizedStatus = containerStatus.toLowerCase();
+
 					console.log(
-						`[CoolifyService] No deployment found for ${applicationUuid}, waiting...`,
+						`[CoolifyService] No deployment record for ${applicationUuid}, container status: ${containerStatus} (elapsed: ${Math.round(elapsedMs / 1000)}s)`,
 					);
 
+					if (
+						normalizedStatus === "running" ||
+						normalizedStatus === "healthy" ||
+						normalizedStatus.startsWith("running:")
+					) {
+						console.log(
+							`[CoolifyService] Container ${applicationUuid} is ${containerStatus}, treating as successful deployment`,
+						);
+
+						return {
+							success: true,
+							status: containerStatus,
+						};
+					}
+
+					// Container not ready yet, continue waiting
 					await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
 
 					continue;
