@@ -333,6 +333,12 @@ const allEventCodes = [
 	"LOG",
 	"USER_REMOVED_FROM_CALL",
 	"USER_CANCELLED_DEPLOYMENT",
+	"SIGN_IN_REQUIRED",
+	"CAPTCHA_DETECTED",
+	"MEETING_NOT_FOUND",
+	"MEETING_ENDED",
+	"PERMISSION_DENIED",
+	"JOIN_BLOCKED",
 ] as const;
 
 /**
@@ -363,6 +369,17 @@ export const EVENT_DESCRIPTIONS = {
 		"The bot was manually removed from the call by the user through the dashboard.",
 	USER_CANCELLED_DEPLOYMENT:
 		"The bot deployment was cancelled by the user before joining the call.",
+	SIGN_IN_REQUIRED:
+		"The bot was blocked because Google requires sign-in to join this meeting.",
+	CAPTCHA_DETECTED:
+		"The bot was blocked by a captcha challenge on the meeting page.",
+	MEETING_NOT_FOUND:
+		"The meeting code or URL is invalid or the meeting does not exist.",
+	MEETING_ENDED: "The meeting has already ended and cannot be joined.",
+	PERMISSION_DENIED:
+		"The bot was denied permission to join the meeting by the host or meeting settings.",
+	JOIN_BLOCKED:
+		"The bot was unable to join the meeting due to an unspecified blocking screen.",
 } as const;
 
 /**

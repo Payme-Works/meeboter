@@ -48,6 +48,21 @@ const cameraOffButton = `[aria-label*="Turn off camera"]`;
 
 const infoPopupClick = `//button[.//span[text()="Got it"]]`;
 
+// Blocking screen selectors for pre-join detection
+const signInButton = '//button[.//span[text()="Sign in"]]';
+const signInPrompt = '[data-identifier="signInButton"], [aria-label="Sign in"]';
+
+const captchaFrame = 'iframe[src*="recaptcha"], iframe[title*="reCAPTCHA"]';
+const captchaChallenge = '[class*="captcha"], #captcha';
+
+const meetingNotFound = '//*[contains(text(), "Check your meeting code")]';
+const meetingInvalid = '//*[contains(text(), "Invalid video call name")]';
+const meetingEnded = '//*[contains(text(), "This meeting has ended")]';
+const meetingUnavailable = '//*[contains(text(), "not available")]';
+
+const permissionDenied = '//*[contains(text(), "denied access")]';
+const notAllowedToJoin = '//*[contains(text(), "not allowed to join")]';
+
 const SCREEN_WIDTH = 1920;
 const SCREEN_HEIGHT = 1080;
 
@@ -184,6 +199,121 @@ export class GoogleMeetBot extends Bot {
 		this.ffmpegProcess = null;
 		this.chatEnabled = botSettings.chatEnabled ?? false;
 		this.chatPanelOpen = false;
+	}
+
+	/**
+	 * Detects if a blocking screen is preventing access to the join form.
+	 * Checks for sign-in prompts, captchas, meeting errors, and permission issues.
+	 *
+	 * @returns The EventCode for the detected blocking screen, or null if none detected
+	 */
+	private async detectBlockingScreen(): Promise<EventCode | null> {
+		if (!this.page) {
+			return null;
+		}
+
+		const blockingScreens: { type: EventCode; selectors: string[] }[] = [
+			{
+				type: EventCode.SIGN_IN_REQUIRED,
+				selectors: [signInButton, signInPrompt],
+			},
+			{
+				type: EventCode.CAPTCHA_DETECTED,
+				selectors: [captchaFrame, captchaChallenge],
+			},
+			{
+				type: EventCode.MEETING_NOT_FOUND,
+				selectors: [meetingNotFound, meetingInvalid],
+			},
+			{
+				type: EventCode.MEETING_ENDED,
+				selectors: [meetingEnded, meetingUnavailable],
+			},
+			{
+				type: EventCode.PERMISSION_DENIED,
+				selectors: [permissionDenied, notAllowedToJoin],
+			},
+		];
+
+		for (const screen of blockingScreens) {
+			for (const selector of screen.selectors) {
+				try {
+					const count = await this.page.locator(selector).count();
+
+					if (count > 0) {
+						console.log(
+							`Blocking screen detected: ${screen.type} (selector: ${selector})`,
+						);
+
+						return screen.type;
+					}
+				} catch {
+					// Selector check failed, continue to next
+				}
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * Waits for the join screen (name input field) with retry logic.
+	 * Detects and reports blocking screens if the name field is not visible.
+	 *
+	 * @param maxAttempts - Maximum number of retry attempts (default: 3)
+	 * @param attemptTimeout - Timeout per attempt in milliseconds (default: 10000)
+	 * @throws Error if join screen cannot be reached after all attempts
+	 */
+	private async waitForJoinScreen(
+		maxAttempts = 3,
+		attemptTimeout = 10000,
+	): Promise<void> {
+		if (!this.page) {
+			throw new Error("Page not initialized");
+		}
+
+		for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+			console.log(
+				`Attempt ${attempt}/${maxAttempts}: Waiting for name input field...`,
+			);
+
+			try {
+				await this.page.waitForSelector(enterNameField, {
+					timeout: attemptTimeout,
+					state: "visible",
+				});
+
+				console.log("Name input field found and visible");
+
+				return;
+			} catch {
+				console.log(
+					`Attempt ${attempt} failed, checking for blocking screens...`,
+				);
+
+				const blockingType = await this.detectBlockingScreen();
+
+				if (blockingType) {
+					console.log(`Blocking screen detected: ${blockingType}`);
+					await this.onEvent(blockingType);
+
+					throw new Error(`Join blocked: ${blockingType}`);
+				}
+
+				if (attempt < maxAttempts) {
+					console.log(
+						"No specific blocking screen detected, retrying in 2 seconds...",
+					);
+
+					await this.page.waitForTimeout(2000);
+				}
+			}
+		}
+
+		console.log("All attempts failed, reporting generic JOIN_BLOCKED");
+		await this.onEvent(EventCode.JOIN_BLOCKED);
+
+		throw new Error("Failed to find name input after all retry attempts");
 	}
 
 	/**
@@ -399,11 +529,11 @@ export class GoogleMeetBot extends Bot {
 
 		await this.page.bringToFront(); // Ensure active
 
-		console.log("Waiting for the input field to be visible...");
+		console.log("Waiting for the join screen...");
 
-		await this.page.waitForSelector(enterNameField, { timeout: 15000 }); // If it can't find the enter name field in 15 seconds then something went wrong
+		await this.waitForJoinScreen();
 
-		console.log("Found it. Waiting for 1 second...");
+		console.log("Found join screen. Waiting for 1 second...");
 
 		await this.page.waitForTimeout(randomDelay(1000));
 

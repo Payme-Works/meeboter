@@ -119,6 +119,19 @@ export enum EventCode {
 	PARTICIPANT_LEAVE = "PARTICIPANT_LEAVE",
 	/** General log event */
 	LOG = "LOG",
+
+	/** Bot blocked: Google sign-in required to join */
+	SIGN_IN_REQUIRED = "SIGN_IN_REQUIRED",
+	/** Bot blocked: Captcha challenge detected */
+	CAPTCHA_DETECTED = "CAPTCHA_DETECTED",
+	/** Bot blocked: Meeting not found or invalid code */
+	MEETING_NOT_FOUND = "MEETING_NOT_FOUND",
+	/** Bot blocked: Meeting has ended */
+	MEETING_ENDED = "MEETING_ENDED",
+	/** Bot blocked: Permission denied to join */
+	PERMISSION_DENIED = "PERMISSION_DENIED",
+	/** Bot blocked: Generic join failure */
+	JOIN_BLOCKED = "JOIN_BLOCKED",
 }
 
 /**
