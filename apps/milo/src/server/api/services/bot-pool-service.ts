@@ -899,12 +899,19 @@ export class BotPoolService {
 
 	/**
 	 * Recreates a Coolify application for a slot whose app was deleted externally
+	 *
+	 * Updates both botPoolSlotsTable and botsTable with the new UUID to ensure
+	 * all references to this slot/bot use the new Coolify application UUID.
 	 */
 	private async recreateSlotApplication(
 		slot: PoolSlot,
 		botConfig: BotConfig,
 	): Promise<PoolSlot> {
 		const image = this.coolify.selectBotImage(botConfig.meetingInfo);
+
+		console.log(
+			`[Pool] Creating new Coolify app for slot ${slot.slotName} (old UUID: ${slot.coolifyServiceUuid}, slot ID: ${slot.id})`,
+		);
 
 		const newCoolifyUuid = await this.coolify.createApplication(
 			botConfig.id,
@@ -913,6 +920,7 @@ export class BotPoolService {
 			slot.slotName,
 		);
 
+		// Update the slot table with the new UUID
 		await this.db
 			.update(botPoolSlotsTable)
 			.set({
@@ -921,6 +929,17 @@ export class BotPoolService {
 				recoveryAttempts: sql`${botPoolSlotsTable.recoveryAttempts} + 1`,
 			})
 			.where(eq(botPoolSlotsTable.id, slot.id));
+
+		// Also update the bot's reference to the new UUID immediately
+		// This ensures any code reading from botsTable gets the correct UUID
+		await this.db
+			.update(botsTable)
+			.set({ coolifyServiceUuid: newCoolifyUuid })
+			.where(eq(botsTable.id, botConfig.id));
+
+		console.log(
+			`[Pool] Updated slot ${slot.slotName} and bot ${botConfig.id} with new UUID ${newCoolifyUuid}`,
+		);
 
 		return {
 			...slot,
