@@ -267,7 +267,7 @@ export function LogsTab({ botId, botStatus }: LogsTabProps) {
 				</div>
 
 				<Select value={levelFilter} onValueChange={setLevelFilter}>
-					<SelectTrigger className="w-[120px] h-8">
+					<SelectTrigger className="w-[120px] h-8 text-foreground">
 						<SelectValue placeholder="Level" />
 					</SelectTrigger>
 					<SelectContent>
@@ -287,7 +287,7 @@ export function LogsTab({ botId, botStatus }: LogsTabProps) {
 							variant="ghost"
 							size="sm"
 							onClick={() => setIsPaused(!isPaused)}
-							className="h-8 px-2"
+							className="h-8 px-2 text-foreground"
 						>
 							{isPaused ? (
 								<>
@@ -307,7 +307,10 @@ export function LogsTab({ botId, botStatus }: LogsTabProps) {
 						variant="ghost"
 						size="sm"
 						onClick={() => setShowTimestamps(!showTimestamps)}
-						className={cn("h-8 px-2", showTimestamps && "bg-muted")}
+						className={cn(
+							"h-8 px-2 text-foreground",
+							showTimestamps && "bg-muted",
+						)}
 					>
 						Timestamps
 					</Button>
