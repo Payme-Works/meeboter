@@ -131,7 +131,9 @@ export class HeartbeatWorker {
 	): Promise<void> {
 		while (!abortSignal.aborted) {
 			const result = await retryOperation(async () => {
-				return await this.trpc.sendHeartbeat(botId);
+				return await this.trpc.client.bots.heartbeat.mutate({
+					id: String(botId),
+				});
 			}, "Heartbeat");
 
 			if (result !== null) {

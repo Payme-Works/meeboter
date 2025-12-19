@@ -5,7 +5,46 @@ dotenv.config({ path: "../.env.test" }); // Load .env.test for testing
 dotenv.config();
 
 import { env } from "./config/env";
-import { createServices, EventCode, Status } from "./services";
+import {
+	createServices,
+	EventCode,
+	STATUS_EVENT_CODES,
+	Status,
+	type TrpcService,
+} from "./services";
+
+/**
+ * Reports an event and updates status if it's a status-changing event
+ */
+async function reportEventWithStatus(
+	trpc: TrpcService,
+	botId: number,
+	eventType: EventCode,
+	data?: { message?: string; description?: string; sub_code?: string },
+): Promise<void> {
+	// Report the event to the events log
+	await trpc.client.bots.reportEvent.mutate({
+		id: String(botId),
+		event: {
+			eventType,
+			eventTime: new Date(),
+			data: data
+				? {
+						description: data.message || data.description,
+						sub_code: data.sub_code,
+					}
+				: null,
+		},
+	});
+
+	// Also update status if this is a status-changing event
+	if (STATUS_EVENT_CODES.includes(eventType)) {
+		await trpc.client.bots.updateBotStatus.mutate({
+			id: String(botId),
+			status: eventType as unknown as Status,
+		});
+	}
+}
 
 /**
  * Main entry point for the bot application.
@@ -26,7 +65,10 @@ export const main = async () => {
 	});
 
 	// Fetch bot configuration
-	const botConfig = await bootstrapTrpc.getPoolSlot(poolSlotUuid);
+	const botConfig = await bootstrapTrpc.client.bots.getPoolSlot.query({
+		poolSlotUuid,
+	});
+
 	console.log("Received bot data:", botConfig);
 
 	const botId = botConfig.id;
@@ -63,7 +105,7 @@ export const main = async () => {
 			workers.durationMonitor.start(botConfig.startTime, async () => {
 				logger.error("Bot exceeded maximum duration, terminating...");
 
-				await trpc.reportEvent(botId, EventCode.FATAL, {
+				await reportEventWithStatus(trpc, botId, EventCode.FATAL, {
 					message: "Maximum duration exceeded",
 				});
 
@@ -72,7 +114,7 @@ export const main = async () => {
 		}
 
 		// Report initial status
-		await trpc.reportEvent(botId, EventCode.READY_TO_DEPLOY);
+		await reportEventWithStatus(trpc, botId, EventCode.READY_TO_DEPLOY);
 
 		// Start message queue worker if chat is enabled
 		if (botConfig.chatEnabled) {
@@ -88,7 +130,7 @@ export const main = async () => {
 				error instanceof Error ? error : new Error(String(error)),
 			);
 
-			await trpc.reportEvent(botId, EventCode.FATAL, {
+			await reportEventWithStatus(trpc, botId, EventCode.FATAL, {
 				description: (error as Error).message,
 			});
 
@@ -126,7 +168,7 @@ export const main = async () => {
 			(error as Error).message,
 		);
 
-		await trpc.reportEvent(botId, EventCode.FATAL, {
+		await reportEventWithStatus(trpc, botId, EventCode.FATAL, {
 			description: (error as Error).message,
 		});
 	} finally {
@@ -160,12 +202,13 @@ export const main = async () => {
 
 		logger.debug("Speaker timeframes", { count: speakerTimeframes.length });
 
-		await trpc.updateBotStatus(
-			botId,
-			Status.DONE,
-			recordingKey || undefined,
-			speakerTimeframes.length > 0 ? speakerTimeframes : undefined,
-		);
+		await trpc.client.bots.updateBotStatus.mutate({
+			id: String(botId),
+			status: Status.DONE,
+			recording: recordingKey || undefined,
+			speakerTimeframes:
+				speakerTimeframes.length > 0 ? speakerTimeframes : undefined,
+		});
 	}
 
 	process.exit(hasErrorOccurred ? 1 : 0);

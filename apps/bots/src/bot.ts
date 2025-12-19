@@ -6,6 +6,7 @@ import {
 	type BotConfig,
 	type EventCode,
 	type SpeakerTimeframe,
+	STATUS_EVENT_CODES,
 	Status,
 	TrpcService,
 } from "./services";
@@ -149,7 +150,7 @@ export class Bot implements BotInterface {
 			new TrpcService({
 				url: env.MILO_URL,
 				authToken: env.MILO_AUTH_TOKEN,
-			}).getClient();
+			}).client;
 
 		this.logger = logger || new BotLogger(settings.id);
 	}
@@ -378,7 +379,29 @@ export const createBot = async (
 	const createEventHandler =
 		(bot: Bot) =>
 		async (eventType: EventCode, data?: Record<string, unknown>) => {
-			await trpcService.reportEvent(botId, eventType, data ?? null);
+			// Report the event to the events log
+			await trpcService.client.bots.reportEvent.mutate({
+				id: String(botId),
+				event: {
+					eventType,
+					eventTime: new Date(),
+					data: data
+						? {
+								description:
+									(data.message as string) || (data.description as string),
+								sub_code: data.sub_code as string | undefined,
+							}
+						: null,
+				},
+			});
+
+			// Also update status if this is a status-changing event
+			if (STATUS_EVENT_CODES.includes(eventType)) {
+				await trpcService.client.bots.updateBotStatus.mutate({
+					id: String(botId),
+					status: eventType as unknown as Status,
+				});
+			}
 
 			// Trigger onStatusChange callback for status events (non-blocking)
 			if (onStatusChange && eventType in Status) {
@@ -395,7 +418,7 @@ export const createBot = async (
 	const placeholderHandler = async () => {};
 
 	// Get the raw tRPC client for the bot
-	const trpcClient = trpcService.getClient();
+	const trpcClient = trpcService.client;
 
 	let bot: Bot;
 

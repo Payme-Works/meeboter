@@ -6,11 +6,13 @@ import {
 } from "../errors/bot-errors";
 import type { BotLogger, ScreenshotData } from "../logger";
 import type { S3Service } from "./s3-service";
-import type {
-	BotConfig,
-	EventCode,
-	SpeakerTimeframe,
-	TrpcService,
+import {
+	type BotConfig,
+	type EventCode,
+	type SpeakerTimeframe,
+	STATUS_EVENT_CODES,
+	type Status,
+	type TrpcService,
 } from "./trpc-service";
 
 /**
@@ -75,11 +77,33 @@ export class BotService {
 
 		this.logger.info(`Creating bot for platform: ${platform}`);
 
-		// Create event handler that captures status changes
+		// Create event handler that reports events and updates status
 		const createEventHandler =
 			(bot: BotInterface) =>
 			async (eventType: EventCode, data?: Record<string, unknown>) => {
-				await this.trpc.reportEvent(config.id, eventType, data ?? null);
+				// Report the event to the events log
+				await this.trpc.client.bots.reportEvent.mutate({
+					id: String(config.id),
+					event: {
+						eventType,
+						eventTime: new Date(),
+						data: data
+							? {
+									description:
+										(data.message as string) || (data.description as string),
+									sub_code: data.sub_code as string | undefined,
+								}
+							: null,
+					},
+				});
+
+				// Also update status if this is a status-changing event
+				if (STATUS_EVENT_CODES.includes(eventType)) {
+					await this.trpc.client.bots.updateBotStatus.mutate({
+						id: String(config.id),
+						status: eventType as unknown as Status,
+					});
+				}
 
 				// Trigger onStatusChange callback for status events (non-blocking)
 				if (options?.onStatusChange) {
@@ -107,7 +131,7 @@ export class BotService {
 					bot = new GoogleMeetBot(
 						config,
 						placeholderHandler,
-						this.trpc.getClient(),
+						this.trpc.client,
 						this.logger,
 					);
 
@@ -122,7 +146,7 @@ export class BotService {
 					bot = new MicrosoftTeamsBot(
 						config,
 						placeholderHandler,
-						this.trpc.getClient(),
+						this.trpc.client,
 						this.logger,
 					);
 
@@ -135,7 +159,7 @@ export class BotService {
 					bot = new ZoomBot(
 						config,
 						placeholderHandler,
-						this.trpc.getClient(),
+						this.trpc.client,
 						this.logger,
 					);
 
@@ -216,9 +240,12 @@ export class BotService {
 			if (screenshotData) {
 				// Save to backend
 				try {
-					await this.trpc.appendScreenshot(this.bot.settings.id, {
-						...screenshotData,
-						capturedAt: screenshotData.capturedAt.toISOString(),
+					await this.trpc.client.bots.appendScreenshot.mutate({
+						id: String(this.bot.settings.id),
+						screenshot: {
+							...screenshotData,
+							capturedAt: screenshotData.capturedAt.toISOString(),
+						},
 					});
 
 					this.logger.info(`Screenshot saved to backend: ${type}`);
