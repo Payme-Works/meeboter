@@ -252,7 +252,7 @@ export function BotDetailsDialog({ botId, onClose }: BotDetailsDialogProps) {
 								className={cn(
 									"flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-all duration-150 first:rounded-l-lg last:rounded-r-lg",
 									activeTab === tab.id
-										? "bg-white text-zinc-900"
+										? "bg-white !text-zinc-900"
 										: "text-zinc-400 hover:text-white hover:bg-zinc-700/50",
 								)}
 							>
