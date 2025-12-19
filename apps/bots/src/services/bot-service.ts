@@ -125,7 +125,7 @@ export class BotService {
 			switch (platform) {
 				case "google": {
 					const { GoogleMeetBot } = await import(
-						"../../providers/meet/src/bot"
+						"../../providers/google-meet/src/bot"
 					);
 
 					bot = new GoogleMeetBot(

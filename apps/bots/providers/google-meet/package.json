@@ -1,5 +1,5 @@
 {
-	"name": "@meeboter/bots-meet",
+	"name": "@meeboter/bots-google-meet",
 	"version": "1.0.0",
 	"private": true,
 	"dependencies": {

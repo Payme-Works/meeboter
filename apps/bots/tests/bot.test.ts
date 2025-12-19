@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
-import { GoogleMeetBot } from "../providers/meet/src/bot";
+import { GoogleMeetBot } from "../providers/google-meet/src/bot";
 import { MicrosoftTeamsBot } from "../providers/teams/src/bot";
 import { ZoomBot } from "../providers/zoom/src/bot";
 import { type Bot, createBot } from "../src/bot";

@@ -41,7 +41,7 @@ COPY ./packages/ /app/packages/
 
 RUN echo "Convert entrypoint.sh to use Unix line endings"
 
-RUN sed -i 's/\r$//' /app/apps/bots/providers/meet/entrypoint.sh
+RUN sed -i 's/\r$//' /app/apps/bots/providers/google-meet/entrypoint.sh
 
 RUN echo "Install bun"
 
@@ -119,8 +119,8 @@ USER meetbot
 
 RUN echo "Make entrypoint executable"
 
-RUN chmod +x /app/apps/bots/providers/meet/entrypoint.sh
+RUN chmod +x /app/apps/bots/providers/google-meet/entrypoint.sh
 
 RUN echo "Command to run the application"
 
-CMD ["/app/apps/bots/providers/meet/entrypoint.sh"]
+CMD ["/app/apps/bots/providers/google-meet/entrypoint.sh"]

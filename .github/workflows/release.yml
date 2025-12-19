@@ -51,7 +51,7 @@ jobs:
             dockerfile: apps/milo/Dockerfile
             input_check: release_milo
           - name: google-meet-bot
-            dockerfile: apps/bots/providers/meet/Dockerfile
+            dockerfile: apps/bots/providers/google-meet/Dockerfile
             input_check: release_google_meet_bot
           - name: teams-bot
             dockerfile: apps/bots/providers/teams/Dockerfile

@@ -6,11 +6,11 @@
 #
 # Usage:
 #   ./deploy.sh                                    # Deploy all images to development
-#   ./deploy.sh --images server                    # Build only server image
-#   ./deploy.sh --images server,bots-meet          # Build server and meet bot images
+#   ./deploy.sh --images milo                      # Build only milo image
+#   ./deploy.sh --images milo,bots-google-meet     # Build milo and meet bot images
 #   ./deploy.sh --workspace production             # Deploy to production
-#   ./deploy.sh --skip-terraform --images server   # Only build/push images, skip infrastructure
-#   ./deploy.sh -w staging --images bots-meet      # Deploy meet bot to staging
+#   ./deploy.sh --skip-terraform --images milo     # Only build/push images, skip infrastructure
+#   ./deploy.sh -w staging --images bots-google-meet # Deploy meet bot to staging
 
 set -euo pipefail
 
@@ -374,14 +374,14 @@ should_build_image() {
     return 1
 }
 
-# Build, push, and remove server image
-build_and_push_server() {
-    if ! should_build_image "server"; then
-        log_info "Skipping server image build (not in --images list)"
+# Build, push, and remove milo image
+build_and_push_milo() {
+    if ! should_build_image "milo"; then
+        log_info "Skipping milo image build (not in --images list)"
         return 0
     fi
     
-    log_info "Building server image..."
+    log_info "Building milo image..."
     
     # Build from monorepo root with proper context
     if ! docker build \
@@ -405,19 +405,19 @@ build_and_push_server() {
         -t "$ECR_SERVER:latest" \
         .; then
         
-        log_error "Failed to build server image"
+        log_error "Failed to build milo image"
         exit 1
     fi
     
-    log_success "Server image built"
-    
+    log_success "Milo image built"
+
     # Push immediately after build
-    log_info "Pushing server image to ECR..."
+    log_info "Pushing milo image to ECR..."
 
     docker push "$ECR_SERVER:$TAG"
     docker push "$ECR_SERVER:latest"
 
-    log_success "Server image pushed"
+    log_success "Milo image pushed"
 }
 
 # Build, push, and remove bot images
@@ -672,11 +672,11 @@ main() {
     prepare_build
     
     # Build, push, and remove images one by one to save disk space
-    build_and_push_server
+    build_and_push_milo
 
     docker_cleanup "standard"
 
-    build_and_push_bot_provider "meet" "$ECR_MEET"
+    build_and_push_bot_provider "google-meet" "$ECR_MEET"
 
     docker_cleanup "standard"
 
@@ -697,8 +697,8 @@ main() {
     
     log_success "Deployment process completed!"
     log_info "Tagged images:"
-    log_info "- Server: $ECR_SERVER:$TAG"
-    log_info "- Meet Bot: $ECR_MEET:$TAG"
+    log_info "- Milo: $ECR_SERVER:$TAG"
+    log_info "- Google Meet Bot: $ECR_MEET:$TAG"
     log_info "- Teams Bot: $ECR_TEAMS:$TAG"
     log_info "- Zoom Bot: $ECR_ZOOM:$TAG"
 }
@@ -779,10 +779,10 @@ Environment Variables:
 
 Options:
   --images <list>        Comma-separated list of images to build
-                         Options: server, bots-meet, bots-teams, bots-zoom, all
-                         Examples: --images server
-                                  --images server,bots-meet
-                                  --images bots-meet,bots-teams,bots-zoom
+                         Options: milo, bots-google-meet, bots-teams, bots-zoom, all
+                         Examples: --images milo
+                                  --images milo,bots-google-meet
+                                  --images bots-google-meet,bots-teams,bots-zoom
   -w, --workspace <env>  Terraform workspace (development, staging, production)
   --skip-terraform       Skip Terraform apply step
   -h, --help             Show this help message
@@ -794,10 +794,10 @@ Examples:
   TAG=v1.0.0 $0                        # Deploy with custom tag
   SKIP_RESTART=true $0                 # Deploy without restarting services
   $0 --skip-terraform                  # Only build/push images, skip infrastructure
-  $0 --images server                   # Build and push only server image
-  $0 --images server,bots-meet         # Build and push server and meet bot images
-  $0 --workspace staging --images server # Build server image for staging
-  $0 --skip-terraform --images bots-meet # Build meet bot without Terraform
+  $0 --images milo                     # Build and push only milo image
+  $0 --images milo,bots-google-meet    # Build and push milo and meet bot images
+  $0 --workspace staging --images milo # Build milo image for staging
+  $0 --skip-terraform --images bots-google-meet # Build meet bot without Terraform
 
 Prerequisites:
   - Docker installed and running
@@ -812,7 +812,7 @@ The script will:
   2. Validate prerequisites and AWS credentials
   3. Create S3 bucket for Terraform state if it doesn't exist
   4. Apply Terraform configuration for selected workspace
-  5. Build all Docker images (server + 3 bot providers)
+  5. Build all Docker images (milo + 3 bot providers)
   6. Push images to AWS ECR
   7. Restart ECS services to deploy latest images
   8. Clean up local Docker images

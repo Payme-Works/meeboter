@@ -421,7 +421,9 @@ export const createBot = async (
 
 	switch (botData.meetingInfo.platform) {
 		case "google": {
-			const { GoogleMeetBot } = await import("../providers/meet/src/bot");
+			const { GoogleMeetBot } = await import(
+				"../providers/google-meet/src/bot"
+			);
 
 			bot = new GoogleMeetBot(botData, placeholderHandler, trpc, logger);
 

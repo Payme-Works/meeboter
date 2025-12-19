@@ -717,7 +717,7 @@ jobs:
           - name: milo
             dockerfile: apps/milo/Dockerfile
           - name: google-meet-bot
-            dockerfile: apps/bots/providers/meet/Dockerfile
+            dockerfile: apps/bots/providers/google-meet/Dockerfile
           # ... teams-bot, zoom-bot
 
     steps:

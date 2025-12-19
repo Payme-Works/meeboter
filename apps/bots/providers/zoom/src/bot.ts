@@ -1,9 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { Transform } from "node:stream";
+import { setTimeout } from "node:timers/promises";
 import type { AppRouter } from "@meeboter/milo";
 import type { TRPCClient } from "@trpc/client";
-import puppeteer, { type Browser, type Page } from "puppeteer";
+import puppeteer, { type Browser, type Frame, type Page } from "puppeteer";
 import { getStream, launch, wss } from "puppeteer-stream";
 import { Bot } from "../../../src/bot";
 import type { BotLogger } from "../../../src/logger";
@@ -14,48 +15,54 @@ import {
 	WaitingRoomTimeoutError,
 } from "../../../src/types";
 
-// const muteButton = 'button[aria-label="Mute"]';
-// const stopVideoButton = 'button[aria-label="Stop Video"]';
-// Constant selectors
+// ============================================
+// SECTION 1: SELECTORS
+// ============================================
 
-// Replaced buttons selector with IDs to avoid possible language mismatch
-const muteButton = "#preview-audio-control-button";
-const stopVideoButton = "#preview-video-control-button";
-const joinButton = "button.zm-btn.preview-join-button";
-const leaveButton = 'button[aria-label="Leave"]';
-const acceptCookiesButton = "#onetrust-accept-btn-handler";
-const acceptTermsButton = "#wc_agree1";
+const SELECTORS = {
+	// Iframe
+	iframe: ".pwa-webclient__iframe",
+
+	// Pre-join controls
+	muteButton: "#preview-audio-control-button",
+	stopVideoButton: "#preview-video-control-button",
+	nameInput: "#input-for-name",
+	joinButton: "button.zm-btn.preview-join-button",
+
+	// In-call controls
+	leaveButton: 'button[aria-label="Leave"]',
+
+	// Modals
+	acceptCookiesButton: "#onetrust-accept-btn-handler",
+	acceptTermsButton: "#wc_agree1",
+
+	// Meeting end detection
+	meetingEndedOkButton:
+		'div[aria-label="Meeting is end now"] button.zm-btn.zm-btn-legacy.zm-btn--primary.zm-btn__outline--blue',
+} as const;
+
+// ============================================
+// SECTION 2: ZOOM BOT CLASS
+// ============================================
 
 /**
- * Zoom bot implementation for managing Zoom meeting automation and recording.
- * Extends the base Bot class to provide Zoom-specific functionality including
- * joining meetings, recording audio/video, and handling meeting lifecycle events.
+ * Simplified Zoom bot for automated meeting participation.
+ *
+ * Key capabilities:
+ * - Join Zoom meetings via web client
+ * - Screen and audio recording using puppeteer-stream
+ * - Automatic leave on meeting end or user request
  */
 export class ZoomBot extends Bot {
-	/** Absolute path where the meeting recording will be saved */
-	recordingPath: string;
-	/** MIME type of the recording file (video/mp4) */
-	contentType: string;
-	/** Complete Zoom meeting URL with meeting ID and password */
-	url: string;
-	/** Puppeteer browser instance for web automation */
-	browser!: Browser;
-	/** Puppeteer page instance representing the meeting tab */
-	page!: Page;
-	/** File write stream for saving the recording */
-	file!: fs.WriteStream | null;
-	/** Transform stream for processing audio/video data */
-	stream!: Transform;
+	private recordingPath: string;
+	private contentType: string;
+	private meetingUrl: string;
 
-	/**
-	 * Creates a new ZoomBot instance.
-	 * Initializes recording path, content type, and meeting URL based on bot configuration.
-	 *
-	 * @param botSettings - Configuration settings for the bot including meeting details
-	 * @param onEvent - Callback function for handling bot events and status updates
-	 * @param trpcInstance - tRPC client instance for backend API calls
-	 * @param logger - Logger instance for structured logging
-	 */
+	browser!: Browser;
+	page!: Page;
+	private file: fs.WriteStream | null = null;
+	private stream!: Transform;
+
 	constructor(
 		botSettings: BotConfig,
 		onEvent: (
@@ -66,59 +73,257 @@ export class ZoomBot extends Bot {
 		logger?: BotLogger,
 	) {
 		super(botSettings, onEvent, trpcInstance, logger);
+
 		this.recordingPath = path.resolve(__dirname, "recording.mp4");
 		this.contentType = "video/mp4";
-		this.url = `https://app.zoom.us/wc/${this.settings.meetingInfo.meetingId}/join?fromPWA=1&pwd=${this.settings.meetingInfo.meetingPassword}`;
+		this.meetingUrl = `https://app.zoom.us/wc/${this.settings.meetingInfo.meetingId}/join?fromPWA=1&pwd=${this.settings.meetingInfo.meetingPassword}`;
+	}
+
+	// ============================================
+	// LIFECYCLE METHODS
+	// ============================================
+
+	/**
+	 * Main entry point: join meeting and monitor until exit.
+	 */
+	async run(): Promise<void> {
+		await this.joinCall();
+		await this.monitorCall();
 	}
 
 	/**
-	 * Takes a screenshot of the current page and saves it to /tmp directory.
-	 * Used for debugging and monitoring bot behavior during meeting participation.
-	 *
-	 * @param fName - Filename for the screenshot (defaults to "screenshot.png")
-	 * @returns Promise that resolves when screenshot is saved
+	 * Join the Zoom call.
 	 */
-	async screenshot(fName: string = "screenshot.png"): Promise<void> {
-		try {
-			if (!this.page) throw new Error("Page not initialized");
+	async joinCall(): Promise<void> {
+		await this.initializeBrowser();
 
-			if (!this.browser) throw new Error("Browser not initialized");
+		this.logger.info("State: LAUNCHING → NAVIGATING");
 
-			const screenshot = await this.page.screenshot({
-				type: "png",
-				encoding: "binary",
-			});
+		// Navigate to meeting
+		await this.page.goto(this.meetingUrl);
+		this.logger.info("State: NAVIGATING → WAITING_FOR_IFRAME");
 
-			// Save the screenshot to a file
-			const screenshotPath = path.resolve(`/tmp/${fName}`);
-			fs.writeFileSync(screenshotPath, screenshot);
-			console.log(`Screenshot saved to ${screenshotPath}`);
-		} catch (e) {
-			console.log("Error taking screenshot:", e);
+		// Wait for iframe to load
+		const iframe = await this.page.waitForSelector(SELECTORS.iframe);
+		const frame = await iframe?.contentFrame();
+
+		if (!frame) {
+			throw new Error("Failed to get meeting iframe");
+		}
+
+		this.logger.info("State: IFRAME_LOADED → JOINING");
+
+		// Handle modals and join
+		await this.handlePreJoinModals(frame);
+		await this.disableMediaDevices(frame);
+		await this.fillNameAndJoin(frame);
+
+		// Wait for call entry
+		await this.waitForCallEntry(frame);
+
+		this.logger.info("State: JOINING → IN_CALL");
+	}
+
+	/**
+	 * Monitor the call and handle exit conditions.
+	 */
+	private async monitorCall(): Promise<void> {
+		if (!this.page) {
+			throw new Error("Page not initialized");
+		}
+
+		// Start recording if enabled
+		if (this.settings.recordingEnabled) {
+			this.logger.info("Starting recording");
+			await this.startRecording();
+		}
+
+		// Get frame for monitoring
+		const iframe = await this.page.waitForSelector(SELECTORS.iframe);
+		const frame = await iframe?.contentFrame();
+
+		if (!frame) {
+			throw new Error("Failed to get meeting iframe for monitoring");
+		}
+
+		this.logger.debug("Monitoring call for exit conditions");
+
+		// Race between exit conditions
+		await Promise.race([
+			this.waitForMeetingEnd(frame),
+			this.waitForLeaveButtonGone(frame),
+			this.waitForLeaveRequest(),
+		]);
+
+		await this.cleanup();
+	}
+
+	/**
+	 * Clean up resources.
+	 */
+	async cleanup(): Promise<void> {
+		this.logger.info("State: IN_CALL → ENDING");
+
+		await this.stopRecording();
+
+		if (this.file) {
+			this.file.close();
+			this.file = null;
+		}
+
+		if (this.browser) {
+			await this.browser.close();
+			(await wss).close();
+		}
+
+		this.logger.info("Cleanup complete");
+	}
+
+	// Alias for backward compatibility
+	async endLife(): Promise<void> {
+		await this.cleanup();
+	}
+
+	// Alias for backward compatibility
+	async joinMeeting(): Promise<void> {
+		await this.joinCall();
+	}
+
+	// ============================================
+	// MEETING MONITORING
+	// ============================================
+
+	/**
+	 * Wait for "Meeting ended" dialog.
+	 */
+	private async waitForMeetingEnd(frame: Frame): Promise<void> {
+		while (true) {
+			try {
+				const okButton = await frame.waitForSelector(
+					SELECTORS.meetingEndedOkButton,
+					{ timeout: 5000 },
+				);
+
+				if (okButton) {
+					this.logger.info("Meeting ended: OK button detected");
+					await okButton.click();
+
+					return;
+				}
+			} catch {
+				// Continue polling
+			}
+
+			await setTimeout(1000);
 		}
 	}
 
 	/**
-	 * Checks if the bot has been kicked from the meeting.
-	 * Currently returns false as implementation is pending.
-	 *
-	 * @returns Promise that resolves to true if bot was kicked, false otherwise
-	 * @todo Implement detection logic for when bot is removed from meeting
+	 * Wait for leave button to disappear (kicked or meeting ended).
 	 */
-	async checkKicked(): Promise<boolean> {
-		// TODO: Implement this
-		return false;
+	private async waitForLeaveButtonGone(frame: Frame): Promise<void> {
+		while (true) {
+			try {
+				await frame.waitForSelector(SELECTORS.leaveButton, { timeout: 5000 });
+				// Button still exists, continue
+			} catch {
+				// Button not found, meeting likely ended
+				this.logger.info("Leaving: Leave button no longer visible");
+
+				return;
+			}
+
+			await setTimeout(60000); // Check every minute
+		}
 	}
 
 	/**
-	 * Launches a headless browser with appropriate configuration for meeting automation.
-	 * Sets up browser permissions for camera/microphone access and prepares the page context.
-	 * Uses puppeteer-stream for video/audio capture capabilities.
-	 *
-	 * @returns Promise that resolves when browser is launched and configured
+	 * Wait for user leave request.
 	 */
-	async launchBrowser(): Promise<void> {
-		// Launch a browser and open the meeting
+	private async waitForLeaveRequest(): Promise<void> {
+		while (!this.leaveRequested) {
+			await setTimeout(1000);
+		}
+
+		this.logger.info("Leaving: User requested via API");
+	}
+
+	/**
+	 * Check if bot has been kicked (not implemented for Zoom).
+	 */
+	async checkKicked(): Promise<boolean> {
+		return false;
+	}
+
+	// Alias for backward compatibility
+	async hasBeenRemovedFromCall(): Promise<boolean> {
+		return this.checkKicked();
+	}
+
+	// ============================================
+	// RECORDING
+	// ============================================
+
+	/**
+	 * Start recording.
+	 */
+	async startRecording(): Promise<void> {
+		if (!this.page) {
+			throw new Error("Page not initialized");
+		}
+
+		this.stream = await getStream(
+			this.page as unknown as Parameters<typeof getStream>[0],
+			{ audio: true, video: true },
+		);
+
+		this.file = fs.createWriteStream(this.recordingPath);
+		this.stream.pipe(this.file);
+
+		this.logger.debug("Recording started");
+	}
+
+	/**
+	 * Stop recording.
+	 */
+	async stopRecording(): Promise<void> {
+		if (this.stream) {
+			this.stream.destroy();
+			this.logger.debug("Recording stopped");
+		}
+	}
+
+	/**
+	 * Get recording file path.
+	 */
+	getRecordingPath(): string {
+		return this.recordingPath;
+	}
+
+	/**
+	 * Get recording content type.
+	 */
+	getContentType(): string {
+		return this.contentType;
+	}
+
+	/**
+	 * Get speaker timeframes (not implemented for Zoom).
+	 */
+	getSpeakerTimeframes(): SpeakerTimeframe[] {
+		return [];
+	}
+
+	// ============================================
+	// BROWSER UTILITIES
+	// ============================================
+
+	/**
+	 * Initialize browser.
+	 */
+	private async initializeBrowser(): Promise<void> {
+		this.logger.info("Initializing browser");
+
 		this.browser = (await launch({
 			executablePath: puppeteer.executablePath(),
 			headless: "new",
@@ -126,379 +331,125 @@ export class ZoomBot extends Bot {
 				"--no-sandbox",
 				"--disable-setuid-sandbox",
 				"--use-fake-device-for-media-stream",
-				// "--use-fake-ui-for-media-stream"
 			],
-		})) as unknown as Browser; // It looks like theres a type issue with puppeteer.
+		})) as unknown as Browser;
 
-		console.log("Browser launched");
-
-		// Create a URL object from the url
-		const urlObj = new URL(this.url);
-
-		// Get the default browser context
+		// Set permissions
+		const urlObj = new URL(this.meetingUrl);
 		const context = this.browser.defaultBrowserContext();
-
-		// Clear permission overrides and set our own to camera and microphone
-		// This is to avoid the allow microphone and camera prompts
 		context.clearPermissionOverrides();
 		context.overridePermissions(urlObj.origin, ["camera", "microphone"]);
-		console.log("Turned off camera & mic permissions");
 
-		// Opens a new page in the browser
 		this.page = await this.browser.newPage();
+		this.logger.debug("Browser initialized");
+	}
+
+	// Alias for backward compatibility
+	async launchBrowser(): Promise<void> {
+		await this.initializeBrowser();
 	}
 
 	/**
-	 * Opens a browser, navigates to the meeting URL, and joins the Zoom meeting.
-	 * Handles various UI interactions including cookie acceptance, terms of service,
-	 * muting audio/video, entering bot name, and waiting for successful meeting entry.
-	 *
-	 * @returns Promise that resolves when bot has successfully joined the meeting
-	 * @throws {WaitingRoomTimeoutError} When bot is stuck in waiting room beyond timeout
-	 * @throws {Error} When browser or page initialization fails
+	 * Handle pre-join modals (cookies, TOS).
 	 */
-	async joinMeeting(): Promise<void> {
-		// Launch
-		await this.launchBrowser();
+	private async handlePreJoinModals(frame: Frame): Promise<void> {
+		await setTimeout(1500); // Wait for page to stabilize
 
-		// Create a URL object from the url
-		const page = this.page;
-		const urlObj = new URL(this.url);
+		// Accept cookies if present
+		try {
+			await frame.waitForSelector(SELECTORS.acceptCookiesButton, {
+				timeout: 700,
+			});
 
-		// Navigates to the url
-		console.log("Attempting to open link");
-		await page.goto(urlObj.href);
-		console.log("Page opened");
+			await frame.click(SELECTORS.acceptCookiesButton);
+			this.logger.debug("Cookies accepted");
+		} catch {
+			// Modal not present
+		}
 
-		// Waits for the page's iframe to load
-		console.log("Waiting for iFrame to load");
-		const iframe = await page.waitForSelector(".pwa-webclient__iframe");
-		const frame = await iframe?.contentFrame();
-		console.log("Opened iFrame");
+		await setTimeout(1000);
 
-		if (frame) {
-			// Wait for things to load (can be removed later in place of a check for a button to be clickable)
-			await new Promise((resolve) => setTimeout(resolve, 1500));
+		// Accept TOS if present
+		try {
+			await frame.waitForSelector(SELECTORS.acceptTermsButton, {
+				timeout: 700,
+			});
 
-			// Waits for mute button to be clickable and clicks it
-			await new Promise((resolve) => setTimeout(resolve, 700)); // TODO: remove this line later
-
-			// Checking if cookies modal popped up
-			try {
-				await frame.waitForSelector(acceptCookiesButton, {
-					timeout: 700,
-				});
-
-				frame.click(acceptCookiesButton);
-				console.log("Cookies Accepted");
-			} catch (_error) {
-				// It's OK
-				console.warn("Cookies modal not found");
-			}
-
-			// Waits for the TOS button be clickable and clicks them
-			await new Promise((resolve) => setTimeout(resolve, 1000));
-
-			// Checking if TOS modal popped up
-			try {
-				await frame.waitForSelector(acceptTermsButton, {
-					timeout: 700,
-				});
-
-				await frame.click(acceptTermsButton);
-				console.log("TOS Accepted");
-			} catch (_error) {
-				// It's OK
-				console.warn("TOS modal not found");
-			}
-
-			// Waits for the mute and video button to be clickable and clicks them
-			// The timeout is big to make sure buttons are initialized. With smaller one click doesn't work randomly and bot joins the meeting with sound and/or video
-			await new Promise((resolve) => setTimeout(resolve, 6000));
-
-			await frame.waitForSelector(muteButton);
-			await frame.click(muteButton);
-			console.log("Muted");
-
-			await frame.waitForSelector(stopVideoButton);
-			await frame.click(stopVideoButton);
-			console.log("Stopped video");
-
-			// Waits for the input field and types the name from the config
-			await frame.waitForSelector("#input-for-name");
-
-			await frame.type(
-				"#input-for-name",
-				this.settings?.botDisplayName ?? "Meeboter",
-			);
-
-			console.log("Typed name");
-
-			// Clicks the join button
-			await frame.waitForSelector(joinButton);
-			await frame.click(joinButton);
-			console.log("Joined the meeting");
-
-			// wait for the leave button to appear (meaning we've joined the meeting)
-			await new Promise((resolve) => setTimeout(resolve, 1400)); // Needed to wait for the aria-label to be properly attached
-
-			try {
-				await frame.waitForSelector(leaveButton, {
-					timeout: this.settings.automaticLeave.waitingRoomTimeout,
-				});
-			} catch (_error) {
-				// Distinct error from regular timeout
-				throw new WaitingRoomTimeoutError();
-			}
-
-			// Wait for the leave button to appear and be properly labeled before proceeding
-			console.log("Leave button found and labeled, ready to start recording");
-		} else {
-			console.error("frame is not created!");
-			console.error(frame);
-			console.error(iframe);
+			await frame.click(SELECTORS.acceptTermsButton);
+			this.logger.debug("TOS accepted");
+		} catch {
+			// Modal not present
 		}
 	}
 
 	/**
-	 * Starts recording the meeting audio and video streams.
-	 * Creates a transform stream from the page and pipes it to a file write stream.
-	 * Recording is saved to the path specified in recordingPath property.
-	 *
-	 * @returns Promise that resolves when recording has started
-	 * @throws {Error} When page is not initialized
+	 * Disable microphone and camera.
 	 */
-	async startRecording(): Promise<void> {
-		// Check if the page is initialized
-		if (!this.page) throw new Error("Page not initialized");
+	private async disableMediaDevices(frame: Frame): Promise<void> {
+		await setTimeout(6000); // Wait for buttons to initialize
 
-		// Create the stream
-		this.stream = await getStream(
-			this.page as unknown as Parameters<typeof getStream>[0],
-			{
-				audio: true,
-				video: true,
-			},
+		await frame.waitForSelector(SELECTORS.muteButton);
+		await frame.click(SELECTORS.muteButton);
+
+		await frame.waitForSelector(SELECTORS.stopVideoButton);
+		await frame.click(SELECTORS.stopVideoButton);
+
+		this.logger.debug("Media devices disabled");
+	}
+
+	/**
+	 * Fill name and click join.
+	 */
+	private async fillNameAndJoin(frame: Frame): Promise<void> {
+		await frame.waitForSelector(SELECTORS.nameInput);
+
+		await frame.type(
+			SELECTORS.nameInput,
+			this.settings.botDisplayName ?? "Meeboter",
 		);
 
-		// Create and write the recording to a file, pipe the stream to a fileWriteStream
-		this.file = fs.createWriteStream(this.recordingPath);
-		this.stream.pipe(this.file);
+		await frame.waitForSelector(SELECTORS.joinButton);
+		await frame.click(SELECTORS.joinButton);
+
+		this.logger.debug("Clicked join button");
 	}
 
 	/**
-	 * Stops the meeting recording by destroying the transform stream.
-	 * This closes the recording file and releases associated resources.
-	 *
-	 * @returns Promise that resolves when recording has stopped
+	 * Wait for call entry (leave button visible).
 	 */
-	async stopRecording(): Promise<void> {
-		// End the recording and close the file
-		if (this.stream) this.stream.destroy();
-	}
+	private async waitForCallEntry(frame: Frame): Promise<void> {
+		await setTimeout(1400); // Wait for UI to update
 
-	/**
-	 * Main execution method that orchestrates the complete bot lifecycle.
-	 * Joins the meeting, starts recording (if enabled), and monitors meeting status.
-	 * Continuously polls for meeting end conditions and handles cleanup when meeting ends.
-	 *
-	 * @returns Promise that resolves when meeting ends and bot lifecycle completes
-	 * @throws {Error} When browser or page initialization fails
-	 */
-	async run(): Promise<void> {
-		// Navigate and join the meeting
-		await this.joinMeeting();
-
-		// Ensure browser exists
-		if (!this.browser) throw new Error("Browser not initialized");
-
-		if (!this.page) throw new Error("Page is not initialized");
-
-		// Start recording only if enabled
-		if (this.settings.recordingEnabled) {
-			console.log("Starting Recording");
-			await this.startRecording();
-		} else {
-			console.log("Recording is disabled for this bot");
+		try {
+			await frame.waitForSelector(SELECTORS.leaveButton, {
+				timeout: this.settings.automaticLeave.waitingRoomTimeout,
+			});
+		} catch {
+			throw new WaitingRoomTimeoutError("Bot was not admitted to meeting");
 		}
 
-		// Get the frame containing the meeting
-		const iframe = await this.page.waitForSelector(".pwa-webclient__iframe");
-		const frame = await iframe?.contentFrame();
-
-		// Constantly check if the meeting has ended every second
-		const checkMeetingEnd = () =>
-			new Promise<void>((resolve, reject) => {
-				const poll = async () => {
-					try {
-						// Wait for the "Ok" button to appear which indicates the meeting is over
-						const okButton = await frame?.waitForSelector(
-							'div[aria-label="Meeting is end now"] button.zm-btn.zm-btn-legacy.zm-btn--primary.zm-btn__outline--blue',
-							{ timeout: 1000 },
-						);
-
-						if (okButton) {
-							console.log("Meeting ended");
-
-							// Click the button to leave the meeting
-							await okButton.click();
-
-							// Stop recording
-							this.stopRecording();
-
-							// End life -- close file, browser, and websocket server
-							this.endLife();
-
-							resolve();
-
-							return;
-						}
-
-						// Schedule next iteration
-						setTimeout(poll, 1000);
-					} catch (err) {
-						// If it was a timeout
-						// @ts-expect-error
-						if (err?.name === "TimeoutError") {
-							// The button wasn’t there in the last second. Running next iteration
-							setTimeout(poll, 1000);
-						} else {
-							// If it was some other error we throw it
-							reject(err);
-						}
-					}
-				};
-
-				poll();
-			});
-
-		// Constantly check if Meeting is still running, every minute
-		const checkIfMeetingRunning = () =>
-			new Promise<void>((resolve, reject) => {
-				const poll = async () => {
-					try {
-						// Checking if Leave buttons is present which indicates the meeting is still running
-						const leaveButtonEl = await frame?.waitForSelector(leaveButton, {
-							timeout: 700,
-						});
-
-						if (leaveButtonEl) {
-							console.warn("Meeting in progress");
-							setTimeout(poll, 60000);
-						} else {
-							// Leave button not found within timeout window
-							console.error("Meeting ended unexpectedly");
-
-							this.stopRecording();
-							this.endLife();
-
-							resolve();
-						}
-					} catch (err) {
-						// Only treat a timeout as "meeting ended"; rethrow anything else.
-						// @ts-expect-error
-						if (err?.name === "TimeoutError") {
-							console.error("Meeting ended unexpectedly");
-
-							this.stopRecording();
-							this.endLife();
-
-							resolve();
-						} else {
-							reject(err);
-						}
-					}
-				};
-
-				poll();
-			});
-
-		// Check if user requested leave via UI (LEAVING status)
-		const checkLeaveRequested = () =>
-			new Promise<void>((resolve) => {
-				const poll = () => {
-					if (this.leaveRequested) {
-						console.log(
-							"Leaving: User requested bot removal via UI (LEAVING status)",
-						);
-
-						console.log("Leave reason: USER_REQUESTED");
-
-						this.stopRecording();
-						this.endLife();
-
-						resolve();
-
-						return;
-					}
-
-					setTimeout(poll, 1000);
-				};
-
-				poll();
-			});
-
-		// Start all meeting end checks in parallel and return once any of them finishes
-		await Promise.race([
-			checkMeetingEnd(),
-			checkIfMeetingRunning(),
-			checkLeaveRequested(),
-		]);
+		this.logger.debug("Call entry confirmed");
 	}
 
 	/**
-	 * Gets the absolute file path where the meeting recording is saved.
-	 *
-	 * @returns The complete file path to the recording file
+	 * Take a screenshot.
 	 */
-	getRecordingPath(): string {
-		return this.recordingPath;
-	}
-
-	/**
-	 * Gets speaker timeframes for the meeting recording.
-	 * Currently returns empty array as implementation is pending.
-	 *
-	 * @returns Array of speaker timeframes (empty until implemented)
-	 * @todo Implement speaker detection and timeframe tracking
-	 */
-	getSpeakerTimeframes(): SpeakerTimeframe[] {
-		// TODO: Implement this
-		return [];
-	}
-
-	/**
-	 * Gets the MIME type of the recording file.
-	 *
-	 * @returns The content type string ("video/mp4")
-	 */
-	getContentType(): string {
-		return this.contentType;
-	}
-
-	/**
-	 * Cleans up all resources and terminates the bot lifecycle.
-	 * Stops recording, closes file streams, shuts down browser, and closes websocket server.
-	 * This method should be called when the meeting ends or bot needs to terminate.
-	 *
-	 * @returns Promise that resolves when all cleanup operations are complete
-	 */
-	async endLife(): Promise<void> {
-		// Ensure recording is stopped in unideal situations
-		this.stopRecording();
-
-		// Close file if it exists
-		if (this.file) {
-			this.file.close();
-			this.file = null;
+	async screenshot(fName: string = "screenshot.png"): Promise<void> {
+		if (!this.page || !this.browser) {
+			throw new Error("Browser/page not initialized");
 		}
 
-		// Close browser
-		if (this.browser) {
-			await this.browser.close();
+		try {
+			const screenshot = await this.page.screenshot({
+				type: "png",
+				encoding: "binary",
+			});
 
-			// Close the websocket server
-			(await wss).close();
+			const screenshotPath = path.resolve(`/tmp/${fName}`);
+			fs.writeFileSync(screenshotPath, screenshot);
+			this.logger.debug("Screenshot saved", { path: screenshotPath });
+		} catch (error) {
+			this.logger.error("Error taking screenshot", error as Error);
 		}
 	}
 }

@@ -6,9 +6,14 @@ import type { AppRouter } from "@meeboter/milo";
 import type { TRPCClient } from "@trpc/client";
 import type { Browser, Page } from "playwright";
 import { chromium } from "playwright-extra";
-import type { PageVideoCapture } from "playwright-video";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import { Bot } from "../../../src/bot";
+import {
+	clickIfExists,
+	elementExists,
+	navigateWithRetry,
+	waitForElement,
+} from "../../../src/helpers";
 import type { BotLogger } from "../../../src/logger";
 import {
 	type BotConfig,
@@ -17,176 +22,90 @@ import {
 	WaitingRoomTimeoutError,
 } from "../../../src/types";
 
-// Use stealth plugin to avoid detection
-const stealthPlugin = StealthPlugin();
+// ============================================
+// SECTION 1: CONFIGURATION
+// ============================================
 
+// Stealth plugin setup
+const stealthPlugin = StealthPlugin();
 stealthPlugin.enabledEvasions.delete("iframe.contentWindow");
 stealthPlugin.enabledEvasions.delete("media.codecs");
-
 chromium.use(stealthPlugin);
 
-// User agent constant -- set Feb 2025
-const userAgent =
+// Browser configuration
+const USER_AGENT =
 	"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36";
-
-// Constant selectors
-const enterNameField = 'input[type="text"][aria-label="Your name"]';
-const askToJoinButton = '//button[.//span[text()="Ask to join"]]';
-const joinNowButton = '//button[.//span[text()="Join now"]]';
-const gotKickedDetector = '//button[.//span[text()="Return to home screen"]]';
-const leaveButton = `//button[@aria-label="Leave call"]`;
-const peopleButton = `//button[@aria-label="People"]`;
-const chatButton = `//button[@aria-label="Chat with everyone"]`;
-const chatToggleButton = `//button[@aria-label="Toggle chat"]`;
-const chatInput = `//input[@aria-label="Send a message to everyone"]`;
-const chatSendButton = `//button[@aria-label="Send message"]`;
-
-const _onePersonRemainingField =
-	'//span[.//div[text()="Contributors"]]//div[text()="1"]';
-
-const muteButton = `[aria-label*="Turn off microphone"]`; // *= -> contains
-const cameraOffButton = `[aria-label*="Turn off camera"]`;
-
-const infoPopupClick = `//button[.//span[text()="Got it"]]`;
-
-// Waiting room indicator texts - these appear when still waiting for host acceptance
-const waitingRoomIndicators = [
-	"Asking to be let in",
-	"Someone will let you in",
-	"waiting for the host",
-	"Wait for the host",
-	"Ready to join?", // Pre-join screen indicator
-];
-
-// Admission confirmation texts - these appear when successfully joined the call
-// Based on recall.ai's approach: https://www.recall.ai/blog/how-i-built-an-in-house-google-meet-bot
-const admissionConfirmationIndicators = [
-	"You've been admitted",
-	"You're the only one here",
-	"You are the only one here",
-	"No one else is here",
-	"Waiting for others",
-	"Waiting for others to join",
-];
-
-// Blocking screen selectors for pre-join detection
-const signInButton = '//button[.//span[text()="Sign in"]]';
-const signInPrompt = '[data-identifier="signInButton"], [aria-label="Sign in"]';
-
-const captchaFrame = 'iframe[src*="recaptcha"], iframe[title*="reCAPTCHA"]';
-const captchaChallenge = '[class*="captcha"], #captcha';
-
-const meetingNotFound = '//*[contains(text(), "Check your meeting code")]';
-const meetingInvalid = '//*[contains(text(), "Invalid video call name")]';
-const meetingEnded = '//*[contains(text(), "This meeting has ended")]';
-const meetingUnavailable = '//*[contains(text(), "not available")]';
-
-const permissionDenied = '//*[contains(text(), "denied access")]';
-const notAllowedToJoin = '//*[contains(text(), "not allowed to join")]';
 
 const SCREEN_WIDTH = 1920;
 const SCREEN_HEIGHT = 1080;
+
+// ============================================
+// SECTION 2: SELECTORS
+// ============================================
+
+const SELECTORS = {
+	// Join flow
+	nameInput: 'input[type="text"][aria-label="Your name"]',
+	joinNowButton: '//button[.//span[text()="Join now"]]',
+	askToJoinButton: '//button[.//span[text()="Ask to join"]]',
+
+	// In-call controls
+	leaveButton: 'button[aria-label="Leave call"]',
+	muteButton: '[aria-label*="Turn off microphone"]',
+	cameraOffButton: '[aria-label*="Turn off camera"]',
+
+	// Kick detection
+	kickDialog: '//button[.//span[text()="Return to home screen"]]',
+
+	// Chat
+	chatButton: '//button[@aria-label="Chat with everyone"]',
+	chatToggleButton: '//button[@aria-label="Toggle chat"]',
+	chatInput: '//input[@aria-label="Send a message to everyone"]',
+} as const;
+
+// ============================================
+// SECTION 3: TYPES
+// ============================================
 
 /**
  * Represents a participant in the Google Meet meeting.
  */
 type Participant = {
-	/** Unique identifier for the participant */
 	id: string;
-	/** Display name of the participant */
 	name: string;
-	/** Optional mutation observer for monitoring participant activity */
-	observer?: MutationObserver;
 };
 
-/**
- * Generates a random delay with variance to simulate human-like behavior.
- * @param amount - Base delay amount in milliseconds
- * @returns Random delay within 10% variance of the base amount
- */
-const randomDelay = (amount: number) =>
-	(2 * Math.random() - 1) * (amount / 10) + amount;
+// ============================================
+// SECTION 4: GOOGLE MEET BOT CLASS
+// ============================================
 
 /**
- * Global window interface extensions for browser context functions.
- * These functions are exposed to the browser page context for participant monitoring and recording.
- */
-declare global {
-	interface Window {
-		/** Saves audio chunk data during recording */
-		saveChunk: (chunk: number[]) => void;
-		/** Stops the current recording session */
-		stopRecording: () => void;
-
-		/** Returns current list of meeting participants */
-		getParticipants: () => Participant[];
-		/** Handles participant join events */
-		onParticipantJoin: (participant: Participant) => void;
-		/** Handles participant leave events */
-		onParticipantLeave: (participant: Participant) => void;
-		/** Registers when a participant is speaking */
-		registerParticipantSpeaking: (participant: Participant) => void;
-		/** Sets up speech observation for a participant */
-		observeSpeech: (node: Element, participant: Participant) => void;
-		/** Handles merged audio scenarios in Google Meet */
-		handleMergedAudio: () => void;
-
-		/** Array of all participants currently tracked */
-		participantArray: Participant[];
-		/** Array of participants in merged audio mode */
-		mergedAudioParticipantArray: Participant[];
-		/** Media recorder instance for audio capture */
-		recorder: MediaRecorder | undefined;
-	}
-}
-
-/**
- * Google Meet bot implementation for automated meeting participation.
- *
- * Provides comprehensive functionality for joining Google Meet meetings,
- * recording sessions, monitoring participants, and managing meeting lifecycle.
+ * Simplified Google Meet bot for automated meeting participation.
  *
  * Key capabilities:
- * - Automated meeting join with configurable bot settings
+ * - Join meetings with configurable bot settings
  * - Screen and audio recording using FFmpeg
- * - Real-time participant monitoring and speech detection
- * - Automatic leave conditions (timeout, inactivity, kick detection)
- * - Speaker timeline tracking for meeting analysis
- *
- * @extends Bot
+ * - Chat message sending
+ * - Automatic leave on kick detection or user request
  */
 export class GoogleMeetBot extends Bot {
-	browserArgs: string[];
-	browser?: Browser;
+	private browserArgs: string[];
+	protected browser?: Browser;
+	// Protected for test access
 	page?: Page;
 
-	meetingUrl: string;
-	recorder: PageVideoCapture | undefined;
-	kicked: boolean = false;
-	recordingPath: string;
+	private meetingUrl: string;
+	private recordingPath: string;
+	// Protected for backward compatibility with tests (participant monitoring removed)
 	participants: Participant[] = [];
 
-	private registeredActivityTimestamps: {
-		[participantName: string]: [number];
-	} = {};
-
-	private startedRecording: boolean = false;
-
-	private recordingStartedAt: number = 0;
-
-	private ffmpegProcess: ChildProcessWithoutNullStreams | null;
+	private ffmpegProcess: ChildProcessWithoutNullStreams | null = null;
+	private recordingStarted: boolean = false;
+	private registeredActivityTimestamps: Record<string, number[]> = {};
 
 	private chatEnabled: boolean = false;
 	private chatPanelOpen: boolean = false;
 
-	/**
-	 * Creates a new Google Meet bot instance.
-	 *
-	 * @param botSettings - Bot configuration including meeting URL, display name, and behavior settings
-	 * @param onEvent - Event callback function for communicating with the backend
-	 * @param trpcInstance - tRPC client instance for backend API calls
-	 * @param logger - Logger instance for structured logging
-	 */
 	constructor(
 		botSettings: BotConfig,
 		onEvent: (
@@ -199,6 +118,8 @@ export class GoogleMeetBot extends Bot {
 		super(botSettings, onEvent, trpcInstance, logger);
 
 		this.recordingPath = path.resolve(__dirname, "recording.mp4");
+		this.meetingUrl = botSettings.meetingInfo.meetingUrl ?? "";
+		this.chatEnabled = botSettings.chatEnabled ?? false;
 
 		this.browserArgs = [
 			"--incognito",
@@ -206,659 +127,469 @@ export class GoogleMeetBot extends Bot {
 			"--disable-setuid-sandbox",
 			"--disable-features=IsolateOrigins,site-per-process",
 			"--disable-infobars",
-			"--disable-gpu", // disable gpu rendering
-
-			"--use-fake-ui-for-media-stream", // automatically grants screen sharing permissions without a selection dialog
+			"--disable-gpu",
+			"--use-fake-ui-for-media-stream",
 			"--use-file-for-fake-video-capture=/dev/null",
 			"--use-file-for-fake-audio-capture=/dev/null",
-			'--auto-select-desktop-capture-source="Chrome"', // record the first tab automatically
+			'--auto-select-desktop-capture-source="Chrome"',
 		];
-
-		// Fetch
-		this.meetingUrl = botSettings.meetingInfo.meetingUrl ?? "";
-		this.kicked = false; // Flag for if the bot was kicked from the meeting, no need to click exit button
-		this.startedRecording = false; // Flag to not duplicate recording start
-
-		this.ffmpegProcess = null;
-		this.chatEnabled = botSettings.chatEnabled ?? false;
-		this.chatPanelOpen = false;
 	}
 
-	/**
-	 * Detects if a blocking screen is preventing access to the join form.
-	 * Checks for sign-in prompts, captchas, meeting errors, and permission issues.
-	 *
-	 * @returns The EventCode for the detected blocking screen, or null if none detected
-	 */
-	private async detectBlockingScreen(): Promise<EventCode | null> {
-		if (!this.page) {
-			return null;
-		}
-
-		const blockingScreens: { type: EventCode; selectors: string[] }[] = [
-			{
-				type: EventCode.SIGN_IN_REQUIRED,
-				selectors: [signInButton, signInPrompt],
-			},
-			{
-				type: EventCode.CAPTCHA_DETECTED,
-				selectors: [captchaFrame, captchaChallenge],
-			},
-			{
-				type: EventCode.MEETING_NOT_FOUND,
-				selectors: [meetingNotFound, meetingInvalid],
-			},
-			{
-				type: EventCode.MEETING_ENDED,
-				selectors: [meetingEnded, meetingUnavailable],
-			},
-			{
-				type: EventCode.PERMISSION_DENIED,
-				selectors: [permissionDenied, notAllowedToJoin],
-			},
-		];
-
-		for (const screen of blockingScreens) {
-			for (const selector of screen.selectors) {
-				try {
-					const count = await this.page.locator(selector).count();
-
-					if (count > 0) {
-						console.log(
-							`Blocking screen detected: ${screen.type} (selector: ${selector})`,
-						);
-
-						return screen.type;
-					}
-				} catch {
-					// Selector check failed, continue to next
-				}
-			}
-		}
-
-		return null;
-	}
+	// ============================================
+	// LIFECYCLE METHODS
+	// ============================================
 
 	/**
-	 * Waits for the join screen (name input field) with retry logic.
-	 * Detects and reports blocking screens if the name field is not visible.
-	 *
-	 * @param maxAttempts - Maximum number of retry attempts (default: 3)
-	 * @param attemptTimeout - Timeout per attempt in milliseconds (default: 10000)
-	 * @throws Error if join screen cannot be reached after all attempts
-	 */
-	private async waitForJoinScreen(
-		maxAttempts = 3,
-		attemptTimeout = 10000,
-	): Promise<void> {
-		if (!this.page) {
-			throw new Error("Page not initialized");
-		}
-
-		for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-			console.log(
-				`Attempt ${attempt}/${maxAttempts}: Waiting for name input field...`,
-			);
-
-			try {
-				await this.page.waitForSelector(enterNameField, {
-					timeout: attemptTimeout,
-					state: "visible",
-				});
-
-				console.log("Name input field found and visible");
-
-				return;
-			} catch {
-				console.log(
-					`Attempt ${attempt} failed, checking for blocking screens...`,
-				);
-
-				const blockingType = await this.detectBlockingScreen();
-
-				if (blockingType) {
-					console.log(`Blocking screen detected: ${blockingType}`);
-					await this.onEvent(blockingType);
-
-					throw new Error(`Join blocked: ${blockingType}`);
-				}
-
-				if (attempt < maxAttempts) {
-					console.log(
-						"No specific blocking screen detected, retrying in 2 seconds...",
-					);
-
-					await this.page.waitForTimeout(2000);
-				}
-			}
-		}
-
-		console.log("All attempts failed, reporting generic JOIN_BLOCKED");
-		await this.onEvent(EventCode.JOIN_BLOCKED);
-
-		throw new Error("Failed to find name input after all retry attempts");
-	}
-
-	/**
-	 * Executes the complete bot lifecycle: join meeting and perform monitoring actions.
+	 * Main entry point: join meeting and monitor until exit.
 	 */
 	async run(): Promise<void> {
-		await this.joinMeeting();
-		await this.meetingActions();
+		await this.joinCall();
+		await this.monitorCall();
 	}
 
 	/**
-	 * Gets the consistent video recording file path.
-	 * Ensures the directory exists before returning the path.
-	 *
-	 * @returns The absolute path to the recording file
+	 * Join the Google Meet call.
 	 */
-	getRecordingPath(): string {
-		// Ensure the directory exists
-		const dir = path.dirname(this.recordingPath);
-
-		if (!fs.existsSync(dir)) {
-			fs.mkdirSync(dir, { recursive: true });
-		}
-
-		// Give back the path
-		return this.recordingPath;
-	}
-
-	/**
-	 * Processes and returns speaker activity timeframes from the meeting.
-	 * Consolidates speaking events into continuous timeframes with utterance grouping.
-	 *
-	 * @returns Array of speaker timeframes with names, start times, and end times
-	 */
-	getSpeakerTimeframes(): SpeakerTimeframe[] {
-		const processedTimeframes: {
-			speakerName: string;
-			start: number;
-			end: number;
-		}[] = [];
-
-		// If time between chunks is less than this, we consider it the same utterance.
-		const utteranceThresholdMs = 3000;
-		for (const [speakerName, timeframesArray] of Object.entries(
-			this.registeredActivityTimestamps,
-		)) {
-			let start = timeframesArray[0];
-			let end = timeframesArray[0];
-
-			for (let i = 1; i < timeframesArray.length; i++) {
-				const currentTimeframe = timeframesArray[i] as number;
-
-				if (currentTimeframe - end < utteranceThresholdMs) {
-					end = currentTimeframe;
-				} else {
-					if (end - start > 500) {
-						processedTimeframes.push({ speakerName, start, end });
-					}
-
-					start = currentTimeframe;
-					end = currentTimeframe;
-				}
-			}
-			processedTimeframes.push({ speakerName, start, end });
-		}
-		processedTimeframes.sort((a, b) => a.start - b.start || a.end - b.end);
-
-		return processedTimeframes;
-	}
-
-	/**
-	 * Gets the MIME content type for the recording file.
-	 *
-	 * @returns The content type string for MP4 video files
-	 */
-	getContentType(): string {
-		return "video/mp4";
-	}
-
-	/**
-	 * Launches Chromium browser with stealth configuration and creates a new page.
-	 * Sets up proper viewport, permissions, and user agent for meeting participation.
-	 *
-	 * @param headless - Whether to run browser in headless mode (default: false)
-	 */
-	async launchBrowser(headless: boolean = false): Promise<void> {
-		this.logger.info("Launching browser");
-
-		// Launch browser
-		this.browser = await chromium.launch({
-			headless,
-			args: this.browserArgs,
-		});
-
-		// Unpack dimensions
-		const vp = { width: SCREEN_WIDTH, height: SCREEN_HEIGHT };
-
-		// Create browser context
-		const context = await this.browser.newContext({
-			permissions: ["camera", "microphone"],
-			userAgent: userAgent,
-			viewport: vp,
-		});
-
-		// Create page
-		this.page = await context.newPage();
-
-		// Set page on logger for screenshot capture
-		this.logger.setPage(this.page);
-	}
-
-	/**
-	 * Joins the Google Meet meeting by launching browser and navigating through join flow.
-	 * Handles name entry, camera/microphone settings, and waiting room scenarios.
-	 *
-	 * @throws WaitingRoomTimeoutError if stuck in waiting room beyond timeout
-	 * @returns Promise that resolves to 0 on successful join
-	 */
-	async joinMeeting(): Promise<number> {
-		// Launch
-		await this.launchBrowser();
+	async joinCall(): Promise<number> {
+		await this.initializeBrowser();
 
 		await this.onEvent(EventCode.JOINING_CALL);
 		this.logger.setState("JOINING_CALL");
-
-		this.logger.info("Joining meeting");
+		this.logger.info("State: LAUNCHING → JOINING_CALL");
 
 		if (!this.page) {
 			throw new Error("Page not initialized");
 		}
 
-		// Initial delay
-		await this.page.waitForTimeout(randomDelay(1000));
+		// Navigate to meeting URL
+		const normalizedUrl = this.normalizeUrl(this.meetingUrl);
 
-		// Inject anti-detection code using addInitScript
-		await this.page.addInitScript(() => {
-			// Disable navigator.webdriver to avoid detection
-			Object.defineProperty(navigator, "webdriver", { get: () => undefined });
-
-			// Override navigator.plugins to simulate real plugins
-			Object.defineProperty(navigator, "plugins", {
-				get: () => [
-					{ name: "Chrome PDF Plugin" },
-					{ name: "Chrome PDF Viewer" },
-				],
-			});
-
-			// Override navigator.languages to simulate real languages
-			Object.defineProperty(navigator, "languages", {
-				get: () => ["en-US", "en"],
-			});
-
-			// Override other properties
-			Object.defineProperty(navigator, "hardwareConcurrency", { get: () => 4 }); // Fake number of CPU cores
-			Object.defineProperty(navigator, "deviceMemory", { get: () => 8 }); // Fake memory size
-			Object.defineProperty(window, "innerWidth", { get: () => SCREEN_WIDTH }); // Fake screen resolution
-
-			Object.defineProperty(window, "innerHeight", {
-				get: () => SCREEN_HEIGHT,
-			});
-
-			Object.defineProperty(window, "outerWidth", { get: () => SCREEN_WIDTH });
-
-			Object.defineProperty(window, "outerHeight", {
-				get: () => SCREEN_HEIGHT,
-			});
+		this.logger.info("State: JOINING_CALL → NAVIGATING", {
+			url: normalizedUrl,
 		});
 
-		// Define bot name
-		const name = this.settings.botDisplayName || "Meeboter";
+		await navigateWithRetry(this.page, normalizedUrl);
 
-		// Go to the meeting URL (simulate movement)
-		console.log("Simulating movement...");
+		this.logger.info("State: NAVIGATING → WAITING_FOR_JOIN_SCREEN");
 
-		await this.page.mouse.move(10, 672);
-		await this.page.mouse.move(102, 872);
-		await this.page.mouse.move(114, 1472);
-
-		await this.page.waitForTimeout(300);
-
-		await this.page.mouse.move(114, 100);
-		await this.page.mouse.click(100, 100);
-
-		// Navigate to meeting
-		// Ensure the meeting URL is valid and normalized before navigating
-		let normalizedUrl = this.meetingUrl.trim();
-
-		// Add protocol if not http or https (default to https)
-		if (
-			!normalizedUrl.startsWith("http://") &&
-			!normalizedUrl.startsWith("https://")
-		) {
-			normalizedUrl = `https://${normalizedUrl}`;
-		}
-
-		try {
-			// Validate the URL
-			const url = new URL(normalizedUrl);
-
-			console.log(`Navigating to "${url.href}", waiting until "networkidle"`);
-
-			await this.page.goto(url.href, {
-				waitUntil: "networkidle",
-			});
-		} catch (error) {
-			console.error(
-				`Invalid meeting URL provided: "${this.meetingUrl}". Error:`,
-				error,
-			);
-
-			throw new Error(
-				`Cannot navigate to invalid meeting URL: "${this.meetingUrl}"`,
-			);
-		}
-
-		console.log("Navigated to meeting URL");
-
-		await this.page.bringToFront(); // Ensure active
-
-		console.log("Waiting for the join screen...");
-
-		await this.waitForJoinScreen();
-
-		console.log("Found join screen. Waiting for 1 second...");
-
-		await this.page.waitForTimeout(randomDelay(1000));
-
-		console.log("Filling the input field with the name...");
-
-		await this.page.fill(enterNameField, name);
-
-		console.log("Turning off camera and microphone...");
-
-		try {
-			await this.page.waitForTimeout(randomDelay(500));
-
-			await this.page.click(muteButton, { timeout: 200 });
-
-			await this.page.waitForTimeout(200);
-		} catch (_e) {
-			console.log("Could not turn off microphone, probably already off.");
-		}
-
-		try {
-			await this.page.click(cameraOffButton, { timeout: 200 });
-			await this.page.waitForTimeout(200);
-		} catch (_e) {
-			console.log("Could not turn off camera, probably already off.");
-		}
-
-		console.log(
-			'Waiting for either the "Join now" or "Ask to join" button to appear...',
+		// Wait for name input field
+		const foundNameInput = await waitForElement(
+			this.page,
+			SELECTORS.nameInput,
+			{ timeout: 30000 },
 		);
 
-		let isWaitingRoom = false;
+		if (!foundNameInput) {
+			this.logger.error("Name input field not found within 30s");
 
-		try {
-			const entryButton = await Promise.race([
-				this.page
-					.waitForSelector(joinNowButton, { timeout: 60000 })
-					.then(() => joinNowButton),
-				this.page
-					.waitForSelector(askToJoinButton, { timeout: 60000 })
-					.then(() => {
-						isWaitingRoom = true;
-
-						return askToJoinButton;
-					}),
-			]);
-
-			console.log(
-				`Found entry button: ${isWaitingRoom ? "Ask to join (waiting room)" : "Join now"}`,
-			);
-
-			await this.page.click(entryButton);
-		} catch (error) {
-			console.error("Failed to find join/ask button within 60 seconds:", error);
-
-			throw new WaitingRoomTimeoutError(
-				"Could not find join button - meeting may be invalid or unavailable",
-			);
+			throw new Error("Failed to find name input field");
 		}
 
-		// If we clicked "Ask to join", report that we're in the waiting room
+		// Fill bot name
+		const botName = this.settings.botDisplayName || "Meeboter";
+		await this.page.fill(SELECTORS.nameInput, botName);
+		this.logger.info("Filled bot name", { name: botName });
+
+		// Disable media devices
+		await this.disableMediaDevices();
+
+		// Click join button
+		const isWaitingRoom = await this.clickJoinButton();
+
 		if (isWaitingRoom) {
-			this.logger.info("Bot is now in waiting room, awaiting host acceptance");
 			this.logger.setState("IN_WAITING_ROOM");
+			this.logger.info("State: JOINING → IN_WAITING_ROOM");
 			await this.onEvent(EventCode.IN_WAITING_ROOM);
 		}
 
-		// Should exit after the waiting room timeout if we're in the waiting room
-		const timeout = this.settings.automaticLeave.waitingRoomTimeout; // in milliseconds
+		// Wait for call entry
+		await this.waitForCallEntry();
 
-		this.logger.info(
-			`Waiting for host acceptance (timeout: ${timeout / 1000}s)`,
-		);
-
-		// Wait for actual call entry by detecting in-call indicators
-		// The Leave button alone is NOT reliable - it appears in the waiting room too
-		// NOTE: We use a polling loop instead of page.waitForFunction() because Google Meet
-		// has strict CSP with Trusted Types that blocks JavaScript string evaluation
-		const startTime = Date.now();
-		const pollInterval = 1000; // Check every 1 second
-
-		/**
-		 * Check if we're in the actual call by detecting in-call UI elements.
-		 * Returns true if we've successfully joined the call.
-		 *
-		 * Detection strategy (ordered by reliability):
-		 * 1. Check for admission confirmation text (most reliable)
-		 * 2. Check waiting room indicators are NOT present
-		 * 3. Check for leave button (required)
-		 * 4. Check for in-call UI indicators
-		 */
-		const checkIfInCall = async (enableDebugLog = false): Promise<boolean> => {
-			if (!this.page) {
-				return false;
-			}
-
-			// Get page text for text-based detection
-			const bodyText = await this.page
-				.locator("body")
-				.innerText()
-				.catch(() => "");
-
-			const bodyTextLower = bodyText.toLowerCase();
-
-			// STRATEGY 1: Check for admission confirmation text (positive signal)
-			// This is the most reliable indicator that we've been admitted
-			const hasAdmissionConfirmation = admissionConfirmationIndicators.some(
-				(text) => bodyTextLower.includes(text.toLowerCase()),
-			);
-
-			if (hasAdmissionConfirmation) {
-				if (enableDebugLog) {
-					this.logger.debug("Detected admission confirmation text");
-				}
-
-				return true;
-			}
-
-			// STRATEGY 2: Check for waiting room indicators (negative signal)
-			const stillInWaitingRoom = waitingRoomIndicators.some((text) =>
-				bodyTextLower.includes(text.toLowerCase()),
-			);
-
-			if (stillInWaitingRoom) {
-				if (enableDebugLog) {
-					const matchedIndicator = waitingRoomIndicators.find((text) =>
-						bodyTextLower.includes(text.toLowerCase()),
-					);
-
-					this.logger.debug(
-						`Still in waiting room, matched indicator: "${matchedIndicator}"`,
-					);
-				}
-
-				return false;
-			}
-
-			// STRATEGY 3: Check for leave button using contains selector for resilience
-			// Use contains (*=) instead of exact match for more resilient detection
-			const leaveButtonSelectors = [
-				'button[aria-label*="Leave call"]',
-				'button[aria-label*="Leave meeting"]',
-				'button[aria-label="Leave call"]',
-			];
-
-			let hasLeaveButton = false;
-
-			for (const selector of leaveButtonSelectors) {
-				const button = await this.page.$(selector);
-
-				if (button) {
-					hasLeaveButton = true;
-
-					break;
-				}
-			}
-
-			if (!hasLeaveButton) {
-				if (enableDebugLog) {
-					this.logger.debug("Leave button not found");
-				}
-
-				return false;
-			}
-
-			// STRATEGY 4: Check for in-call indicators (any one is sufficient)
-			// Use contains selectors (*=) for more resilient detection
-			const inCallIndicators = [
-				// Primary controls (using contains for resilience)
-				'button[aria-label*="People"]',
-				'button[aria-label*="Participants"]',
-				'button[aria-label*="Chat"]',
-				// Exact matches as fallback
-				'button[aria-label="People"]',
-				'[aria-label="Participants"]',
-				'button[aria-label="Chat with everyone"]',
-				// Additional indicators
-				'[aria-label*="Mute"]',
-				'[aria-label*="Turn on microphone"]',
-				'[aria-label*="Turn off microphone"]',
-				'button[aria-label*="More options"]',
-				// Video controls (strong indicator of being in call)
-				'[aria-label*="Turn on camera"]',
-				'[aria-label*="Turn off camera"]',
-				// Meeting info indicators
-				'button[aria-label*="Meeting details"]',
-				"[data-meeting-title]",
-			];
-
-			for (const selector of inCallIndicators) {
-				const element = await this.page.$(selector);
-
-				if (element) {
-					if (enableDebugLog) {
-						this.logger.debug(`Detected in-call indicator: "${selector}"`);
-					}
-
-					return true;
-				}
-			}
-
-			if (enableDebugLog) {
-				this.logger.debug(
-					"No in-call indicators found despite leave button being present",
-				);
-			}
-
-			return false;
-		};
-
-		try {
-			// Polling loop to check for call entry
-			let pollCount = 0;
-			const debugLogInterval = 10; // Log debug info every 10 polls (10 seconds)
-
-			while (Date.now() - startTime < timeout) {
-				pollCount++;
-
-				// Enable debug logging every 10 seconds to help diagnose issues
-				const shouldDebugLog = pollCount % debugLogInterval === 0;
-				const inCall = await checkIfInCall(shouldDebugLog);
-
-				if (inCall) {
-					break;
-				}
-
-				// Log progress every 30 seconds
-				if (pollCount % 30 === 0) {
-					const elapsed = Math.round((Date.now() - startTime) / 1000);
-
-					this.logger.debug(`Still waiting for call entry after ${elapsed}s`);
-				}
-
-				// Wait before next check
-				await setTimeout(pollInterval);
-			}
-
-			// Final check with debug logging enabled
-			const finalCheck = await checkIfInCall(true);
-
-			if (!finalCheck) {
-				throw new Error("Timed out waiting for call entry");
-			}
-		} catch (error) {
-			const elapsedTime = Date.now() - startTime;
-			const elapsedSeconds = Math.round(elapsedTime / 1000);
-			const timeoutSeconds = Math.round(timeout / 1000);
-
-			// Log the actual error for debugging
-			this.logger.error(
-				"waitForFunction failed",
-				error instanceof Error ? error : new Error(String(error)),
-				{ elapsedSeconds, timeoutSeconds },
-			);
-
-			// Differentiate between actual timeout and immediate failures
-			// If elapsed time is less than 90% of timeout, something unexpected happened
-			const isActualTimeout = elapsedTime >= timeout * 0.9;
-
-			let errorMessage: string;
-
-			if (isActualTimeout) {
-				errorMessage = isWaitingRoom
-					? `Bot was not accepted into the meeting within the timeout period (waited ${elapsedSeconds}s)`
-					: `Failed to join the meeting within the timeout period (waited ${elapsedSeconds}s)`;
-			} else {
-				// Immediate failure - something unexpected happened (page crash, navigation, etc.)
-				const actualError =
-					error instanceof Error ? error.message : String(error);
-
-				errorMessage = isWaitingRoom
-					? `Bot encountered an error in waiting room after ${elapsedSeconds}s (timeout was ${timeoutSeconds}s): ${actualError}`
-					: `Bot encountered an error while joining after ${elapsedSeconds}s (timeout was ${timeoutSeconds}s): ${actualError}`;
-			}
-
-			this.logger.error(errorMessage);
-
-			throw new WaitingRoomTimeoutError(errorMessage);
-		}
-
-		this.logger.info("Joined call (verified by in-call indicators)");
 		this.logger.setState("IN_CALL");
-
+		this.logger.info("State: WAITING → IN_CALL");
 		await this.onEvent(EventCode.IN_CALL);
 
 		return 0;
 	}
 
 	/**
-	 * Generates FFmpeg command parameters for screen and audio recording.
-	 * Uses test parameters when X11 server is not available, otherwise uses production settings.
-	 *
-	 * @returns Array of FFmpeg command line parameters
+	 * Leave the call gracefully.
 	 */
-	getFFmpegParams(): string[] {
-		// For testing (bun test) -- no docker x11 server running
-		if (!fs.existsSync("/tmp/.X11-unix")) {
-			console.log("Using test ffmpeg params");
+	async leaveCall(): Promise<number> {
+		this.logger.setState("LEAVING");
+		this.logger.info("State: IN_CALL → LEAVING");
 
+		if (this.page) {
+			await clickIfExists(this.page, SELECTORS.leaveButton, { timeout: 1000 });
+		}
+
+		await this.cleanup();
+
+		this.logger.info("State: LEAVING → ENDED");
+
+		return 0;
+	}
+
+	/**
+	 * Clean up resources (stop recording, close browser).
+	 */
+	async cleanup(): Promise<void> {
+		this.logger.setState("ENDING");
+
+		if (this.settings.recordingEnabled && this.ffmpegProcess) {
+			this.logger.info("Stopping recording");
+			await this.stopRecording();
+		}
+
+		if (this.browser) {
+			await this.browser.close();
+			this.logger.debug("Browser closed");
+		}
+
+		this.logger.info("Cleanup complete");
+	}
+
+	// Alias for backward compatibility
+	async endLife(): Promise<void> {
+		await this.cleanup();
+	}
+
+	// Alias for backward compatibility
+	async leaveMeeting(): Promise<number> {
+		return this.leaveCall();
+	}
+
+	// Alias for backward compatibility
+	async joinMeeting(): Promise<number> {
+		return this.joinCall();
+	}
+
+	// ============================================
+	// MEETING MONITORING
+	// ============================================
+
+	/**
+	 * Monitor the call and handle exit conditions.
+	 */
+	private async monitorCall(): Promise<void> {
+		// Start recording if enabled
+		if (this.settings.recordingEnabled) {
+			this.logger.info("Starting recording");
+			await this.startRecording();
+		}
+
+		// Open chat panel if chat is enabled
+		if (this.chatEnabled) {
+			await this.ensureChatPanelOpen();
+		}
+
+		this.logger.debug("Monitoring call for exit conditions");
+
+		// Simple monitoring loop
+		while (true) {
+			// Check 1: User requested leave via API?
+			if (this.leaveRequested) {
+				this.logger.info("Leaving: User requested via API");
+
+				break;
+			}
+
+			// Check 2: Were we kicked/removed?
+			if (await this.hasBeenRemovedFromCall()) {
+				this.logger.info("Leaving: Removed from meeting");
+
+				break;
+			}
+
+			// Check 3: Process chat messages if enabled
+			if (this.chatEnabled) {
+				await this.processChatQueue();
+			}
+
+			// Wait before next check
+			await setTimeout(5000);
+		}
+
+		await this.leaveCall();
+	}
+
+	/**
+	 * Check if bot has been removed from the call.
+	 * Simple detection: kick dialog exists OR leave button gone.
+	 */
+	async hasBeenRemovedFromCall(): Promise<boolean> {
+		if (!this.page) {
+			return true;
+		}
+
+		// Check 1: Explicit kick dialog
+		const hasKickDialog = await elementExists(this.page, SELECTORS.kickDialog);
+
+		if (hasKickDialog) {
+			this.logger.info("Kick detected: Return to home screen dialog");
+
+			return true;
+		}
+
+		// Check 2: Leave button gone (call ended or kicked)
+		const hasLeaveButton = await elementExists(
+			this.page,
+			SELECTORS.leaveButton,
+		);
+
+		if (!hasLeaveButton) {
+			this.logger.info("Kick detected: Leave button no longer visible");
+
+			return true;
+		}
+
+		return false;
+	}
+
+	// Alias for backward compatibility
+	async checkKicked(): Promise<boolean> {
+		return this.hasBeenRemovedFromCall();
+	}
+
+	// Alias for backward compatibility (renamed from meetingActions)
+	async meetingActions(): Promise<void> {
+		return this.monitorCall();
+	}
+
+	// ============================================
+	// CHAT FUNCTIONALITY
+	// ============================================
+
+	/**
+	 * Ensure chat panel is open.
+	 */
+	private async ensureChatPanelOpen(): Promise<void> {
+		if (!this.page || this.chatPanelOpen) {
+			return;
+		}
+
+		this.logger.debug("Opening chat panel");
+
+		const chatSelectors = [
+			SELECTORS.chatButton,
+			SELECTORS.chatToggleButton,
+			'//button[contains(@aria-label, "Chat")]',
+		];
+
+		for (const selector of chatSelectors) {
+			if (await clickIfExists(this.page, selector, { timeout: 2000 })) {
+				this.chatPanelOpen = true;
+				this.logger.debug("Chat panel opened");
+
+				return;
+			}
+		}
+
+		this.logger.warn("Chat button not found");
+	}
+
+	/**
+	 * Process queued chat messages.
+	 */
+	private async processChatQueue(): Promise<void> {
+		const message = await this.dequeueNextMessage();
+
+		if (message) {
+			await this.sendChatMessage(message.messageText);
+		}
+	}
+
+	/**
+	 * Get next queued message from backend.
+	 */
+	private async dequeueNextMessage(): Promise<{
+		messageText: string;
+		templateId?: number;
+		userId: string;
+	} | null> {
+		if (!this.chatEnabled) {
+			return null;
+		}
+
+		try {
+			return await this.trpc.bots.chat.dequeueMessage.query({
+				botId: this.settings.id.toString(),
+			});
+		} catch (error) {
+			this.logger.debug("Error fetching queued message", { error });
+
+			return null;
+		}
+	}
+
+	/**
+	 * Send a chat message.
+	 */
+	async sendChatMessage(message: string): Promise<boolean> {
+		if (!this.chatEnabled || !this.page) {
+			return false;
+		}
+
+		this.logger.debug("Sending chat message", { message });
+
+		// Ensure chat panel is open
+		if (!this.chatPanelOpen) {
+			await this.ensureChatPanelOpen();
+			await this.page.waitForTimeout(1000);
+		}
+
+		// Find and use chat input
+		const inputSelectors = [
+			SELECTORS.chatInput,
+			'//input[contains(@aria-label, "message")]',
+			'//textarea[contains(@aria-label, "message")]',
+		];
+
+		for (const selector of inputSelectors) {
+			if (await elementExists(this.page, selector)) {
+				try {
+					await this.page.click(selector, { timeout: 2000 });
+					await this.page.type(selector, message, { delay: 50 });
+					await this.page.keyboard.press("Enter");
+
+					this.logger.debug("Chat message sent");
+
+					return true;
+				} catch {}
+			}
+		}
+
+		this.logger.warn("Chat input not found");
+
+		return false;
+	}
+
+	// ============================================
+	// RECORDING
+	// ============================================
+
+	/**
+	 * Start FFmpeg recording.
+	 */
+	async startRecording(): Promise<void> {
+		if (this.ffmpegProcess) {
+			this.logger.debug("Recording already started");
+
+			return;
+		}
+
+		this.logger.debug("Starting FFmpeg recording", {
+			path: this.getRecordingPath(),
+		});
+
+		this.ffmpegProcess = spawn("ffmpeg", this.buildFFmpegArgs());
+
+		this.ffmpegProcess.stderr.on("data", () => {
+			if (!this.recordingStarted) {
+				this.logger.debug("FFmpeg recording started");
+				this.recordingStarted = true;
+			}
+		});
+
+		this.ffmpegProcess.on("exit", (code) => {
+			this.logger.debug("FFmpeg exited", { code });
+			this.ffmpegProcess = null;
+		});
+	}
+
+	/**
+	 * Stop FFmpeg recording.
+	 */
+	async stopRecording(): Promise<number> {
+		if (!this.ffmpegProcess) {
+			this.logger.debug("No recording in progress");
+
+			return 1;
+		}
+
+		return new Promise<number>((resolve) => {
+			if (!this.ffmpegProcess) {
+				resolve(1);
+
+				return;
+			}
+
+			this.ffmpegProcess.kill("SIGINT");
+
+			this.ffmpegProcess.on("exit", (code) => {
+				this.logger.debug("Recording stopped", { code });
+				resolve(code === 0 ? 0 : 1);
+			});
+
+			this.ffmpegProcess.on("error", (err) => {
+				this.logger.error("Error stopping FFmpeg", err);
+				resolve(1);
+			});
+		});
+	}
+
+	/**
+	 * Get recording file path.
+	 */
+	getRecordingPath(): string {
+		const dir = path.dirname(this.recordingPath);
+
+		if (!fs.existsSync(dir)) {
+			fs.mkdirSync(dir, { recursive: true });
+		}
+
+		return this.recordingPath;
+	}
+
+	/**
+	 * Get recording content type.
+	 */
+	getContentType(): string {
+		return "video/mp4";
+	}
+
+	/**
+	 * Get speaker timeframes from recording.
+	 */
+	getSpeakerTimeframes(): SpeakerTimeframe[] {
+		const timeframes: SpeakerTimeframe[] = [];
+		const utteranceThresholdMs = 3000;
+
+		for (const [speakerName, timestamps] of Object.entries(
+			this.registeredActivityTimestamps,
+		)) {
+			if (timestamps.length === 0) continue;
+
+			let start = timestamps[0];
+			let end = timestamps[0];
+
+			for (let i = 1; i < timestamps.length; i++) {
+				const current = timestamps[i];
+
+				if (current - end < utteranceThresholdMs) {
+					end = current;
+				} else {
+					if (end - start > 500) {
+						timeframes.push({ speakerName, start, end });
+					}
+
+					start = current;
+					end = current;
+				}
+			}
+
+			timeframes.push({ speakerName, start, end });
+		}
+
+		return timeframes.sort((a, b) => a.start - b.start || a.end - b.end);
+	}
+
+	/**
+	 * Build FFmpeg command arguments.
+	 */
+	private buildFFmpegArgs(): string[] {
+		// Test mode (no X11 server)
+		if (!fs.existsSync("/tmp/.X11-unix")) {
 			return [
 				"-y",
 				"-f",
@@ -877,906 +608,209 @@ export class GoogleMeetBot extends Bot {
 			];
 		}
 
-		console.log("Loading FFmpeg params ...");
-
-		const videoInputFormat = "x11grab";
-		const audioInputFormat = "pulse";
-		const videoSource = ":99.0";
-		const audioSource = "default";
-		const audioBitrate = "128k";
-		const fps = "25";
-
+		// Production mode
 		return [
 			"-v",
-			"verbose", // Verbose logging for debugging
+			"verbose",
 			"-thread_queue_size",
-			"512", // Increase thread queue size to handle input buffering
+			"512",
 			"-video_size",
-			`${SCREEN_WIDTH}x${SCREEN_HEIGHT}`, // Full screen resolution
+			`${SCREEN_WIDTH}x${SCREEN_HEIGHT}`,
 			"-framerate",
-			fps, // Lower frame rate to reduce CPU usage
+			"25",
 			"-f",
-			videoInputFormat,
+			"x11grab",
 			"-i",
-			videoSource,
+			":99.0",
 			"-thread_queue_size",
 			"512",
 			"-f",
-			audioInputFormat,
+			"pulse",
 			"-i",
-			audioSource,
+			"default",
 			"-c:v",
-			"libx264", // H.264 codec for browser compatibility
+			"libx264",
 			"-pix_fmt",
-			"yuv420p", // Ensures compatibility with most browsers
+			"yuv420p",
 			"-preset",
-			"veryfast", // Use a faster preset to reduce CPU usage
+			"veryfast",
 			"-crf",
-			"28", // Increase CRF for reduced CPU usage
+			"28",
 			"-c:a",
-			"aac", // AAC codec for audio compatibility
+			"aac",
 			"-b:a",
-			audioBitrate, // Lower audio bitrate for reduced CPU usage
+			"128k",
 			"-vsync",
-			"2", // Synchronize video and audio
+			"2",
 			"-vf",
-			"scale=1280:720", // Ensure the video is scaled to 720p
+			"scale=1280:720",
 			"-y",
-			this.getRecordingPath(), // Output file path
+			this.getRecordingPath(),
 		];
 	}
 
+	// ============================================
+	// BROWSER UTILITIES
+	// ============================================
+
 	/**
-	 * Starts screen and audio recording using FFmpeg subprocess.
-	 * Prevents duplicate recording processes and monitors FFmpeg output for status updates.
+	 * Initialize browser with stealth settings.
 	 */
-	async startRecording(): Promise<void> {
-		console.log(
-			"Attempting to start the recording to:",
-			this.getRecordingPath(),
-		);
+	private async initializeBrowser(headless: boolean = false): Promise<void> {
+		this.logger.info("Initializing browser", { headless });
 
-		if (this.ffmpegProcess) {
-			return console.log("Recording already started.");
-		}
-
-		this.ffmpegProcess = spawn("ffmpeg", this.getFFmpegParams());
-
-		console.log("Spawned a subprocess to record, PID:", this.ffmpegProcess.pid);
-
-		// Report any data / errors (DEBUG, since it also prints that data is available)
-		this.ffmpegProcess.stderr.on("data", (_data) => {
-			// Log that we got data, and the recording started
-			if (!this.startedRecording) {
-				console.log("Recording started...");
-
-				this.startedRecording = true;
-			}
+		this.browser = await chromium.launch({
+			headless,
+			args: this.browserArgs,
 		});
 
-		// Log output of stderr
-		// Log to console if the env var is set
-		// Turn it on if FFmpeg gives a weird error code
-		const logFfmpeg = process.env.MEET_FFMPEG_STDERR_ECHO === "true";
+		const context = await this.browser.newContext({
+			permissions: ["camera", "microphone"],
+			userAgent: USER_AGENT,
+			viewport: { width: SCREEN_WIDTH, height: SCREEN_HEIGHT },
+		});
 
-		if (logFfmpeg ?? false) {
-			this.ffmpegProcess.stderr.on("data", (data) => {
-				const text = data.toString();
-				console.error(`ffmpeg stderr: ${text}`);
+		this.page = await context.newPage();
+		this.logger.setPage(this.page);
+
+		// Anti-detection
+		await this.page.addInitScript(() => {
+			Object.defineProperty(navigator, "webdriver", { get: () => undefined });
+
+			Object.defineProperty(navigator, "plugins", {
+				get: () => [
+					{ name: "Chrome PDF Plugin" },
+					{ name: "Chrome PDF Viewer" },
+				],
 			});
-		}
 
-		// Report when the process exits
-		this.ffmpegProcess.on("exit", (code) => {
-			console.log(`FFmpeg exited with code ${code}`);
-
-			this.ffmpegProcess = null;
+			Object.defineProperty(navigator, "languages", {
+				get: () => ["en-US", "en"],
+			});
 		});
-
-		console.log("Started FFmpeg process");
 	}
 
 	/**
-	 * Gracefully stops the FFmpeg recording process and waits for file finalization.
-	 * Sends SIGINT signal to allow proper video encoding completion.
-	 *
-	 * @returns Promise that resolves to 0 on success, 1 on failure
+	 * Normalize meeting URL (add protocol if missing).
 	 */
-	async stopRecording(): Promise<number> {
-		console.log("Attempting to stop the recording ...");
+	private normalizeUrl(url: string): string {
+		let normalized = url.trim();
 
-		// Await encoding result
-		const promiseResult = await new Promise<number>((resolve) => {
-			// No recording
-			if (!this.ffmpegProcess) {
-				console.log("No recording in progress, cannot end recording");
+		if (
+			!normalized.startsWith("http://") &&
+			!normalized.startsWith("https://")
+		) {
+			normalized = `https://${normalized}`;
+		}
 
-				resolve(1);
-
-				return;
-			}
-
-			console.log("Killing FFmpeg process gracefully");
-
-			this.ffmpegProcess.kill("SIGINT");
-
-			console.log("Waiting for FFmpeg to finish encoding");
-
-			// Modify the exit handler to resolve the promise
-			// This will be called when the video is done encoding
-			this.ffmpegProcess.on("exit", (code, signal) => {
-				if (code === 0) {
-					console.log("Recording stopped and file finalized");
-
-					resolve(0);
-				} else {
-					console.error(
-						`FFmpeg exited with code ${code}${signal ? ` and signal ${signal}` : ""}`,
-					);
-
-					resolve(1);
-				}
-			});
-
-			// Modify the error handler to resolve the promise
-			this.ffmpegProcess.on("error", (err) => {
-				console.error("Error while stopping FFmpeg:", err);
-
-				resolve(1);
-			});
-		});
-
-		return promiseResult;
+		// Validate URL
+		try {
+			return new URL(normalized).href;
+		} catch {
+			throw new Error(`Invalid meeting URL: "${url}"`);
+		}
 	}
 
 	/**
-	 * Takes a screenshot of the current browser page and saves it to /tmp directory.
-	 *
-	 * @param filename - Filename for the screenshot (default: "screenshot.png")
+	 * Disable microphone and camera.
+	 */
+	private async disableMediaDevices(): Promise<void> {
+		if (!this.page) return;
+
+		await clickIfExists(this.page, SELECTORS.muteButton, { timeout: 500 });
+		await clickIfExists(this.page, SELECTORS.cameraOffButton, { timeout: 500 });
+
+		this.logger.debug("Media devices disabled");
+	}
+
+	/**
+	 * Click join button (Join now or Ask to join).
+	 * @returns true if waiting room (Ask to join), false otherwise
+	 */
+	private async clickJoinButton(): Promise<boolean> {
+		if (!this.page) {
+			throw new Error("Page not initialized");
+		}
+
+		this.logger.debug("Looking for join button");
+
+		// Wait for either button to appear
+		const joinNowPromise = this.page
+			.waitForSelector(SELECTORS.joinNowButton, { timeout: 60000 })
+			.then(() => ({ button: SELECTORS.joinNowButton, isWaitingRoom: false }));
+
+		const askToJoinPromise = this.page
+			.waitForSelector(SELECTORS.askToJoinButton, { timeout: 60000 })
+			.then(() => ({ button: SELECTORS.askToJoinButton, isWaitingRoom: true }));
+
+		try {
+			const result = await Promise.race([joinNowPromise, askToJoinPromise]);
+
+			await this.page.click(result.button);
+
+			this.logger.debug("Clicked join button", {
+				isWaitingRoom: result.isWaitingRoom,
+			});
+
+			return result.isWaitingRoom;
+		} catch {
+			throw new WaitingRoomTimeoutError(
+				"Could not find join button within 60 seconds",
+			);
+		}
+	}
+
+	/**
+	 * Wait for successful call entry (leave button visible).
+	 */
+	private async waitForCallEntry(): Promise<void> {
+		if (!this.page) {
+			throw new Error("Page not initialized");
+		}
+
+		const timeout = this.settings.automaticLeave.waitingRoomTimeout;
+
+		this.logger.debug("Waiting for call entry", {
+			timeoutSeconds: timeout / 1000,
+		});
+
+		const found = await waitForElement(this.page, SELECTORS.leaveButton, {
+			timeout,
+		});
+
+		if (!found) {
+			throw new WaitingRoomTimeoutError(
+				`Bot was not admitted within ${timeout / 1000}s`,
+			);
+		}
+	}
+
+	/**
+	 * Take a screenshot.
 	 */
 	async screenshot(filename: string = "screenshot.png"): Promise<void> {
-		console.log("Taking screenshot...");
-
 		if (!this.page) {
 			throw new Error("Page not initialized");
 		}
 
 		try {
-			const screenshot = await this.page.screenshot({
-				type: "png",
-			});
-
-			// Save the screenshot to a file
+			const screenshot = await this.page.screenshot({ type: "png" });
 			const screenshotPath = path.resolve(`/tmp/${filename}`);
 
 			fs.writeFileSync(screenshotPath, screenshot);
-
-			console.log(`Screenshot saved to ${screenshotPath}`);
+			this.logger.debug("Screenshot saved", { path: screenshotPath });
 		} catch (error) {
-			console.log("Error taking screenshot:", error);
+			this.logger.error("Error taking screenshot", error as Error);
 		}
 	}
 
-	/**
-	 * Detects if the bot has been removed from the meeting.
-	 * Checks multiple conditions including kick dialog, hidden leave button, and removal messages.
-	 *
-	 * @returns True if bot was kicked from meeting, false otherwise
-	 */
-	async checkKicked(): Promise<boolean> {
-		console.log("Checking if bot has been kicked...");
-
-		if (!this.page) {
-			throw new Error("Page not initialized");
-		}
-
-		// Check if "Return to Home Page" button exists (kick condition 1)
-		const returnHomeButtonCount = await this.page
-			.locator(gotKickedDetector)
-			.count()
-			.catch(() => 0);
-
-		console.log(
-			`Kick condition 1: "Return home" button count: ${returnHomeButtonCount}`,
-		);
-
-		if (returnHomeButtonCount > 0) {
-			console.log("Kick detected: Found 'Return to home screen' button");
-
-			return true;
-		}
-
-		// Hidden leave button (Kick condition 2)
-		const leaveButtonHidden = await this.page
-			.locator(leaveButton)
-			.isHidden({ timeout: 500 })
-			.catch(() => true);
-
-		console.log(`Kick condition 2: Leave button hidden: ${leaveButtonHidden}`);
-
-		if (leaveButtonHidden) {
-			console.log("Kick detected: Leave button is hidden");
-
-			return true;
-		}
-
-		// Removed from meeting text (Kick condition 3)
-		if (
-			await this.page
-				.locator('text="You\'ve been removed from the meeting"')
-				.isVisible({ timeout: 500 })
-				.catch(() => false)
-		) {
-			return true;
-		}
-
-		// Did not get kicked if reached here
-		return false;
+	// Alias for backward compatibility
+	async captureScreenshot(filename?: string): Promise<void> {
+		await this.screenshot(filename);
 	}
 
-	/**
-	 * Gets the next queued message for this bot using tRPC.
-	 * @returns Promise that resolves to the next queued message or null if none
-	 */
-	async getNextQueuedMessage(): Promise<{
-		messageText: string;
-		templateId?: number;
-		userId: string;
-	} | null> {
-		if (!this.chatEnabled) {
-			return null;
-		}
-
-		try {
-			const queuedMessage = await this.trpc.bots.chat.dequeueMessage.query({
-				botId: this.settings.id.toString(),
-			});
-
-			return queuedMessage;
-		} catch (error) {
-			console.log("Error fetching queued message via tRPC:", error);
-
-			return null;
-		}
-	}
-
-	/**
-	 * Handles Google Meet information popups by automatically dismissing them.
-	 *
-	 * @param timeout - Maximum time to wait for popup appearance (default: 5000ms)
-	 */
-	async handleInfoPopup(timeout = 5000): Promise<void> {
-		console.log("Handling info popup...");
-
-		if (!this.page) {
-			throw new Error("Page not initialized");
-		}
-
-		try {
-			await this.page.waitForSelector(infoPopupClick, { timeout });
-		} catch (_e) {
-			return;
-		}
-
-		console.log("Clicking the popup...");
-		await this.page.click(infoPopupClick);
-	}
-
-	/**
-	 * Opens the chat panel if chat is enabled and not already open.
-	 */
-	async openChatPanel(): Promise<void> {
-		if (!this.chatEnabled || !this.page) {
-			return;
-		}
-
-		console.log("Attempting to open chat panel...");
-
-		try {
-			// Try to find the chat button with multiple possible selectors
-			const chatButtonSelectors = [
-				chatButton,
-				chatToggleButton,
-				'//button[contains(@aria-label, "Chat")]',
-				'//button[contains(@aria-label, "chat")]',
-			];
-
-			let chatButtonFound = false;
-			for (const selector of chatButtonSelectors) {
-				try {
-					const buttonCount = await this.page.locator(selector).count();
-
-					if (buttonCount > 0) {
-						await this.page.click(selector, { timeout: 2000 });
-						console.log(`Chat panel opened using selector: ${selector}`);
-						chatButtonFound = true;
-						this.chatPanelOpen = true;
-
-						break;
-					}
-				} catch (_error) {}
-			}
-
-			if (!chatButtonFound) {
-				console.log("Chat button not found, chat may not be available");
-			}
-		} catch (error) {
-			console.log("Error opening chat panel:", error);
-		}
-	}
-
-	/**
-	 * Sends a message to the Google Meet chat.
-	 * @param message - The message text to send
-	 */
-	async sendChatMessage(message: string): Promise<boolean> {
-		if (!this.chatEnabled || !this.page) {
-			return false;
-		}
-
-		console.log(`Attempting to send chat message: "${message}"`);
-
-		try {
-			// Ensure chat panel is open
-			if (!this.chatPanelOpen) {
-				await this.openChatPanel();
-				await this.page.waitForTimeout(1000); // Wait for panel to fully open
-			}
-
-			// Find and click the chat input field
-			const inputSelectors = [
-				chatInput,
-				'//input[contains(@aria-label, "message")]',
-				'//textarea[contains(@aria-label, "message")]',
-				'//div[contains(@aria-label, "message")]',
-			];
-
-			let inputFound = false;
-			for (const selector of inputSelectors) {
-				try {
-					const inputCount = await this.page.locator(selector).count();
-
-					if (inputCount > 0) {
-						await this.page.click(selector, { timeout: 2000 });
-
-						// Type the message with natural delays
-						await this.page.type(selector, message, { delay: 50 });
-
-						// Press Enter to send or look for send button
-						try {
-							await this.page.keyboard.press("Enter");
-							console.log("Message sent using Enter key");
-						} catch (_e) {
-							// Try to find and click send button
-							const sendButtonSelectors = [
-								chatSendButton,
-								'//button[contains(@aria-label, "Send")]',
-								'//button[contains(@aria-label, "send")]',
-							];
-
-							for (const sendSelector of sendButtonSelectors) {
-								try {
-									const sendButtonCount = await this.page
-										.locator(sendSelector)
-										.count();
-
-									if (sendButtonCount > 0) {
-										await this.page.click(sendSelector, { timeout: 1000 });
-										console.log("Message sent using send button");
-
-										break;
-									}
-								} catch (_sendError) {}
-							}
-						}
-
-						inputFound = true;
-
-						break;
-					}
-				} catch (_error) {}
-			}
-
-			if (!inputFound) {
-				console.log("Chat input field not found");
-
-				return false;
-			}
-
-			// Small delay to ensure message is sent
-			await this.page.waitForTimeout(500);
-			console.log(`Successfully sent chat message: "${message}"`);
-
-			return true;
-		} catch (error) {
-			console.log("Error sending chat message:", error);
-
-			return false;
-		}
-	}
-
-	/**
-	 * Orchestrates all meeting activities including recording, participant monitoring, and exit conditions.
-	 *
-	 * Main workflow:
-	 * 1. Starts recording (if enabled)
-	 * 2. Opens participant panel for monitoring
-	 * 3. Sets up participant event handlers and observers
-	 * 4. Monitors meeting conditions (alone timeout, kick detection, inactivity)
-	 * 5. Exits when termination conditions are met
-	 *
-	 * @returns Promise that resolves to 0 on successful completion
-	 */
-	async meetingActions(): Promise<number> {
-		// Start recording only if enabled
-		if (this.settings.recordingEnabled) {
-			console.log("Starting Recording");
-
-			this.startRecording();
-		} else {
-			console.log("Recording is disabled for this bot");
-		}
-
-		console.log("Waiting for the 'Others might see you differently' popup...");
-
-		await this.handleInfoPopup();
-
-		if (!this.page) {
-			throw new Error("Page not initialized");
-		}
-
-		try {
-			// UI patch: Find new people icon and click parent button
-			const hasPeopleIcon = await this.page.evaluate(() => {
-				const peopleButtonChild = Array.from(
-					document.querySelectorAll("i"),
-				).find((el) => el.textContent?.trim() === "people");
-
-				if (peopleButtonChild) {
-					const newPeopleButton = peopleButtonChild.closest("button");
-
-					if (newPeopleButton) {
-						newPeopleButton.click();
-
-						return true;
-					}
-				}
-
-				return false;
-			});
-
-			if (hasPeopleIcon) {
-				console.log("Using new People button selector.");
-			} else {
-				console.warn("People button not found, using fallback selector.");
-
-				await this.page.click(peopleButton);
-			}
-
-			// Wait for the people panel to be visible
-			await this.page.waitForSelector('[aria-label="Participants"]', {
-				state: "visible",
-			});
-		} catch (_error) {
-			console.warn("Could not click People button. Continuing anyways.");
-		}
-
-		await this.page.exposeFunction("getParticipants", () => {
-			return this.participants;
-		});
-
-		await this.page.exposeFunction(
-			"onParticipantJoin",
-			async (participant: Participant) => {
-				this.participants.push(participant);
-				await this.onEvent(EventCode.PARTICIPANT_JOIN, participant);
-			},
-		);
-
-		await this.page.exposeFunction(
-			"onParticipantLeave",
-			async (participant: Participant) => {
-				await this.onEvent(EventCode.PARTICIPANT_LEAVE, participant);
-
-				this.participants = this.participants.filter(
-					(p) => p.id !== participant.id,
-				);
-
-				// this.timeAloneStarted =
-				// 	this.participants.length === 1 ? Date.now() : Infinity;
-			},
-		);
-
-		await this.page.exposeFunction(
-			"registerParticipantSpeaking",
-			(participant: Participant) => {
-				const relativeTimestamp = Date.now() - this.recordingStartedAt;
-
-				console.log(
-					`Participant ${participant.name} is speaking at ${relativeTimestamp}ms`,
-				);
-
-				if (!this.registeredActivityTimestamps[participant.name]) {
-					this.registeredActivityTimestamps[participant.name] = [
-						relativeTimestamp,
-					];
-				} else {
-					this.registeredActivityTimestamps[participant.name]?.push(
-						relativeTimestamp,
-					);
-				}
-			},
-		);
-
-		// Add mutation observer for participant list
-		// Use in the browser context to monitor for participants joining and leaving
-		await this.page.evaluate(() => {
-			const peopleList = document.querySelector('[aria-label="Participants"]');
-
-			if (!peopleList) {
-				console.error("Could not find participants list element");
-
-				return;
-			}
-
-			const initialParticipants = Array.from(peopleList.childNodes).filter(
-				(node) => node.nodeType === Node.ELEMENT_NODE,
-			);
-
-			window.participantArray = [];
-			window.mergedAudioParticipantArray = [];
-
-			window.observeSpeech = (node, participant) => {
-				console.debug("Observing speech for participant:", participant.name);
-
-				const activityObserver = new MutationObserver((mutations) => {
-					mutations.forEach(() => {
-						window.registerParticipantSpeaking(participant);
-					});
-				});
-
-				activityObserver.observe(node, {
-					attributes: true,
-					subtree: true,
-					childList: true,
-					attributeFilter: ["class"],
-				});
-
-				participant.observer = activityObserver;
-			};
-
-			window.handleMergedAudio = () => {
-				const mergedAudioNode = document.querySelector(
-					'[aria-label="Merged audio"]',
-				);
-
-				if (mergedAudioNode) {
-					const detectedParticipants: Participant[] = [];
-
-					// Gather all participants in the merged audio node
-					mergedAudioNode.parentNode?.childNodes.forEach((childNode) => {
-						const participantId = (childNode as Element).getAttribute(
-							"data-participant-id",
-						);
-
-						if (!participantId) {
-							return;
-						}
-
-						detectedParticipants.push({
-							id: participantId,
-							name: (childNode as Element).getAttribute("aria-label") ?? "",
-						});
-					});
-
-					// Detected new participant in the merged node
-					if (
-						detectedParticipants.length >
-						window.mergedAudioParticipantArray.length
-					) {
-						// Add them
-						const filteredParticipants = detectedParticipants.filter(
-							(participant: Participant) =>
-								!window.mergedAudioParticipantArray.find(
-									(p: Participant) => p.id === participant.id,
-								),
-						);
-
-						filteredParticipants.forEach((participant: Participant) => {
-							const vidBlock = document.querySelector(
-								`[data-requested-participant-id="${participant.id}"]`,
-							);
-
-							window.mergedAudioParticipantArray.push(participant);
-							window.onParticipantJoin(participant);
-							window.observeSpeech(vidBlock as Element, participant);
-							window.participantArray.push(participant);
-						});
-					} else if (
-						detectedParticipants.length <
-						window.mergedAudioParticipantArray.length
-					) {
-						// Some participants no longer in the merged node
-						const filteredParticipants =
-							window.mergedAudioParticipantArray.filter(
-								(participant: Participant) =>
-									!detectedParticipants.find(
-										(p: Participant) => p.id === participant.id,
-									),
-							);
-
-						filteredParticipants.forEach((participant: Participant) => {
-							const videoRectangle = document.querySelector(
-								`[data-requested-participant-id="${participant.id}"]`,
-							);
-
-							if (!videoRectangle) {
-								// They've left the meeting
-								window.onParticipantLeave(participant);
-
-								window.participantArray = window.participantArray.filter(
-									(p: Participant) => p.id !== participant.id,
-								);
-							}
-
-							// Update participants under merged audio
-							window.mergedAudioParticipantArray =
-								window.mergedAudioParticipantArray.filter(
-									(p: Participant) => p.id !== participant.id,
-								);
-						});
-					}
-				}
-			};
-
-			initialParticipants.forEach((node) => {
-				const participant = {
-					id: (node as Element).getAttribute("data-participant-id") ?? "",
-					name: (node as Element).getAttribute("aria-label") ?? "",
-				};
-
-				if (!participant.id) {
-					window.handleMergedAudio();
-
-					return;
-				}
-
-				window.onParticipantJoin(participant);
-				window.observeSpeech(node as Element, participant);
-				window.participantArray.push(participant);
-			});
-
-			console.log("Setting up mutation observer on participants list");
-
-			const peopleObserver = new MutationObserver((mutations) => {
-				mutations.forEach((mutation) => {
-					if (mutation.type === "childList") {
-						mutation.removedNodes.forEach((node) => {
-							console.log("Removed node:", node);
-
-							if (
-								node.nodeType === Node.ELEMENT_NODE &&
-								(node as Element).getAttribute &&
-								(node as Element).getAttribute("data-participant-id") &&
-								window.participantArray.find(
-									(p: Participant) =>
-										p.id ===
-										(node as Element).getAttribute("data-participant-id"),
-								)
-							) {
-								console.log(
-									"Participant left:",
-									(node as Element).getAttribute("aria-label"),
-								);
-
-								window.onParticipantLeave({
-									id:
-										(node as Element).getAttribute("data-participant-id") ?? "",
-									name: (node as Element).getAttribute("aria-label") ?? "",
-								});
-
-								window.participantArray = window.participantArray.filter(
-									(p: Participant) =>
-										p.id !==
-										(node as Element).getAttribute("data-participant-id"),
-								);
-							} else if (
-								document.querySelector('[aria-label="Merged audio"]')
-							) {
-								window.handleMergedAudio();
-							}
-						});
-					}
-
-					mutation.addedNodes.forEach((node) => {
-						console.log("Added node:", node);
-
-						if (
-							(node as Element).getAttribute?.("data-participant-id") &&
-							!window.participantArray.find(
-								(p: Participant) =>
-									p.id ===
-									(node as Element).getAttribute("data-participant-id"),
-							)
-						) {
-							console.log(
-								"Participant joined:",
-								(node as Element).getAttribute("aria-label"),
-							);
-
-							const participant = {
-								id: (node as Element).getAttribute("data-participant-id") ?? "",
-								name: (node as Element).getAttribute("aria-label") ?? "",
-							};
-
-							window.onParticipantJoin(participant);
-							window.observeSpeech(node as Element, participant);
-
-							window.participantArray.push(participant);
-						} else if (document.querySelector('[aria-label="Merged audio"]')) {
-							window.handleMergedAudio();
-						}
-					});
-				});
-			});
-
-			peopleObserver.observe(peopleList, { childList: true, subtree: true });
-		});
-
-		// Initialize chat functionality if enabled
-		if (this.chatEnabled) {
-			console.log("Initializing chat functionality...");
-
-			try {
-				await this.openChatPanel();
-				console.log("Chat functionality initialized successfully");
-			} catch (error) {
-				console.log("Error initializing chat functionality:", error);
-			}
-		}
-
-		// Loop -- check for end meeting conditions every second
-		this.logger.debug("Waiting until a leave condition is fulfilled");
-
-		while (true) {
-			// Check if user requested leave via UI (heartbeat received shouldLeave)
-			if (this.leaveRequested) {
-				this.logger.info("Leaving: User requested bot removal via UI");
-				this.logger.setState("LEAVING");
-
-				break; // Exit loop
-			}
-
-			// DISABLED: Check if it's only me in the meeting
-			// This functionality has been temporarily disabled due to false positives
-			// where the bot incorrectly detects it's alone when other participants are present
-			/*
-			if (this.participants.length === 1) {
-				const leaveMs =
-					this.settings?.automaticLeave?.everyoneLeftTimeout ?? 60000;
-
-				const msDiff = Date.now() - this.timeAloneStarted;
-
-				console.log(
-					`[DEBUG] Only me left check - Participants: ${this.participants.length}, Time alone: ${msDiff / 1000}s / ${leaveMs / 1000}s`,
-				);
-				console.log(
-					`[DEBUG] Current participants: ${JSON.stringify(this.participants.map(p => ({ id: p.id, name: p.name })))}`,
-				);
-
-				if (msDiff > leaveMs) {
-					console.log(
-						"[DEBUG] LEAVING: Only one participant remaining for more than allocated time",
-					);
-					console.log(
-						`[DEBUG] LEAVE REASON: EVERYONE_LEFT_TIMEOUT - Was alone for ${msDiff / 1000}s (threshold: ${leaveMs / 1000}s)`,
-					);
-
-					break;
-				}
-			}
-			*/
-
-			console.log(
-				`Participants check: ${this.participants.length} participants detected (everyone-left detection DISABLED)`,
-			);
-
-			// Got kicked, no longer in the meeting
-			// Check each of the potential conditions
-			if (await this.checkKicked()) {
-				this.logger.warn(
-					"Leaving: Detected that we were kicked from the meeting",
-				);
-
-				this.logger.setState("KICKED");
-
-				this.kicked = true; // Store
-
-				break; // Exit loop
-			}
-
-			// Inactivity timeout disabled - bots will remain in meetings regardless of speaking activity
-
-			await this.handleInfoPopup(1000);
-
-			// Reset loop
-			console.log("Waiting 5 seconds.");
-
-			await setTimeout(5000); // 5 second loop
-		}
-
-		// Exit
-		this.logger.info("Starting end life actions");
-
-		try {
-			await this.leaveMeeting();
-
-			return 0;
-		} catch (_e) {
-			await this.endLife();
-
-			return 1;
-		}
-	}
-
-	/**
-	 * Performs cleanup operations including stopping recording and closing browser.
-	 */
-	async endLife(): Promise<void> {
-		this.logger.setState("ENDING");
-
-		// Stop message processing if enabled
-		if (this.chatEnabled) {
-			this.logger.debug("Stopping message processing");
-		}
-
-		// Ensure recording is done
-		if (this.settings.recordingEnabled) {
-			this.logger.info("Stopping recording");
-
-			await this.stopRecording();
-		}
-
-		this.logger.info("Cleanup complete");
-
-		// Close my browser
-		if (this.browser) {
-			await this.browser.close();
-
-			this.logger.debug("Browser closed");
-		}
-	}
-
-	/**
-	 * Attempts to gracefully leave the meeting and performs cleanup.
-	 * Tries to click the leave button, then calls endLife() regardless of success.
-	 *
-	 * @returns Promise that resolves to 0 on successful completion
-	 */
-	async leaveMeeting(): Promise<number> {
-		// Try and find the leave button, press. Otherwise, just delete the browser
-		this.logger.info("Trying to leave the call");
-		this.logger.setState("LEAVING");
-
-		if (!this.page) {
-			throw new Error("Page not initialized");
-		}
-
-		try {
-			await this.page.click(leaveButton, { timeout: 1000 }); // Short attempt
-
-			this.logger.info("Left call successfully");
-		} catch (_e) {
-			// If we couldn't leave the call, we probably already left
-			this.logger.debug(
-				"Attempted to leave call, couldn't (probably already left)",
-			);
-		}
-
-		this.logger.info("Ending life");
-
-		await this.endLife();
-
-		return 0;
+	// Backward compatibility alias
+	async launchBrowser(headless: boolean = false): Promise<void> {
+		await this.initializeBrowser(headless);
 	}
 }

@@ -36,7 +36,7 @@ This guide provides instructions for building meeting bot Docker images for Goog
 cd apps/bots
 
 # Build Google Meet bot
-docker build -f providers/meet/Dockerfile -t meeboter-meet .
+docker build -f providers/google-meet/Dockerfile -t meeboter-google-meet .
 
 # Build Microsoft Teams bot
 docker build -f providers/teams/Dockerfile -t meeboter-teams .
@@ -101,7 +101,7 @@ This pattern ensures:
 To see detailed build logs:
 
 ```bash
-docker build -f providers/meet/Dockerfile -t meeboter-meet . --progress=plain
+docker build -f providers/google-meet/Dockerfile -t meeboter-google-meet . --progress=plain
 ```
 
 ### Container Debugging

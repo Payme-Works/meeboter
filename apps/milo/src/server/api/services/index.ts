@@ -67,6 +67,7 @@ function createServices(): Services {
 
 		const imagePullLock = new ImagePullLockService();
 		const deploymentQueue = new DeploymentQueueService();
+
 		const pool = new BotPoolService(
 			db,
 			coolify,

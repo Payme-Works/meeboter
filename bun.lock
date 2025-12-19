@@ -41,8 +41,8 @@
         "typescript": "^5.9.2",
       },
     },
-    "apps/bots/providers/meet": {
-      "name": "@meeboter/bots-meet",
+    "apps/bots/providers/google-meet": {
+      "name": "@meeboter/bots-google-meet",
       "version": "1.0.0",
       "dependencies": {
         "@aws-sdk/client-s3": "^3.697.0",
@@ -618,7 +618,7 @@
 
     "@meeboter/bots": ["@meeboter/bots@workspace:apps/bots"],
 
-    "@meeboter/bots-meet": ["@meeboter/bots-meet@workspace:apps/bots/providers/meet"],
+    "@meeboter/bots-google-meet": ["@meeboter/bots-google-meet@workspace:apps/bots/providers/google-meet"],
 
     "@meeboter/bots-teams": ["@meeboter/bots-teams@workspace:apps/bots/providers/teams"],
 

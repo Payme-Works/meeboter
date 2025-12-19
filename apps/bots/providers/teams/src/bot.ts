@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { Transform } from "node:stream";
+import { setTimeout } from "node:timers/promises";
 import type { AppRouter } from "@meeboter/milo";
 import type { TRPCClient } from "@trpc/client";
 import puppeteer, { type Browser, type Page } from "puppeteer";
@@ -14,48 +15,51 @@ import {
 	WaitingRoomTimeoutError,
 } from "../../../src/types";
 
-/** CSS selector for the leave button that appears when in a Microsoft Teams meeting */
-const leaveButtonSelector =
-	'button[aria-label="Leave (Ctrl+Shift+H)"], button[aria-label="Leave (⌘+Shift+H)"]';
+// ============================================
+// SECTION 1: SELECTORS
+// ============================================
+
+const SELECTORS = {
+	// Pre-join controls
+	displayNameInput: '[data-tid="prejoin-display-name-input"]',
+	muteButton: '[data-tid="toggle-mute"]',
+	joinButton: '[data-tid="prejoin-join-button"]',
+
+	// In-call controls
+	leaveButton:
+		'button[aria-label="Leave (Ctrl+Shift+H)"], button[aria-label="Leave (⌘+Shift+H)"]',
+	peopleButton: '[aria-label="People"]',
+
+	// Participants panel
+	attendeesTree: '[role="tree"]',
+	participantItem: '[data-tid^="participantsInCall-"]',
+} as const;
+
+// ============================================
+// SECTION 2: MICROSOFT TEAMS BOT CLASS
+// ============================================
 
 /**
- * Microsoft Teams bot implementation that can join meetings, record audio/video,
- * track participants, and handle meeting lifecycle events.
+ * Simplified Microsoft Teams bot for automated meeting participation.
  *
- * This bot uses Puppeteer to automate browser interactions with Microsoft Teams
- * web interface, enabling automated meeting participation and recording.
+ * Key capabilities:
+ * - Join Teams meetings via web client
+ * - Screen and audio recording using puppeteer-stream
+ * - Participant tracking via interval polling
+ * - Automatic leave on meeting end or user request
  */
 export class MicrosoftTeamsBot extends Bot {
-	/** File path where the meeting recording will be saved */
-	recordingPath: string;
-	/** MIME type for the recorded content */
-	contentType: string;
-	/** Microsoft Teams meeting URL constructed from meeting information */
-	url: string;
-	/** Array of current meeting participants' names */
-	participants: string[];
-	/** Interval ID for periodic participant list updates */
-	participantsIntervalId: NodeJS.Timeout;
-	/** Puppeteer browser instance for automation */
-	browser!: Browser;
-	/** Puppeteer page instance representing the Teams meeting tab */
-	page!: Page;
-	/** File write stream for saving the meeting recording */
-	file!: fs.WriteStream | null;
-	/** Transform stream for processing audio/video data */
-	stream!: Transform;
+	private recordingPath: string;
+	private contentType: string;
+	private meetingUrl: string;
 
-	/**
-	 * Creates a new Microsoft Teams bot instance.
-	 *
-	 * Initializes the bot with meeting configuration, sets up the Teams meeting URL,
-	 * and prepares recording settings based on the provided bot configuration.
-	 *
-	 * @param botSettings - Configuration object containing meeting details and bot behavior settings
-	 * @param onEvent - Callback function to handle bot lifecycle events and data updates
-	 * @param trpcInstance - tRPC client instance for backend API calls
-	 * @param logger - Logger instance for structured logging
-	 */
+	browser!: Browser;
+	page!: Page;
+	participants: string[] = [];
+	private participantsIntervalId: NodeJS.Timeout | null = null;
+	private file: fs.WriteStream | null = null;
+	private stream!: Transform;
+
 	constructor(
 		botSettings: BotConfig,
 		onEvent: (
@@ -66,147 +70,318 @@ export class MicrosoftTeamsBot extends Bot {
 		logger?: BotLogger,
 	) {
 		super(botSettings, onEvent, trpcInstance, logger);
-		this.recordingPath = "./recording.webm";
+
+		this.recordingPath = path.resolve(__dirname, "recording.webm");
 		this.contentType = "video/webm";
-		this.url = `https://teams.microsoft.com/v2/?meetingjoin=true#/l/meetup-join/19:meeting_${this.settings.meetingInfo.meetingId}@thread.v2/0?context=%7b%22Tid%22%3a%22${this.settings.meetingInfo.tenantId}%22%2c%22Oid%22%3a%22${this.settings.meetingInfo.organizerId}%22%7d&anon=true`;
-		this.participants = [];
-		this.participantsIntervalId = setInterval(() => {}, 0);
+		this.meetingUrl = `https://teams.microsoft.com/v2/?meetingjoin=true#/l/meetup-join/19:meeting_${this.settings.meetingInfo.meetingId}@thread.v2/0?context=%7b%22Tid%22%3a%22${this.settings.meetingInfo.tenantId}%22%2c%22Oid%22%3a%22${this.settings.meetingInfo.organizerId}%22%7d&anon=true`;
+	}
+
+	// ============================================
+	// LIFECYCLE METHODS
+	// ============================================
+
+	/**
+	 * Main entry point: join meeting and monitor until exit.
+	 */
+	async run(): Promise<void> {
+		await this.joinCall();
+		await this.monitorCall();
 	}
 
 	/**
-	 * Gets the file path where the meeting recording is saved.
-	 *
-	 * @returns The absolute or relative path to the recording file
+	 * Join the Teams call.
+	 */
+	async joinCall(): Promise<void> {
+		await this.initializeBrowser();
+
+		this.logger.info("State: LAUNCHING → NAVIGATING");
+
+		// Navigate to meeting
+		await this.page.goto(this.meetingUrl);
+		this.logger.info("State: NAVIGATING → PRE_JOIN");
+
+		// Fill name and configure media
+		await this.fillNameAndMute();
+		await this.clickJoinButton();
+
+		// Wait for call entry
+		await this.waitForCallEntry();
+
+		this.logger.info("State: JOINING → IN_CALL");
+	}
+
+	/**
+	 * Monitor the call and handle exit conditions.
+	 */
+	private async monitorCall(): Promise<void> {
+		if (!this.page) {
+			throw new Error("Page not initialized");
+		}
+
+		// Open participants panel
+		await this.openParticipantsPanel();
+
+		// Start participant tracking
+		this.startParticipantTracking();
+
+		// Start recording if enabled
+		if (this.settings.recordingEnabled) {
+			this.logger.info("Starting recording");
+			await this.startRecording();
+		}
+
+		this.logger.debug("Monitoring call for exit conditions");
+
+		// Race between exit conditions
+		await Promise.race([this.waitForMeetingEnd(), this.waitForLeaveRequest()]);
+
+		await this.cleanup();
+	}
+
+	/**
+	 * Clean up resources.
+	 */
+	async cleanup(): Promise<void> {
+		this.logger.info("State: IN_CALL → ENDING");
+
+		// Stop participant tracking
+		if (this.participantsIntervalId) {
+			clearInterval(this.participantsIntervalId);
+			this.participantsIntervalId = null;
+		}
+
+		await this.stopRecording();
+
+		if (this.file) {
+			this.file.close();
+			this.file = null;
+		}
+
+		if (this.browser) {
+			await this.browser.close();
+			(await wss).close();
+		}
+
+		this.logger.info("Cleanup complete");
+	}
+
+	// Alias for backward compatibility
+	async endLife(): Promise<void> {
+		await this.cleanup();
+	}
+
+	// Alias for backward compatibility
+	async joinMeeting(): Promise<void> {
+		await this.joinCall();
+	}
+
+	// ============================================
+	// MEETING MONITORING
+	// ============================================
+
+	/**
+	 * Wait for meeting end (leave button disappears).
+	 */
+	private async waitForMeetingEnd(): Promise<void> {
+		await this.page.waitForFunction(
+			(selector) => !document.querySelector(selector),
+			{ timeout: 0 },
+			SELECTORS.leaveButton,
+		);
+
+		this.logger.info("Meeting ended: Leave button no longer visible");
+	}
+
+	/**
+	 * Wait for user leave request.
+	 */
+	private async waitForLeaveRequest(): Promise<void> {
+		while (!this.leaveRequested) {
+			await setTimeout(1000);
+		}
+
+		this.logger.info("Leaving: User requested via API");
+	}
+
+	/**
+	 * Check if bot has been kicked (not implemented for Teams).
+	 */
+	async checkKicked(): Promise<boolean> {
+		return false;
+	}
+
+	// ============================================
+	// PARTICIPANT TRACKING
+	// ============================================
+
+	/**
+	 * Open the participants panel.
+	 */
+	private async openParticipantsPanel(): Promise<void> {
+		this.logger.debug("Opening participants panel");
+		await this.page.locator(SELECTORS.peopleButton).click();
+		await this.page.waitForSelector(SELECTORS.attendeesTree);
+		this.logger.debug("Participants panel opened");
+	}
+
+	/**
+	 * Start periodic participant list updates.
+	 */
+	private startParticipantTracking(): void {
+		const updateParticipants = async (): Promise<void> => {
+			try {
+				const currentParticipants = await this.page.evaluate(
+					(selectors) => {
+						const tree = document.querySelector(selectors.attendeesTree);
+
+						if (!tree) return [];
+
+						const items = Array.from(
+							tree.querySelectorAll(selectors.participantItem),
+						);
+
+						return items
+							.map((el) => {
+								const nameSpan = el.querySelector("span[title]");
+
+								return (
+									nameSpan?.getAttribute("title") ||
+									nameSpan?.textContent?.trim() ||
+									""
+								);
+							})
+							.filter((name) => name);
+					},
+					{
+						attendeesTree: SELECTORS.attendeesTree,
+						participantItem: SELECTORS.participantItem,
+					},
+				);
+
+				this.participants = currentParticipants;
+			} catch {
+				// Silently continue on error
+			}
+		};
+
+		// Initial update
+		updateParticipants();
+
+		// Periodic updates
+		this.participantsIntervalId = setInterval(
+			updateParticipants,
+			this.settings.heartbeatInterval,
+		);
+	}
+
+	// ============================================
+	// RECORDING
+	// ============================================
+
+	/**
+	 * Start recording.
+	 */
+	async startRecording(): Promise<void> {
+		if (!this.page) {
+			throw new Error("Page not initialized");
+		}
+
+		this.stream = await getStream(
+			this.page as unknown as Parameters<typeof getStream>[0],
+			{ audio: true, video: true },
+		);
+
+		this.file = fs.createWriteStream(this.recordingPath);
+		this.stream.pipe(this.file);
+
+		this.logger.debug("Recording started");
+	}
+
+	/**
+	 * Stop recording.
+	 */
+	async stopRecording(): Promise<void> {
+		if (this.stream) {
+			this.stream.destroy();
+			this.logger.debug("Recording stopped");
+		}
+	}
+
+	/**
+	 * Get recording file path.
 	 */
 	getRecordingPath(): string {
 		return this.recordingPath;
 	}
 
 	/**
-	 * Gets speaker timeframes for the recorded meeting.
-	 *
-	 * This method is not yet implemented for Microsoft Teams bot.
-	 * Future implementation should analyze the recording to identify
-	 * when different speakers were active during the meeting.
-	 *
-	 * @returns Empty array (implementation pending)
-	 */
-	getSpeakerTimeframes(): SpeakerTimeframe[] {
-		// TODO: Implement this
-		return [];
-	}
-
-	/**
-	 * Gets the MIME content type of the recorded meeting file.
-	 *
-	 * @returns The content type string for the recording format
+	 * Get recording content type.
 	 */
 	getContentType(): string {
 		return this.contentType;
 	}
 
 	/**
-	 * Takes a screenshot of the current Teams meeting page.
-	 *
-	 * Captures the current state of the Teams meeting interface and saves it
-	 * as a PNG file in the /tmp directory. Useful for debugging and monitoring
-	 * the bot's visual state during meeting participation.
-	 *
-	 * @param fName - The filename for the screenshot (defaults to "screenshot.png")
-	 * @returns Promise that resolves when the screenshot is saved
+	 * Get speaker timeframes (not implemented for Teams).
 	 */
-	async screenshot(fName: string = "screenshot.png"): Promise<void> {
-		try {
-			if (!this.page) throw new Error("Page not initialized");
-
-			if (!this.browser) throw new Error("Browser not initialized");
-
-			const screenshot = await this.page.screenshot({
-				type: "png",
-				encoding: "binary",
-			});
-
-			// Save the screenshot to a file
-			const screenshotPath = path.resolve(`/tmp/${fName}`);
-			fs.writeFileSync(screenshotPath, screenshot);
-			console.log(`Screenshot saved to ${screenshotPath}`);
-		} catch (e) {
-			console.log("Error taking screenshot:", e);
-		}
+	getSpeakerTimeframes(): SpeakerTimeframe[] {
+		return [];
 	}
 
+	// ============================================
+	// BROWSER UTILITIES
+	// ============================================
+
 	/**
-	 * Launches a headless browser instance configured for Teams meeting participation.
-	 *
-	 * Initializes a Puppeteer browser with appropriate settings for media access,
-	 * sets up camera and microphone permissions for the Teams domain, and creates
-	 * a new page ready for meeting navigation.
-	 *
-	 * @returns Promise that resolves when the browser and page are ready
+	 * Initialize browser.
 	 */
-	async launchBrowser(): Promise<void> {
-		// Launch the browser and open a new blank page
+	private async initializeBrowser(): Promise<void> {
+		this.logger.info("Initializing browser");
+
 		this.browser = (await launch({
 			executablePath: puppeteer.executablePath(),
 			headless: "new",
-			// args: ["--use-fake-ui-for-media-stream"],
-			args: ["--no-sandbox"],
+			args: ["--no-sandbox", "--disable-setuid-sandbox"],
 			protocolTimeout: 0,
 		})) as unknown as Browser;
 
-		// Parse the URL
-		console.log("Parsing URL:", this.url);
-		const urlObj = new URL(this.url);
-
-		// Override camera and microphone permissions
+		// Set permissions
+		const urlObj = new URL(this.meetingUrl);
 		const context = this.browser.defaultBrowserContext();
 		context.clearPermissionOverrides();
 		context.overridePermissions(urlObj.origin, ["camera", "microphone"]);
 
-		// Open a new page
 		this.page = await this.browser.newPage();
-		console.log("Opened Page");
+		this.logger.debug("Browser initialized");
+	}
+
+	// Alias for backward compatibility
+	async launchBrowser(): Promise<void> {
+		await this.initializeBrowser();
 	}
 
 	/**
-	 * Joins a Microsoft Teams meeting through automated browser interactions.
-	 *
-	 * This method orchestrates the complete meeting join workflow:
-	 * 1. Launches and configures the browser
-	 * 2. Navigates to the Teams meeting URL
-	 * 3. Fills in the bot's display name
-	 * 4. Mutes the microphone
-	 * 5. Attempts to join the meeting
-	 * 6. Handles waiting room scenarios with timeout
-	 * 7. Waits for confirmation of successful meeting entry
-	 *
-	 * @throws {WaitingRoomTimeoutError} When stuck in waiting room longer than configured timeout
-	 * @returns Promise that resolves when successfully joined the meeting
+	 * Fill display name and mute microphone.
 	 */
-	async joinMeeting(): Promise<void> {
-		await this.launchBrowser();
-
-		// Navigate the page to a URL
-		const urlObj = new URL(this.url);
-		console.log("Navigating to URL:", urlObj.href);
-		await this.page.goto(urlObj.href);
-
-		// Fill in the display name
+	private async fillNameAndMute(): Promise<void> {
 		await this.page
-			.locator(`[data-tid="prejoin-display-name-input"]`)
+			.locator(SELECTORS.displayNameInput)
 			.fill(this.settings.botDisplayName ?? "Meeboter");
 
-		console.log("Entered display name");
+		this.logger.debug("Entered display name");
 
-		// Mute microphone before joining
-		await this.page.locator(`[data-tid="toggle-mute"]`).click();
-		console.log("Muted microphone");
+		await this.page.locator(SELECTORS.muteButton).click();
+		this.logger.debug("Muted microphone");
+	}
 
-		// Join the meeting
-		await this.page.locator(`[data-tid="prejoin-join-button"]`).click();
-		console.log("Found and clicked the join button");
+	/**
+	 * Click join button and wait for it to be processed.
+	 */
+	private async clickJoinButton(): Promise<void> {
+		await this.page.locator(SELECTORS.joinButton).click();
+		this.logger.debug("Clicked join button");
 
-		// Wait until join button is disabled or disappears
+		// Wait for join button to be disabled or disappear
 		await this.page.waitForFunction(
 			(selector) => {
 				const joinButton = document.querySelector(selector);
@@ -214,273 +389,59 @@ export class MicrosoftTeamsBot extends Bot {
 				return !joinButton || joinButton.hasAttribute("disabled");
 			},
 			{},
-			'[data-tid="prejoin-join-button"]',
+			SELECTORS.joinButton,
 		);
+	}
 
-		// Check if we're in a waiting room by checking if the join button exists and is disabled
-		const joinButton = await this.page.$('[data-tid="prejoin-join-button"]');
+	/**
+	 * Wait for call entry (leave button visible).
+	 */
+	private async waitForCallEntry(): Promise<void> {
+		// Check if we're in waiting room
+		const joinButton = await this.page.$(SELECTORS.joinButton);
 
 		const isWaitingRoom =
 			joinButton &&
 			(await joinButton.evaluate((button) => button.hasAttribute("disabled")));
 
-		let timeout = 30000; // If not in the waiting room, wait 30 seconds to join the meeting
+		const timeout = isWaitingRoom
+			? this.settings.automaticLeave.waitingRoomTimeout
+			: 30000;
 
 		if (isWaitingRoom) {
-			console.log(
-				`Joined waiting room, will wait for ${
-					this.settings.automaticLeave.waitingRoomTimeout > 60 * 1000
-						? `${
-								this.settings.automaticLeave.waitingRoomTimeout / 60 / 1000
-							} minute(s)`
-						: `${
-								this.settings.automaticLeave.waitingRoomTimeout / 1000
-							} second(s)`
-				}`,
-			);
-
-			// If in the waiting room, wait for the waiting room timeout
-			timeout = this.settings.automaticLeave.waitingRoomTimeout; // In milliseconds
+			this.logger.info("In waiting room, waiting for admission", {
+				timeout: `${timeout / 1000}s`,
+			});
 		}
-
-		// Wait for the leave button to appear (meaning we've joined the meeting)
-		console.log(
-			"Waiting for the ability to leave the meeting (when I'm in the meeting...)",
-			timeout,
-			"ms",
-		);
 
 		try {
-			await this.page.waitForSelector(leaveButtonSelector, {
-				timeout: timeout,
+			await this.page.waitForSelector(SELECTORS.leaveButton, { timeout });
+		} catch {
+			throw new WaitingRoomTimeoutError("Bot was not admitted to meeting");
+		}
+
+		this.logger.debug("Call entry confirmed");
+	}
+
+	/**
+	 * Take a screenshot.
+	 */
+	async screenshot(fName: string = "screenshot.png"): Promise<void> {
+		if (!this.page || !this.browser) {
+			throw new Error("Browser/page not initialized");
+		}
+
+		try {
+			const screenshot = await this.page.screenshot({
+				type: "png",
+				encoding: "binary",
 			});
-		} catch (_error) {
-			// Distinct error from regular timeout
-			throw new WaitingRoomTimeoutError();
+
+			const screenshotPath = path.resolve(`/tmp/${fName}`);
+			fs.writeFileSync(screenshotPath, screenshot);
+			this.logger.debug("Screenshot saved", { path: screenshotPath });
+		} catch (error) {
+			this.logger.error("Error taking screenshot", error as Error);
 		}
-
-		// Log completion
-		console.log("Successfully joined meeting");
-	}
-
-	/**
-	 * Checks if the bot has been kicked or removed from the meeting.
-	 *
-	 * This method is not yet implemented. Future implementation should
-	 * monitor the page for indicators that the bot has been removed
-	 * from the meeting by a host or due to connection issues.
-	 *
-	 * @returns Promise that resolves to false (implementation pending)
-	 */
-	async checkKicked(): Promise<boolean> {
-		// TODO: Implement this
-		return false;
-	}
-
-	/**
-	 * Starts recording the meeting audio and video stream.
-	 *
-	 * Initializes a media stream capture from the Teams meeting page,
-	 * creates a file write stream, and begins piping the audio/video
-	 * data to the designated recording file.
-	 *
-	 * @throws {Error} When the page is not initialized
-	 * @returns Promise that resolves when recording has started
-	 */
-	async startRecording(): Promise<void> {
-		if (!this.page) throw new Error("Page not initialized");
-
-		// Get the stream
-		this.stream = await getStream(
-			this.page as unknown as Parameters<typeof getStream>[0],
-			{ audio: true, video: true },
-		);
-
-		// Create a file
-		this.file = fs.createWriteStream(this.getRecordingPath());
-		this.stream.pipe(this.file);
-
-		// Pipe the stream to a file
-		console.log("Recording...");
-	}
-
-	/**
-	 * Stops the ongoing meeting recording.
-	 *
-	 * Terminates the media stream capture and closes the recording pipeline.
-	 * Safe to call multiple times - will only act if a recording is active.
-	 *
-	 * @returns Promise that resolves when recording has stopped
-	 */
-	async stopRecording(): Promise<void> {
-		// Stop recording
-		if (this.stream) {
-			console.log("Stopping recording...");
-			this.stream.destroy();
-		}
-	}
-
-	/**
-	 * Main execution method that orchestrates the complete bot lifecycle.
-	 *
-	 * This method handles the full workflow of bot operation:
-	 * 1. Joins the Teams meeting
-	 * 2. Sets up participant monitoring
-	 * 3. Starts recording (if enabled)
-	 * 4. Monitors meeting status until it ends
-	 * 5. Performs cleanup operations
-	 *
-	 * The bot will remain active until the meeting ends (detected by the
-	 * disappearance of the leave button) or until manually terminated.
-	 *
-	 * @returns Promise that resolves when the bot lifecycle is complete
-	 */
-	async run(): Promise<void> {
-		// Start join process
-		await this.joinMeeting();
-
-		// Create a file to record to
-		this.file = fs.createWriteStream(this.getRecordingPath());
-
-		// Click the people button
-		console.log("Opening the participants list");
-		await this.page.locator('[aria-label="People"]').click();
-
-		// Wait for the attendees tree to appear
-		console.log("Waiting for the attendees tree to appear");
-		const _tree = await this.page.waitForSelector('[role="tree"]');
-		console.log("Attendees tree found");
-
-		/**
-		 * Updates the participants list by extracting names from the Teams UI.
-		 * This function runs periodically to track meeting attendance changes.
-		 */
-		const updateParticipants = async (): Promise<void> => {
-			try {
-				const currentParticipants = await this.page.evaluate(() => {
-					const participantsList = document.querySelector('[role="tree"]');
-
-					if (!participantsList) {
-						console.log("No participants list found");
-
-						return [];
-					}
-
-					const currentElements = Array.from(
-						participantsList.querySelectorAll(
-							'[data-tid^="participantsInCall-"]',
-						),
-					);
-
-					return currentElements
-						.map((el) => {
-							const nameSpan = el.querySelector("span[title]");
-
-							return (
-								nameSpan?.getAttribute("title") ||
-								nameSpan?.textContent?.trim() ||
-								""
-							);
-						})
-						.filter((name) => name);
-				});
-
-				this.participants = currentParticipants;
-			} catch (error) {
-				console.log("Error getting participants:", error);
-			}
-		};
-
-		// Get initial participants list
-		await updateParticipants();
-
-		// Then check for participants every heartbeatInterval milliseconds
-		this.participantsIntervalId = setInterval(
-			updateParticipants,
-			this.settings.heartbeatInterval,
-		);
-
-		// Start recording only if enabled
-		if (this.settings.recordingEnabled) {
-			console.log("Starting recording");
-			await this.startRecording();
-		} else {
-			console.log("Recording is disabled for this bot");
-		}
-
-		// Wait for meeting to end by watching for the "Leave" button to disappear
-		// OR user requesting leave via UI (LEAVING status)
-		const checkLeaveRequested = async (): Promise<"USER_REQUESTED"> => {
-			while (!this.leaveRequested) {
-				await new Promise((resolve) => setTimeout(resolve, 1000));
-			}
-
-			console.log(
-				"Leaving: User requested bot removal via UI (LEAVING status)",
-			);
-
-			return "USER_REQUESTED";
-		};
-
-		const waitForMeetingEnd = async (): Promise<"MEETING_ENDED"> => {
-			await this.page.waitForFunction(
-				(selector) => !document.querySelector(selector),
-				{ timeout: 0 },
-				leaveButtonSelector,
-			);
-
-			return "MEETING_ENDED";
-		};
-
-		const leaveReason = await Promise.race([
-			checkLeaveRequested(),
-			waitForMeetingEnd(),
-		]);
-
-		console.log(`Meeting ended, reason: ${leaveReason}`);
-
-		// Clear the participants checking interval
-		clearInterval(this.participantsIntervalId);
-
-		this.endLife();
-	}
-
-	/**
-	 * Performs comprehensive cleanup of all bot resources.
-	 *
-	 * This method ensures proper cleanup of all resources used by the bot:
-	 * - Closes file streams to prevent memory leaks
-	 * - Terminates the browser instance
-	 * - Shuts down the WebSocket server
-	 * - Clears all intervals and timers
-	 * - Stops any ongoing recording
-	 *
-	 * Should be called when the bot lifecycle ends to prevent resource leaks
-	 * and ensure clean shutdown.
-	 *
-	 * @returns Promise that resolves when all cleanup is complete
-	 */
-	async endLife(): Promise<void> {
-		// Close file if it exists
-		if (this.file) {
-			this.file.close();
-			this.file = null;
-		}
-
-		// Close browser
-		if (this.browser) {
-			await this.browser.close();
-
-			// Close the websocket server
-			(await wss).close();
-		}
-
-		// Clear any intervals or timeouts to prevent open handles
-		if (this.participantsIntervalId) {
-			clearInterval(this.participantsIntervalId);
-		}
-
-		// Stop recording
-		this.stopRecording();
 	}
 }
