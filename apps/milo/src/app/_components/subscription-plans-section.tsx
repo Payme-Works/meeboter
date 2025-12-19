@@ -14,16 +14,18 @@ export default function SubscriptionPlansSection({
 	const plans = getOrderedPlans();
 
 	return (
-		<div className="space-y-6">
+		<div className="space-y-4 md:space-y-6">
 			<div>
-				<h2 className="text-2xl font-bold text-left">Choose Your Plan</h2>
-				<p className="text-gray-600 mt-2 text-left">
+				<h2 className="text-xl md:text-2xl font-bold text-left">
+					Choose Your Plan
+				</h2>
+				<p className="text-sm md:text-base text-gray-600 mt-1 md:mt-2 text-left">
 					Choose the right plan to deploy engagement bots and enhance your
 					meetings
 				</p>
 			</div>
 
-			<div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+			<div className="grid gap-4 md:gap-6 sm:grid-cols-2 lg:grid-cols-4">
 				{plans.map((plan) => (
 					<SubscriptionPlanCard
 						key={plan.id}
@@ -33,7 +35,7 @@ export default function SubscriptionPlansSection({
 				))}
 			</div>
 
-			<div className="text-left text-sm text-gray-500">
+			<div className="text-left text-xs md:text-sm text-gray-500 space-y-1">
 				<p>
 					All plans include secure bot deployment, meeting engagement features,
 					and recording capabilities.

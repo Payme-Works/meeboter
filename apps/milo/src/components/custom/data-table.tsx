@@ -214,8 +214,8 @@ export function DataTable<TData, TValue>({
 				<ErrorAlert errorMessage={errorMessage} />
 			) : (
 				<>
-					<div className="border">
-						<Table>
+					<div className="border overflow-x-auto">
+						<Table className="min-w-[640px]">
 							<TableHeader>
 								{table &&
 									columns &&
@@ -266,8 +266,8 @@ export function DataTable<TData, TValue>({
 							</TableBody>
 						</Table>
 					</div>
-					<div className="flex items-center justify-between py-4">
-						<div className="flex-1 text-sm text-muted-foreground">
+					<div className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+						<div className="text-sm text-muted-foreground">
 							{enableRowSelection ? (
 								<span>
 									{table.getFilteredSelectedRowModel().rows.length} of{" "}
@@ -275,35 +275,37 @@ export function DataTable<TData, TValue>({
 								</span>
 							) : null}
 						</div>
-						<div className="flex items-center space-x-2">
-							<span className="text-sm text-muted-foreground">
+						<div className="flex items-center justify-between gap-2 sm:justify-end">
+							<span className="text-sm text-muted-foreground whitespace-nowrap">
 								Page {table.getState().pagination.pageIndex + 1} of{" "}
 								{table.getPageCount()}
 							</span>
-							<Button
-								variant="outline"
-								size="sm"
-								onClick={() => table?.previousPage()}
-								disabled={
-									isServerSidePagination
-										? hasPreviousPage === false
-										: !table?.getCanPreviousPage() || !table
-								}
-							>
-								Previous
-							</Button>
-							<Button
-								variant="outline"
-								size="sm"
-								onClick={() => table?.nextPage()}
-								disabled={
-									isServerSidePagination
-										? hasNextPage === false
-										: !table?.getCanNextPage() || !table
-								}
-							>
-								Next
-							</Button>
+							<div className="flex items-center gap-2">
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={() => table?.previousPage()}
+									disabled={
+										isServerSidePagination
+											? hasPreviousPage === false
+											: !table?.getCanPreviousPage() || !table
+									}
+								>
+									Previous
+								</Button>
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={() => table?.nextPage()}
+									disabled={
+										isServerSidePagination
+											? hasNextPage === false
+											: !table?.getCanNextPage() || !table
+									}
+								>
+									Next
+								</Button>
+							</div>
 						</div>
 					</div>
 				</>

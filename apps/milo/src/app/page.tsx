@@ -36,11 +36,11 @@ import SubscriptionPlansSection from "./_components/subscription-plans-section";
 
 function DashboardHeader({ userName }: { userName?: string | null }) {
 	return (
-		<div className="mb-8">
-			<h1 className="text-3xl font-bold tracking-tight">
+		<div className="mb-6 md:mb-8">
+			<h1 className="text-2xl md:text-3xl font-bold tracking-tight">
 				Welcome back{userName ? `, ${userName}` : ""}
 			</h1>
-			<p className="mt-2 text-muted-foreground">
+			<p className="mt-2 text-sm md:text-base text-muted-foreground">
 				Deploy intelligent bots to boost engagement and productivity in your
 				meetings.
 			</p>
@@ -50,9 +50,11 @@ function DashboardHeader({ userName }: { userName?: string | null }) {
 
 function WelcomeHeader() {
 	return (
-		<div className="mb-8">
-			<h1 className="text-3xl font-bold tracking-tight">Welcome to Meeboter</h1>
-			<p className="mt-2 text-muted-foreground">
+		<div className="mb-6 md:mb-8">
+			<h1 className="text-2xl md:text-3xl font-bold tracking-tight">
+				Welcome to Meeboter
+			</h1>
+			<p className="mt-2 text-sm md:text-base text-muted-foreground">
 				Deploy intelligent bots to boost engagement and productivity in your
 				meetings.
 			</p>
@@ -62,26 +64,26 @@ function WelcomeHeader() {
 
 function LoggedOutHero() {
 	return (
-		<div className="border bg-card mb-8">
-			<div className="p-8 text-center">
+		<div className="border bg-card mb-6 md:mb-8">
+			<div className="p-4 sm:p-6 md:p-8 text-center">
 				<div className="max-w-lg mx-auto">
-					<h2 className="text-2xl font-bold mb-3">
+					<h2 className="text-xl md:text-2xl font-bold mb-2 md:mb-3">
 						Deploy Engagement Bots to Your Meetings
 					</h2>
-					<p className="text-muted-foreground mb-6">
+					<p className="text-sm md:text-base text-muted-foreground mb-4 md:mb-6">
 						Instantly add intelligent bots to Google Meet, Microsoft Teams, or
 						Zoom. Boost engagement, capture recordings, and analyze meeting
 						interactions.
 					</p>
-					<div className="flex items-center justify-center gap-3">
-						<Link href="/auth/sign-up">
-							<Button size="lg">
+					<div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+						<Link href="/auth/sign-up" className="w-full sm:w-auto">
+							<Button size="lg" className="w-full sm:w-auto">
 								Get Started Free
 								<LogIn className="h-4 w-4" />
 							</Button>
 						</Link>
-						<Link href="/auth/sign-in">
-							<Button variant="outline" size="lg">
+						<Link href="/auth/sign-in" className="w-full sm:w-auto">
+							<Button variant="outline" size="lg" className="w-full sm:w-auto">
 								Sign In
 							</Button>
 						</Link>
@@ -132,7 +134,7 @@ async function StatCardsSection({ timeZone }: { timeZone: string }) {
 
 	return (
 		<div className="grid gap-4">
-			<div className="grid grid-cols-2 gap-4">
+			<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 				{/* Active Bots Card */}
 				<StatCard>
 					<StatCardHeader>
@@ -207,7 +209,7 @@ async function RecentBotsWithPrefetch() {
 function StatCardsSkeleton() {
 	return (
 		<div className="grid gap-4">
-			<div className="grid grid-cols-2 gap-4">
+			<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 				<StatCard>
 					<StatCardHeader>
 						<StatCardIconSkeleton />
@@ -362,13 +364,13 @@ export default async function Home() {
 				<main className="mx-auto container px-4">
 					<DashboardHeader userName={session.user.name} />
 
-					<div className="mb-8">
+					<div className="mb-6 md:mb-8">
 						<Suspense fallback={<QuickBotJoinSkeleton />}>
 							<QuickBotJoin />
 						</Suspense>
 					</div>
 
-					<div className="grid gap-6 lg:grid-cols-3 mb-8">
+					<div className="grid gap-4 md:gap-6 lg:grid-cols-3 mb-6 md:mb-8">
 						<div className="lg:col-span-2">
 							<Suspense fallback={<RecentBotsSkeleton />}>
 								<RecentBotsWithPrefetch />
@@ -395,7 +397,7 @@ export default async function Home() {
 			<main className="mx-auto container px-4">
 				<DashboardHeader userName={session.user.name} />
 
-				<div className="mb-8">
+				<div className="mb-6 md:mb-8">
 					<Suspense fallback={<QuickBotJoinSkeleton />}>
 						<QuickBotJoin />
 					</Suspense>
@@ -404,8 +406,8 @@ export default async function Home() {
 				<div
 					className={
 						isFreePlan
-							? "grid gap-6 lg:grid-cols-3 mb-8"
-							: "grid gap-6 lg:grid-cols-3"
+							? "grid gap-4 md:gap-6 lg:grid-cols-3 mb-6 md:mb-8"
+							: "grid gap-4 md:gap-6 lg:grid-cols-3"
 					}
 				>
 					<div className="lg:col-span-2">

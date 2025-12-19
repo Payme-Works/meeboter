@@ -5,7 +5,11 @@ interface PageHeaderProps {
 }
 
 export function PageHeader({ children }: PageHeaderProps) {
-	return <div className="flex items-end justify-between gap-4">{children}</div>;
+	return (
+		<div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+			{children}
+		</div>
+	);
 }
 
 interface PageHeaderContentProps {
@@ -21,7 +25,9 @@ interface PageHeaderTitleProps {
 }
 
 export function PageHeaderTitle({ children }: PageHeaderTitleProps) {
-	return <h1 className="text-2xl font-bold tracking-tight">{children}</h1>;
+	return (
+		<h1 className="text-xl sm:text-2xl font-bold tracking-tight">{children}</h1>
+	);
 }
 
 interface PageHeaderDescriptionProps {
@@ -31,7 +37,9 @@ interface PageHeaderDescriptionProps {
 export function PageHeaderDescription({
 	children,
 }: PageHeaderDescriptionProps) {
-	return <p className="text-muted-foreground">{children}</p>;
+	return (
+		<p className="text-sm sm:text-base text-muted-foreground">{children}</p>
+	);
 }
 
 interface PageHeaderActionsProps {
@@ -39,5 +47,7 @@ interface PageHeaderActionsProps {
 }
 
 export function PageHeaderActions({ children }: PageHeaderActionsProps) {
-	return <div className="flex items-center gap-2 shrink-0">{children}</div>;
+	return (
+		<div className="flex flex-wrap items-center gap-2 shrink-0">{children}</div>
+	);
 }

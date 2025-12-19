@@ -484,7 +484,7 @@ export default function BotsPage() {
 
 			{/* Bulk Action Toolbar */}
 			{selectedBotIds.length > 0 ? (
-				<div className="flex items-center justify-between rounded-lg border bg-muted/50 px-4 py-3">
+				<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border bg-muted/50 px-3 py-3 sm:px-4">
 					<div className="flex items-center gap-2">
 						<span className="text-sm font-medium">
 							{selectedBotIds.length} bot(s) selected
@@ -498,7 +498,7 @@ export default function BotsPage() {
 							Clear
 						</Button>
 					</div>
-					<div className="flex items-center gap-2">
+					<div className="flex flex-wrap items-center gap-2">
 						{deployingBotIds.length > 0 ? (
 							<Button
 								variant="destructive"
@@ -507,7 +507,9 @@ export default function BotsPage() {
 								disabled={cancelDeploymentsMutation.isPending}
 							>
 								<Ban className="size-3!" />
-								Cancel Deployments ({deployingBotIds.length})
+								<span className="hidden sm:inline">Cancel Deployments</span>
+								<span className="sm:hidden">Cancel</span>
+								<span>({deployingBotIds.length})</span>
 							</Button>
 						) : null}
 						{inCallBotIds.length > 0 ? (
@@ -518,7 +520,9 @@ export default function BotsPage() {
 								disabled={removeFromCallMutation.isPending}
 							>
 								<PhoneOff className="size-3!" />
-								Remove from Call ({inCallBotIds.length})
+								<span className="hidden sm:inline">Remove from Call</span>
+								<span className="sm:hidden">Remove</span>
+								<span>({inCallBotIds.length})</span>
 							</Button>
 						) : null}
 					</div>
