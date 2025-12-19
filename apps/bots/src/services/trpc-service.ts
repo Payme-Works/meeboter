@@ -176,13 +176,29 @@ export class TrpcService {
 	}
 
 	/**
-	 * Reports an event to the backend
+	 * Status event codes that should trigger a status update in addition to logging
+	 */
+	private static readonly STATUS_EVENT_CODES: readonly EventCode[] = [
+		EventCode.READY_TO_DEPLOY,
+		EventCode.DEPLOYING,
+		EventCode.JOINING_CALL,
+		EventCode.IN_WAITING_ROOM,
+		EventCode.IN_CALL,
+		EventCode.CALL_ENDED,
+		EventCode.DONE,
+		EventCode.FATAL,
+	];
+
+	/**
+	 * Reports an event to the backend.
+	 * If the event is a status-related event, also updates the bot's status.
 	 */
 	async reportEvent(
 		botId: number,
 		eventType: EventCode,
 		eventData?: EventData | null,
 	): Promise<void> {
+		// Report the event to the events log
 		await this.client.bots.reportEvent.mutate({
 			id: String(botId),
 			event: {
@@ -196,6 +212,19 @@ export class TrpcService {
 					: null,
 			},
 		});
+
+		// Also update status if this is a status-changing event
+		if (TrpcService.STATUS_EVENT_CODES.includes(eventType)) {
+			// EventCode and Status have the same values for status events
+			const status = eventType as unknown as Status;
+
+			await this.updateBotStatus(
+				botId,
+				status,
+				eventData?.recording,
+				eventData?.speakerTimeframes,
+			);
+		}
 	}
 
 	/**
