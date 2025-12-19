@@ -7,23 +7,23 @@ on:
       - bare-metal
   workflow_dispatch:
     inputs:
-      deploy_milo:
-        description: 'Deploy milo image'
+      release_milo:
+        description: 'Release milo image'
         required: false
         default: true
         type: boolean
-      deploy_meet_bot:
-        description: 'Deploy google-meet-bot image'
+      release_google_meet_bot:
+        description: 'Release google-meet-bot image'
         required: false
         default: true
         type: boolean
-      deploy_teams_bot:
-        description: 'Deploy teams-bot image'
+      release_teams_bot:
+        description: 'Release teams-bot image'
         required: false
         default: true
         type: boolean
-      deploy_zoom_bot:
-        description: 'Deploy zoom-bot image'
+      release_zoom_bot:
+        description: 'Release zoom-bot image'
         required: false
         default: true
         type: boolean
@@ -49,40 +49,40 @@ jobs:
         include:
           - name: milo
             dockerfile: apps/milo/Dockerfile
-            input_check: deploy_milo
+            input_check: release_milo
           - name: google-meet-bot
             dockerfile: apps/bots/providers/meet/Dockerfile
-            input_check: deploy_meet_bot
+            input_check: release_google_meet_bot
           - name: teams-bot
             dockerfile: apps/bots/providers/teams/Dockerfile
-            input_check: deploy_teams_bot
+            input_check: release_teams_bot
           - name: zoom-bot
             dockerfile: apps/bots/providers/zoom/Dockerfile
-            input_check: deploy_zoom_bot
+            input_check: release_zoom_bot
 
     steps:
-      - name: Check if should deploy
-        id: should_deploy
+      - name: Check if should release
+        id: should_release
         env:
           EVENT_NAME: ${{ github.event_name }}
           INPUT_VALUE: ${{ github.event.inputs[matrix.input_check] }}
         run: |
           if [ "$EVENT_NAME" == "workflow_dispatch" ]; then
-            echo "deploy=$INPUT_VALUE" >> $GITHUB_OUTPUT
+            echo "release=$INPUT_VALUE" >> $GITHUB_OUTPUT
           else
-            echo "deploy=true" >> $GITHUB_OUTPUT
+            echo "release=true" >> $GITHUB_OUTPUT
           fi
 
       - name: Checkout repository
-        if: steps.should_deploy.outputs.deploy == 'true'
+        if: steps.should_release.outputs.release == 'true'
         uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
-        if: steps.should_deploy.outputs.deploy == 'true'
+        if: steps.should_release.outputs.release == 'true'
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to GitHub Container Registry
-        if: steps.should_deploy.outputs.deploy == 'true'
+        if: steps.should_release.outputs.release == 'true'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -90,7 +90,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract metadata (tags, labels)
-        if: steps.should_deploy.outputs.deploy == 'true'
+        if: steps.should_release.outputs.release == 'true'
         id: meta
         uses: docker/metadata-action@v5
         with:
@@ -103,7 +103,7 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
 
       - name: Build and push Docker image
-        if: steps.should_deploy.outputs.deploy == 'true'
+        if: steps.should_release.outputs.release == 'true'
         id: build
         uses: docker/build-push-action@v5
         with:
@@ -117,7 +117,7 @@ jobs:
           platforms: linux/amd64
 
       - name: Generate build summary
-        if: steps.should_deploy.outputs.deploy == 'true'
+        if: steps.should_release.outputs.release == 'true'
         env:
           IMAGE_NAME: ${{ matrix.name }}
           REGISTRY: ghcr.io
@@ -230,7 +230,7 @@ jobs:
           \`\`\`bash
           # Set these environment variables for your deployment
           export MILO_IMAGE="$REGISTRY/$IMAGE_PREFIX-milo:$SHORT_SHA"
-          export MEET_BOT_IMAGE="$REGISTRY/$IMAGE_PREFIX-google-meet-bot:$SHORT_SHA"
+          export GOOGLE_MEET_BOT_IMAGE="$REGISTRY/$IMAGE_PREFIX-google-meet-bot:$SHORT_SHA"
           export TEAMS_BOT_IMAGE="$REGISTRY/$IMAGE_PREFIX-teams-bot:$SHORT_SHA"
           export ZOOM_BOT_IMAGE="$REGISTRY/$IMAGE_PREFIX-zoom-bot:$SHORT_SHA"
           \`\`\`
