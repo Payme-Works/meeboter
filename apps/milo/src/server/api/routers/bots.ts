@@ -120,18 +120,35 @@ export const botsRouter = createTRPCRouter({
 				id: z.string().transform((val) => Number(val)),
 			}),
 		)
-		.output(selectBotSchema)
-		.query(async ({ input, ctx }): Promise<typeof selectBotSchema._output> => {
+		.output(
+			selectBotSchema.extend({
+				poolSlotName: z.string().nullable(),
+			}),
+		)
+		.query(async ({ input, ctx }) => {
 			const result = await ctx.db
-				.select()
+				.select({
+					bot: botsTable,
+					poolSlotName: botPoolSlotsTable.slotName,
+				})
 				.from(botsTable)
+				.leftJoin(
+					botPoolSlotsTable,
+					eq(
+						botsTable.coolifyServiceUuid,
+						botPoolSlotsTable.coolifyServiceUuid,
+					),
+				)
 				.where(eq(botsTable.id, input.id));
 
-			if (!result[0] || result[0].userId !== ctx.session.user.id) {
+			if (!result[0] || result[0].bot.userId !== ctx.session.user.id) {
 				throw new Error("Bot not found");
 			}
 
-			return result[0];
+			return {
+				...result[0].bot,
+				poolSlotName: result[0].poolSlotName,
+			};
 		}),
 
 	/**

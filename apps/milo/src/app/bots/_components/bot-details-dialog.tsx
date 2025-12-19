@@ -5,12 +5,12 @@ import { format, formatDistanceToNow } from "date-fns";
 import {
 	Activity,
 	Calendar,
-	Circle,
 	Clock,
 	ExternalLink,
 	Heart,
 	MessageSquare,
 	Radio,
+	Server,
 	Video,
 } from "lucide-react";
 import Image from "next/image";
@@ -226,37 +226,6 @@ export function BotDetailsDialog({ botId, onClose }: BotDetailsDialogProps) {
 									</DialogDescription>
 								</div>
 							</div>
-
-							{/* Status Badge */}
-							{!botLoading && bot?.status ? (
-								<Badge
-									variant="outline"
-									className={cn(
-										statusConfig.bgColor,
-										statusConfig.color,
-										"border-transparent transition-all duration-200",
-									)}
-								>
-									<span className="relative flex h-2 w-2 mr-1.5">
-										{statusConfig.pulse ? (
-											<span
-												className={cn(
-													"absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping",
-													statusConfig.dotColor,
-													"bg-current",
-												)}
-											/>
-										) : null}
-										<Circle
-											className={cn(
-												"relative h-2 w-2 fill-current",
-												statusConfig.dotColor,
-											)}
-										/>
-									</span>
-									{formatStatus(bot.status)}
-								</Badge>
-							) : null}
 						</div>
 					</DialogHeader>
 
@@ -362,6 +331,20 @@ export function BotDetailsDialog({ botId, onClose }: BotDetailsDialogProps) {
 													</Badge>
 												) : (
 													"—"
+												)}
+											</InfoRow>
+
+											<InfoRow
+												icon={Server}
+												label="Pool Slot"
+												loading={botLoading}
+											>
+												{bot?.poolSlotName ? (
+													<span className="font-mono text-xs">
+														{bot.poolSlotName}
+													</span>
+												) : (
+													<span className="text-muted-foreground">—</span>
 												)}
 											</InfoRow>
 
