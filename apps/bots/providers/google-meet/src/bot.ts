@@ -44,8 +44,13 @@ const SCREEN_HEIGHT = 1080;
 // ============================================
 
 const SELECTORS = {
-	// Join flow
-	nameInput: 'input[type="text"][aria-label="Your name"]',
+	// Join flow - multiple selectors for resilience
+	nameInput: [
+		'input[aria-label="Your name"]',
+		'input[placeholder="Your name"]',
+		'input[autocomplete="name"]',
+		"input.qdOxv-fmcmS-wGMbrd",
+	],
 	joinNowButton: '//button[.//span[text()="Join now"]]',
 	askToJoinButton: '//button[.//span[text()="Ask to join"]]',
 
@@ -61,6 +66,14 @@ const SELECTORS = {
 	chatButton: '//button[@aria-label="Chat with everyone"]',
 	chatToggleButton: '//button[@aria-label="Toggle chat"]',
 	chatInput: '//input[@aria-label="Send a message to everyone"]',
+
+	// Blocking screens
+	signInButton: '//button[.//span[text()="Sign in"]]',
+	captchaFrame: 'iframe[src*="recaptcha"], iframe[title*="reCAPTCHA"]',
+	meetingNotFound: '//*[contains(text(), "Check your meeting code")]',
+	meetingEnded: '//*[contains(text(), "This meeting has ended")]',
+	gotItButton: '//button[.//span[text()="Got it"]]',
+	dismissButton: '//button[.//span[text()="Dismiss"]]',
 } as const;
 
 // ============================================
@@ -172,14 +185,15 @@ export class GoogleMeetBot extends Bot {
 
 		this.logger.info("State: NAVIGATING → WAITING_FOR_JOIN_SCREEN");
 
-		// Wait for name input field
-		const foundNameInput = await waitForElement(
-			this.page,
-			SELECTORS.nameInput,
-			{ timeout: 30000 },
-		);
+		// Dismiss any blocking dialogs (Got it, Dismiss, etc.)
+		await this.dismissBlockingDialogs();
 
-		if (!foundNameInput) {
+		// Wait for name input field (try multiple selectors)
+		const nameInputSelector = await this.findNameInput();
+
+		if (!nameInputSelector) {
+			// Check for blocking screens
+			await this.checkBlockingScreens();
 			this.logger.error("Name input field not found within 30s");
 
 			throw new Error("Failed to find name input field");
@@ -187,7 +201,7 @@ export class GoogleMeetBot extends Bot {
 
 		// Fill bot name
 		const botName = this.settings.botDisplayName || "Meeboter";
-		await this.page.fill(SELECTORS.nameInput, botName);
+		await this.page.fill(nameInputSelector, botName);
 		this.logger.info("Filled bot name", { name: botName });
 
 		// Disable media devices
@@ -210,6 +224,90 @@ export class GoogleMeetBot extends Bot {
 		await this.onEvent(EventCode.IN_CALL);
 
 		return 0;
+	}
+
+	/**
+	 * Dismiss common blocking dialogs (Got it, Dismiss buttons).
+	 */
+	private async dismissBlockingDialogs(): Promise<void> {
+		if (!this.page) return;
+
+		// Wait a moment for page to stabilize
+		await setTimeout(2000);
+
+		// Try to dismiss common dialogs
+		await clickIfExists(this.page, SELECTORS.gotItButton, { timeout: 1000 });
+		await clickIfExists(this.page, SELECTORS.dismissButton, { timeout: 1000 });
+	}
+
+	/**
+	 * Find the name input field using multiple selectors.
+	 */
+	private async findNameInput(): Promise<string | null> {
+		if (!this.page) return null;
+
+		const maxWait = 30000;
+		const checkInterval = 1000;
+		const startTime = Date.now();
+
+		while (Date.now() - startTime < maxWait) {
+			for (const selector of SELECTORS.nameInput) {
+				try {
+					const count = await this.page.locator(selector).count();
+
+					if (count > 0) {
+						this.logger.debug("Found name input", { selector });
+
+						return selector;
+					}
+				} catch {
+					// Continue to next selector
+				}
+			}
+
+			await setTimeout(checkInterval);
+		}
+
+		return null;
+	}
+
+	/**
+	 * Check for blocking screens and emit appropriate events.
+	 */
+	private async checkBlockingScreens(): Promise<void> {
+		if (!this.page) return;
+
+		const blockingChecks = [
+			{
+				selector: SELECTORS.signInButton,
+				event: EventCode.SIGN_IN_REQUIRED,
+				msg: "Sign in required",
+			},
+			{
+				selector: SELECTORS.captchaFrame,
+				event: EventCode.CAPTCHA_DETECTED,
+				msg: "Captcha detected",
+			},
+			{
+				selector: SELECTORS.meetingNotFound,
+				event: EventCode.MEETING_NOT_FOUND,
+				msg: "Meeting not found",
+			},
+			{
+				selector: SELECTORS.meetingEnded,
+				event: EventCode.MEETING_ENDED,
+				msg: "Meeting has ended",
+			},
+		];
+
+		for (const check of blockingChecks) {
+			if (await elementExists(this.page, check.selector)) {
+				this.logger.warn(`Blocking screen detected: ${check.msg}`);
+				await this.onEvent(check.event);
+
+				return;
+			}
+		}
 	}
 
 	/**

@@ -1,5 +1,6 @@
 "use client";
 
+import { keepPreviousData } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import { formatDistanceToNow } from "date-fns";
 import {
@@ -16,7 +17,7 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { parseAsInteger, useQueryState } from "nuqs";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
 	DataTable,
@@ -165,6 +166,7 @@ export default function BotsPage() {
 	} = api.bots.getBots.useQuery(undefined, {
 		refetchInterval: REFRESH_INTERVAL,
 		refetchOnWindowFocus: true,
+		placeholderData: keepPreviousData,
 	});
 
 	const cancelDeploymentsMutation = api.bots.cancelDeployments.useMutation({
@@ -262,164 +264,172 @@ export default function BotsPage() {
 		setRemoveFromCallDialogOpen(false);
 	};
 
-	const columns: ColumnDef<Bot>[] = [
-		{
-			id: "select",
-			header: ({ table }) => (
-				<Checkbox
-					checked={
-						table.getIsAllPageRowsSelected() ||
-						(table.getIsSomePageRowsSelected() && "indeterminate")
-					}
-					onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-					aria-label="Select all"
-				/>
-			),
-			cell: ({ row }) => (
-				<Checkbox
-					checked={row.getIsSelected()}
-					onCheckedChange={(value) => row.toggleSelected(!!value)}
-					aria-label="Select row"
-				/>
-			),
-			enableSorting: false,
-			enableHiding: false,
-		},
-		{
-			accessorKey: "botDisplayName",
-			header: "Bot Name",
-			cell: ({ row }) => (
-				<span className="font-medium">{row.original.botDisplayName}</span>
-			),
-		},
-		{
-			accessorKey: "meetingInfo.platform",
-			header: "Platform",
-			cell: ({ row }) => {
-				const platform = row.original.meetingInfo.platform;
-
-				return (
-					<div className="flex items-center gap-2">
-						{typeof platform === "string" && (
-							<Image
-								src={`/platform-logos/${platform}.svg`}
-								alt={`${platform} logo`}
-								width={20}
-								height={20}
-							/>
-						)}
-						<span className="text-muted-foreground">
-							{typeof platform === "string"
-								? platform.charAt(0).toUpperCase() + platform.slice(1)
-								: "Unknown"}
-						</span>
-					</div>
-				);
+	const columns: ColumnDef<Bot>[] = useMemo(
+		() => [
+			{
+				id: "select",
+				header: ({ table }) => (
+					<Checkbox
+						checked={
+							table.getIsAllPageRowsSelected() ||
+							(table.getIsSomePageRowsSelected() && "indeterminate")
+						}
+						onCheckedChange={(value) =>
+							table.toggleAllPageRowsSelected(!!value)
+						}
+						aria-label="Select all"
+					/>
+				),
+				cell: ({ row }) => (
+					<Checkbox
+						checked={row.getIsSelected()}
+						onCheckedChange={(value) => row.toggleSelected(!!value)}
+						aria-label="Select row"
+					/>
+				),
+				enableSorting: false,
+				enableHiding: false,
 			},
-		},
-		{
-			accessorKey: "status",
-			header: "Status",
-			cell: ({ row }) => {
-				const status = row.original.status;
-				const config = STATUS_CONFIG[status] || STATUS_CONFIG.CREATED;
+			{
+				accessorKey: "botDisplayName",
+				header: "Bot Name",
+				cell: ({ row }) => (
+					<span className="font-medium">{row.original.botDisplayName}</span>
+				),
+			},
+			{
+				accessorKey: "meetingInfo.platform",
+				header: "Platform",
+				cell: ({ row }) => {
+					const platform = row.original.meetingInfo.platform;
 
-				return (
-					<Badge
-						variant="outline"
-						className={cn(
-							config.bgColor,
-							config.color,
-							"border-transparent transition-all duration-200",
-						)}
-					>
-						<span className="relative flex h-2 w-2 mr-1.5">
-							{config.pulse ? (
-								<span
-									className={cn(
-										"absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping",
-										config.dotColor,
-										"bg-current",
-									)}
+					return (
+						<div className="flex items-center gap-2">
+							{typeof platform === "string" ? (
+								<Image
+									src={`/platform-logos/${platform}.svg`}
+									alt={`${platform} logo`}
+									width={20}
+									height={20}
 								/>
 							) : null}
-							<Circle
-								className={cn("relative h-2 w-2 fill-current", config.dotColor)}
-							/>
+							<span className="text-muted-foreground">
+								{typeof platform === "string"
+									? platform.charAt(0).toUpperCase() + platform.slice(1)
+									: "Unknown"}
+							</span>
+						</div>
+					);
+				},
+			},
+			{
+				accessorKey: "status",
+				header: "Status",
+				cell: ({ row }) => {
+					const status = row.original.status;
+					const config = STATUS_CONFIG[status] || STATUS_CONFIG.CREATED;
+
+					return (
+						<Badge
+							variant="outline"
+							className={cn(
+								config.bgColor,
+								config.color,
+								"border-transparent transition-all duration-200",
+							)}
+						>
+							<span className="relative flex h-2 w-2 mr-1.5">
+								{config.pulse ? (
+									<span
+										className={cn(
+											"absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping",
+											config.dotColor,
+											"bg-current",
+										)}
+									/>
+								) : null}
+								<Circle
+									className={cn(
+										"relative h-2 w-2 fill-current",
+										config.dotColor,
+									)}
+								/>
+							</span>
+							{formatStatus(status)}
+						</Badge>
+					);
+				},
+			},
+			{
+				accessorKey: "recording",
+				header: "Recording",
+				cell: ({ row }) => {
+					const recording = row.original.recording;
+
+					if (!recording) {
+						return <span className="text-muted-foreground/50">—</span>;
+					}
+
+					return (
+						<Link
+							href={recording}
+							target="_blank"
+							className="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors"
+						>
+							<Video className="h-3.5 w-3.5" />
+							View
+							<ExternalLink className="size-3! opacity-50" />
+						</Link>
+					);
+				},
+			},
+			{
+				accessorKey: "createdAt",
+				header: "Created",
+				cell: ({ row }) => {
+					const createdAt = row.original.createdAt;
+
+					return (
+						<span className="text-muted-foreground tabular-nums">
+							{createdAt
+								? formatDistanceToNow(new Date(createdAt), { addSuffix: true })
+								: "—"}
 						</span>
-						{formatStatus(status)}
-					</Badge>
-				);
+					);
+				},
 			},
-		},
-		{
-			accessorKey: "recording",
-			header: "Recording",
-			cell: ({ row }) => {
-				const recording = row.original.recording;
-
-				if (!recording) {
-					return <span className="text-muted-foreground/50">—</span>;
-				}
-
-				return (
-					<Link
-						href={recording}
-						target="_blank"
-						className="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors"
-					>
-						<Video className="h-3.5 w-3.5" />
-						View
-						<ExternalLink className="size-3! opacity-50" />
-					</Link>
-				);
+			{
+				id: "actions",
+				header: () => <span className="sr-only">Actions</span>,
+				cell: ({ row }) => {
+					return (
+						<div className="flex items-center justify-end">
+							<BotActionsDropdown
+								botId={row.original.id}
+								botName={row.original.botDisplayName}
+								status={row.original.status}
+								recording={row.original.recording}
+								onViewDetails={() => setSelectedBot(row.original.id)}
+								onRemoveFromCall={() =>
+									setBotToRemove({
+										id: row.original.id,
+										name: row.original.botDisplayName,
+									})
+								}
+								onCancelDeployment={() =>
+									setBotToCancel({
+										id: row.original.id,
+										name: row.original.botDisplayName,
+									})
+								}
+							/>
+						</div>
+					);
+				},
 			},
-		},
-		{
-			accessorKey: "createdAt",
-			header: "Created",
-			cell: ({ row }) => {
-				const createdAt = row.original.createdAt;
-
-				return (
-					<span className="text-muted-foreground tabular-nums">
-						{createdAt
-							? formatDistanceToNow(new Date(createdAt), { addSuffix: true })
-							: "—"}
-					</span>
-				);
-			},
-		},
-		{
-			id: "actions",
-			header: () => <span className="sr-only">Actions</span>,
-			cell: ({ row }) => {
-				return (
-					<div className="flex items-center justify-end">
-						<BotActionsDropdown
-							botId={row.original.id}
-							botName={row.original.botDisplayName}
-							status={row.original.status}
-							recording={row.original.recording}
-							onViewDetails={() => setSelectedBot(row.original.id)}
-							onRemoveFromCall={() =>
-								setBotToRemove({
-									id: row.original.id,
-									name: row.original.botDisplayName,
-								})
-							}
-							onCancelDeployment={() =>
-								setBotToCancel({
-									id: row.original.id,
-									name: row.original.botDisplayName,
-								})
-							}
-						/>
-					</div>
-				);
-			},
-		},
-	];
+		],
+		[],
+	);
 
 	return (
 		<div className="mx-auto container space-y-6 px-4">

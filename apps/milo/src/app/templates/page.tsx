@@ -4,7 +4,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { formatDistanceToNow } from "date-fns";
 import { Edit2, Plus, Trash2 } from "lucide-react";
 import { parseAsInteger, useQueryState } from "nuqs";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { DataTable } from "@/components/custom/data-table";
 import {
 	PageHeader,
@@ -48,76 +48,79 @@ export default function TemplatesPage() {
 
 	type Template = (typeof templates)[number];
 
-	const columns: ColumnDef<Template>[] = [
-		{
-			accessorKey: "templateName",
-			header: "Template Name",
-			cell: ({ row }) => (
-				<span className="font-medium">{row.original.templateName}</span>
-			),
-		},
-		{
-			accessorKey: "messageCount",
-			header: "Variations",
-			cell: ({ row }) => (
-				<span className="text-muted-foreground tabular-nums">
-					{row.original.messages.length}
-				</span>
-			),
-		},
-		{
-			accessorKey: "messagePreview",
-			header: "Preview",
-			cell: ({ row }) => (
-				<div className="max-w-md">
-					<p className="text-sm truncate">{row.original.messages[0]}</p>
-					{row.original.messages.length > 1 && (
-						<p className="text-xs text-muted-foreground">
-							+{row.original.messages.length - 1} more
-						</p>
-					)}
-				</div>
-			),
-		},
-		{
-			accessorKey: "createdAt",
-			header: "Created",
-			cell: ({ row }) => {
-				const createdAt = row.original.createdAt;
-
-				return (
-					<span className="text-muted-foreground tabular-nums">
-						{createdAt
-							? formatDistanceToNow(new Date(createdAt), { addSuffix: true })
-							: "—"}
-					</span>
-				);
+	const columns: ColumnDef<Template>[] = useMemo(
+		() => [
+			{
+				accessorKey: "templateName",
+				header: "Template Name",
+				cell: ({ row }) => (
+					<span className="font-medium">{row.original.templateName}</span>
+				),
 			},
-		},
-		{
-			id: "actions",
-			header: "Actions",
-			cell: ({ row }) => (
-				<div className="flex items-center gap-1">
-					<Button
-						variant="ghost"
-						size="sm"
-						onClick={() => setEditingTemplate(row.original)}
-					>
-						<Edit2 className="h-4 w-4" />
-					</Button>
-					<Button
-						variant="ghost"
-						size="sm"
-						onClick={() => setDeletingTemplate(row.original)}
-						className="text-destructive hover:text-destructive"
-					>
-						<Trash2 className="h-4 w-4" />
-					</Button>
-				</div>
-			),
-		},
-	];
+			{
+				accessorKey: "messageCount",
+				header: "Variations",
+				cell: ({ row }) => (
+					<span className="text-muted-foreground tabular-nums">
+						{row.original.messages.length}
+					</span>
+				),
+			},
+			{
+				accessorKey: "messagePreview",
+				header: "Preview",
+				cell: ({ row }) => (
+					<div className="max-w-md">
+						<p className="text-sm truncate">{row.original.messages[0]}</p>
+						{row.original.messages.length > 1 ? (
+							<p className="text-xs text-muted-foreground">
+								+{row.original.messages.length - 1} more
+							</p>
+						) : null}
+					</div>
+				),
+			},
+			{
+				accessorKey: "createdAt",
+				header: "Created",
+				cell: ({ row }) => {
+					const createdAt = row.original.createdAt;
+
+					return (
+						<span className="text-muted-foreground tabular-nums">
+							{createdAt
+								? formatDistanceToNow(new Date(createdAt), { addSuffix: true })
+								: "—"}
+						</span>
+					);
+				},
+			},
+			{
+				id: "actions",
+				header: "Actions",
+				cell: ({ row }) => (
+					<div className="flex items-center gap-1">
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={() => setEditingTemplate(row.original)}
+						>
+							<Edit2 className="h-4 w-4" />
+						</Button>
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={() => setDeletingTemplate(row.original)}
+							className="text-destructive hover:text-destructive"
+						>
+							<Trash2 className="h-4 w-4" />
+						</Button>
+					</div>
+				),
+			},
+		],
+		[],
+	);
 
 	const handleTemplateCreated = () => {
 		setCreateDialogOpen(false);

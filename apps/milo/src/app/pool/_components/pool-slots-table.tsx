@@ -5,7 +5,7 @@ import { formatDistanceToNow } from "date-fns";
 import { ChevronDown, MoreHorizontal, Trash2, X } from "lucide-react";
 import { motion } from "motion/react";
 import { parseAsInteger, useQueryState } from "nuqs";
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
 	DataTable,
@@ -153,10 +153,10 @@ export function PoolSlotsTable({
 		},
 	});
 
-	const handleDeleteClick = (slot: PoolSlot) => {
+	const handleDeleteClick = useCallback((slot: PoolSlot) => {
 		setSlotsToDelete([slot]);
 		setDeleteDialogOpen(true);
-	};
+	}, []);
 
 	const handleBulkDeleteClick = () => {
 		if (!slots) return;
@@ -177,147 +177,152 @@ export function PoolSlotsTable({
 		deleteMutation.mutate({ ids: slotsToDelete.map((s) => s.id) });
 	};
 
-	const columns: ColumnDef<PoolSlot>[] = [
-		{
-			id: "select",
-			header: ({ table }) => (
-				<Checkbox
-					checked={
-						table.getIsAllPageRowsSelected() ||
-						(table.getIsSomePageRowsSelected() && "indeterminate")
+	const columns: ColumnDef<PoolSlot>[] = useMemo(
+		() => [
+			{
+				id: "select",
+				header: ({ table }) => (
+					<Checkbox
+						checked={
+							table.getIsAllPageRowsSelected() ||
+							(table.getIsSomePageRowsSelected() && "indeterminate")
+						}
+						onCheckedChange={(value) =>
+							table.toggleAllPageRowsSelected(!!value)
+						}
+						aria-label="Select all"
+					/>
+				),
+				cell: ({ row }) => (
+					<Checkbox
+						checked={row.getIsSelected()}
+						onCheckedChange={(value) => row.toggleSelected(!!value)}
+						aria-label="Select row"
+					/>
+				),
+				enableSorting: false,
+				enableHiding: false,
+			},
+			{
+				accessorKey: "slotName",
+				header: "Slot Name",
+				cell: ({ row }) => (
+					<span className="font-mono text-sm">{row.original.slotName}</span>
+				),
+			},
+			{
+				accessorKey: "status",
+				header: "Status",
+				cell: ({ row }) => <StatusBadge status={row.original.status} />,
+			},
+			{
+				accessorKey: "assignedBotId",
+				header: "Bot",
+				cell: ({ row }) => {
+					const botId = row.original.assignedBotId;
+
+					if (!botId) {
+						return <span className="text-muted-foreground">—</span>;
 					}
-					onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-					aria-label="Select all"
-				/>
-			),
-			cell: ({ row }) => (
-				<Checkbox
-					checked={row.getIsSelected()}
-					onCheckedChange={(value) => row.toggleSelected(!!value)}
-					aria-label="Select row"
-				/>
-			),
-			enableSorting: false,
-			enableHiding: false,
-		},
-		{
-			accessorKey: "slotName",
-			header: "Slot Name",
-			cell: ({ row }) => (
-				<span className="font-mono text-sm">{row.original.slotName}</span>
-			),
-		},
-		{
-			accessorKey: "status",
-			header: "Status",
-			cell: ({ row }) => <StatusBadge status={row.original.status} />,
-		},
-		{
-			accessorKey: "assignedBotId",
-			header: "Bot",
-			cell: ({ row }) => {
-				const botId = row.original.assignedBotId;
 
-				if (!botId) {
-					return <span className="text-muted-foreground">—</span>;
-				}
-
-				return <span className="font-mono text-sm">#{botId}</span>;
+					return <span className="font-mono text-sm">#{botId}</span>;
+				},
 			},
-		},
-		{
-			accessorKey: "lastUsedAt",
-			header: "Last Used",
-			cell: ({ row }) => {
-				const lastUsed = row.original.lastUsedAt;
+			{
+				accessorKey: "lastUsedAt",
+				header: "Last Used",
+				cell: ({ row }) => {
+					const lastUsed = row.original.lastUsedAt;
 
-				if (!lastUsed) {
-					return <span className="text-muted-foreground">Never</span>;
-				}
+					if (!lastUsed) {
+						return <span className="text-muted-foreground">Never</span>;
+					}
 
-				return (
-					<span className="text-muted-foreground text-sm tabular-nums">
-						{formatDistanceToNow(new Date(lastUsed), { addSuffix: true })}
-					</span>
-				);
+					return (
+						<span className="text-muted-foreground text-sm tabular-nums">
+							{formatDistanceToNow(new Date(lastUsed), { addSuffix: true })}
+						</span>
+					);
+				},
 			},
-		},
-		{
-			accessorKey: "errorMessage",
-			header: "Error",
-			cell: ({ row }) => {
-				const error = row.original.errorMessage;
+			{
+				accessorKey: "errorMessage",
+				header: "Error",
+				cell: ({ row }) => {
+					const error = row.original.errorMessage;
 
-				if (!error) {
-					return <span className="text-muted-foreground">—</span>;
-				}
+					if (!error) {
+						return <span className="text-muted-foreground">—</span>;
+					}
 
-				return (
-					<span
-						className="text-destructive text-sm max-w-[200px] truncate block"
-						title={error}
-					>
-						{error}
-					</span>
-				);
-			},
-		},
-		{
-			accessorKey: "recoveryAttempts",
-			header: "Recovery",
-			cell: ({ row }) => (
-				<span className="font-mono text-sm tabular-nums text-muted-foreground">
-					{row.original.recoveryAttempts}
-				</span>
-			),
-		},
-		{
-			accessorKey: "coolifyServiceUuid",
-			header: "UUID",
-			cell: ({ row }) => (
-				<span
-					className="font-mono text-xs text-muted-foreground"
-					title={row.original.coolifyServiceUuid}
-				>
-					{truncateUuid(row.original.coolifyServiceUuid)}
-				</span>
-			),
-		},
-		{
-			accessorKey: "createdAt",
-			header: "Created",
-			cell: ({ row }) => (
-				<span className="text-muted-foreground text-sm tabular-nums">
-					{formatDistanceToNow(new Date(row.original.createdAt), {
-						addSuffix: true,
-					})}
-				</span>
-			),
-		},
-		{
-			id: "actions",
-			header: "",
-			cell: ({ row }) => (
-				<DropdownMenu>
-					<DropdownMenuTrigger asChild>
-						<Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-							<span className="sr-only">Open menu</span>
-							<MoreHorizontal className="h-4 w-4" />
-						</Button>
-					</DropdownMenuTrigger>
-					<DropdownMenuContent align="end">
-						<DropdownMenuItem
-							onClick={() => handleDeleteClick(row.original)}
-							className="text-destructive focus:text-destructive"
+					return (
+						<span
+							className="text-destructive text-sm max-w-[200px] truncate block"
+							title={error}
 						>
-							<Trash2 className="mr-2 h-4 w-4" />
-							Delete
-						</DropdownMenuItem>
-					</DropdownMenuContent>
-				</DropdownMenu>
-			),
-		},
-	];
+							{error}
+						</span>
+					);
+				},
+			},
+			{
+				accessorKey: "recoveryAttempts",
+				header: "Recovery",
+				cell: ({ row }) => (
+					<span className="font-mono text-sm tabular-nums text-muted-foreground">
+						{row.original.recoveryAttempts}
+					</span>
+				),
+			},
+			{
+				accessorKey: "coolifyServiceUuid",
+				header: "UUID",
+				cell: ({ row }) => (
+					<span
+						className="font-mono text-xs text-muted-foreground"
+						title={row.original.coolifyServiceUuid}
+					>
+						{truncateUuid(row.original.coolifyServiceUuid)}
+					</span>
+				),
+			},
+			{
+				accessorKey: "createdAt",
+				header: "Created",
+				cell: ({ row }) => (
+					<span className="text-muted-foreground text-sm tabular-nums">
+						{formatDistanceToNow(new Date(row.original.createdAt), {
+							addSuffix: true,
+						})}
+					</span>
+				),
+			},
+			{
+				id: "actions",
+				header: "",
+				cell: ({ row }) => (
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+								<span className="sr-only">Open menu</span>
+								<MoreHorizontal className="h-4 w-4" />
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="end">
+							<DropdownMenuItem
+								onClick={() => handleDeleteClick(row.original)}
+								className="text-destructive focus:text-destructive"
+							>
+								<Trash2 className="mr-2 h-4 w-4" />
+								Delete
+							</DropdownMenuItem>
+						</DropdownMenuContent>
+					</DropdownMenu>
+				),
+			},
+		],
+		[handleDeleteClick],
+	);
 
 	const toggleStatus = (status: PoolSlotStatus) => {
 		if (statusFilter.includes(status)) {

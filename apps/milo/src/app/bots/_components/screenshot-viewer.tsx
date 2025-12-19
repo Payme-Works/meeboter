@@ -33,28 +33,24 @@ interface ScreenshotViewerProps {
 
 const TYPE_CONFIG: Record<
 	ScreenshotData["type"],
-	{ label: string; color: string; bgColor: string; icon: typeof Camera }
+	{ color: string; bgColor: string; icon: typeof Camera }
 > = {
 	error: {
-		label: "Error",
 		color: "text-red-600 dark:text-red-400",
 		bgColor: "bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800",
 		icon: AlertCircle,
 	},
 	fatal: {
-		label: "Fatal",
 		color: "text-red-600 dark:text-red-400",
 		bgColor: "bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800",
 		icon: AlertCircle,
 	},
 	manual: {
-		label: "Manual",
 		color: "text-blue-600 dark:text-blue-400",
 		bgColor: "bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800",
 		icon: Camera,
 	},
 	state_change: {
-		label: "State Change",
 		color: "text-amber-600 dark:text-amber-400",
 		bgColor:
 			"bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800",
@@ -198,7 +194,8 @@ export function ScreenshotViewer({
 											)}
 										>
 											<Icon className="h-2.5 w-2.5" />
-											{config.label}
+
+											{screenshot.type.toUpperCase()}
 										</div>
 									</div>
 
@@ -241,8 +238,9 @@ export function ScreenshotViewer({
 												TYPE_CONFIG[selectedScreenshot.type].color,
 											)}
 										>
-											{TYPE_CONFIG[selectedScreenshot.type].label}
+											{selectedScreenshot.type.toUpperCase()}
 										</Badge>
+
 										<span className="text-muted-foreground">
 											{selectedScreenshot.state}
 										</span>

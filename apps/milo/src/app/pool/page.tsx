@@ -1,5 +1,6 @@
 "use client";
 
+import { keepPreviousData } from "@tanstack/react-query";
 import { RefreshCw, RefreshCwOff } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -31,24 +32,31 @@ export default function PoolPage() {
 	const poolStats = api.pool.statistics.getPool.useQuery(undefined, {
 		refetchInterval: REFRESH_INTERVAL,
 		refetchOnWindowFocus: true,
+		placeholderData: keepPreviousData,
 	});
 
 	// Queue statistics query
 	const queueStats = api.pool.statistics.getQueue.useQuery(undefined, {
 		refetchInterval: REFRESH_INTERVAL,
 		refetchOnWindowFocus: true,
+		placeholderData: keepPreviousData,
 	});
 
 	// Slots list query with filtering
 	const slots = api.pool.slots.list.useQuery(
 		statusFilter.length > 0 ? { status: statusFilter } : undefined,
-		{ refetchInterval: REFRESH_INTERVAL, refetchOnWindowFocus: true },
+		{
+			refetchInterval: REFRESH_INTERVAL,
+			refetchOnWindowFocus: true,
+			placeholderData: keepPreviousData,
+		},
 	);
 
 	// Queue entries query
 	const queueEntries = api.pool.queue.list.useQuery(undefined, {
 		refetchInterval: REFRESH_INTERVAL,
 		refetchOnWindowFocus: true,
+		placeholderData: keepPreviousData,
 	});
 
 	// Sync mutation for manual pool synchronization

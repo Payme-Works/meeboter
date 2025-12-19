@@ -1,7 +1,7 @@
 "use client";
 
 import { parseAsInteger, useQueryState } from "nuqs";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { DataTable } from "@/components/custom/data-table";
 import {
 	PageHeader,
@@ -33,6 +33,8 @@ export default function Keys() {
 		error,
 	} = api.apiKeys.listApiKeys.useQuery();
 
+	const memoizedColumns = useMemo(() => columns(setSelectedViewLogsKeyId), []);
+
 	return (
 		<div className="mx-auto container space-y-6 px-4">
 			<PageHeader>
@@ -49,7 +51,7 @@ export default function Keys() {
 			</PageHeader>
 
 			<DataTable
-				columns={columns(setSelectedViewLogsKeyId)}
+				columns={memoizedColumns}
 				data={apiKeys}
 				isLoading={isLoading}
 				errorMessage={error?.message}
