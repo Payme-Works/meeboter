@@ -310,12 +310,12 @@ export class CoolifyService {
 	/**
 	 * Restarts/redeploys a Coolify application
 	 *
-	 * Uses the /deploy endpoint with force=true to trigger a full rebuild.
+	 * Uses the /deploy endpoint to start the container using cached image.
 	 * This creates a new deployment record for tracking.
 	 */
 	async restartApplication(applicationUuid: string): Promise<void> {
 		const response = await fetch(
-			`${this.config.apiUrl}/deploy?uuid=${applicationUuid}&force=true`,
+			`${this.config.apiUrl}/deploy?uuid=${applicationUuid}`,
 			{
 				method: "GET",
 				headers: {
