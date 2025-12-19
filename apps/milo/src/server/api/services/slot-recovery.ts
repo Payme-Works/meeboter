@@ -3,6 +3,7 @@ import { and, eq, lt, or } from "drizzle-orm";
 import { db } from "@/server/database/db";
 import {
 	botPoolSlotsTable,
+	botsTable,
 	type SelectBotPoolSlotType,
 } from "@/server/database/schema";
 import type { Services } from "./index";
@@ -140,6 +141,22 @@ async function attemptSlotRecovery(
 			return false;
 		}
 
+		// Update assigned bot status to FATAL before clearing the slot
+		if (slot.assignedBotId) {
+			await db
+				.update(botsTable)
+				.set({
+					status: "FATAL",
+					deploymentError: `Slot ${slot.slotName} recovered due to ${slot.status} status`,
+					coolifyServiceUuid: null,
+				})
+				.where(eq(botsTable.id, slot.assignedBotId));
+
+			console.log(
+				`[Recovery] Updated bot ${slot.assignedBotId} status to FATAL (slot ${slot.slotName} recovered)`,
+			);
+		}
+
 		// Force stop the Coolify container
 		await services.coolify.stopApplication(slot.coolifyServiceUuid);
 
@@ -191,6 +208,22 @@ async function deleteSlotPermanently(
 	console.log(
 		`[Recovery] Deleting permanently failed slot ${slot.slotName} (attempts: ${slot.recoveryAttempts})`,
 	);
+
+	// Update assigned bot status to FATAL before deleting the slot
+	if (slot.assignedBotId) {
+		await db
+			.update(botsTable)
+			.set({
+				status: "FATAL",
+				deploymentError: `Slot ${slot.slotName} permanently deleted after ${slot.recoveryAttempts} failed recovery attempts`,
+				coolifyServiceUuid: null,
+			})
+			.where(eq(botsTable.id, slot.assignedBotId));
+
+		console.log(
+			`[Recovery] Updated bot ${slot.assignedBotId} status to FATAL (slot ${slot.slotName} deleted)`,
+		);
+	}
 
 	const services = await getServices();
 
