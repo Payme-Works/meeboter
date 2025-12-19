@@ -330,6 +330,7 @@ const allEventCodes = [
 	"PARTICIPANT_JOIN",
 	"PARTICIPANT_LEAVE",
 	"LOG",
+	"USER_REMOVED_FROM_CALL",
 ] as const;
 
 /**
@@ -354,6 +355,8 @@ export const EVENT_DESCRIPTIONS = {
 	FATAL:
 		"The bot has encountered an error. The data.sub_code and data.description will contain the reason for the failure.",
 	LOG: "Catch-all for any logs that were produced that don't fit any other event type. The data.message will contain the log contents.",
+	USER_REMOVED_FROM_CALL:
+		"The bot was manually removed from the call by the user through the dashboard.",
 } as const;
 
 /**

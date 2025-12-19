@@ -1,12 +1,15 @@
 "use client";
 
 import { formatDistanceToNow } from "date-fns";
-import { Bot, ChevronRight, Circle } from "lucide-react";
+import { Bot, ChevronRight, Circle, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/trpc/react";
+import { RemoveFromCallDialog } from "../bots/_components/remove-from-call-dialog";
 
 const STATUS_COLORS: Record<string, string> = {
 	JOINING_CALL: "text-amber-500",
@@ -18,6 +21,23 @@ const STATUS_COLORS: Record<string, string> = {
 	CREATED: "text-muted-foreground",
 };
 
+const ACTIVE_STATUSES = [
+	"IN_CALL",
+	"RECORDING",
+	"IN_WAITING_ROOM",
+	"JOINING_CALL",
+	"DEPLOYING",
+	"QUEUED",
+];
+
+const REMOVABLE_STATUSES = ["IN_WAITING_ROOM", "IN_CALL", "RECORDING"];
+
+function getStatusPriority(status: string): number {
+	const index = ACTIVE_STATUSES.indexOf(status);
+
+	return index === -1 ? ACTIVE_STATUSES.length : index;
+}
+
 function formatStatus(status: string): string {
 	return status
 		.split("_")
@@ -28,11 +48,32 @@ function formatStatus(status: string): string {
 export function RecentBots() {
 	const { data: bots = [], isLoading } = api.bots.getBots.useQuery();
 
+	const [botToRemove, setBotToRemove] = useState<{
+		id: number;
+		name: string;
+	} | null>(null);
+
+	const sortedBots = useMemo(() => {
+		return [...bots].sort((a, b) => {
+			const priorityA = getStatusPriority(a.status);
+			const priorityB = getStatusPriority(b.status);
+
+			if (priorityA !== priorityB) {
+				return priorityA - priorityB;
+			}
+
+			const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+			const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+
+			return dateB - dateA;
+		});
+	}, [bots]);
+
 	if (isLoading) {
 		return <RecentBotsSkeleton />;
 	}
 
-	const recentBots = bots.slice(0, 5);
+	const recentBots = sortedBots.slice(0, 5);
 
 	const hasActiveBots = bots.some((bot) =>
 		["JOINING_CALL", "IN_CALL", "RECORDING", "DEPLOYING"].includes(bot.status),
@@ -84,10 +125,12 @@ export function RecentBots() {
 							const statusColor =
 								STATUS_COLORS[bot.status] || "text-muted-foreground";
 
+							const canRemove = REMOVABLE_STATUSES.includes(bot.status);
+
 							return (
 								<div
 									key={bot.id}
-									className="p-4 hover:bg-muted/50 transition-colors"
+									className="group p-4 hover:bg-muted/50 transition-colors"
 								>
 									<div className="flex items-center gap-3">
 										<div className="h-10 w-10 bg-muted flex items-center justify-center shrink-0">
@@ -130,6 +173,23 @@ export function RecentBots() {
 													: "Unknown"}
 											</div>
 										</div>
+
+										{canRemove ? (
+											<Button
+												variant="ghost"
+												size="icon"
+												className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+												onClick={() =>
+													setBotToRemove({
+														id: bot.id,
+														name: bot.botDisplayName,
+													})
+												}
+												title="Remove from Call"
+											>
+												<X className="h-4 w-4" />
+											</Button>
+										) : null}
 									</div>
 								</div>
 							);
@@ -137,6 +197,15 @@ export function RecentBots() {
 					</div>
 				)}
 			</div>
+
+			<RemoveFromCallDialog
+				botId={botToRemove?.id ?? null}
+				botName={botToRemove?.name ?? ""}
+				open={!!botToRemove}
+				onOpenChange={(open) => {
+					if (!open) setBotToRemove(null);
+				}}
+			/>
 		</div>
 	);
 }

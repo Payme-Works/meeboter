@@ -2,7 +2,13 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 import { formatDistanceToNow } from "date-fns";
-import { Circle, ExternalLink, MessageSquare, Plus } from "lucide-react";
+import {
+	Circle,
+	ExternalLink,
+	MessageSquare,
+	PhoneOff,
+	Plus,
+} from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
@@ -21,6 +27,7 @@ import { api } from "@/trpc/react";
 import { BotDetailsDialog } from "./_components/bot-details-dialog";
 import { MultiBotChatDialog } from "./_components/multi-bot-chat-dialog";
 import { MultiBotJoinDialog } from "./_components/multi-bot-join-dialog";
+import { RemoveFromCallDialog } from "./_components/remove-from-call-dialog";
 
 const STATUS_CONFIG: Record<
 	string,
@@ -70,10 +77,17 @@ function formatStatus(status: string): string {
 		.join(" ");
 }
 
+const ACTIVE_CALL_STATUSES = ["IN_WAITING_ROOM", "IN_CALL", "RECORDING"];
+
 export default function BotsPage() {
 	const [selectedBot, setSelectedBot] = useState<number | null>(null);
 	const [multiBotDialogOpen, setMultiBotDialogOpen] = useState(false);
 	const [multiBotChatDialogOpen, setMultiBotChatDialogOpen] = useState(false);
+
+	const [botToRemove, setBotToRemove] = useState<{
+		id: number;
+		name: string;
+	} | null>(null);
 
 	const { data: session } = useSession();
 
@@ -173,15 +187,38 @@ export default function BotsPage() {
 		},
 		{
 			id: "actions",
-			cell: ({ row }) => (
-				<Button
-					variant="outline"
-					size="sm"
-					onClick={() => setSelectedBot(row.original.id)}
-				>
-					Details
-				</Button>
-			),
+			cell: ({ row }) => {
+				const isInActiveCall = ACTIVE_CALL_STATUSES.includes(
+					row.original.status,
+				);
+
+				return (
+					<div className="flex items-center gap-2">
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() => setSelectedBot(row.original.id)}
+						>
+							Details
+						</Button>
+						{isInActiveCall ? (
+							<Button
+								variant="destructive"
+								size="sm"
+								onClick={() =>
+									setBotToRemove({
+										id: row.original.id,
+										name: row.original.botDisplayName,
+									})
+								}
+							>
+								<PhoneOff className="h-4 w-4" />
+								Remove from Call
+							</Button>
+						) : null}
+					</div>
+				);
+			},
 		},
 	];
 
@@ -235,6 +272,15 @@ export default function BotsPage() {
 				open={multiBotChatDialogOpen}
 				onClose={() => setMultiBotChatDialogOpen(false)}
 				bots={bots}
+			/>
+
+			<RemoveFromCallDialog
+				botId={botToRemove?.id ?? null}
+				botName={botToRemove?.name ?? ""}
+				open={!!botToRemove}
+				onOpenChange={(open) => {
+					if (!open) setBotToRemove(null);
+				}}
 			/>
 		</div>
 	);

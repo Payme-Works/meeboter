@@ -1006,6 +1006,93 @@ export const botsRouter = createTRPCRouter({
 		}),
 
 	/**
+	 * Removes a bot from an active call manually.
+	 * Only works for bots in IN_WAITING_ROOM, IN_CALL, or RECORDING status.
+	 * @param input - Object containing the bot ID
+	 * @param input.id - The ID of the bot to remove from call
+	 * @returns Promise<{success: boolean}> Success status
+	 * @throws TRPCError if bot is not found, doesn't belong to user, or is not in an active call
+	 */
+	removeFromCall: protectedProcedure
+		.meta({
+			openapi: {
+				method: "POST",
+				path: "/bots/{id}/remove-from-call",
+				description: "Remove a bot from an active call",
+			},
+		})
+		.input(
+			z.object({
+				id: z.string().transform((val) => Number(val)),
+			}),
+		)
+		.output(
+			z.object({
+				success: z.boolean(),
+			}),
+		)
+		.mutation(async ({ input, ctx }): Promise<{ success: boolean }> => {
+			const eligibleStatuses = ["IN_WAITING_ROOM", "IN_CALL", "RECORDING"];
+
+			const bot = await ctx.db
+				.select({
+					id: botsTable.id,
+					userId: botsTable.userId,
+					status: botsTable.status,
+					coolifyServiceUuid: botsTable.coolifyServiceUuid,
+				})
+				.from(botsTable)
+				.where(eq(botsTable.id, input.id))
+				.limit(1);
+
+			if (!bot[0]) {
+				throw new TRPCError({
+					code: "NOT_FOUND",
+					message: "Bot not found",
+				});
+			}
+
+			if (bot[0].userId !== ctx.session.user.id) {
+				throw new TRPCError({
+					code: "FORBIDDEN",
+					message: "Bot not found",
+				});
+			}
+
+			if (!eligibleStatuses.includes(bot[0].status)) {
+				throw new TRPCError({
+					code: "BAD_REQUEST",
+					message: "Bot is not in an active call",
+				});
+			}
+
+			await ctx.db.insert(events).values({
+				botId: input.id,
+				eventType: "USER_REMOVED_FROM_CALL",
+				eventTime: new Date(),
+				data: {
+					description: "Bot manually removed from call by user",
+				},
+			});
+
+			await ctx.db
+				.update(botsTable)
+				.set({ status: "DONE" })
+				.where(eq(botsTable.id, input.id));
+
+			if (bot[0].coolifyServiceUuid) {
+				void services.deployment.release(input.id).catch((error) => {
+					console.error(
+						`Failed to release pool slot for bot ${input.id}:`,
+						error,
+					);
+				});
+			}
+
+			return { success: true };
+		}),
+
+	/**
 	 * Retrieves the current bot pool statistics for monitoring.
 	 * Shows idle, busy, and error slot counts.
 	 * @returns Promise<PoolStats> Pool statistics
