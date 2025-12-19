@@ -145,6 +145,11 @@ export default function BotsPage() {
 	const [removeFromCallDialogOpen, setRemoveFromCallDialogOpen] =
 		useState(false);
 
+	// Track selected bot metadata across pages (id -> status mapping)
+	const [selectedBotMetadata, setSelectedBotMetadata] = useState<
+		Map<number, { status: string }>
+	>(new Map());
+
 	const [botToRemove, setBotToRemove] = useState<{
 		id: number;
 		name: string;
@@ -185,6 +190,7 @@ export default function BotsPage() {
 			}
 
 			setRowSelection({});
+			setSelectedBotMetadata(new Map());
 			utils.bots.getBots.invalidate();
 		},
 		onError: (error) => {
@@ -203,6 +209,7 @@ export default function BotsPage() {
 			}
 
 			setRowSelection({});
+			setSelectedBotMetadata(new Map());
 			utils.bots.getBots.invalidate();
 		},
 		onError: (error) => {
@@ -230,25 +237,65 @@ export default function BotsPage() {
 
 	type Bot = (typeof bots)[number];
 
+	// Clear both selection state and metadata
+	const clearSelection = () => {
+		setRowSelection({});
+		setSelectedBotMetadata(new Map());
+	};
+
+	// Handle row selection changes and sync metadata
+	const handleRowSelectionChange = (newSelection: RowSelectionState) => {
+		setRowSelection(newSelection);
+
+		// Update metadata for newly selected bots from current page
+		setSelectedBotMetadata((prevMetadata) => {
+			const newMetadata = new Map(prevMetadata);
+
+			// Add metadata for newly selected bots
+			for (const id of Object.keys(newSelection)) {
+				if (newSelection[id]) {
+					const numericId = Number.parseInt(id, 10);
+					const bot = bots.find((b) => b.id === numericId);
+
+					if (bot && !newMetadata.has(numericId)) {
+						newMetadata.set(numericId, { status: bot.status });
+					}
+				}
+			}
+
+			// Remove metadata for deselected bots
+			for (const id of Array.from(newMetadata.keys())) {
+				if (!newSelection[id.toString()]) {
+					newMetadata.delete(id);
+				}
+			}
+
+			return newMetadata;
+		});
+	};
+
 	// Get selected bot IDs from row selection
 	const selectedBotIds = Object.keys(rowSelection)
 		.filter((key) => rowSelection[key])
 		.map((id) => Number.parseInt(id, 10));
 
 	// Determine which bots can be cancelled (deploying) vs removed from call
+	// Use persisted metadata to count across all pages
 	const deployingStatuses = ["DEPLOYING", "JOINING_CALL"];
 
 	const inCallStatuses = ["IN_WAITING_ROOM", "IN_CALL"];
 
-	const selectedBots = bots.filter((bot) => selectedBotIds.includes(bot.id));
+	const deployingBotIds = selectedBotIds.filter((id) => {
+		const metadata = selectedBotMetadata.get(id);
 
-	const deployingBotIds = selectedBots
-		.filter((bot) => deployingStatuses.includes(bot.status))
-		.map((bot) => bot.id);
+		return metadata && deployingStatuses.includes(metadata.status);
+	});
 
-	const inCallBotIds = selectedBots
-		.filter((bot) => inCallStatuses.includes(bot.status))
-		.map((bot) => bot.id);
+	const inCallBotIds = selectedBotIds.filter((id) => {
+		const metadata = selectedBotMetadata.get(id);
+
+		return metadata && inCallStatuses.includes(metadata.status);
+	});
 
 	const handleCancelDeployments = () => {
 		if (deployingBotIds.length === 0) return;
@@ -484,11 +531,7 @@ export default function BotsPage() {
 						<span className="text-sm font-medium">
 							{selectedBotIds.length} bot(s) selected
 						</span>
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={() => setRowSelection({})}
-						>
+						<Button variant="ghost" size="sm" onClick={clearSelection}>
 							<X className="size-3!" />
 							Clear
 						</Button>
@@ -531,7 +574,7 @@ export default function BotsPage() {
 				errorMessage={error?.message}
 				enableRowSelection
 				rowSelection={rowSelection}
-				onRowSelectionChange={setRowSelection}
+				onRowSelectionChange={handleRowSelectionChange}
 				getRowId={(row) => row.id.toString()}
 				pageIndex={page - 1}
 				pageSize={pageSize}
