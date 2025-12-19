@@ -114,6 +114,7 @@ export default function PoolPage() {
 
 				<PageHeaderActions>
 					<LiveIndicator lastUpdated={lastUpdated} />
+
 					<Button
 						variant="outline"
 						size="sm"
@@ -121,10 +122,11 @@ export default function PoolPage() {
 						disabled={syncMutation.isPending}
 					>
 						<RefreshCwOff
-							className={`h-4 w-4 ${syncMutation.isPending ? "animate-spin" : ""}`}
+							className={`size-3! ${syncMutation.isPending ? "animate-spin" : ""}`}
 						/>
 						Sync
 					</Button>
+
 					<Button
 						variant="outline"
 						size="sm"
@@ -132,7 +134,7 @@ export default function PoolPage() {
 						disabled={isManualRefreshing}
 					>
 						<RefreshCw
-							className={`h-4 w-4 ${isManualRefreshing ? "animate-spin" : ""}`}
+							className={`size-3! ${isManualRefreshing ? "animate-spin" : ""}`}
 						/>
 						Refresh
 					</Button>

@@ -370,7 +370,7 @@ export default function BotsPage() {
 					>
 						<Video className="h-3.5 w-3.5" />
 						View
-						<ExternalLink className="h-3 w-3 opacity-50" />
+						<ExternalLink className="size-3! opacity-50" />
 					</Link>
 				);
 			},
@@ -441,7 +441,7 @@ export default function BotsPage() {
 						disabled={isManualRefreshing}
 					>
 						<RefreshCw
-							className={`h-4 w-4 ${isManualRefreshing ? "animate-spin" : ""}`}
+							className={`size-3! ${isManualRefreshing ? "animate-spin" : ""}`}
 						/>
 						Refresh
 					</Button>
@@ -452,7 +452,7 @@ export default function BotsPage() {
 						onClick={() => setBroadcastCenterOpen(true)}
 						disabled={!session?.user}
 					>
-						<MessageSquare className="h-4 w-4" />
+						<MessageSquare className="size-3!" />
 						Broadcast
 					</Button>
 
@@ -461,7 +461,7 @@ export default function BotsPage() {
 						onClick={() => setMultiBotDialogOpen(true)}
 						disabled={!session?.user}
 					>
-						<Rocket className="h-4 w-4" />
+						<Rocket className="size-3!" />
 						Deploy Bots
 					</Button>
 				</PageHeaderActions>
@@ -479,7 +479,7 @@ export default function BotsPage() {
 							size="sm"
 							onClick={() => setRowSelection({})}
 						>
-							<X className="h-4 w-4" />
+							<X className="size-3!" />
 							Clear
 						</Button>
 					</div>
@@ -491,7 +491,7 @@ export default function BotsPage() {
 								onClick={() => setCancelDeploymentsDialogOpen(true)}
 								disabled={cancelDeploymentsMutation.isPending}
 							>
-								<Ban className="h-4 w-4" />
+								<Ban className="size-3!" />
 								Cancel Deployments ({deployingBotIds.length})
 							</Button>
 						) : null}
@@ -502,7 +502,7 @@ export default function BotsPage() {
 								onClick={() => setRemoveFromCallDialogOpen(true)}
 								disabled={removeFromCallMutation.isPending}
 							>
-								<PhoneOff className="h-4 w-4" />
+								<PhoneOff className="size-3!" />
 								Remove from Call ({inCallBotIds.length})
 							</Button>
 						) : null}
