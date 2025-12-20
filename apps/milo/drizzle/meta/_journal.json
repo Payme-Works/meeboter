@@ -85,6 +85,13 @@
 			"when": 1734739200000,
 			"tag": "0011_rename_google_to_google_meet",
 			"breakpoints": true
+		},
+		{
+			"idx": 12,
+			"version": "7",
+			"when": 1734742800000,
+			"tag": "0012_fix_google_platform_rename",
+			"breakpoints": true
 		}
 	]
 }
