@@ -11,6 +11,7 @@ import { Bot } from "../../../src/bot";
 import {
 	clickIfExists,
 	elementExists,
+	elementExistsWithDetails,
 	fillWithRetry,
 	navigateWithRetry,
 	withTimeout,
@@ -22,23 +23,22 @@ import {
 	type SpeakerTimeframe,
 	WaitingRoomTimeoutError,
 } from "../../../src/types";
+import {
+	ADMISSION_CONFIRMATION_TEXTS,
+	SCREEN_DIMENSIONS,
+	SELECTORS,
+	USER_AGENT,
+} from "./selectors";
 
-// ============================================
-// SECTION 1: CONFIGURATION
-// ============================================
+// --- Configuration ------------------------------------------------
 
 // Stealth plugin setup
 const stealthPlugin = StealthPlugin();
+
 stealthPlugin.enabledEvasions.delete("iframe.contentWindow");
 stealthPlugin.enabledEvasions.delete("media.codecs");
+
 chromium.use(stealthPlugin);
-
-// Browser configuration
-const USER_AGENT =
-	"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36";
-
-const SCREEN_WIDTH = 1920;
-const SCREEN_HEIGHT = 1080;
 
 // Cleanup timeouts (in milliseconds)
 const CLEANUP_TIMEOUTS = {
@@ -51,65 +51,7 @@ const CLEANUP_TIMEOUTS = {
 // Expected domain for Google Meet
 const GOOGLE_MEET_DOMAIN = "meet.google.com";
 
-// ============================================
-// SECTION 2: SELECTORS
-// ============================================
-
-const SELECTORS = {
-	// Join flow - multiple selectors for resilience
-	nameInput: [
-		'input[aria-label="Your name"]',
-		'input[placeholder="Your name"]',
-		'input[autocomplete="name"]',
-		"input.qdOxv-fmcmS-wGMbrd",
-	],
-	joinNowButton: '//button[.//span[text()="Join now"]]',
-	askToJoinButton: '//button[.//span[text()="Ask to join"]]',
-
-	// In-call controls
-	leaveButton: 'button[aria-label="Leave call"]',
-	muteButton: '[aria-label*="Turn off microphone"]',
-	cameraOffButton: '[aria-label*="Turn off camera"]',
-
-	// In-call indicators (presence of any indicates successful join)
-	inCallIndicators: [
-		'button[aria-label*="People"]',
-		'button[aria-label*="Chat"]',
-		'button[aria-label*="More options"]',
-		'button[aria-label*="Meeting details"]',
-		"[data-meeting-title]",
-	],
-
-	// Kick detection
-	kickDialog: '//button[.//span[text()="Return to home screen"]]',
-
-	// Chat
-	chatButton: '//button[@aria-label="Chat with everyone"]',
-	chatToggleButton: '//button[@aria-label="Toggle chat"]',
-	chatInput: '//input[@aria-label="Send a message to everyone"]',
-
-	// Blocking screens
-	signInButton: '//button[.//span[text()="Sign in"]]',
-	captchaFrame: 'iframe[src*="recaptcha"], iframe[title*="reCAPTCHA"]',
-	meetingNotFound: '//*[contains(text(), "Check your meeting code")]',
-	meetingEnded: '//*[contains(text(), "This meeting has ended")]',
-	gotItButton: '//button[.//span[text()="Got it"]]',
-	dismissButton: '//button[.//span[text()="Dismiss"]]',
-} as const;
-
-// Texts that indicate successful admission to the call
-const ADMISSION_CONFIRMATION_TEXTS = [
-	"You've been admitted",
-	"You're the only one here",
-	"You are the only one here",
-	"No one else is here",
-	"Waiting for others",
-	"Waiting for others to join",
-];
-
-// ============================================
-// SECTION 3: TYPES
-// ============================================
+// --- Types --------------------------------------------------------
 
 /**
  * Represents a participant in the Google Meet meeting.
@@ -119,9 +61,7 @@ type Participant = {
 	name: string;
 };
 
-// ============================================
-// SECTION 4: GOOGLE MEET BOT CLASS
-// ============================================
+// --- Google Meet bot class ----------------------------------------
 
 /**
  * Simplified Google Meet bot for automated meeting participation.
@@ -179,9 +119,7 @@ export class GoogleMeetBot extends Bot {
 		];
 	}
 
-	// ============================================
-	// LIFECYCLE METHODS
-	// ============================================
+	// --- Lifecycle methods ------------------------------------------
 
 	/**
 	 * Main entry point: join meeting and monitor until exit.
@@ -272,9 +210,41 @@ export class GoogleMeetBot extends Bot {
 		// Wait a moment for page to stabilize
 		await setTimeout(2000);
 
-		// Try to dismiss common dialogs
+		// Try to dismiss common dialogs (e.g., "Others may see your video differently")
 		await clickIfExists(this.page, SELECTORS.gotItButton, { timeout: 1000 });
 		await clickIfExists(this.page, SELECTORS.dismissButton, { timeout: 1000 });
+		await clickIfExists(this.page, SELECTORS.dialogOkButton, { timeout: 1000 });
+	}
+
+	/**
+	 * Quick popup dismissal without waiting (for use in monitoring loop).
+	 */
+	private async dismissPopupsQuick(): Promise<void> {
+		if (!this.page) return;
+
+		try {
+			// Quick checks with short timeout to avoid blocking the loop
+			const dismissed = await clickIfExists(
+				this.page,
+				SELECTORS.dialogOkButton,
+				{ timeout: 500 },
+			);
+
+			if (dismissed) {
+				this.logger.debug("[dismissPopupsQuick] Dismissed dialog popup");
+			}
+
+			// Also try Got it button
+			const gotIt = await clickIfExists(this.page, SELECTORS.gotItButton, {
+				timeout: 500,
+			});
+
+			if (gotIt) {
+				this.logger.debug("[dismissPopupsQuick] Dismissed 'Got it' popup");
+			}
+		} catch {
+			// Ignore errors - popups are optional
+		}
 	}
 
 	/**
@@ -464,9 +434,7 @@ export class GoogleMeetBot extends Bot {
 		});
 	}
 
-	// ============================================
-	// MEETING MONITORING
-	// ============================================
+	// --- Meeting monitoring ------------------------------------------
 
 	/**
 	 * Monitor the call and handle exit conditions.
@@ -493,6 +461,9 @@ export class GoogleMeetBot extends Bot {
 
 		this.logger.debug("[monitorCall] Entering monitoring loop");
 
+		// Dismiss any popups that appeared after joining (e.g., "Others may see your video differently")
+		await this.dismissPopupsQuick();
+
 		let loopCount = 0;
 		let exitReason = "unknown";
 
@@ -500,6 +471,11 @@ export class GoogleMeetBot extends Bot {
 		try {
 			while (true) {
 				loopCount++;
+
+				// Dismiss popups on first few iterations (they can appear with delay)
+				if (loopCount <= 3) {
+					await this.dismissPopupsQuick();
+				}
 
 				// Log every 12 iterations (~1 minute) to show the bot is still monitoring
 				if (loopCount % 12 === 0) {
@@ -644,32 +620,30 @@ export class GoogleMeetBot extends Bot {
 		// Check 3: In-call indicators (more reliable than leave button)
 		// The leave button is in the control bar which auto-hides after inactivity.
 		// In-call indicators (People/Chat buttons) are always visible.
-		this.logger.trace(
-			"[hasBeenRemovedFromCall] Checking in-call indicators",
-			{
-				indicatorCount: SELECTORS.inCallIndicators.length,
-			},
-		);
+		this.logger.trace("[hasBeenRemovedFromCall] Checking in-call indicators", {
+			indicatorCount: SELECTORS.inCallIndicators.length,
+		});
 
-		const indicatorResults: Record<string, boolean> = {};
+		const indicatorResults: Record<
+			string,
+			{ exists: boolean; timedOut: boolean; durationMs: number }
+		> = {};
+
+		let allTimedOut = true;
 
 		for (const selector of SELECTORS.inCallIndicators) {
-			const checkStart = Date.now();
-			const exists = await elementExists(this.page, selector);
-			const checkDuration = Date.now() - checkStart;
+			const result = await elementExistsWithDetails(this.page, selector);
+			indicatorResults[selector] = result;
 
-			indicatorResults[selector] = exists;
+			this.logger.trace("[hasBeenRemovedFromCall] Indicator check completed", {
+				selector,
+				exists: result.exists,
+				timedOut: result.timedOut,
+				durationMs: result.durationMs,
+			});
 
-			this.logger.trace(
-				"[hasBeenRemovedFromCall] Indicator check completed",
-				{
-					selector,
-					exists,
-					durationMs: checkDuration,
-				},
-			);
-
-			if (exists) {
+			// If we found an indicator (not timed out), we're still in call
+			if (result.exists && !result.timedOut) {
 				this.logger.trace(
 					"[hasBeenRemovedFromCall] In-call indicator found, still in call",
 					{
@@ -679,9 +653,27 @@ export class GoogleMeetBot extends Bot {
 
 				return false;
 			}
+
+			// Track if at least one check completed without timeout
+			if (!result.timedOut) {
+				allTimedOut = false;
+			}
 		}
 
-		// No in-call indicators found, bot has been removed
+		// If ALL checks timed out, the page is unresponsive - don't assume removed
+		if (allTimedOut) {
+			this.logger.warn(
+				"[hasBeenRemovedFromCall] All indicator checks timed out, page unresponsive, assuming still in call",
+				{
+					indicatorResults,
+				},
+			);
+
+			return false;
+		}
+
+		// At least one check completed without timeout and found nothing
+		// This is a definitive "not in call" result
 		this.logger.info(
 			"[hasBeenRemovedFromCall] REMOVED: No in-call indicators found",
 			{
@@ -692,9 +684,7 @@ export class GoogleMeetBot extends Bot {
 		return true;
 	}
 
-	// ============================================
-	// CHAT FUNCTIONALITY
-	// ============================================
+	// --- Chat functionality ------------------------------------------
 
 	/**
 	 * Ensure chat panel is open.
@@ -800,9 +790,7 @@ export class GoogleMeetBot extends Bot {
 		return false;
 	}
 
-	// ============================================
-	// RECORDING
-	// ============================================
+	// --- Recording ---------------------------------------------------
 
 	/**
 	 * Start FFmpeg recording.
@@ -951,7 +939,7 @@ export class GoogleMeetBot extends Bot {
 			"-thread_queue_size",
 			"512",
 			"-video_size",
-			`${SCREEN_WIDTH}x${SCREEN_HEIGHT}`,
+			`${SCREEN_DIMENSIONS.WIDTH}x${SCREEN_DIMENSIONS.HEIGHT}`,
 			"-framerate",
 			"25",
 			"-f",
@@ -985,9 +973,7 @@ export class GoogleMeetBot extends Bot {
 		];
 	}
 
-	// ============================================
-	// BROWSER UTILITIES
-	// ============================================
+	// --- Browser utilities -------------------------------------------
 
 	/**
 	 * Initialize browser with stealth settings.
@@ -1003,7 +989,7 @@ export class GoogleMeetBot extends Bot {
 		const context = await this.browser.newContext({
 			permissions: ["camera", "microphone"],
 			userAgent: USER_AGENT,
-			viewport: { width: SCREEN_WIDTH, height: SCREEN_HEIGHT },
+			viewport: { width: SCREEN_DIMENSIONS.WIDTH, height: SCREEN_DIMENSIONS.HEIGHT },
 		});
 
 		this.page = await context.newPage();

@@ -1,5 +1,9 @@
 export { type ClickIfExistsOptions, clickIfExists } from "./click-if-exists";
-export { elementExists } from "./element-exists";
+export {
+	type ElementExistsResult,
+	elementExists,
+	elementExistsWithDetails,
+} from "./element-exists";
 export {
 	type FillWithRetryOptions,
 	fillWithRetry,

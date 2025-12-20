@@ -2,106 +2,67 @@
  * CSS and XPath selectors for Google Meet UI elements
  */
 export const SELECTORS = {
-	// Join form
-	enterNameField: 'input[type="text"][aria-label="Your name"]',
-	askToJoinButton: '//button[.//span[text()="Ask to join"]]',
+	// Join flow - multiple selectors for resilience
+	nameInput: [
+		'input[aria-label="Your name"]',
+		'input[placeholder="Your name"]',
+		'input[autocomplete="name"]',
+		"input.qdOxv-fmcmS-wGMbrd",
+	],
 	joinNowButton: '//button[.//span[text()="Join now"]]',
+	askToJoinButton: '//button[.//span[text()="Ask to join"]]',
 
 	// In-call controls
-	leaveButton: '//button[@aria-label="Leave call"]',
-	peopleButton: '//button[@aria-label="People"]',
+	leaveButton: 'button[aria-label="Leave call"]',
 	muteButton: '[aria-label*="Turn off microphone"]',
 	cameraOffButton: '[aria-label*="Turn off camera"]',
+
+	// In-call indicators (presence of any indicates successful join)
+	// Prioritized by reliability: header elements first (always visible),
+	// then side panel buttons, then control bar buttons (can auto-hide)
+	inCallIndicators: [
+		// Always visible - header area
+		"[data-meeting-title]",
+		// Side panel buttons - always visible
+		'button[aria-label="Chat with everyone"]',
+		'button[aria-label="Meeting details"]',
+		'button[aria-label="Host controls"]',
+		'button[aria-label="Meeting tools"]',
+		// Control bar - may auto-hide but still reliable
+		'button[aria-label="More options"]',
+		'button[aria-label="Leave call"]',
+	],
+
+	// Kick detection
+	kickDialog: '//button[.//span[text()="Return to home screen"]]',
 
 	// Chat
 	chatButton: '//button[@aria-label="Chat with everyone"]',
 	chatToggleButton: '//button[@aria-label="Toggle chat"]',
 	chatInput: '//input[@aria-label="Send a message to everyone"]',
-	chatSendButton: '//button[@aria-label="Send message"]',
 
-	// Popups and dialogs
-	infoPopupClick: '//button[.//span[text()="Got it"]]',
-	gotKickedDetector: '//button[.//span[text()="Return to home screen"]]',
-
-	// Blocking screens - Sign in
+	// Blocking screens
 	signInButton: '//button[.//span[text()="Sign in"]]',
-	signInPrompt: '[data-identifier="signInButton"], [aria-label="Sign in"]',
-
-	// Blocking screens - Captcha
 	captchaFrame: 'iframe[src*="recaptcha"], iframe[title*="reCAPTCHA"]',
-	captchaChallenge: '[class*="captcha"], #captcha',
-
-	// Blocking screens - Meeting errors
 	meetingNotFound: '//*[contains(text(), "Check your meeting code")]',
-	meetingInvalid: '//*[contains(text(), "Invalid video call name")]',
 	meetingEnded: '//*[contains(text(), "This meeting has ended")]',
-	meetingUnavailable: '//*[contains(text(), "not available")]',
 
-	// Blocking screens - Permission
-	permissionDenied: '//*[contains(text(), "denied access")]',
-	notAllowedToJoin: '//*[contains(text(), "not allowed to join")]',
-
-	// Kick detection
-	removedFromMeeting: 'text="You\'ve been removed from the meeting"',
+	// Dismissible popups/dialogs
+	gotItButton: '//button[.//span[text()="Got it"]]',
+	dismissButton: '//button[.//span[text()="Dismiss"]]',
+	dialogOkButton: 'button[data-mdc-dialog-action="ok"]',
 } as const;
 
 /**
- * Texts that indicate bot is still in waiting room
+ * Texts that indicate successful admission to the call
  */
-export const WAITING_ROOM_INDICATORS = [
-	"Asking to be let in",
-	"Someone will let you in",
-	"waiting for the host",
-	"Wait for the host",
-	"Ready to join?",
-] as const;
-
-/**
- * Admission confirmation texts, these appear when successfully joined the call.
- * Based on recall.ai's approach: https://www.recall.ai/blog/how-i-built-an-in-house-google-meet-bot
- */
-export const ADMISSION_CONFIRMATION_INDICATORS = [
+export const ADMISSION_CONFIRMATION_TEXTS = [
 	"You've been admitted",
 	"You're the only one here",
 	"You are the only one here",
 	"No one else is here",
 	"Waiting for others",
 	"Waiting for others to join",
-] as const;
-
-/**
- * In-call indicator selectors (any one indicates successful join)
- * Uses contains selectors (*=) for more resilient detection across UI changes
- */
-export const IN_CALL_INDICATORS = [
-	// Primary controls (using contains for resilience)
-	'button[aria-label*="People"]',
-	'button[aria-label*="Participants"]',
-	'button[aria-label*="Chat"]',
-	// Exact matches as fallback
-	'button[aria-label="People"]',
-	'[aria-label="Participants"]',
-	'button[aria-label="Chat with everyone"]',
-	// Additional indicators
-	'[aria-label*="Mute"]',
-	'[aria-label*="Turn on microphone"]',
-	'[aria-label*="Turn off microphone"]',
-	'button[aria-label*="More options"]',
-	// Video controls (strong indicator of being in call)
-	'[aria-label*="Turn on camera"]',
-	'[aria-label*="Turn off camera"]',
-	// Meeting info indicators
-	'button[aria-label*="Meeting details"]',
-	"[data-meeting-title]",
-] as const;
-
-/**
- * Leave button selectors with fallbacks
- */
-export const LEAVE_BUTTON_SELECTORS = [
-	'button[aria-label*="Leave call"]',
-	'button[aria-label*="Leave meeting"]',
-	'button[aria-label="Leave call"]',
 ] as const;
 
 /**
