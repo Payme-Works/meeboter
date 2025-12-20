@@ -203,6 +203,7 @@ const slotsRouter = createTRPCRouter({
 					slotName: botPoolSlotsTable.slotName,
 					coolifyServiceUuid: botPoolSlotsTable.coolifyServiceUuid,
 					status: botPoolSlotsTable.status,
+					assignedBotId: botPoolSlotsTable.assignedBotId,
 				})
 				.from(botPoolSlotsTable)
 				.where(inArray(botPoolSlotsTable.id, input.ids));
@@ -218,6 +219,18 @@ const slotsRouter = createTRPCRouter({
 					if (slot.status === "busy" || slot.status === "deploying") {
 						console.log(`[Pool] Stopping container for slot ${slot.slotName}`);
 						await services.coolify.stopApplication(slot.coolifyServiceUuid);
+					}
+
+					// Mark assigned bot as DONE if there is one
+					if (slot.assignedBotId) {
+						console.log(
+							`[Pool] Marking bot ${slot.assignedBotId} as DONE (slot deleted)`,
+						);
+
+						await ctx.db
+							.update(botsTable)
+							.set({ status: "DONE" })
+							.where(eq(botsTable.id, slot.assignedBotId));
 					}
 
 					// Delete from Coolify (idempotent: 404 = success)
