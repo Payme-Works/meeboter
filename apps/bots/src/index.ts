@@ -83,7 +83,7 @@ export const main = async () => {
 		getBot: () => bot,
 	});
 
-	const { logger, trpc, s3, workers } = services;
+	const { logger, trpc, storage, workers } = services;
 
 	// Track recording key for final status report
 	let recordingKey = "";
@@ -157,10 +157,10 @@ export const main = async () => {
 
 		// Upload recording if enabled and no error
 		if (!hasErrorOccurred && bot.settings.recordingEnabled) {
-			logger.info("Starting upload to S3...");
+			logger.info("Starting upload to storage...");
 			const platform = bot.settings.meetingInfo.platform ?? "unknown";
 
-			recordingKey = await s3.uploadRecording(
+			recordingKey = await storage.uploadRecording(
 				bot.getRecordingPath(),
 				platform,
 				bot.getContentType(),

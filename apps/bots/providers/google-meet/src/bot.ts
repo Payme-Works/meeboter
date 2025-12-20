@@ -19,9 +19,9 @@ import {
 } from "../../../src/helpers";
 import type { BotLogger } from "../../../src/logger";
 import {
-	createS3ServiceFromEnv,
-	type S3Service,
-} from "../../../src/services/s3-service";
+	createS3ProviderFromEnv,
+	StorageService,
+} from "../../../src/services/storage";
 import {
 	type BotConfig,
 	EventCode,
@@ -95,7 +95,7 @@ export class GoogleMeetBot extends Bot {
 	private chatEnabled: boolean = false;
 	private chatPanelOpen: boolean = false;
 	private removalCheckCount: number = 0;
-	private s3Service: S3Service;
+	private storageService: StorageService;
 
 	constructor(
 		botSettings: BotConfig,
@@ -111,7 +111,8 @@ export class GoogleMeetBot extends Bot {
 		this.recordingPath = path.resolve(__dirname, "recording.mp4");
 		this.meetingUrl = botSettings.meetingInfo.meetingUrl ?? "";
 		this.chatEnabled = botSettings.chatEnabled ?? false;
-		this.s3Service = createS3ServiceFromEnv(env);
+		const s3Provider = createS3ProviderFromEnv(env);
+		this.storageService = new StorageService(s3Provider);
 
 		this.browserArgs = [
 			"--incognito",
@@ -1210,7 +1211,7 @@ export class GoogleMeetBot extends Bot {
 
 			await this.page.screenshot({ path: screenshotPath, type: "png" });
 
-			const s3Result = await this.s3Service.uploadScreenshot(
+			const s3Result = await this.storageService.uploadScreenshot(
 				screenshotPath,
 				this.settings.id,
 				"manual",

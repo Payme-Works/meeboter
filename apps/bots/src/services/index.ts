@@ -5,7 +5,7 @@ import { createTrpcClient, type TrpcClient } from "../trpc";
 import { DurationMonitorWorker } from "../workers/duration-monitor-worker";
 import { HeartbeatWorker } from "../workers/heartbeat-worker";
 import { MessageQueueWorker } from "../workers/message-queue-worker";
-import { S3Service } from "./s3-service";
+import { S3StorageProvider, StorageService } from "./storage";
 
 // Re-export bot and factory
 export { Bot } from "../bot";
@@ -29,10 +29,12 @@ export {
 	type TrpcClientOptions,
 } from "../trpc";
 export {
-	createS3ServiceFromEnv,
-	S3Service,
-	type S3ServiceConfig,
-} from "./s3-service";
+	createS3ProviderFromEnv,
+	S3StorageProvider,
+	type StorageConfig,
+	type StorageProvider,
+	StorageService,
+} from "./storage";
 
 /**
  * Container for all services in the application
@@ -40,7 +42,7 @@ export {
 export interface Services {
 	logger: BotLogger;
 	trpc: TrpcClient;
-	s3: S3Service;
+	storage: StorageService;
 	workers: {
 		heartbeat: HeartbeatWorker;
 		durationMonitor: DurationMonitorWorker;
@@ -77,7 +79,8 @@ export function createServices(options: CreateServicesOptions): Services {
 	// Enable log streaming to backend
 	logger.enableStreaming({ trpcClient: trpc });
 
-	const s3 = new S3Service({
+	// Create storage service with S3 provider
+	const s3Provider = new S3StorageProvider({
 		endpoint: env.S3_ENDPOINT,
 		region: env.S3_REGION,
 		accessKeyId: env.S3_ACCESS_KEY,
@@ -85,11 +88,13 @@ export function createServices(options: CreateServicesOptions): Services {
 		bucketName: env.S3_BUCKET_NAME,
 	});
 
+	const storage = new StorageService(s3Provider);
+
 	const workers = {
 		heartbeat: new HeartbeatWorker(trpc, logger),
 		durationMonitor: new DurationMonitorWorker(logger),
 		messageQueue: new MessageQueueWorker(trpc, options.getBot, logger),
 	};
 
-	return { logger, trpc, s3, workers };
+	return { logger, trpc, storage, workers };
 }

@@ -11,9 +11,9 @@ import { env } from "../../../src/config/env";
 import { withTimeout } from "../../../src/helpers";
 import type { BotLogger } from "../../../src/logger";
 import {
-	createS3ServiceFromEnv,
-	type S3Service,
-} from "../../../src/services/s3-service";
+	createS3ProviderFromEnv,
+	StorageService,
+} from "../../../src/services/storage";
 import {
 	type BotConfig,
 	type EventCode,
@@ -72,7 +72,7 @@ export class ZoomBot extends Bot {
 	private recordingPath: string;
 	private contentType: string;
 	private meetingUrl: string;
-	private s3Service: S3Service;
+	private storageService: StorageService;
 
 	browser!: Browser;
 	page!: Page;
@@ -93,7 +93,8 @@ export class ZoomBot extends Bot {
 		this.recordingPath = path.resolve(__dirname, "recording.mp4");
 		this.contentType = "video/mp4";
 		this.meetingUrl = `https://app.zoom.us/wc/${this.settings.meetingInfo.meetingId}/join?fromPWA=1&pwd=${this.settings.meetingInfo.meetingPassword}`;
-		this.s3Service = createS3ServiceFromEnv(env);
+		const s3Provider = createS3ProviderFromEnv(env);
+		this.storageService = new StorageService(s3Provider);
 	}
 
 	// --- Lifecycle methods ----------------------------------------
@@ -638,7 +639,7 @@ export class ZoomBot extends Bot {
 				type: "png",
 			});
 
-			const s3Result = await this.s3Service.uploadScreenshot(
+			const s3Result = await this.storageService.uploadScreenshot(
 				screenshotPath,
 				this.settings.id,
 				"manual",

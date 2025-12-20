@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import type { Page } from "playwright";
 
 import type { TrpcClient } from "../trpc";
@@ -216,7 +215,7 @@ export class BotLogger {
 		if (!this.streamingConfig) return;
 
 		const entry: LogEntry = {
-			id: randomUUID(),
+			id: crypto.randomUUID(),
 			botId: this.botId,
 			timestamp: new Date(),
 			level: LOG_LEVEL_NAMES[level] as LogEntry["level"],

@@ -11,9 +11,9 @@ import { env } from "../../../src/config/env";
 import { withTimeout } from "../../../src/helpers";
 import type { BotLogger } from "../../../src/logger";
 import {
-	createS3ServiceFromEnv,
-	type S3Service,
-} from "../../../src/services/s3-service";
+	createS3ProviderFromEnv,
+	StorageService,
+} from "../../../src/services/storage";
 import {
 	type BotConfig,
 	type EventCode,
@@ -67,7 +67,7 @@ export class MicrosoftTeamsBot extends Bot {
 	private recordingPath: string;
 	private contentType: string;
 	private meetingUrl: string;
-	private s3Service: S3Service;
+	private storageService: StorageService;
 
 	browser!: Browser;
 	page!: Page;
@@ -90,7 +90,8 @@ export class MicrosoftTeamsBot extends Bot {
 		this.recordingPath = path.resolve(__dirname, "recording.webm");
 		this.contentType = "video/webm";
 		this.meetingUrl = `https://teams.microsoft.com/v2/?meetingjoin=true#/l/meetup-join/19:meeting_${this.settings.meetingInfo.meetingId}@thread.v2/0?context=%7b%22Tid%22%3a%22${this.settings.meetingInfo.tenantId}%22%2c%22Oid%22%3a%22${this.settings.meetingInfo.organizerId}%22%7d&anon=true`;
-		this.s3Service = createS3ServiceFromEnv(env);
+		const s3Provider = createS3ProviderFromEnv(env);
+		this.storageService = new StorageService(s3Provider);
 	}
 
 	// --- Lifecycle methods ----------------------------------------
@@ -649,7 +650,7 @@ export class MicrosoftTeamsBot extends Bot {
 				type: "png",
 			});
 
-			const s3Result = await this.s3Service.uploadScreenshot(
+			const s3Result = await this.storageService.uploadScreenshot(
 				screenshotPath,
 				this.settings.id,
 				"manual",
