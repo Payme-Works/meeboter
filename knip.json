@@ -21,7 +21,8 @@
 				"src/app/**/route.ts",
 				"src/app/**/not-found.tsx"
 			],
-			"project": ["src/**/*.{ts,tsx}"]
+			"project": ["src/**/*.{ts,tsx}"],
+			"ignoreDependencies": ["tailwindcss", "tw-animate-css"]
 		},
 		"packages/config-typescript": {
 			"entry": ["*.json"],
