@@ -26,9 +26,10 @@ COPY --from=pruner /app/bun.lock ./bun.lock
 # Install dependencies (no --frozen-lockfile since pruned workspace differs from full monorepo)
 RUN bun install --ignore-scripts
 
-# Build the project
+# Build the project and bundle migration script
 COPY --from=pruner /app/out/full/ .
-RUN bun turbo build --filter=@meeboter/milo
+RUN bun turbo build --filter=@meeboter/milo && \
+    bun build apps/milo/drizzle-migrate.ts --outfile apps/milo/drizzle-migrate.js --target bun
 
 # =============================================================================
 # RUNNER: Final production image
@@ -36,32 +37,19 @@ RUN bun turbo build --filter=@meeboter/milo
 FROM base AS runner
 WORKDIR /app
 
-# Install only the dependencies needed for migrations
-RUN echo '{"dependencies":{"drizzle-orm":"^0.44.5","pg":"^8.11.3"}}' > package.json && \
-    bun install --ignore-scripts
+RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs
 
-# Create non-root user
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
-
-# Automatically leverage output traces to reduce image size
-# https://nextjs.org/docs/advanced-features/output-file-tracing
+# Copy Next.js standalone output
 COPY --from=installer --chown=nextjs:nodejs /app/apps/milo/.next/standalone ./
 COPY --from=installer --chown=nextjs:nodejs /app/apps/milo/.next/static ./apps/milo/.next/static
 COPY --from=installer --chown=nextjs:nodejs /app/apps/milo/public ./apps/milo/public
 
-# Copy drizzle migration files and script
+# Copy bundled migration script and SQL files
 COPY --from=installer --chown=nextjs:nodejs /app/apps/milo/drizzle ./apps/milo/drizzle
-COPY --from=installer --chown=nextjs:nodejs /app/apps/milo/drizzle-migrate.ts ./apps/milo/drizzle-migrate.ts
-
-# Copy and make entrypoint script executable
+COPY --from=installer --chown=nextjs:nodejs /app/apps/milo/drizzle-migrate.js ./apps/milo/drizzle-migrate.js
 COPY --chown=nextjs:nodejs apps/milo/entrypoint.sh ./apps/milo/entrypoint.sh
 RUN chmod +x ./apps/milo/entrypoint.sh
 
-# Fix ownership of node_modules for nextjs user
-RUN chown -R nextjs:nodejs /app/node_modules
-
-# Switch to non-root user
 USER nextjs
 
 # Set environment variables
