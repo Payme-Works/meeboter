@@ -36,12 +36,9 @@ RUN bun turbo build --filter=@meeboter/milo
 FROM base AS runner
 WORKDIR /app
 
-# Copy package.json and lockfile for bun install (as root before user switch)
-COPY --from=installer /app/package.json ./package.json
-COPY --from=installer /app/apps/milo/package.json ./apps/milo/package.json
-
-# Install dependencies for proper module resolution
-RUN bun install --ignore-scripts
+# Install only the dependencies needed for migrations
+RUN echo '{"dependencies":{"drizzle-orm":"^0.44.5","pg":"^8.11.3"}}' > package.json && \
+    bun install --ignore-scripts
 
 # Create non-root user
 RUN addgroup --system --gid 1001 nodejs
