@@ -50,6 +50,10 @@ COPY --from=installer --chown=nextjs:nodejs /app/apps/milo/public ./apps/milo/pu
 # Copy node_modules with all dependencies (including dev deps needed for migrations)
 COPY --from=installer --chown=nextjs:nodejs /app/node_modules ./node_modules
 
+# Copy package.json files for proper bun module resolution
+COPY --from=installer --chown=nextjs:nodejs /app/package.json ./package.json
+COPY --from=installer --chown=nextjs:nodejs /app/apps/milo/package.json ./apps/milo/package.json
+
 # Copy drizzle migration files and script
 COPY --from=installer --chown=nextjs:nodejs /app/apps/milo/drizzle ./apps/milo/drizzle
 COPY --from=installer --chown=nextjs:nodejs /app/apps/milo/drizzle-migrate.ts ./apps/milo/drizzle-migrate.ts
