@@ -9,19 +9,17 @@ import { chromium } from "playwright-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import { Bot } from "../../../src/bot";
 import { env } from "../../../src/config/env";
+import { clickIfExists } from "../../../src/helpers/click-if-exists";
 import {
-	clickIfExists,
 	elementExists,
 	elementExistsWithDetails,
-	fillWithRetry,
-	navigateWithRetry,
-	withTimeout,
-} from "../../../src/helpers";
+} from "../../../src/helpers/element-exists";
+import { fillWithRetry } from "../../../src/helpers/fill-with-retry";
+import { navigateWithRetry } from "../../../src/helpers/navigate-with-retry";
+import { withTimeout } from "../../../src/helpers/with-timeout";
 import type { BotLogger } from "../../../src/logger";
-import {
-	createS3ProviderFromEnv,
-	StorageService,
-} from "../../../src/services/storage";
+import { createS3ProviderFromEnv } from "../../../src/services/storage/s3-provider";
+import { StorageService } from "../../../src/services/storage/storage-service";
 import {
 	type BotConfig,
 	EventCode,

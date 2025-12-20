@@ -5,36 +5,8 @@ import { createTrpcClient, type TrpcClient } from "../trpc";
 import { DurationMonitorWorker } from "../workers/duration-monitor-worker";
 import { HeartbeatWorker } from "../workers/heartbeat-worker";
 import { MessageQueueWorker } from "../workers/message-queue-worker";
-import { S3StorageProvider, StorageService } from "./storage";
-
-// Re-export bot and factory
-export { Bot } from "../bot";
-export { type CreateBotOptions, createBot } from "../bot-factory";
-export {
-	BotLogger,
-	LogLevel,
-	parseLogLevel,
-	type ScreenshotData,
-} from "../logger";
-export {
-	type AutomaticLeave,
-	type BotConfig,
-	createTrpcClient,
-	EventCode,
-	type MeetingInfo,
-	type SpeakerTimeframe,
-	STATUS_EVENT_CODES,
-	Status,
-	type TrpcClient,
-	type TrpcClientOptions,
-} from "../trpc";
-export {
-	createS3ProviderFromEnv,
-	S3StorageProvider,
-	type StorageConfig,
-	type StorageProvider,
-	StorageService,
-} from "./storage";
+import { S3StorageProvider } from "./storage/s3-provider";
+import { StorageService } from "./storage/storage-service";
 
 /**
  * Container for all services in the application

@@ -1,5 +1,6 @@
 import { describe, expect, it, jest } from "@jest/globals";
-import { S3StorageProvider, StorageService } from "../src/services/storage";
+import { S3StorageProvider } from "../src/services/storage/s3-provider";
+import { StorageService } from "../src/services/storage/storage-service";
 
 //
 // Storage Provider Tests as described in Section 2.1.2, and recording upload tests as described in 2.1.2.4,

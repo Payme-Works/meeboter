@@ -7,14 +7,14 @@ dotenv.config();
 import type { Bot } from "./bot";
 import { createBot } from "./bot-factory";
 import { env } from "./config/env";
+import { createServices } from "./services";
 import {
-	createServices,
 	createTrpcClient,
 	EventCode,
 	STATUS_EVENT_CODES,
 	Status,
 	type TrpcClient,
-} from "./services";
+} from "./trpc";
 
 /**
  * Reports an event and updates status if it's a status-changing event

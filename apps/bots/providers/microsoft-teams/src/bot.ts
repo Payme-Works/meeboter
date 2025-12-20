@@ -8,12 +8,10 @@ import puppeteer, { type Browser, type Page } from "puppeteer";
 import { getStream, launch, wss } from "puppeteer-stream";
 import { Bot } from "../../../src/bot";
 import { env } from "../../../src/config/env";
-import { withTimeout } from "../../../src/helpers";
+import { withTimeout } from "../../../src/helpers/with-timeout";
 import type { BotLogger } from "../../../src/logger";
-import {
-	createS3ProviderFromEnv,
-	StorageService,
-} from "../../../src/services/storage";
+import { createS3ProviderFromEnv } from "../../../src/services/storage/s3-provider";
+import { StorageService } from "../../../src/services/storage/storage-service";
 import {
 	type BotConfig,
 	type EventCode,
