@@ -1174,7 +1174,7 @@ export class GoogleMeetBot extends Bot {
 	/**
 	 * Check for definitive in-call UI indicators (Meeting title, Chat button, etc.).
 	 * Only uses indicators that CANNOT exist in waiting room.
-	 * Uses Promise.all for faster parallel detection.
+	 * Requires at least 2 indicators to confirm admission (reduces false positives).
 	 */
 	private async hasInCallIndicators(): Promise<boolean> {
 		const page = this.page;
@@ -1187,8 +1187,24 @@ export class GoogleMeetBot extends Bot {
 		);
 
 		const results = await Promise.all(checks);
+		const foundCount = results.filter((found) => found).length;
 
-		return results.some((found) => found);
+		// Require at least 2 indicators to confirm admission
+		// This reduces false positives from indicators that appear briefly during join animation
+		if (foundCount >= 2) {
+			const foundIndicators = SELECTORS.definitiveInCallIndicators.filter(
+				(_, i) => results[i],
+			);
+
+			this.logger.debug("In-call indicators detected", {
+				foundCount,
+				indicators: foundIndicators,
+			});
+
+			return true;
+		}
+
+		return false;
 	}
 
 	/**
