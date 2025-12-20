@@ -581,7 +581,11 @@ export class GoogleMeetBot extends Bot {
 
 	/**
 	 * Check if bot has been removed from the call.
-	 * Detects: wrong domain, kick dialog, or missing leave button.
+	 * Detects: wrong domain, kick dialog, or missing in-call indicators.
+	 *
+	 * Note: We use in-call indicators (People/Chat buttons) instead of the leave button
+	 * because Google Meet auto-hides the control bar after inactivity, making the
+	 * leave button unreliable for presence detection.
 	 */
 	async hasBeenRemovedFromCall(): Promise<boolean> {
 		this.logger.trace("[hasBeenRemovedFromCall] Starting removal check");
@@ -637,28 +641,36 @@ export class GoogleMeetBot extends Bot {
 			return true;
 		}
 
-		// Check 3: Leave button gone (call ended or kicked)
-		const hasLeaveButton = await elementExists(
-			this.page,
-			SELECTORS.leaveButton,
-		);
+		// Check 3: In-call indicators (more reliable than leave button)
+		// The leave button is in the control bar which auto-hides after inactivity.
+		// In-call indicators (People/Chat buttons) are always visible.
+		const indicatorResults: Record<string, boolean> = {};
 
-		this.logger.trace("[hasBeenRemovedFromCall] Leave button check", {
-			hasLeaveButton,
-			selector: SELECTORS.leaveButton,
-		});
+		for (const selector of SELECTORS.inCallIndicators) {
+			const exists = await elementExists(this.page, selector);
+			indicatorResults[selector] = exists;
 
-		if (!hasLeaveButton) {
-			this.logger.info(
-				"[hasBeenRemovedFromCall] REMOVED: Leave button missing",
-			);
+			if (exists) {
+				this.logger.trace(
+					"[hasBeenRemovedFromCall] In-call indicator found, still in call",
+					{
+						foundSelector: selector,
+					},
+				);
 
-			return true;
+				return false;
+			}
 		}
 
-		this.logger.trace("[hasBeenRemovedFromCall] Still in call");
+		// No in-call indicators found, bot has been removed
+		this.logger.info(
+			"[hasBeenRemovedFromCall] REMOVED: No in-call indicators found",
+			{
+				checkedIndicators: indicatorResults,
+			},
+		);
 
-		return false;
+		return true;
 	}
 
 	// ============================================
