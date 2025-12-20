@@ -4,6 +4,8 @@ import dotenv from "dotenv";
 dotenv.config({ path: "../.env.test" }); // Load .env.test for testing
 dotenv.config();
 
+import type { Bot } from "./bot";
+import { createBot } from "./bot-factory";
 import { env } from "./config/env";
 import {
 	createServices,
@@ -68,26 +70,36 @@ export const main = async () => {
 		poolSlotUuid,
 	});
 
-	console.log("Received bot data:", botConfig);
+	console.log("Received bot config:", botConfig);
 
 	const botId = botConfig.id;
 
+	// Track bot instance (set after creation)
+	let bot: Bot | null = null;
+
 	// Create all services with dependency injection
-	const services = createServices({ botId });
-	const { logger, trpc, bot: botService, workers } = services;
+	const services = createServices({
+		botId,
+		getBot: () => bot,
+	});
+
+	const { logger, trpc, s3, workers } = services;
 
 	// Track recording key for final status report
 	let recordingKey = "";
 
 	// Create status change handler for screenshot capture on status transitions
-	const onStatusChange = async (eventType: EventCode) => {
+	const onStatusChange = async (eventType: EventCode, botInstance: Bot) => {
 		logger.debug(`Status change detected: ${eventType}, capturing screenshot`);
-		await botService.captureAndUploadScreenshot("state_change", eventType);
+		await botInstance.screenshot(`state-change-${eventType}.png`, eventType);
 	};
 
 	try {
 		// Create the platform-specific bot instance
-		const bot = await botService.createBot(botConfig, { onStatusChange });
+		bot = await createBot(botConfig, {
+			onStatusChange,
+			trpcClient: trpc,
+		});
 
 		// Start monitoring workers (only in production)
 		if (env.NODE_ENV !== "development") {
@@ -95,9 +107,9 @@ export const main = async () => {
 
 			// Start heartbeat worker
 			workers.heartbeat.start(botId, {
-				onLeaveRequested: () => botService.requestLeave(),
+				onLeaveRequested: () => bot?.requestLeave(),
 				onLogLevelChange: (logLevel) =>
-					bot.logger.setLogLevelFromString(logLevel),
+					bot?.logger.setLogLevelFromString(logLevel),
 			});
 
 			// Start duration monitor
@@ -108,7 +120,7 @@ export const main = async () => {
 					message: "Maximum duration exceeded",
 				});
 
-				botService.requestLeave();
+				bot?.requestLeave();
 			});
 		}
 
@@ -131,14 +143,11 @@ export const main = async () => {
 			});
 
 			// Capture error screenshot
-			await botService.captureAndUploadScreenshot(
-				"error",
-				(error as Error).message,
-			);
+			await bot?.screenshot("error.png", (error as Error).message);
 
 			// Ensure cleanup
 			try {
-				await bot.cleanup();
+				await bot?.cleanup();
 			} catch (cleanupError) {
 				logger.warn(
 					`Error during bot cleanup: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`,
@@ -148,7 +157,14 @@ export const main = async () => {
 
 		// Upload recording if enabled and no error
 		if (!hasErrorOccurred && bot.settings.recordingEnabled) {
-			recordingKey = await botService.uploadRecording();
+			logger.info("Starting upload to S3...");
+			const platform = bot.settings.meetingInfo.platform ?? "unknown";
+
+			recordingKey = await s3.uploadRecording(
+				bot.getRecordingPath(),
+				platform,
+				bot.getContentType(),
+			);
 		}
 	} catch (error) {
 		hasErrorOccurred = true;
@@ -159,10 +175,7 @@ export const main = async () => {
 		);
 
 		// Capture fatal screenshot
-		await botService.captureAndUploadScreenshot(
-			"fatal",
-			(error as Error).message,
-		);
+		await bot?.screenshot("fatal.png", (error as Error).message);
 
 		await reportEventWithStatus(trpc, botId, EventCode.FATAL, {
 			description: (error as Error).message,
@@ -177,9 +190,7 @@ export const main = async () => {
 	}
 
 	// Report final status if no error
-	if (!hasErrorOccurred) {
-		const bot = botService.getBot();
-
+	if (!hasErrorOccurred && bot) {
 		let speakerTimeframes: {
 			start: number;
 			end: number;
@@ -187,7 +198,7 @@ export const main = async () => {
 		}[] = [];
 
 		try {
-			speakerTimeframes = bot?.settings.recordingEnabled
+			speakerTimeframes = bot.settings.recordingEnabled
 				? (bot.getSpeakerTimeframes() ?? [])
 				: [];
 		} catch (error) {

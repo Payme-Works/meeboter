@@ -63,7 +63,7 @@ const QUEUE_POLL_INTERVAL_MS = 1000;
  */
 const PLATFORM_LOCK_IDS: Record<string, number> = {
 	"google-meet": 100001,
-	teams: 100002,
+	"microsoft-teams": 100002,
 	zoom: 100003,
 	unknown: 100000,
 };
@@ -1089,8 +1089,8 @@ export class BotPoolService {
 		switch (platform?.toLowerCase()) {
 			case "google":
 				return "google-meet";
-			case "teams":
-				return "teams";
+			case "microsoft-teams":
+				return "microsoft-teams";
 			case "zoom":
 				return "zoom";
 			default:

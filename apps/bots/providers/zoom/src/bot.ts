@@ -7,8 +7,13 @@ import type { TRPCClient } from "@trpc/client";
 import puppeteer, { type Browser, type Frame, type Page } from "puppeteer";
 import { getStream, launch, wss } from "puppeteer-stream";
 import { Bot } from "../../../src/bot";
+import { env } from "../../../src/config/env";
 import { withTimeout } from "../../../src/helpers";
 import type { BotLogger } from "../../../src/logger";
+import {
+	createS3ServiceFromEnv,
+	type S3Service,
+} from "../../../src/services/s3-service";
 import {
 	type BotConfig,
 	type EventCode,
@@ -29,9 +34,7 @@ const CLEANUP_TIMEOUTS = {
 // Expected domain for Zoom
 const ZOOM_DOMAIN = "app.zoom.us";
 
-// ============================================
-// SECTION 1: SELECTORS
-// ============================================
+// --- Selectors ------------------------------------------------
 
 const SELECTORS = {
 	// Iframe
@@ -55,9 +58,7 @@ const SELECTORS = {
 		'div[aria-label="Meeting is end now"] button.zm-btn.zm-btn-legacy.zm-btn--primary.zm-btn__outline--blue',
 } as const;
 
-// ============================================
-// SECTION 2: ZOOM BOT CLASS
-// ============================================
+// --- Zoom bot class -------------------------------------------
 
 /**
  * Simplified Zoom bot for automated meeting participation.
@@ -71,6 +72,7 @@ export class ZoomBot extends Bot {
 	private recordingPath: string;
 	private contentType: string;
 	private meetingUrl: string;
+	private s3Service: S3Service;
 
 	browser!: Browser;
 	page!: Page;
@@ -91,11 +93,10 @@ export class ZoomBot extends Bot {
 		this.recordingPath = path.resolve(__dirname, "recording.mp4");
 		this.contentType = "video/mp4";
 		this.meetingUrl = `https://app.zoom.us/wc/${this.settings.meetingInfo.meetingId}/join?fromPWA=1&pwd=${this.settings.meetingInfo.meetingPassword}`;
+		this.s3Service = createS3ServiceFromEnv(env);
 	}
 
-	// ============================================
-	// LIFECYCLE METHODS
-	// ============================================
+	// --- Lifecycle methods ----------------------------------------
 
 	/**
 	 * Main entry point: join meeting and monitor until exit.
@@ -140,6 +141,7 @@ export class ZoomBot extends Bot {
 
 	/**
 	 * Monitor the call and handle exit conditions.
+	 * Uses a polling loop pattern consistent with other bots.
 	 */
 	private async monitorCall(): Promise<void> {
 		const monitorStartTime = Date.now();
@@ -156,29 +158,76 @@ export class ZoomBot extends Bot {
 			await this.startRecording();
 		}
 
-		// Get frame for monitoring
-		const iframe = await this.page.waitForSelector(SELECTORS.iframe);
-		const frame = await iframe?.contentFrame();
+		this.logger.debug("[monitorCall] Entering monitoring loop");
 
-		if (!frame) {
-			throw new Error("Failed to get meeting iframe for monitoring");
+		let loopCount = 0;
+		let exitReason = "unknown";
+
+		// Polling loop (consistent with Google Meet and Teams pattern)
+		try {
+			while (true) {
+				loopCount++;
+
+				// Log every 12 iterations (~1 minute) for health check
+				if (loopCount % 12 === 0) {
+					this.logger.trace("[monitorCall] Health check", {
+						loopCount,
+						leaveRequested: this.leaveRequested,
+						monitoringDurationMs: Date.now() - monitorStartTime,
+						pageUrl: this.page?.url() ?? "no page",
+					});
+				}
+
+				// Check 1: User requested leave via API?
+				if (this.leaveRequested) {
+					exitReason = "user_requested_leave";
+					this.logger.info("[monitorCall] Exit: User requested via API");
+
+					break;
+				}
+
+				// Check 2: Were we removed from the call?
+				try {
+					const checkStart = Date.now();
+					const wasRemoved = await this.hasBeenRemovedFromCall();
+
+					if (wasRemoved) {
+						exitReason = "removed_from_call";
+
+						this.logger.info("[monitorCall] Exit: Removed from meeting", {
+							checkDurationMs: Date.now() - checkStart,
+						});
+
+						break;
+					}
+				} catch (error) {
+					exitReason = "removal_check_error";
+
+					this.logger.error(
+						"[monitorCall] Exit: Error checking removal status",
+						error instanceof Error ? error : new Error(String(error)),
+					);
+
+					break;
+				}
+
+				// Wait before next check
+				await setTimeout(5000);
+			}
+		} catch (error) {
+			exitReason = "unexpected_error";
+
+			this.logger.error(
+				"[monitorCall] Exit: Unexpected error in monitoring loop",
+				error instanceof Error ? error : new Error(String(error)),
+			);
 		}
-
-		this.logger.debug("[monitorCall] Waiting for exit conditions", {
-			exitConditions: ["meetingEnd", "leaveButtonGone", "leaveRequest"],
-		});
-
-		// Race between exit conditions
-		const exitReason = await Promise.race([
-			this.waitForMeetingEnd(frame).then(() => "meetingEnd" as const),
-			this.waitForLeaveButtonGone(frame).then(() => "leaveButtonGone" as const),
-			this.waitForLeaveRequest().then(() => "leaveRequest" as const),
-		]);
 
 		const monitorDurationMs = Date.now() - monitorStartTime;
 
 		this.logger.info("[monitorCall] Exit condition triggered", {
 			exitReason,
+			loopCount,
 			monitorDurationMs,
 			monitorDurationFormatted: `${Math.floor(monitorDurationMs / 60000)}m ${Math.floor((monitorDurationMs % 60000) / 1000)}s`,
 		});
@@ -286,64 +335,7 @@ export class ZoomBot extends Bot {
 		});
 	}
 
-	// ============================================
-	// MEETING MONITORING
-	// ============================================
-
-	/**
-	 * Wait for "Meeting ended" dialog.
-	 */
-	private async waitForMeetingEnd(frame: Frame): Promise<void> {
-		while (true) {
-			try {
-				const okButton = await frame.waitForSelector(
-					SELECTORS.meetingEndedOkButton,
-					{ timeout: 5000 },
-				);
-
-				if (okButton) {
-					this.logger.info("Meeting ended: OK button detected");
-					await okButton.click();
-
-					return;
-				}
-			} catch {
-				// Continue polling
-			}
-
-			await setTimeout(1000);
-		}
-	}
-
-	/**
-	 * Wait for leave button to disappear (kicked or meeting ended).
-	 */
-	private async waitForLeaveButtonGone(frame: Frame): Promise<void> {
-		while (true) {
-			try {
-				await frame.waitForSelector(SELECTORS.leaveButton, { timeout: 5000 });
-				// Button still exists, continue
-			} catch {
-				// Button not found, meeting likely ended
-				this.logger.info("Leaving: Leave button no longer visible");
-
-				return;
-			}
-
-			await setTimeout(60000); // Check every minute
-		}
-	}
-
-	/**
-	 * Wait for user leave request.
-	 */
-	private async waitForLeaveRequest(): Promise<void> {
-		while (!this.leaveRequested) {
-			await setTimeout(1000);
-		}
-
-		this.logger.info("Leaving: User requested via API");
-	}
+	// --- Meeting monitoring ---------------------------------------
 
 	/**
 	 * Check if bot has been removed from the call.
@@ -453,9 +445,7 @@ export class ZoomBot extends Bot {
 		return false;
 	}
 
-	// ============================================
-	// RECORDING
-	// ============================================
+	// --- Recording ------------------------------------------------
 
 	/**
 	 * Start recording.
@@ -507,9 +497,16 @@ export class ZoomBot extends Bot {
 		return [];
 	}
 
-	// ============================================
-	// BROWSER UTILITIES
-	// ============================================
+	/**
+	 * Send a chat message (not implemented for Zoom).
+	 */
+	async sendChatMessage(_message: string): Promise<boolean> {
+		this.logger.debug("Chat not implemented for Zoom");
+
+		return false;
+	}
+
+	// --- Browser utilities ----------------------------------------
 
 	/**
 	 * Initialize browser.
@@ -620,24 +617,48 @@ export class ZoomBot extends Bot {
 	}
 
 	/**
-	 * Take a screenshot.
+	 * Take a screenshot and upload to S3.
+	 * @param filename - Local filename for the screenshot
+	 * @param trigger - Optional trigger description for S3 metadata
+	 * @returns The S3 key if uploaded, local path if S3 failed, or null on error
 	 */
-	async screenshot(fName: string = "screenshot.png"): Promise<void> {
+	async screenshot(
+		filename: string = "screenshot.png",
+		trigger?: string,
+	): Promise<string | null> {
 		if (!this.page || !this.browser) {
 			throw new Error("Browser/page not initialized");
 		}
 
 		try {
-			const screenshot = await this.page.screenshot({
+			const screenshotPath = `/tmp/${filename}`;
+
+			await this.page.screenshot({
+				path: screenshotPath,
 				type: "png",
-				encoding: "binary",
 			});
 
-			const screenshotPath = path.resolve(`/tmp/${fName}`);
-			fs.writeFileSync(screenshotPath, screenshot);
-			this.logger.debug("Screenshot saved", { path: screenshotPath });
+			const s3Result = await this.s3Service.uploadScreenshot(
+				screenshotPath,
+				this.settings.id,
+				"manual",
+				this.logger.getState(),
+				trigger,
+			);
+
+			if (s3Result) {
+				this.logger.debug("Screenshot uploaded to S3", { key: s3Result.key });
+
+				return s3Result.key;
+			}
+
+			this.logger.debug("Screenshot saved locally", { path: screenshotPath });
+
+			return screenshotPath;
 		} catch (error) {
 			this.logger.error("Error taking screenshot", error as Error);
+
+			return null;
 		}
 	}
 }

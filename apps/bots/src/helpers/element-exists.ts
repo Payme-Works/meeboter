@@ -54,8 +54,7 @@ export async function elementExistsWithDetails(
 			durationMs: Date.now() - startTime,
 		};
 	} catch (error) {
-		const isTimeout =
-			error instanceof Error && error.message === "TIMEOUT";
+		const isTimeout = error instanceof Error && error.message === "TIMEOUT";
 
 		return {
 			exists: false,

@@ -377,7 +377,10 @@ export const meetingInfoSchema = z.object({
 	tenantId: z.string().optional().describe("Tenant ID"),
 	messageId: z.string().optional().describe("Message ID"),
 	threadId: z.string().optional().describe("Thread ID"),
-	platform: z.enum(["zoom", "teams", "google"]).optional().describe("Platform"),
+	platform: z
+		.enum(["zoom", "microsoft-teams", "google"])
+		.optional()
+		.describe("Platform"),
 });
 export type MeetingInfo = z.infer<typeof meetingInfoSchema>;
 

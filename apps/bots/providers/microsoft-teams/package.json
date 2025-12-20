@@ -1,5 +1,5 @@
 {
-	"name": "@meeboter/bots-teams",
+	"name": "@meeboter/bots-microsoft-teams",
 	"version": "1.0.0",
 	"private": true,
 	"dependencies": {

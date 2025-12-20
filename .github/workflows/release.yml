@@ -17,8 +17,8 @@ on:
         required: false
         default: true
         type: boolean
-      release_teams_bot:
-        description: 'Release teams-bot image'
+      release_microsoft_teams_bot:
+        description: 'Release microsoft-teams-bot image'
         required: false
         default: true
         type: boolean
@@ -53,9 +53,9 @@ jobs:
           - name: google-meet-bot
             dockerfile: apps/bots/providers/google-meet/Dockerfile
             input_check: release_google_meet_bot
-          - name: teams-bot
-            dockerfile: apps/bots/providers/teams/Dockerfile
-            input_check: release_teams_bot
+          - name: microsoft-teams-bot
+            dockerfile: apps/bots/providers/microsoft-teams/Dockerfile
+            input_check: release_microsoft_teams_bot
           - name: zoom-bot
             dockerfile: apps/bots/providers/zoom/Dockerfile
             input_check: release_zoom_bot
@@ -130,7 +130,7 @@ jobs:
           case "$IMAGE_NAME" in
             "milo") DESC="Core API Server" ;;
             "google-meet-bot") DESC="Google Meet Bot" ;;
-            "teams-bot") DESC="Microsoft Teams Bot" ;;
+            "microsoft-teams-bot") DESC="Microsoft Teams Bot" ;;
             "zoom-bot") DESC="Zoom Bot" ;;
             *) DESC="Container" ;;
           esac
@@ -209,7 +209,7 @@ jobs:
           |:----------|:------|:-------------|
           | **Milo** | \`$REGISTRY/$IMAGE_PREFIX-milo\` | \`docker pull $REGISTRY/$IMAGE_PREFIX-milo:$SHORT_SHA\` |
           | **Google Meet Bot** | \`$REGISTRY/$IMAGE_PREFIX-google-meet-bot\` | \`docker pull $REGISTRY/$IMAGE_PREFIX-google-meet-bot:$SHORT_SHA\` |
-          | **Teams Bot** | \`$REGISTRY/$IMAGE_PREFIX-teams-bot\` | \`docker pull $REGISTRY/$IMAGE_PREFIX-teams-bot:$SHORT_SHA\` |
+          | **Microsoft Teams Bot** | \`$REGISTRY/$IMAGE_PREFIX-microsoft-teams-bot\` | \`docker pull $REGISTRY/$IMAGE_PREFIX-microsoft-teams-bot:$SHORT_SHA\` |
           | **Zoom Bot** | \`$REGISTRY/$IMAGE_PREFIX-zoom-bot\` | \`docker pull $REGISTRY/$IMAGE_PREFIX-zoom-bot:$SHORT_SHA\` |
 
           ---
@@ -231,7 +231,7 @@ jobs:
           # Set these environment variables for your deployment
           export MILO_IMAGE="$REGISTRY/$IMAGE_PREFIX-milo:$SHORT_SHA"
           export GOOGLE_MEET_BOT_IMAGE="$REGISTRY/$IMAGE_PREFIX-google-meet-bot:$SHORT_SHA"
-          export TEAMS_BOT_IMAGE="$REGISTRY/$IMAGE_PREFIX-teams-bot:$SHORT_SHA"
+          export MICROSOFT_TEAMS_BOT_IMAGE="$REGISTRY/$IMAGE_PREFIX-microsoft-teams-bot:$SHORT_SHA"
           export ZOOM_BOT_IMAGE="$REGISTRY/$IMAGE_PREFIX-zoom-bot:$SHORT_SHA"
           \`\`\`
 

@@ -91,11 +91,13 @@ export function MultiBotJoinDialog({ open, onClose }: MultiBotJoinDialogProps) {
 			timeZone: userTimezone,
 		});
 
-	const detectPlatform = (url: string): "google" | "teams" | "zoom" => {
+	const detectPlatform = (
+		url: string,
+	): "google" | "microsoft-teams" | "zoom" => {
 		if (url.includes("meet.google.com")) return "google";
 
 		if (url.includes("teams.microsoft.com") || url.includes("teams.live.com"))
-			return "teams";
+			return "microsoft-teams";
 
 		if (url.includes("zoom.us")) return "zoom";
 

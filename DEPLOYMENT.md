@@ -153,7 +153,7 @@ ECS_ASSIGN_PUBLIC_IP="true"
 
 # Task Definitions (family:revision or just family for latest)
 ECS_TASK_DEF_ZOOM="meeboter-zoom-bot:1"
-ECS_TASK_DEF_TEAMS="meeboter-teams-bot:1"
+ECS_TASK_DEF_MICROSOFT_TEAMS="meeboter-microsoft-teams-bot:1"
 ECS_TASK_DEF_MEET="meeboter-google-meet-bot:1"
 
 # Bot Configuration
@@ -239,7 +239,7 @@ The Meeboter API needs permissions to manage ECS tasks:
 Both platforms require bot container images. Meeboter supports:
 
 - **Zoom Bot**: `ghcr.io/{org}/meeboter-zoom-bot:{tag}`
-- **Teams Bot**: `ghcr.io/{org}/meeboter-teams-bot:{tag}`
+- **Microsoft Teams Bot**: `ghcr.io/{org}/meeboter-microsoft-teams-bot:{tag}`
 - **Meet Bot**: `ghcr.io/{org}/meeboter-google-meet-bot:{tag}`
 
 ### Environment Variables Passed to Bots

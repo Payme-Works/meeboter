@@ -2,7 +2,43 @@ import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { describe, expect, it, jest } from "@jest/globals";
 import { Bot } from "../src/bot";
 import { createS3Client, uploadRecordingToS3 } from "../src/s3";
-import type { BotConfig } from "../src/types";
+import type { BotConfig, EventCode, SpeakerTimeframe } from "../src/types";
+
+/**
+ * Concrete mock implementation of the abstract Bot class for testing.
+ */
+class MockBot extends Bot {
+	async joinCall(): Promise<unknown> {
+		return;
+	}
+	async screenshot(
+		_filename?: string,
+		_trigger?: string,
+	): Promise<string | null> {
+		return null;
+	}
+	async cleanup(): Promise<unknown> {
+		return;
+	}
+	async run(): Promise<void> {
+		return;
+	}
+	getRecordingPath(): string {
+		return "mock-path";
+	}
+	getContentType(): string {
+		return "mock-content-type";
+	}
+	getSpeakerTimeframes(): SpeakerTimeframe[] {
+		return [];
+	}
+	async hasBeenRemovedFromCall(): Promise<boolean> {
+		return false;
+	}
+	async sendChatMessage(_message: string): Promise<boolean> {
+		return false;
+	}
+}
 
 //
 // Bot Startup Tests as described in Section 2.1.2, and recording upload tests as described in 2.1.2.4,
@@ -75,12 +111,12 @@ describe("S3Client Upload Tests", () => {
 			},
 		} as unknown as BotConfig;
 
-		const mockOnEvent = async (_eventType: string, _data?: unknown) => {
+		const mockOnEvent = async (_eventType: EventCode, _data?: unknown) => {
 			/* mock event handler */
 		};
 
-		//Create Mock Bot
-		const someBot = new Bot(mockConfig, mockOnEvent);
+		// Create Mock Bot using the concrete MockBot class
+		const someBot = new MockBot(mockConfig, mockOnEvent);
 		someBot.getRecordingPath = jest.fn(() => "mock-path"); // Mock the getRecordingPath method to return the mock body
 		someBot.getContentType = jest.fn(() => "mock-content-type"); // Mock the getContentType method to return the mock content type
 

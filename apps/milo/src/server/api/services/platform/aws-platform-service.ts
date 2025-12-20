@@ -28,7 +28,7 @@ export interface AWSPlatformConfig {
 	/** Task definition ARN or family:revision for each platform */
 	taskDefinitions: {
 		zoom: string;
-		teams: string;
+		"microsoft-teams": string;
 		meet: string;
 	};
 
@@ -193,8 +193,8 @@ export class AWSPlatformService implements PlatformService {
 		switch (platform?.toLowerCase()) {
 			case "zoom":
 				return this.config.taskDefinitions.zoom;
-			case "teams":
-				return this.config.taskDefinitions.teams;
+			case "microsoft-teams":
+				return this.config.taskDefinitions["microsoft-teams"];
 			case "google":
 				return this.config.taskDefinitions.meet;
 			default:
@@ -209,8 +209,8 @@ export class AWSPlatformService implements PlatformService {
 		switch (platform?.toLowerCase()) {
 			case "zoom":
 				return "zoom-bot";
-			case "teams":
-				return "teams-bot";
+			case "microsoft-teams":
+				return "microsoft-teams-bot";
 			case "google":
 				return "google-meet-bot";
 			default:

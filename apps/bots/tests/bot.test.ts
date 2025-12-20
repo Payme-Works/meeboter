@@ -1,8 +1,9 @@
 import { describe, expect, it } from "@jest/globals";
 import { GoogleMeetBot } from "../providers/google-meet/src/bot";
-import { MicrosoftTeamsBot } from "../providers/teams/src/bot";
+import { MicrosoftTeamsBot } from "../providers/microsoft-teams/src/bot";
 import { ZoomBot } from "../providers/zoom/src/bot";
-import { type Bot, createBot } from "../src/bot";
+import type { Bot } from "../src/bot";
+import { createBot } from "../src/bot-factory";
 import type { BotConfig } from "../src/types";
 
 //
@@ -44,13 +45,13 @@ describe("Bot Creation from given data", () => {
 	});
 
 	/**
-	 * Creates a teams bot
+	 * Creates a Microsoft Teams bot
 	 */
-	it("Create Teams Bot", () => {
+	it("Create Microsoft Teams Bot", () => {
 		const mockBotData = {
 			id: 0,
 			meetingInfo: {
-				platform: "teams",
+				platform: "microsoft-teams",
 			},
 		} as BotConfig;
 

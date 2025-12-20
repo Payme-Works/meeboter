@@ -130,7 +130,7 @@ function createAWSPlatformService(): AWSPlatformService {
 		securityGroups: (env.ECS_SECURITY_GROUPS ?? "").split(",").filter(Boolean),
 		taskDefinitions: {
 			zoom: env.ECS_TASK_DEF_ZOOM ?? "",
-			teams: env.ECS_TASK_DEF_TEAMS ?? "",
+			"microsoft-teams": env.ECS_TASK_DEF_MICROSOFT_TEAMS ?? "",
 			meet: env.ECS_TASK_DEF_MEET ?? "",
 		},
 		assignPublicIp: env.ECS_ASSIGN_PUBLIC_IP,

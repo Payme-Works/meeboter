@@ -1,12 +1,15 @@
+import type { Bot } from "../bot";
 import { env } from "../config/env";
 import { BotLogger, parseLogLevel } from "../logger";
 import { createTrpcClient, type TrpcClient } from "../trpc";
 import { DurationMonitorWorker } from "../workers/duration-monitor-worker";
 import { HeartbeatWorker } from "../workers/heartbeat-worker";
 import { MessageQueueWorker } from "../workers/message-queue-worker";
-import { BotService } from "./bot-service";
 import { S3Service } from "./s3-service";
 
+// Re-export bot and factory
+export { Bot } from "../bot";
+export { type CreateBotOptions, createBot } from "../bot-factory";
 export {
 	BotLogger,
 	LogLevel,
@@ -25,12 +28,6 @@ export {
 	type TrpcClient,
 	type TrpcClientOptions,
 } from "../trpc";
-// Re-export services and types for convenience
-export {
-	type BotInterface,
-	BotService,
-	type CreateBotOptions,
-} from "./bot-service";
 export {
 	createS3ServiceFromEnv,
 	S3Service,
@@ -44,7 +41,6 @@ export interface Services {
 	logger: BotLogger;
 	trpc: TrpcClient;
 	s3: S3Service;
-	bot: BotService;
 	workers: {
 		heartbeat: HeartbeatWorker;
 		durationMonitor: DurationMonitorWorker;
@@ -58,6 +54,8 @@ export interface Services {
 export interface CreateServicesOptions {
 	botId: number;
 	initialLogLevel?: string;
+	/** Getter function for the bot instance (set after bot is created) */
+	getBot: () => Bot | null;
 }
 
 /**
@@ -87,13 +85,11 @@ export function createServices(options: CreateServicesOptions): Services {
 		bucketName: env.S3_BUCKET_NAME,
 	});
 
-	const bot = new BotService(logger, trpc, s3);
-
 	const workers = {
 		heartbeat: new HeartbeatWorker(trpc, logger),
 		durationMonitor: new DurationMonitorWorker(logger),
-		messageQueue: new MessageQueueWorker(trpc, bot, logger),
+		messageQueue: new MessageQueueWorker(trpc, options.getBot, logger),
 	};
 
-	return { logger, trpc, s3, bot, workers };
+	return { logger, trpc, s3, workers };
 }

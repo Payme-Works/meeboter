@@ -1,7 +1,7 @@
 import { setTimeout } from "node:timers/promises";
 
+import type { Bot } from "../bot";
 import type { BotLogger } from "../logger";
-import type { BotService } from "../services/bot-service";
 import type { TrpcClient } from "../trpc";
 
 /**
@@ -14,7 +14,7 @@ export class MessageQueueWorker {
 
 	constructor(
 		private readonly trpc: TrpcClient,
-		private readonly bot: BotService,
+		private readonly getBot: () => Bot | null,
 		private readonly logger: BotLogger,
 		private readonly intervalMs = 5000,
 	) {}
@@ -30,9 +30,9 @@ export class MessageQueueWorker {
 		}
 
 		// Check if chat is enabled on the bot
-		const botInstance = this.bot.getBot();
+		const bot = this.getBot();
 
-		if (!botInstance?.settings.chatEnabled) {
+		if (!bot?.settings.chatEnabled) {
 			this.logger.debug("Chat functionality is disabled for this bot");
 
 			return;
@@ -79,6 +79,14 @@ export class MessageQueueWorker {
 				});
 
 				if (queuedMessage?.messageText) {
+					const bot = this.getBot();
+
+					if (!bot) {
+						this.logger.warn("Bot not available for sending message");
+
+						continue;
+					}
+
 					this.logger.debug(
 						`Sending queued message: ${queuedMessage.messageText}`,
 					);
@@ -92,9 +100,7 @@ export class MessageQueueWorker {
 
 					await setTimeout(delay);
 
-					const success = await this.bot.sendChatMessage(
-						queuedMessage.messageText,
-					);
+					const success = await bot.sendChatMessage(queuedMessage.messageText);
 
 					if (success) {
 						this.logger.debug("Message sent successfully");

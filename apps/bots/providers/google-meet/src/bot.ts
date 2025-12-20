@@ -8,6 +8,7 @@ import type { Browser, Page } from "playwright";
 import { chromium } from "playwright-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import { Bot } from "../../../src/bot";
+import { env } from "../../../src/config/env";
 import {
 	clickIfExists,
 	elementExists,
@@ -17,6 +18,10 @@ import {
 	withTimeout,
 } from "../../../src/helpers";
 import type { BotLogger } from "../../../src/logger";
+import {
+	createS3ServiceFromEnv,
+	type S3Service,
+} from "../../../src/services/s3-service";
 import {
 	type BotConfig,
 	EventCode,
@@ -89,6 +94,8 @@ export class GoogleMeetBot extends Bot {
 
 	private chatEnabled: boolean = false;
 	private chatPanelOpen: boolean = false;
+	private removalCheckCount: number = 0;
+	private s3Service: S3Service;
 
 	constructor(
 		botSettings: BotConfig,
@@ -104,6 +111,7 @@ export class GoogleMeetBot extends Bot {
 		this.recordingPath = path.resolve(__dirname, "recording.mp4");
 		this.meetingUrl = botSettings.meetingInfo.meetingUrl ?? "";
 		this.chatEnabled = botSettings.chatEnabled ?? false;
+		this.s3Service = createS3ServiceFromEnv(env);
 
 		this.browserArgs = [
 			"--incognito",
@@ -136,6 +144,7 @@ export class GoogleMeetBot extends Bot {
 		await this.initializeBrowser();
 
 		await this.onEvent(EventCode.JOINING_CALL);
+
 		this.logger.setState("JOINING_CALL");
 		this.logger.info("State: LAUNCHING → JOINING_CALL");
 
@@ -564,7 +573,12 @@ export class GoogleMeetBot extends Bot {
 	 * leave button unreliable for presence detection.
 	 */
 	async hasBeenRemovedFromCall(): Promise<boolean> {
-		this.logger.trace("[hasBeenRemovedFromCall] Starting removal check");
+		this.removalCheckCount++;
+		const checkId = this.removalCheckCount;
+
+		this.logger.trace("[hasBeenRemovedFromCall] Starting removal check", {
+			checkId,
+		});
 
 		if (!this.page) {
 			this.logger.warn(
@@ -573,6 +587,12 @@ export class GoogleMeetBot extends Bot {
 
 			return true;
 		}
+
+		// Take screenshot for debugging
+		await this.screenshot(
+			`removal-check-${checkId}.png`,
+			`removal-check-${checkId}`,
+		);
 
 		// Check 1: Verify we're still on Google Meet domain
 		// This catches unexpected redirects (e.g., to other sites)
@@ -989,7 +1009,10 @@ export class GoogleMeetBot extends Bot {
 		const context = await this.browser.newContext({
 			permissions: ["camera", "microphone"],
 			userAgent: USER_AGENT,
-			viewport: { width: SCREEN_DIMENSIONS.WIDTH, height: SCREEN_DIMENSIONS.HEIGHT },
+			viewport: {
+				width: SCREEN_DIMENSIONS.WIDTH,
+				height: SCREEN_DIMENSIONS.HEIGHT,
+			},
 		});
 
 		this.page = await context.newPage();
@@ -1169,21 +1192,45 @@ export class GoogleMeetBot extends Bot {
 	}
 
 	/**
-	 * Take a screenshot.
+	 * Take a screenshot and upload to S3.
+	 * @param filename - Local filename for the screenshot
+	 * @param trigger - Optional trigger description for S3 metadata
+	 * @returns The S3 key if uploaded, local path if S3 failed, or null on error
 	 */
-	async screenshot(filename: string = "screenshot.png"): Promise<void> {
+	async screenshot(
+		filename: string = "screenshot.png",
+		trigger?: string,
+	): Promise<string | null> {
 		if (!this.page) {
 			throw new Error("Page not initialized");
 		}
 
 		try {
-			const screenshot = await this.page.screenshot({ type: "png" });
-			const screenshotPath = path.resolve(`/tmp/${filename}`);
+			const screenshotPath = `/tmp/${filename}`;
 
-			fs.writeFileSync(screenshotPath, screenshot);
-			this.logger.debug("Screenshot saved", { path: screenshotPath });
+			await this.page.screenshot({ path: screenshotPath, type: "png" });
+
+			const s3Result = await this.s3Service.uploadScreenshot(
+				screenshotPath,
+				this.settings.id,
+				"manual",
+				this.logger.getState(),
+				trigger,
+			);
+
+			if (s3Result) {
+				this.logger.debug("Screenshot uploaded to S3", { key: s3Result.key });
+
+				return s3Result.key;
+			}
+
+			this.logger.debug("Screenshot saved locally", { path: screenshotPath });
+
+			return screenshotPath;
 		} catch (error) {
 			this.logger.error("Error taking screenshot", error as Error);
+
+			return null;
 		}
 	}
 }

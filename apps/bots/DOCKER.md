@@ -5,7 +5,7 @@ This guide provides instructions for building meeting bot Docker images for Goog
 ## Prerequisites
 
 - Docker installed and running
-- Sufficient disk space (4GB+ for meet bot, 1.7GB+ for teams/zoom bots)
+- Sufficient disk space (4GB+ for meet bot, 1.7GB+ for microsoft-teams/zoom bots)
 
 ## Available Bot Images
 
@@ -39,7 +39,7 @@ cd apps/bots
 docker build -f providers/google-meet/Dockerfile -t meeboter-google-meet .
 
 # Build Microsoft Teams bot
-docker build -f providers/teams/Dockerfile -t meeboter-teams .
+docker build -f providers/microsoft-teams/Dockerfile -t meeboter-microsoft-teams-bot .
 
 # Build Zoom bot
 docker build -f providers/zoom/Dockerfile -t meeboter-zoom .

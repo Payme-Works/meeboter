@@ -10,14 +10,15 @@
 ## Table of Contents
 
 1. [System Overview](#1-system-overview)
-2. [Infrastructure Architecture](#2-infrastructure-architecture)
-3. [Bot Pool System](#3-bot-pool-system)
-4. [Request Flows](#4-request-flows)
-5. [Database Schema](#5-database-schema)
-6. [API Reference](#6-api-reference)
-7. [Deployment & CI/CD](#7-deployment--cicd)
-8. [Future Enhancements](#8-future-enhancements)
-9. [Troubleshooting](#9-troubleshooting)
+2. [Bot Package Architecture](#2-bot-package-architecture)
+3. [Infrastructure Architecture](#3-infrastructure-architecture)
+4. [Bot Pool System](#4-bot-pool-system)
+5. [Request Flows](#5-request-flows)
+6. [Database Schema](#6-database-schema)
+7. [API Reference](#7-api-reference)
+8. [Deployment & CI/CD](#8-deployment--cicd)
+9. [Future Enhancements](#9-future-enhancements)
+10. [Troubleshooting](#10-troubleshooting)
 
 ---
 
@@ -84,7 +85,56 @@ Meeboter is a meeting bot platform that joins video conferences (Google Meet, Mi
 
 ---
 
-## 2. Infrastructure Architecture
+## 2. Bot Package Architecture
+
+The `@meeboter/bots` package implements platform-specific meeting bots using a **strategy pattern**. Each bot runs as an isolated Docker container that joins meetings, records audio/video, and reports status to the backend.
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                          Bot Factory                                 │
+│                       (bot-factory.ts)                               │
+│  Creates platform-specific bot based on config.meetingInfo.platform  │
+└─────────────────────────────────────────────────────────────────────┘
+                                   │
+          ┌────────────────────────┼────────────────────────┐
+          ▼                        ▼                        ▼
+┌──────────────────┐    ┌──────────────────┐    ┌──────────────────┐
+│  GoogleMeetBot   │    │ MicrosoftTeamsBot│    │     ZoomBot      │
+│  (Playwright)    │    │   (Puppeteer)    │    │   (Puppeteer)    │
+└──────────────────┘    └──────────────────┘    └──────────────────┘
+          │                        │                        │
+          └────────────────────────┼────────────────────────┘
+                                   ▼
+                        ┌──────────────────┐
+                        │   Abstract Bot   │
+                        │   (bot.ts)       │
+                        └──────────────────┘
+```
+
+### Key Components
+
+| Component | Purpose |
+|-----------|---------|
+| **Bot Factory** | Creates platform-specific bot instances with dynamic imports |
+| **Abstract Bot** | Base class defining the bot contract (join, run, cleanup) |
+| **Platform Providers** | Google Meet (Playwright), Teams/Zoom (Puppeteer) implementations |
+| **Workers** | Background heartbeat, duration monitoring, chat message queue |
+| **Logger** | Structured logging with breadcrumbs, screenshots, and streaming |
+| **S3 Service** | Upload recordings and screenshots to S3-compatible storage |
+
+### Docker Images
+
+| Image | Base | Size |
+|-------|------|------|
+| `meeboter-google-meet-bot` | Playwright (Ubuntu) | ~4GB |
+| `meeboter-microsoft-teams-bot` | Node.js Alpine | ~1.7GB |
+| `meeboter-zoom-bot` | Node.js Alpine | ~1.7GB |
+
+> **Full Documentation:** See [`apps/bots/ARCHITECTURE.md`](apps/bots/ARCHITECTURE.md) for detailed component documentation, lifecycle flows, and implementation guides.
+
+---
+
+## 3. Infrastructure Architecture
 
 ### Coolify-Based Deployment
 
@@ -136,7 +186,7 @@ Meeboter runs entirely on Coolify, a self-hosted platform-as-a-service. This pro
 
 ---
 
-## 3. Bot Pool System
+## 4. Bot Pool System
 
 ### Problem Statement
 
@@ -326,7 +376,7 @@ pool-teams-001         [ERROR] Container crashed - 2025-12-16T21:00:00Z
 
 ---
 
-## 4. Request Flows
+## 5. Request Flows
 
 ### Bot Creation Flow
 
@@ -491,7 +541,7 @@ Bot finishes (DONE or FATAL)
 
 ---
 
-## 5. Database Schema
+## 6. Database Schema
 
 ### Entity Relationship Diagram
 
@@ -588,7 +638,7 @@ Holds requests waiting for available slots.
 
 ---
 
-## 6. API Reference
+## 7. API Reference
 
 ### Bot Endpoints
 
@@ -690,7 +740,7 @@ Output:
 
 ---
 
-## 7. Deployment & CI/CD
+## 8. Deployment & CI/CD
 
 ### GitHub Actions Workflow
 
@@ -730,7 +780,7 @@ All images are stored in GitHub Container Registry (ghcr.io):
 ```
 ghcr.io/payme-works/meeboter-milo:latest
 ghcr.io/payme-works/meeboter-google-meet-bot:latest
-ghcr.io/payme-works/meeboter-teams-bot:latest
+ghcr.io/payme-works/meeboter-microsoft-teams-bot:latest
 ghcr.io/payme-works/meeboter-zoom-bot:latest
 ```
 
@@ -775,7 +825,7 @@ Note: Bot containers fetch their configuration from the `getPoolSlot` API endpoi
 
 ---
 
-## 8. Future Enhancements
+## 9. Future Enhancements
 
 ### Enhancement Summary
 
@@ -1026,9 +1076,9 @@ export const POOL_CONFIGS: PlatformPoolConfig[] = [
     enabled: true,
   },
   {
-    platform: "teams",
+    platform: "microsoft-teams",
     maxSize: 50,
-    image: "meeboter-teams-bot",
+    image: "meeboter-microsoft-teams-bot",
     prewarmCount: 3,
     enabled: true,
   },
@@ -1474,7 +1524,7 @@ async function refreshSlot(slot: PoolSlot, db: Database): Promise<void> {
 
 ---
 
-## 9. Troubleshooting
+## 10. Troubleshooting
 
 ### Common Issues
 

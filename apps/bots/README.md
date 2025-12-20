@@ -30,7 +30,7 @@ src/bots/
 │   ├── monitoring.ts       # Monitoring methods used by main script
 │   ├── trpc.ts             # trpc client
 
-├── team|zoom|meet/
+├── microsoft-teams|zoom|google-meet/
 │   ├── Dockerfile          # Bot-specific docker file
 │   ├── package.json        # Bot-specific dependencies
 │   ├── bun.lock
@@ -117,7 +117,7 @@ Where Meeting Link is the full URL to the meeting.
 ```json
 {
   "meeting_info": {
-    "platform": "teams",
+    "platform": "microsoft-teams",
     "meetingId": "<MEETING_ID>",
     "organizerId": "<ORGANIZER_ID>",
     "tenantId": "<TENANT_ID>"
@@ -145,9 +145,9 @@ Ensure that [Docker](https://www.docker.com/) is installed and properly configur
 
 ```bash
 cd src/bots
-docker build -f meet/Dockerfile -t meet .
-docker build -f teams/Dockerfile -t teams .
-docker build -f zoom/Dockerfile -t zoom .
+docker build -f providers/google-meet/Dockerfile -t meeboter-google-meet-bot .
+docker build -f providers/microsoft-teams/Dockerfile -t meeboter-microsoft-teams-bot .
+docker build -f providers/zoom/Dockerfile -t meeboter-zoom-bot .
 ```
 
 The above commands will build the three docker images of the bots.
@@ -155,13 +155,13 @@ The above commands will build the three docker images of the bots.
 # Running
 
 To run your docker file, ensure you have created your `.env` file as described in an earlier section.
-Ensure that the `.env` file and docker image you are running are configured for the same platform (either `meet | teams | zoom`).
+Ensure that the `.env` file and docker image you are running are configured for the same platform (either `google-meet | microsoft-teams | zoom`).
 
 ```bash
 docker run --env-file .env <PLATFORM>
 ```
 
-Where `<PLATFORM>` is one of either `meet | teams | zoom`.
+Where `<PLATFORM>` is one of either `meeboter-google-meet-bot | meeboter-microsoft-teams-bot | meeboter-zoom-bot`.
 
 ### Build Issues
 

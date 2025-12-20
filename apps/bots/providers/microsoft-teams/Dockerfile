@@ -37,7 +37,7 @@ ENV LANG=en_US.UTF-8
 
 RUN echo "Get meeting platform this file is built for"
 
-ENV DOCKER_MEETING_PLATFORM=teams
+ENV DOCKER_MEETING_PLATFORM=microsoft-teams
 
 RUN echo "Install system dependencies required for Chrome/Puppeteer"
 
@@ -67,7 +67,7 @@ ENV PATH="/root/.bun/bin:${PATH}"
 
 RUN echo "Convert entrypoint.sh to use Unix line endings"
 
-RUN sed -i 's/\r$//' ./apps/bots/providers/teams/entrypoint.sh
+RUN sed -i 's/\r$//' ./apps/bots/providers/microsoft-teams/entrypoint.sh
 
 RUN echo "Install dependencies as root with workspace context"
 
@@ -88,8 +88,8 @@ USER pptruser
 
 RUN echo "Make entrypoint executable"
 
-RUN chmod +x ./apps/bots/providers/teams/entrypoint.sh
+RUN chmod +x ./apps/bots/providers/microsoft-teams/entrypoint.sh
 
 RUN echo "Command to run the application"
 
-CMD ["/apps/bots/providers/teams/entrypoint.sh"]
+CMD ["/apps/bots/providers/microsoft-teams/entrypoint.sh"]

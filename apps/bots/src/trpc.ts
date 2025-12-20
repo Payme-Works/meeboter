@@ -17,7 +17,7 @@ export type MeetingInfo = {
 	tenantId?: string;
 	messageId?: string;
 	threadId?: string;
-	platform?: "zoom" | "teams" | "google";
+	platform?: "zoom" | "microsoft-teams" | "google";
 };
 
 /**

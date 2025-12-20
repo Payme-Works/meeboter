@@ -8,7 +8,7 @@
  * @property {string} [tenantId] - Tenant or organization identifier
  * @property {string} [messageId] - Associated message identifier
  * @property {string} [threadId] - Associated thread identifier
- * @property {"zoom" | "teams" | "google"} [platform] - Meeting platform type
+ * @property {"zoom" | "microsoft-teams" | "google"} [platform] - Meeting platform type
  */
 export type MeetingInfo = {
 	meetingId?: string;
@@ -18,7 +18,7 @@ export type MeetingInfo = {
 	tenantId?: string;
 	messageId?: string;
 	threadId?: string;
-	platform?: "zoom" | "teams" | "google";
+	platform?: "zoom" | "microsoft-teams" | "google";
 };
 
 /**

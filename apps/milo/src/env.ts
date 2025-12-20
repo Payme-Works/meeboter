@@ -65,7 +65,7 @@ export const env = createEnv({
 		ECS_SUBNETS: z.string().optional(),
 		ECS_SECURITY_GROUPS: z.string().optional(),
 		ECS_TASK_DEF_ZOOM: z.string().optional(),
-		ECS_TASK_DEF_TEAMS: z.string().optional(),
+		ECS_TASK_DEF_MICROSOFT_TEAMS: z.string().optional(),
 		ECS_TASK_DEF_MEET: z.string().optional(),
 		ECS_ASSIGN_PUBLIC_IP: z
 			.enum(["true", "false"])
@@ -129,7 +129,7 @@ export const env = createEnv({
 		ECS_SUBNETS: process.env.ECS_SUBNETS,
 		ECS_SECURITY_GROUPS: process.env.ECS_SECURITY_GROUPS,
 		ECS_TASK_DEF_ZOOM: process.env.ECS_TASK_DEF_ZOOM,
-		ECS_TASK_DEF_TEAMS: process.env.ECS_TASK_DEF_TEAMS,
+		ECS_TASK_DEF_MICROSOFT_TEAMS: process.env.ECS_TASK_DEF_MICROSOFT_TEAMS,
 		ECS_TASK_DEF_MEET: process.env.ECS_TASK_DEF_MEET,
 		ECS_ASSIGN_PUBLIC_IP: process.env.ECS_ASSIGN_PUBLIC_IP,
 	},
