@@ -7,6 +7,15 @@
 		"node": ">=18",
 		"bun": ">=1.0.0"
 	},
+	"workspaces": [
+		"apps/**",
+		"apps/bots/providers/**",
+		"packages/**",
+
+		"!**/node_modules/**",
+		"!**/.next/**",
+		"!**/dist/**"
+	],
 	"prisma": {
 		"schema": "packages/database/prisma/schema.prisma",
 		"seed": "tsx packages/database/seeds/production.ts"
@@ -31,16 +40,5 @@
 	},
 	"overrides": {
 		"@types/react": "^18.3.3"
-	},
-	"workspaces": [
-		"apps/**",
-		"apps/bots/providers/**",
-		"packages/**",
-		"!**/node_modules/**",
-		"!**/.next/**",
-		"!**/dist/**"
-	],
-	"dependencies": {
-		"nuqs": "^2.8.5"
 	}
 }
