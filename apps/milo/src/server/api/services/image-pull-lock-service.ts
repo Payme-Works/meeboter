@@ -1,16 +1,14 @@
 /**
  * Service for coordinating Docker image pulls to prevent redundant parallel pulls.
  *
- * When multiple bots of the same platform are deployed simultaneously, each would
- * trigger a separate image pull for the same Docker image. This service ensures
- * only the first deployment pulls the image, while subsequent deployments wait
- * for that pull to complete and then use the cached image.
+ * This is a simple mutex-style lock per image key. When an operation is in progress,
+ * other callers wait until it completes. The lock does not track success/failure,
+ * that is the caller's responsibility.
  */
 
 interface PendingLock {
 	promise: Promise<void>;
 	resolve: () => void;
-	reject: (error: Error) => void;
 }
 
 /**
@@ -19,18 +17,14 @@ interface PendingLock {
 interface LockResult {
 	/**
 	 * Function to release the lock. MUST be called when the operation completes.
-	 * Pass an error if the operation failed to notify waiting deployments.
 	 */
-	release: (error?: Error) => void;
+	release: () => void;
 
 	/**
-	 * True if this caller is the first deployer (holds the actual lock).
-	 * False if this caller waited for another deployment to complete (image is cached).
-	 *
-	 * When true, the caller should wait for deployment to complete before releasing.
-	 * When false, the image is already cached and deployment can proceed in background.
+	 * True if this caller had to wait for another operation to complete.
+	 * False if this caller acquired the lock immediately (no one else was holding it).
 	 */
-	isFirstDeployer: boolean;
+	didWait: boolean;
 }
 
 export class ImagePullLockService {
@@ -41,60 +35,52 @@ export class ImagePullLockService {
 	}
 
 	/**
-	 * Acquires a lock for pulling a specific platform's image.
+	 * Acquires a lock for a specific platform's image.
 	 *
-	 * If another pull for the same image is in progress, waits for it to complete.
-	 * Returns a LockResult with:
-	 * - release: function that MUST be called when the operation completes
-	 * - isFirstDeployer: true if this caller holds the lock (should wait for deployment)
+	 * If another operation for the same image is in progress, waits for it to complete
+	 * before acquiring the lock.
+	 *
+	 * @returns LockResult with release function and whether we had to wait
 	 */
 	async acquireLock(platform: string, imageTag: string): Promise<LockResult> {
 		const key = this.getImageKey(platform, imageTag);
 
+		// Check if there's an existing lock we need to wait for
 		const existingLock = this.locks.get(key);
+		let didWait = false;
 
 		if (existingLock) {
 			console.log(
-				`[ImagePullLockService] Waiting for existing image pull: ${key}`,
+				`[ImagePullLockService] Waiting for existing operation: ${key}`,
 			);
 
-			try {
-				await existingLock.promise;
+			didWait = true;
+			await existingLock.promise;
 
-				console.log(
-					`[ImagePullLockService] Existing pull completed, proceeding with cached image: ${key}`,
-				);
-			} catch {
-				console.log(
-					`[ImagePullLockService] Previous pull failed, will attempt fresh pull: ${key}`,
-				);
-			}
-
-			// Return no-op release and indicate we're not the first deployer
-			return { release: () => {}, isFirstDeployer: false };
+			console.log(
+				`[ImagePullLockService] Previous operation completed: ${key}`,
+			);
 		}
 
+		// Now acquire the lock for ourselves
 		let resolveFunc: () => void = () => {};
-		let rejectFunc: (error: Error) => void = () => {};
 
-		const promise = new Promise<void>((res, rej) => {
+		const promise = new Promise<void>((res) => {
 			resolveFunc = res;
-			rejectFunc = rej;
 		});
 
 		const lock: PendingLock = {
 			promise,
 			resolve: resolveFunc,
-			reject: rejectFunc,
 		};
 
 		this.locks.set(key, lock);
 
-		console.log(`[ImagePullLockService] Acquired lock for image pull: ${key}`);
+		console.log(`[ImagePullLockService] Acquired lock: ${key}`);
 
 		let released = false;
 
-		const release = (error?: Error) => {
+		const release = () => {
 			if (released) return;
 
 			released = true;
@@ -102,25 +88,14 @@ export class ImagePullLockService {
 			const currentLock = this.locks.get(key);
 
 			if (currentLock === lock) {
-				if (error) {
-					console.log(
-						`[ImagePullLockService] Releasing lock with error: ${key} - ${error.message}`,
-					);
+				console.log(`[ImagePullLockService] Released lock: ${key}`);
 
-					lock.reject(error);
-				} else {
-					console.log(
-						`[ImagePullLockService] Releasing lock (success): ${key}`,
-					);
-
-					lock.resolve();
-				}
-
+				lock.resolve();
 				this.locks.delete(key);
 			}
 		};
 
-		return { release, isFirstDeployer: true };
+		return { release, didWait };
 	}
 
 	hasActiveLock(platform: string, imageTag: string): boolean {

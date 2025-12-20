@@ -479,12 +479,19 @@ export class BotPoolService {
 
 			const shouldSkipDeploy = isDeploymentInProgress || isRecentDeployment;
 
-			// Acquire image pull lock to prevent parallel pulls of the same image
-			// This ensures only the first deployment pulls the image, others wait and use cache
-			const { release: releaseLock, isFirstDeployer } =
+			// Acquire image pull lock to serialize deployments per image
+			// First deployer pulls the image, others wait and use cached image
+			const { release: releaseLock, didWait } =
 				await this.imagePullLock.acquireLock(platformName, image.tag);
 
-			if (shouldSkipDeploy) {
+			// Start deployment if needed (skip if already in progress or recent)
+			if (!shouldSkipDeploy) {
+				console.log(
+					`[BotPoolService] Starting container for slot ${activeSlot.slotName}`,
+				);
+
+				await this.coolify.startApplication(activeSlot.coolifyServiceUuid);
+			} else {
 				const reason = isDeploymentInProgress
 					? `in progress (${existingDeployment?.status})`
 					: `recent (${Math.round((Date.now() - (existingDeployment?.createdAt?.getTime() ?? 0)) / 1000)}s ago)`;
@@ -492,50 +499,39 @@ export class BotPoolService {
 				console.log(
 					`[BotPoolService] Deployment already ${reason} for slot ${activeSlot.slotName}, skipping startApplication`,
 				);
-			} else {
-				console.log(
-					`[BotPoolService] Starting container for slot ${activeSlot.slotName}`,
-				);
-
-				await this.coolify.startApplication(activeSlot.coolifyServiceUuid);
 			}
 
-			if (isFirstDeployer) {
-				// First deployer: hold lock in background until deployment completes
-				// This ensures image is fully pulled and cached before others proceed
-				// Fire-and-forget to avoid HTTP timeout, but release lock when done
+			if (!didWait) {
+				// First deployer: hold lock until deployment succeeds (with retries)
+				// This ensures image is fully pulled before others proceed
 				console.log(
-					`[BotPoolService] First deployer for ${platformName}:${image.tag}, starting deployment in background...`,
+					`[BotPoolService] First deployer for ${platformName}:${image.tag}, holding lock until deployment completes...`,
 				);
 
 				this.waitAndTransitionStatus(activeSlot, botConfig.id)
 					.then(() => {
 						console.log(
-							`[BotPoolService] First deployer completed for ${platformName}:${image.tag}, releasing lock`,
+							`[BotPoolService] Deployment completed for ${platformName}:${image.tag}, releasing lock`,
 						);
-
-						releaseLock();
 					})
 					.catch((error) => {
 						console.error(
-							`[BotPoolService] First deployer failed for ${activeSlot.slotName}:`,
+							`[BotPoolService] Deployment failed for ${activeSlot.slotName}:`,
 							error,
-						);
-
-						releaseLock(
-							error instanceof Error ? error : new Error(String(error)),
 						);
 					})
 					.finally(() => {
-						// Release deployment queue slot when deployment completes
+						releaseLock();
 						this.deploymentQueue.release(String(botConfig.id));
 					});
 			} else {
-				// Not first deployer: image is cached, can fire-and-forget
-				// This provides optimistic feedback to the user
+				// We waited, so previous deployment succeeded (with retries if needed)
+				// Image is cached, release lock immediately and proceed
 				console.log(
-					`[BotPoolService] Image cached for ${platformName}:${image.tag}, proceeding with background deployment`,
+					`[BotPoolService] Image cached for ${platformName}:${image.tag}, releasing lock and proceeding`,
 				);
+
+				releaseLock();
 
 				this.waitAndTransitionStatus(activeSlot, botConfig.id)
 					.catch((error) => {
@@ -545,7 +541,6 @@ export class BotPoolService {
 						);
 					})
 					.finally(() => {
-						// Release deployment queue slot when deployment completes
 						this.deploymentQueue.release(String(botConfig.id));
 					});
 			}
@@ -561,53 +556,86 @@ export class BotPoolService {
 	}
 
 	/**
-	 * Waits for container deployment and transitions slot status accordingly
+	 * Waits for container deployment and transitions slot status accordingly.
+	 * Retries deployment on failure until success or max retries reached.
 	 *
 	 * This runs in the background after configureAndStartSlot returns.
 	 * Updates status to `busy` on success or `error` on failure.
+	 *
+	 * @param slot - The pool slot being deployed
+	 * @param botId - The bot ID
+	 * @param maxRetries - Maximum number of retry attempts (default: 3)
 	 */
 	private async waitAndTransitionStatus(
 		slot: PoolSlot,
 		botId: number,
+		maxRetries: number = 3,
 	): Promise<void> {
-		console.log(
-			`[BotPoolService] Background: Waiting for container ${slot.slotName} to be running...`,
-		);
+		let attempt = 0;
+		let lastError: string | undefined;
 
-		const deploymentResult = await this.coolify.waitForDeployment(
-			slot.coolifyServiceUuid,
-		);
+		while (attempt <= maxRetries) {
+			attempt++;
 
-		if (!deploymentResult.success) {
-			const errorMessage =
-				deploymentResult.error ?? "Container failed to start";
-
-			await this.db
-				.update(botPoolSlotsTable)
-				.set({
-					status: "error",
-					errorMessage,
-				})
-				.where(eq(botPoolSlotsTable.id, slot.id));
-
-			logSlotTransition({
-				slotId: slot.id,
-				slotName: slot.slotName,
-				coolifyUuid: slot.coolifyServiceUuid,
-				previousState: "deploying",
-				newState: "error",
-				botId,
-				reason: `Deployment failed: ${errorMessage}`,
-			});
-
-			await this.updateSlotDescription(
-				slot.coolifyServiceUuid,
-				"error",
-				undefined,
-				errorMessage,
+			console.log(
+				`[BotPoolService] Waiting for container ${slot.slotName} (attempt ${attempt}/${maxRetries + 1})...`,
 			);
 
-			return;
+			const deploymentResult = await this.coolify.waitForDeployment(
+				slot.coolifyServiceUuid,
+			);
+
+			if (deploymentResult.success) {
+				// Deployment succeeded, break out of retry loop
+				break;
+			}
+
+			lastError = deploymentResult.error ?? "Container failed to start";
+
+			if (attempt <= maxRetries) {
+				console.log(
+					`[BotPoolService] Deployment failed for ${slot.slotName}, retrying (${attempt}/${maxRetries})... Error: ${lastError}`,
+				);
+
+				// Wait before retry with exponential backoff
+				const backoffMs = Math.min(1000 * 2 ** attempt, 30000);
+				await new Promise((resolve) => setTimeout(resolve, backoffMs));
+
+				// Trigger a new deployment
+				await this.coolify.startApplication(slot.coolifyServiceUuid);
+			} else {
+				// Max retries reached, mark as error
+				console.error(
+					`[BotPoolService] Deployment failed for ${slot.slotName} after ${attempt} attempts: ${lastError}`,
+				);
+
+				await this.db
+					.update(botPoolSlotsTable)
+					.set({
+						status: "error",
+						errorMessage: lastError,
+					})
+					.where(eq(botPoolSlotsTable.id, slot.id));
+
+				logSlotTransition({
+					slotId: slot.id,
+					slotName: slot.slotName,
+					coolifyUuid: slot.coolifyServiceUuid,
+					previousState: "deploying",
+					newState: "error",
+					botId,
+					reason: `Deployment failed after ${attempt} attempts: ${lastError}`,
+				});
+
+				await this.updateSlotDescription(
+					slot.coolifyServiceUuid,
+					"error",
+					undefined,
+					lastError,
+				);
+
+				return;
+			}
 		}
 
 		// Container is running, transition from deploying to busy
