@@ -449,10 +449,15 @@ export class GoogleMeetBot extends Bot {
 	 */
 	async monitorCall(): Promise<void> {
 		const monitorStartTime = Date.now();
+		const waitingRoomTimeout = this.settings.automaticLeave.waitingRoomTimeout;
+
+		// Track if we've confirmed being truly in-call (found indicator without timeout)
+		let confirmedInCall = false;
 
 		this.logger.debug("[monitorCall] Starting call monitoring", {
 			recordingEnabled: this.settings.recordingEnabled,
 			chatEnabled: this.chatEnabled,
+			waitingRoomTimeoutMs: waitingRoomTimeout,
 		});
 
 		// Start recording if enabled
@@ -490,6 +495,7 @@ export class GoogleMeetBot extends Bot {
 					this.logger.trace("[monitorCall] Health check", {
 						loopCount,
 						leaveRequested: this.leaveRequested,
+						confirmedInCall,
 						monitoringDurationMs: Date.now() - monitorStartTime,
 						pageUrl: this.page?.url() ?? "no page",
 					});
@@ -503,7 +509,27 @@ export class GoogleMeetBot extends Bot {
 					break;
 				}
 
-				// Check 2: Were we kicked/removed?
+				// Check 2: Apply waiting room timeout if not confirmed in-call
+				// This prevents false-positive admission detection from keeping bot stuck
+				if (!confirmedInCall) {
+					const elapsed = Date.now() - monitorStartTime;
+
+					if (elapsed > waitingRoomTimeout) {
+						exitReason = "waiting_room_timeout";
+
+						this.logger.info(
+							"[monitorCall] Exit: Waiting room timeout (never confirmed in-call)",
+							{
+								elapsedMs: elapsed,
+								timeoutMs: waitingRoomTimeout,
+							},
+						);
+
+						break;
+					}
+				}
+
+				// Check 3: Were we kicked/removed?
 				try {
 					const checkStart = Date.now();
 					const wasRemoved = await this.hasBeenRemovedFromCall();
@@ -517,6 +543,17 @@ export class GoogleMeetBot extends Bot {
 
 						break;
 					}
+
+					// If removal check found indicators quickly, we're confirmed in-call
+					const checkDuration = Date.now() - checkStart;
+
+					if (!confirmedInCall && checkDuration < 5000) {
+						confirmedInCall = true;
+
+						this.logger.info("[monitorCall] Confirmed in-call", {
+							checkDurationMs: checkDuration,
+						});
+					}
 				} catch (error) {
 					exitReason = "removal_check_error";
 
@@ -529,7 +566,7 @@ export class GoogleMeetBot extends Bot {
 					break;
 				}
 
-				// Check 3: Process chat messages if enabled
+				// Check 4: Process chat messages if enabled
 				if (this.chatEnabled) {
 					try {
 						await this.processChatQueue();
@@ -1174,7 +1211,7 @@ export class GoogleMeetBot extends Bot {
 	/**
 	 * Check for definitive in-call UI indicators (Meeting title, Chat button, etc.).
 	 * Only uses indicators that CANNOT exist in waiting room.
-	 * Requires at least 2 indicators to confirm admission (reduces false positives).
+	 * Uses Promise.all for faster parallel detection.
 	 */
 	private async hasInCallIndicators(): Promise<boolean> {
 		const page = this.page;
@@ -1187,24 +1224,8 @@ export class GoogleMeetBot extends Bot {
 		);
 
 		const results = await Promise.all(checks);
-		const foundCount = results.filter((found) => found).length;
 
-		// Require at least 2 indicators to confirm admission
-		// This reduces false positives from indicators that appear briefly during join animation
-		if (foundCount >= 2) {
-			const foundIndicators = SELECTORS.definitiveInCallIndicators.filter(
-				(_, i) => results[i],
-			);
-
-			this.logger.debug("In-call indicators detected", {
-				foundCount,
-				indicators: foundIndicators,
-			});
-
-			return true;
-		}
-
-		return false;
+		return results.some((found) => found);
 	}
 
 	/**
