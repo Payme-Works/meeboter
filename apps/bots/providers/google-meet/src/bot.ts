@@ -533,21 +533,27 @@ export class GoogleMeetBot extends Bot {
 				try {
 					const checkStart = Date.now();
 					const wasRemoved = await this.hasBeenRemovedFromCall();
-
-					if (wasRemoved) {
-						exitReason = "removed_from_call";
-
-						this.logger.info("[monitorCall] Exit: Removed from meeting", {
-							checkDurationMs: Date.now() - checkStart,
-						});
-
-						break;
-					}
-
-					// If removal check found indicators quickly, we're confirmed in-call
 					const checkDuration = Date.now() - checkStart;
 
-					if (!confirmedInCall && checkDuration < 5000) {
+					if (wasRemoved) {
+						// Only exit on removal if we were confirmed in-call
+						// Otherwise, wait for waiting room timeout (false positive admission)
+						if (confirmedInCall) {
+							exitReason = "removed_from_call";
+
+							this.logger.info("[monitorCall] Exit: Removed from meeting", {
+								checkDurationMs: checkDuration,
+							});
+
+							break;
+						}
+
+						this.logger.debug(
+							"[monitorCall] Removal detected but not confirmed in-call, waiting for timeout",
+							{ checkDurationMs: checkDuration },
+						);
+					} else if (!confirmedInCall && checkDuration < 5000) {
+						// If removal check found indicators quickly, we're confirmed in-call
 						confirmedInCall = true;
 
 						this.logger.info("[monitorCall] Confirmed in-call", {
@@ -555,15 +561,22 @@ export class GoogleMeetBot extends Bot {
 						});
 					}
 				} catch (error) {
-					exitReason = "removal_check_error";
+					// Only treat errors as removal if confirmed in-call
+					if (confirmedInCall) {
+						exitReason = "removal_check_error";
 
-					this.logger.error(
-						"[monitorCall] Exit: Error checking removal status",
-						error instanceof Error ? error : new Error(String(error)),
+						this.logger.error(
+							"[monitorCall] Exit: Error checking removal status",
+							error instanceof Error ? error : new Error(String(error)),
+						);
+
+						break;
+					}
+
+					this.logger.warn(
+						"[monitorCall] Removal check error but not confirmed in-call, waiting for timeout",
+						{ error: error instanceof Error ? error.message : String(error) },
 					);
-
-					// Treat errors as potential removal
-					break;
 				}
 
 				// Check 4: Process chat messages if enabled
