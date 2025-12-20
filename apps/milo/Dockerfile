@@ -36,23 +36,22 @@ RUN bun turbo build --filter=@meeboter/milo
 FROM base AS runner
 WORKDIR /app
 
-# Don't run production as root
+# Copy package.json and lockfile for bun install (as root before user switch)
+COPY --from=installer /app/package.json ./package.json
+COPY --from=installer /app/apps/milo/package.json ./apps/milo/package.json
+
+# Install dependencies for proper module resolution
+RUN bun install --ignore-scripts
+
+# Create non-root user
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
-USER nextjs
 
 # Automatically leverage output traces to reduce image size
 # https://nextjs.org/docs/advanced-features/output-file-tracing
 COPY --from=installer --chown=nextjs:nodejs /app/apps/milo/.next/standalone ./
 COPY --from=installer --chown=nextjs:nodejs /app/apps/milo/.next/static ./apps/milo/.next/static
 COPY --from=installer --chown=nextjs:nodejs /app/apps/milo/public ./apps/milo/public
-
-# Copy node_modules with all dependencies (including dev deps needed for migrations)
-COPY --from=installer --chown=nextjs:nodejs /app/node_modules ./node_modules
-
-# Copy package.json files for proper bun module resolution
-COPY --from=installer --chown=nextjs:nodejs /app/package.json ./package.json
-COPY --from=installer --chown=nextjs:nodejs /app/apps/milo/package.json ./apps/milo/package.json
 
 # Copy drizzle migration files and script
 COPY --from=installer --chown=nextjs:nodejs /app/apps/milo/drizzle ./apps/milo/drizzle
@@ -61,6 +60,12 @@ COPY --from=installer --chown=nextjs:nodejs /app/apps/milo/drizzle-migrate.ts ./
 # Copy and make entrypoint script executable
 COPY --chown=nextjs:nodejs apps/milo/entrypoint.sh ./apps/milo/entrypoint.sh
 RUN chmod +x ./apps/milo/entrypoint.sh
+
+# Fix ownership of node_modules for nextjs user
+RUN chown -R nextjs:nodejs /app/node_modules
+
+# Switch to non-root user
+USER nextjs
 
 # Set environment variables
 ENV NODE_ENV=production
