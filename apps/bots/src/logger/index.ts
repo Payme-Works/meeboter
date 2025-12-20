@@ -300,13 +300,6 @@ export class BotLogger {
 	}
 
 	/**
-	 * Gets the current log level
-	 */
-	getLogLevel(): LogLevel {
-		return this.logLevel;
-	}
-
-	/**
 	 * Sets log level from string (used by heartbeat response)
 	 */
 	setLogLevelFromString(level: string): void {
@@ -316,13 +309,6 @@ export class BotLogger {
 		if (levelValue !== undefined) {
 			this.setLogLevel(levelValue);
 		}
-	}
-
-	/**
-	 * Gets breadcrumbs for error context
-	 */
-	getBreadcrumbs(): Breadcrumb[] {
-		return [...this.breadcrumbs];
 	}
 
 	/**

@@ -59,13 +59,6 @@ export class MessageQueueWorker {
 	}
 
 	/**
-	 * Checks if the worker is running
-	 */
-	isRunning(): boolean {
-		return this.running;
-	}
-
-	/**
 	 * Internal message processing loop
 	 */
 	private async runMessageLoop(

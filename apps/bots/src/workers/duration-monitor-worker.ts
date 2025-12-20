@@ -55,20 +55,6 @@ export class DurationMonitorWorker {
 	}
 
 	/**
-	 * Checks if the worker is running
-	 */
-	isRunning(): boolean {
-		return this.running;
-	}
-
-	/**
-	 * Gets the maximum duration in milliseconds
-	 */
-	getMaxDurationMs(): number {
-		return this.maxDurationMs;
-	}
-
-	/**
 	 * Internal monitor loop
 	 */
 	private async runMonitorLoop(

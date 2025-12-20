@@ -17,11 +17,6 @@ export interface StorageConfig {
  */
 export interface StorageProvider {
 	/**
-	 * Gets the configured bucket/container name
-	 */
-	getBucketName(): string;
-
-	/**
 	 * Uploads a file to storage
 	 */
 	upload(key: string, data: Buffer, contentType: string): Promise<void>;
@@ -40,20 +35,6 @@ export class StorageService {
 	constructor(private readonly provider: StorageProvider) {}
 
 	/**
-	 * Gets the configured bucket name
-	 */
-	getBucketName(): string {
-		return this.provider.getBucketName();
-	}
-
-	/**
-	 * Checks if storage is properly configured
-	 */
-	isConfigured(): boolean {
-		return this.provider.isConfigured();
-	}
-
-	/**
 	 * Uploads a recording to storage with retry logic.
 	 */
 	async uploadRecording(
@@ -68,7 +49,7 @@ export class StorageService {
 			BucketNotConfiguredError,
 			FileNotFoundError,
 			RecordingUploadError,
-		} = await import("../../errors/storage-errors");
+		} = await import("../../errors/storage");
 
 		if (!this.provider.isConfigured()) {
 			throw new BucketNotConfiguredError();

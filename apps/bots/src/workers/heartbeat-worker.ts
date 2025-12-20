@@ -81,13 +81,6 @@ export class HeartbeatWorker {
 	}
 
 	/**
-	 * Checks if the worker is running
-	 */
-	isRunning(): boolean {
-		return this.running;
-	}
-
-	/**
 	 * Retries an async operation with exponential backoff
 	 */
 	private async retryOperation<T>(

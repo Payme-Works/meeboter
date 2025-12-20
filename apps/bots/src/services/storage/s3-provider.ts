@@ -23,20 +23,6 @@ export class S3StorageProvider implements StorageProvider {
 	}
 
 	/**
-	 * Gets the raw S3 client for direct access if needed
-	 */
-	getClient(): S3Client {
-		return this.client;
-	}
-
-	/**
-	 * Gets the configured bucket name
-	 */
-	getBucketName(): string {
-		return this.bucketName;
-	}
-
-	/**
 	 * Checks if the provider is properly configured
 	 */
 	isConfigured(): boolean {
