@@ -17,7 +17,7 @@
 	],
 	"prisma": {
 		"schema": "packages/database/prisma/schema.prisma",
-		"seed": "tsx packages/database/seeds/production.ts"
+		"seed": "bun packages/database/seeds/production.ts"
 	},
 	"scripts": {
 		"build": "turbo run build",
