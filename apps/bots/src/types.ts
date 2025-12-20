@@ -10,7 +10,7 @@
  * @property {string} [threadId] - Associated thread identifier
  * @property {"zoom" | "microsoft-teams" | "google"} [platform] - Meeting platform type
  */
-export type MeetingInfo = {
+type MeetingInfo = {
 	meetingId?: string;
 	meetingPassword?: string;
 	meetingUrl?: string;
@@ -29,7 +29,7 @@ export type MeetingInfo = {
  * @property {number} everyoneLeftTimeout - Timeout in milliseconds after all participants leave
  * @property {number} inactivityTimeout - Timeout in milliseconds during meeting inactivity
  */
-export type AutomaticLeave = {
+type AutomaticLeave = {
 	waitingRoomTimeout: number;
 	noOneJoinedTimeout: number;
 	everyoneLeftTimeout: number;
@@ -68,27 +68,6 @@ export type BotConfig = {
 	callbackUrl?: string;
 	chatEnabled: boolean;
 };
-
-/**
- * Enumeration of possible bot status states throughout the meeting lifecycle
- * @enum {string}
- */
-export enum Status {
-	/** Bot deployment is in progress */
-	DEPLOYING = "DEPLOYING",
-	/** Bot is attempting to join the meeting call */
-	JOINING_CALL = "JOINING_CALL",
-	/** Bot is waiting in the meeting's waiting room */
-	IN_WAITING_ROOM = "IN_WAITING_ROOM",
-	/** Bot has successfully joined and is active in the call */
-	IN_CALL = "IN_CALL",
-	/** Meeting has ended but bot cleanup may still be in progress */
-	CALL_ENDED = "CALL_ENDED",
-	/** Bot has completed all tasks and is fully terminated */
-	DONE = "DONE",
-	/** Bot encountered a fatal error and cannot continue */
-	FATAL = "FATAL",
-}
 
 /**
  * Enumeration of event codes for bot lifecycle and meeting events
@@ -144,21 +123,6 @@ export class WaitingRoomTimeoutError extends Error {
 	) {
 		super(message);
 		this.name = "WaitingRoomTimeoutError";
-	}
-}
-
-/**
- * Custom error implementation thrown when bot fails to join a meeting
- * @extends Error
- */
-export class MeetingJoinError extends Error {
-	/**
-	 * Creates a new meeting join error
-	 * @param {string} message - Error message describing the join failure
-	 */
-	constructor(message: string = "Simulated Meeting Join Error") {
-		super(message);
-		this.name = "MeetingJoinError";
 	}
 }
 

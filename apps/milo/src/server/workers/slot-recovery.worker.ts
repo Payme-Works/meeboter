@@ -20,7 +20,7 @@ const HEARTBEAT_FRESHNESS_MS = 5 * 60 * 1000;
 /** Number of skipped recoveries before fixing slot status to "busy" */
 const MAX_SKIPPED_RECOVERIES = 3;
 
-export interface SlotRecoveryResult extends WorkerResult {
+interface SlotRecoveryResult extends WorkerResult {
 	recovered: number;
 	failed: number;
 	deleted: number;

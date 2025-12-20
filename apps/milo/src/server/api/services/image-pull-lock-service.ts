@@ -16,7 +16,7 @@ interface PendingLock {
 /**
  * Result of acquiring an image pull lock
  */
-export interface LockResult {
+interface LockResult {
 	/**
 	 * Function to release the lock. MUST be called when the operation completes.
 	 * Pass an error if the operation failed to notify waiting deployments.

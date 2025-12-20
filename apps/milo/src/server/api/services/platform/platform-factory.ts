@@ -16,11 +16,6 @@ import { LocalPlatformService } from "./local-platform-service";
 import type { PlatformService } from "./platform-service";
 
 /**
- * Platform type for deployment
- */
-export type PlatformType = "coolify" | "aws" | "local" | "auto";
-
-/**
  * Detects which platform to use based on available environment variables
  *
  * Priority:

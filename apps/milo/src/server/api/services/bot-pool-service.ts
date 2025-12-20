@@ -71,7 +71,7 @@ const PLATFORM_LOCK_IDS: Record<string, number> = {
 /**
  * Pool slot with database fields
  */
-export interface PoolSlot {
+interface PoolSlot {
 	id: number;
 	coolifyServiceUuid: string;
 	slotName: string;
@@ -82,7 +82,7 @@ export interface PoolSlot {
 /**
  * Queue entry representing a bot waiting for a slot
  */
-export interface QueueEntry {
+interface QueueEntry {
 	id: number;
 	botId: number;
 	priority: number;
@@ -93,7 +93,7 @@ export interface QueueEntry {
 /**
  * Pool statistics for monitoring
  */
-export interface PoolStats {
+interface PoolStats {
 	total: number;
 	idle: number;
 	deploying: number;
@@ -105,7 +105,7 @@ export interface PoolStats {
 /**
  * Queue statistics for monitoring
  */
-export interface QueueStats {
+interface QueueStats {
 	length: number;
 	oldestQueuedAt: Date | null;
 	avgWaitMs: number;
@@ -114,7 +114,7 @@ export interface QueueStats {
 /**
  * Result of attempting to deploy a bot through the pool
  */
-export interface DeployResult {
+interface DeployResult {
 	success: boolean;
 	slot?: PoolSlot;
 	queuePosition?: number;

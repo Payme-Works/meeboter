@@ -1,0 +1,41 @@
+{
+	"$schema": "https://unpkg.com/knip@5/schema.json",
+	"workspaces": {
+		".": {
+			"entry": ["scripts/*.ts"],
+			"project": ["scripts/**/*.ts"]
+		},
+		"apps/bots": {
+			"entry": ["src/index.ts"],
+			"project": ["src/**/*.ts"]
+		},
+		"apps/bots/providers/*": {
+			"entry": ["src/bot.ts", "src/selectors.ts"],
+			"project": ["src/**/*.ts"]
+		},
+		"apps/milo": {
+			"entry": [
+				"src/index.ts",
+				"src/app/**/page.tsx",
+				"src/app/**/layout.tsx",
+				"src/app/**/route.ts",
+				"src/app/**/not-found.tsx"
+			],
+			"project": ["src/**/*.{ts,tsx}"]
+		},
+		"packages/config-typescript": {
+			"entry": ["*.json"],
+			"project": ["*.json"],
+			"ignoreDependencies": ["next"]
+		}
+	},
+	"ignore": [
+		"**/node_modules/**",
+		"**/.next/**",
+		"**/dist/**",
+		"**/build/**",
+		"**/.turbo/**",
+		"**/coverage/**"
+	],
+	"ignoreDependencies": []
+}

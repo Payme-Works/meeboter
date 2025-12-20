@@ -49,10 +49,8 @@ type HydrationHelpersType = ReturnType<
 	typeof createHydrationHelpers<AppRouter>
 >;
 
-const hydrationHelpers: HydrationHelpersType = createHydrationHelpers<AppRouter>(
-	caller,
-	getQueryClient,
-);
+const hydrationHelpers: HydrationHelpersType =
+	createHydrationHelpers<AppRouter>(caller, getQueryClient);
 
 export const api: HydrationHelpersType["trpc"] = hydrationHelpers.trpc;
 export const HydrateClient: HydrationHelpersType["HydrateClient"] =

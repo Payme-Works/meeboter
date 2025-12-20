@@ -20,14 +20,12 @@ interface DayUsage {
 	estimatedCost: string;
 }
 
-export const dailyUsageSchema = z.object({
+const dailyUsageSchema = z.object({
 	date: z.string(),
 	msEllapsed: z.number(),
 	estimatedCost: z.string(),
 	botsUsed: z.number(),
 });
-
-export type DailyUsageType = z.infer<typeof dailyUsageSchema>;
 
 /**
  * Formats a dictionary of daily usage data into a sorted array output

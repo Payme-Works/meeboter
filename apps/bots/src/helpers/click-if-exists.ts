@@ -1,6 +1,6 @@
 import type { Page } from "playwright";
 
-export interface ClickIfExistsOptions {
+interface ClickIfExistsOptions {
 	/** Timeout in milliseconds (default: 2000) */
 	timeout?: number;
 }

@@ -89,43 +89,8 @@ function createServices(): Services {
  * across the application.
  */
 export const services = createServices();
-
 // Bot deployment service exports
-export type { DeployBotResult } from "./bot-deployment-service";
-export {
-	BotDeploymentError,
-	BotDeploymentService,
-} from "./bot-deployment-service";
 // Bot pool service exports (used by Coolify platform)
-export type {
-	DeployResult,
-	PoolSlot,
-	PoolStats,
-	QueueEntry,
-	QueueStats,
-} from "./bot-pool-service";
-export { BotPoolService } from "./bot-pool-service";
 // Coolify service exports (used by Coolify platform)
-export type {
-	BotEnvConfig,
-	BotImage,
-	CoolifyConfig,
-	DeploymentStatusResult,
-	ImageConfig,
-} from "./coolify-service";
-export { CoolifyDeploymentError, CoolifyService } from "./coolify-service";
 // Deployment queue service exports (limits concurrent Coolify deployments)
-export type { DeploymentQueueStats } from "./deployment-queue-service";
-export {
-	DeploymentQueueService,
-	DeploymentQueueTimeoutError,
-} from "./deployment-queue-service";
 // Platform abstraction exports
-export type {
-	PlatformBotStatus,
-	PlatformDeployResult,
-	PlatformDeployWithQueueResult,
-	PlatformService,
-	PlatformType,
-} from "./platform";
-export { createPlatformService, getPlatformType } from "./platform";

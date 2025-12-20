@@ -14,8 +14,6 @@ export const paginationInput = z.object({
 	pageSize: z.number().min(1).max(100).default(10),
 });
 
-export type PaginationInput = z.infer<typeof paginationInput>;
-
 /**
  * Creates a Zod schema for a paginated response with the given data schema
  */

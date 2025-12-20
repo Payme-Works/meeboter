@@ -1,7 +1,7 @@
 /**
  * Error thrown when an operation times out
  */
-export class TimeoutError extends Error {
+class TimeoutError extends Error {
 	constructor(
 		message: string,
 		public readonly timeoutMs: number,
@@ -47,34 +47,5 @@ export async function withTimeout<T>(
 		if (timeoutId) {
 			clearTimeout(timeoutId);
 		}
-	}
-}
-
-/**
- * Wraps a promise with a timeout, but returns a default value instead of
- * throwing if the operation times out.
- *
- * @param promise - The promise to wrap
- * @param timeoutMs - Timeout in milliseconds
- * @param defaultValue - Value to return if operation times out
- * @param operationName - Name of the operation for logging
- * @returns The result of the promise, or defaultValue if it times out
- */
-export async function withTimeoutOrDefault<T>(
-	promise: Promise<T>,
-	timeoutMs: number,
-	defaultValue: T,
-	operationName: string = "Operation",
-): Promise<{ result: T; timedOut: boolean }> {
-	try {
-		const result = await withTimeout(promise, timeoutMs, operationName);
-
-		return { result, timedOut: false };
-	} catch (error) {
-		if (error instanceof TimeoutError) {
-			return { result: defaultValue, timedOut: true };
-		}
-
-		throw error;
 	}
 }

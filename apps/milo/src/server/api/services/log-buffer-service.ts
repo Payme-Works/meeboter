@@ -29,7 +29,7 @@ const DEFAULT_CONFIG: LogBufferConfig = {
  * - Pub/sub for real-time log streaming
  * - Automatic cleanup of inactive bot buffers
  */
-export class LogBufferService {
+class LogBufferService {
 	private readonly config: LogBufferConfig;
 	private readonly buffers = new Map<number, LogEntry[]>();
 	private readonly subscribers = new Map<number, Set<LogSubscriber>>();

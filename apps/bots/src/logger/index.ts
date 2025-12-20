@@ -14,7 +14,7 @@ import {
 /**
  * Log levels in order of verbosity (lower = more verbose)
  */
-export enum LogLevel {
+enum LogLevel {
 	TRACE = 0,
 	DEBUG = 1,
 	INFO = 2,
@@ -26,7 +26,7 @@ export enum LogLevel {
 /**
  * Structured log entry for streaming to backend
  */
-export interface LogEntry {
+interface LogEntry {
 	id: string;
 	botId: number;
 	timestamp: Date;

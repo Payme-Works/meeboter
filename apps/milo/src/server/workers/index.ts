@@ -2,20 +2,9 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import type { Services } from "@/server/api/services";
 import type * as schema from "@/server/database/schema";
 
-import {
-	BaseWorker,
-	type WorkerOptions,
-	type WorkerResult,
-} from "./base-worker";
 import { BotHealthWorker } from "./bot-health.worker";
-import {
-	type PoolSlotSyncResult,
-	PoolSlotSyncWorker,
-} from "./pool-slot-sync.worker";
+import { PoolSlotSyncWorker } from "./pool-slot-sync.worker";
 import { SlotRecoveryWorker } from "./slot-recovery.worker";
-
-export { BaseWorker, BotHealthWorker, PoolSlotSyncWorker, SlotRecoveryWorker };
-export type { PoolSlotSyncResult, WorkerOptions, WorkerResult };
 
 /** Default interval for all workers (5 minutes) */
 const DEFAULT_INTERVAL_MS = 5 * 60 * 1000;
@@ -24,7 +13,7 @@ const DEFAULT_INTERVAL_MS = 5 * 60 * 1000;
  * Container for named worker instances.
  * Allows access to specific workers for manual execution.
  */
-export interface WorkerInstances {
+interface WorkerInstances {
 	slotRecovery: SlotRecoveryWorker;
 	botHealth: BotHealthWorker;
 	poolSlotSync: PoolSlotSyncWorker;
@@ -68,19 +57,4 @@ export function startWorkers(
 	}
 
 	return workers;
-}
-
-/**
- * Stops all workers gracefully.
- *
- * @param workers - Worker instances to stop
- */
-export function stopWorkers(workers: WorkerInstances): void {
-	const workerList = Object.values(workers);
-
-	console.log(`[Workers] Stopping ${workerList.length} workers...`);
-
-	for (const worker of workerList) {
-		worker.stop();
-	}
 }

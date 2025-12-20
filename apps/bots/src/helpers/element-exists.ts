@@ -4,7 +4,7 @@ import type { Page } from "playwright";
 const DEFAULT_ELEMENT_EXISTS_TIMEOUT = 5000;
 
 /** Result of an element existence check */
-export interface ElementExistsResult {
+interface ElementExistsResult {
 	/** Whether the element exists */
 	exists: boolean;
 	/** Whether the check timed out (result is inconclusive) */

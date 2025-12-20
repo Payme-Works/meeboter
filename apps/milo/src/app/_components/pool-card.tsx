@@ -45,13 +45,7 @@ function SlotDot({ status, index }: { status: SlotStatus; index: number }) {
 	);
 }
 
-export function PoolCard({
-	idle,
-	deploying,
-	busy,
-	total,
-	maxSize,
-}: PoolCardProps) {
+function PoolCard({ idle, deploying, busy, total, maxSize }: PoolCardProps) {
 	// Build array of slot statuses
 	const slots: SlotStatus[] = [];
 
@@ -187,7 +181,7 @@ export function PoolCardSkeleton() {
 	);
 }
 
-export function PoolCardUnavailable() {
+function PoolCardUnavailable() {
 	return (
 		<div className="border bg-card p-5 flex flex-col h-full min-h-[180px]">
 			{/* Header */}

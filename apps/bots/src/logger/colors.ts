@@ -20,7 +20,7 @@ const COLORS = {
 /**
  * Wraps text with ANSI color codes
  */
-export function colorize(text: string, ...codes: string[]): string {
+function colorize(text: string, ...codes: string[]): string {
 	return `${codes.join("")}${text}${COLORS.reset}`;
 }
 

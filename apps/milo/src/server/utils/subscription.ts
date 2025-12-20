@@ -18,7 +18,7 @@ type Database = typeof db;
 /**
  * User subscription information interface containing plan details and limits
  */
-export interface UserSubscriptionInfo {
+interface UserSubscriptionInfo {
 	userId: string;
 	currentPlan: Subscription | "FREE";
 	dailyBotLimit: number | null;

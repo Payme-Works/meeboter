@@ -24,6 +24,18 @@
 					"level": "error",
 					"fix": "safe"
 				},
+				"noUnusedVariables": {
+					"level": "error",
+					"fix": "none"
+				},
+				"noUnusedPrivateClassMembers": {
+					"level": "error",
+					"fix": "none"
+				},
+				"noUnusedFunctionParameters": {
+					"level": "error",
+					"fix": "none"
+				},
 				"useUniqueElementIds": "off"
 			},
 			"suspicious": {

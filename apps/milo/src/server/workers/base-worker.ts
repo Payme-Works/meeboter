@@ -2,7 +2,7 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import type { Services } from "@/server/api/services";
 import type * as schema from "@/server/database/schema";
 
-export interface WorkerOptions {
+interface WorkerOptions {
 	/** Interval in ms between executions. Set to 0 to disable auto-run. */
 	intervalMs: number;
 

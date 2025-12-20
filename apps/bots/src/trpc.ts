@@ -9,7 +9,7 @@ import superjson from "superjson";
 /**
  * Meeting information containing platform-specific identifiers and connection details
  */
-export type MeetingInfo = {
+type MeetingInfo = {
 	meetingId?: string;
 	meetingPassword?: string;
 	meetingUrl?: string;
@@ -23,7 +23,7 @@ export type MeetingInfo = {
 /**
  * Configuration for automatic bot leave timeouts in various meeting scenarios
  */
-export type AutomaticLeave = {
+type AutomaticLeave = {
 	waitingRoomTimeout: number;
 	noOneJoinedTimeout: number;
 	everyoneLeftTimeout: number;
@@ -109,7 +109,7 @@ export type SpeakerTimeframe = {
 /**
  * Options for creating a tRPC client
  */
-export interface TrpcClientOptions {
+interface TrpcClientOptions {
 	url: string;
 	authToken: string;
 }

@@ -20,7 +20,7 @@ interface QueuedDeployment {
 /**
  * Error thrown when a bot times out waiting in the deployment queue
  */
-export class DeploymentQueueTimeoutError extends Error {
+class DeploymentQueueTimeoutError extends Error {
 	constructor(botId: string) {
 		super(`Deployment queue timeout for bot ${botId}`);
 		this.name = "DeploymentQueueTimeoutError";
@@ -30,7 +30,7 @@ export class DeploymentQueueTimeoutError extends Error {
 /**
  * Statistics about the deployment queue
  */
-export interface DeploymentQueueStats {
+interface DeploymentQueueStats {
 	active: number;
 	queued: number;
 	maxConcurrent: number;

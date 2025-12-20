@@ -11,7 +11,7 @@ import { StorageService } from "./storage/storage-service";
 /**
  * Container for all services in the application
  */
-export interface Services {
+interface Services {
 	logger: BotLogger;
 	trpc: TrpcClient;
 	storage: StorageService;
@@ -25,7 +25,7 @@ export interface Services {
 /**
  * Options for creating services
  */
-export interface CreateServicesOptions {
+interface CreateServicesOptions {
 	botId: number;
 	initialLogLevel?: string;
 

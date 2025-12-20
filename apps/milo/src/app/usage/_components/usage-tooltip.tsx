@@ -9,7 +9,7 @@ interface UsageData {
 	estimatedCost: string;
 }
 
-export interface UsageTooltipProps {
+interface UsageTooltipProps {
 	active?: boolean;
 	payload?: { payload: UsageData }[];
 	label?: string;

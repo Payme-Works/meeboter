@@ -31,7 +31,7 @@ const DEFAULT_CONFIG: LogArchivalConfig = {
  * - Retrieval of historical logs from S3
  * - JSONL format for streaming-friendly storage
  */
-export class LogArchivalService {
+class LogArchivalService {
 	private readonly config: LogArchivalConfig;
 	private readonly pendingLogs = new Map<number, LogEntry[]>();
 	private archiveTimers = new Map<number, NodeJS.Timeout>();

@@ -2,7 +2,7 @@ import type { Page } from "playwright";
 
 import type { BotLogger } from "../logger";
 
-export interface NavigateWithRetryOptions {
+interface NavigateWithRetryOptions {
 	/** Maximum number of retry attempts (default: 10) */
 	maxRetries?: number;
 	/** Base delay between retries in ms (default: 2000) */

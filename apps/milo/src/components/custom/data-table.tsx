@@ -12,7 +12,7 @@ import {
 } from "@tanstack/react-table";
 
 // Re-export types for consumers
-export type { RowSelectionState, TanstackTable };
+export type { RowSelectionState };
 
 import { useEffect, useState } from "react";
 import ErrorAlert from "@/components/custom/error-alert";

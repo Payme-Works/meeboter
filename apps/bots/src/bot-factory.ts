@@ -13,7 +13,7 @@ import {
 /**
  * Options for creating a bot instance
  */
-export interface CreateBotOptions {
+interface CreateBotOptions {
 	/** Initial log level string from database */
 	initialLogLevel?: string;
 

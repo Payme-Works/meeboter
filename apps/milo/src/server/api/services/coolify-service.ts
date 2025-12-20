@@ -3,7 +3,7 @@ import type * as schema from "@/server/database/schema";
 /**
  * Configuration for CoolifyService
  */
-export interface CoolifyConfig {
+interface CoolifyConfig {
 	apiUrl: string;
 	apiToken: string;
 	projectUuid: string;
@@ -15,7 +15,7 @@ export interface CoolifyConfig {
 /**
  * Configuration for bot environment variables
  */
-export interface BotEnvConfig {
+interface BotEnvConfig {
 	miloUrl: string;
 	miloAuthToken: string;
 	s3Endpoint: string;
@@ -28,7 +28,7 @@ export interface BotEnvConfig {
 /**
  * Configuration for bot image selection
  */
-export interface ImageConfig {
+interface ImageConfig {
 	ghcrOrg: string;
 	botImageTag: string;
 }
@@ -36,7 +36,7 @@ export interface ImageConfig {
 /**
  * Bot image configuration
  */
-export interface BotImage {
+interface BotImage {
 	name: string;
 	tag: string;
 }
@@ -44,7 +44,7 @@ export interface BotImage {
 /**
  * Deployment status result
  */
-export interface DeploymentStatusResult {
+interface DeploymentStatusResult {
 	success: boolean;
 	status: string;
 	error?: string;
@@ -79,7 +79,7 @@ export class CoolifyDeploymentError extends Error {
 /**
  * Coolify application summary for listing
  */
-export interface CoolifyApplicationSummary {
+interface CoolifyApplicationSummary {
 	uuid: string;
 	name: string;
 }

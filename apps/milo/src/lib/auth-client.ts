@@ -9,7 +9,7 @@ import { env } from "@/env";
  *
  * @returns {AuthClient} The configured Better Auth client instance
  */
-export const authClient = createAuthClient({
+const authClient = createAuthClient({
 	baseURL: env.NEXT_PUBLIC_APP_ORIGIN_URL,
 });
 

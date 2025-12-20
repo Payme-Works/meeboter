@@ -6,7 +6,6 @@
 		"@trpc/client": "^11.5.0",
 		"puppeteer": "24.7.2",
 		"puppeteer-stream": "3.0.20",
-		"superjson": "^2.2.2",
 		"typescript": "^5.9.2"
 	}
 }

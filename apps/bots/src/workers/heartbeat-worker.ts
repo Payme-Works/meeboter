@@ -31,7 +31,7 @@ function getRetryDelay(attempt: number): number {
 /**
  * Callbacks for heartbeat events
  */
-export interface HeartbeatCallbacks {
+interface HeartbeatCallbacks {
 	onLeaveRequested: () => void;
 	onLogLevelChange: (logLevel: string) => void;
 }

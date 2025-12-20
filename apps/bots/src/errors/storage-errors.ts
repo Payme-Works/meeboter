@@ -2,7 +2,7 @@
  * Base error class for storage-related errors.
  * All storage errors should extend this class.
  */
-export class StorageError extends Error {
+class StorageError extends Error {
 	constructor(
 		message: string,
 		public readonly code: string,
@@ -10,20 +10,6 @@ export class StorageError extends Error {
 	) {
 		super(message);
 		this.name = "StorageError";
-	}
-}
-
-/**
- * Error thrown when screenshot upload fails.
- */
-export class ScreenshotUploadError extends StorageError {
-	constructor(key: string, cause?: Error) {
-		super(`Failed to upload screenshot: ${key}`, "SCREENSHOT_UPLOAD_FAILED", {
-			key,
-		});
-
-		this.name = "ScreenshotUploadError";
-		this.cause = cause;
 	}
 }
 
@@ -39,17 +25,6 @@ export class RecordingUploadError extends StorageError {
 		);
 
 		this.name = "RecordingUploadError";
-		this.cause = cause;
-	}
-}
-
-/**
- * Error thrown when S3 client creation fails.
- */
-export class S3ClientError extends StorageError {
-	constructor(message: string, cause?: Error) {
-		super(message, "S3_CLIENT_ERROR");
-		this.name = "S3ClientError";
 		this.cause = cause;
 	}
 }

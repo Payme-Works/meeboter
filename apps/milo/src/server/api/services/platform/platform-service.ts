@@ -1,17 +1,6 @@
 import type { BotConfig } from "@/server/database/schema";
 
 /**
- * Result of deploying a bot through a platform
- */
-export interface PlatformDeployResult {
-	/** Platform-specific identifier (Coolify UUID or ECS task ARN) */
-	identifier: string;
-
-	/** Slot name for display purposes (only available for Coolify) */
-	slotName?: string;
-}
-
-/**
  * Result of attempting to deploy through a platform that supports queuing
  */
 export interface PlatformDeployWithQueueResult {

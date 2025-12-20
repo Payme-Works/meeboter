@@ -21,7 +21,7 @@ const ACTIVE_STATUSES: Status[] = [
 	"LEAVING",
 ];
 
-export interface BotHealthResult extends WorkerResult {
+interface BotHealthResult extends WorkerResult {
 	checked: number;
 	markedFatal: number;
 	resourcesReleased: number;

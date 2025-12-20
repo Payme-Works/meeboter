@@ -9,7 +9,7 @@ import type { PlatformService } from "./platform";
 /**
  * Custom error for bot deployment failures
  */
-export class BotDeploymentError extends Error {
+class BotDeploymentError extends Error {
 	constructor(message: string) {
 		super(message);
 		this.name = "BotDeploymentError";
@@ -19,7 +19,7 @@ export class BotDeploymentError extends Error {
 /**
  * Result of deploying a bot through the pool
  */
-export interface DeployBotResult {
+interface DeployBotResult {
 	bot: typeof botsTable.$inferSelect;
 	queued: boolean;
 	queuePosition?: number;
