@@ -93,8 +93,8 @@ describe("Meet Bot Record Tests", () => {
 			 *
 			 */
 
-			// Launch a broser
-			await bot.launchBrowser();
+			// Launch a browser
+			await bot.initializeBrowser();
 
 			if (!bot.page) {
 				throw new Error("Page not initialized");
@@ -119,7 +119,7 @@ describe("Meet Bot Record Tests", () => {
 			const recordingPath = bot.getRecordingPath();
 
 			//End
-			await bot.endLife();
+			await bot.cleanup();
 
 			// Assertions
 			expect(recordingPath).toBeDefined();

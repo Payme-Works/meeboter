@@ -64,19 +64,19 @@ export interface BotInterface {
 	 * Initiates the process of joining the meeting.
 	 * @returns Promise that resolves with platform-specific join result
 	 */
-	joinMeeting(): Promise<unknown>;
+	joinCall(): Promise<unknown>;
 
 	/**
 	 * Cleans up resources and terminates the bot session.
 	 * @returns Promise that resolves with cleanup result
 	 */
-	endLife(): Promise<unknown>;
+	cleanup(): Promise<unknown>;
 
 	/**
 	 * Checks if the bot has been removed or kicked from the meeting.
 	 * @returns Promise that resolves to true if the bot was kicked, false otherwise
 	 */
-	checkKicked(): Promise<boolean>;
+	hasBeenRemovedFromCall(): Promise<boolean>;
 
 	/**
 	 * Sends a chat message in the meeting (if supported by the platform).
@@ -163,7 +163,7 @@ export class Bot implements BotInterface {
 	 * @returns Promise that resolves with platform-specific join result data
 	 * @throws Error when called on the base implementation - must be overridden by platform-specific bots
 	 */
-	async joinMeeting(): Promise<unknown> {
+	async joinCall(): Promise<unknown> {
 		throw new Error("Method not implemented.");
 	}
 
@@ -193,7 +193,7 @@ export class Bot implements BotInterface {
 	 * @returns Promise that resolves with cleanup result data
 	 * @throws Error when called on the base implementation - must be overridden by platform-specific bots
 	 */
-	async endLife(): Promise<unknown> {
+	async cleanup(): Promise<unknown> {
 		throw new Error("Method not implemented.");
 	}
 
@@ -264,7 +264,7 @@ export class Bot implements BotInterface {
 	 * @returns Promise that resolves to true if the bot has been kicked, false otherwise
 	 * @throws Error when called on the base implementation - must be overridden by platform-specific bots
 	 */
-	async checkKicked(): Promise<boolean> {
+	async hasBeenRemovedFromCall(): Promise<boolean> {
 		throw new Error("Method not implemented.");
 	}
 

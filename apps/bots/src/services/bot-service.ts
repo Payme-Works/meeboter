@@ -33,9 +33,9 @@ export interface BotInterface {
 	getSpeakerTimeframes(): SpeakerTimeframe[];
 	run(): Promise<void>;
 	screenshot(fName?: string): Promise<void>;
-	joinMeeting(): Promise<unknown>;
-	endLife(): Promise<unknown>;
-	checkKicked(): Promise<boolean>;
+	joinCall(): Promise<unknown>;
+	cleanup(): Promise<unknown>;
+	hasBeenRemovedFromCall(): Promise<boolean>;
 	sendChatMessage(message: string): Promise<boolean>;
 	requestLeave(): void;
 }

@@ -138,7 +138,7 @@ export const main = async () => {
 
 			// Ensure cleanup
 			try {
-				await bot.endLife();
+				await bot.cleanup();
 			} catch (cleanupError) {
 				logger.warn(
 					`Error during bot cleanup: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`,

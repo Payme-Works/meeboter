@@ -59,8 +59,8 @@ describe("Zoom Bot Recording Test", () => {
 
 			let recordingPath: string | null = null;
 
-			// Launch a broser
-			await bot.launchBrowser();
+			// Launch a browser
+			await bot.initializeBrowser();
 			await new Promise((resolve) => setTimeout(resolve, 400));
 
 			// Start Recording
@@ -77,7 +77,7 @@ describe("Zoom Bot Recording Test", () => {
 			recordingPath = bot.getRecordingPath();
 
 			//End
-			await bot.endLife();
+			await bot.cleanup();
 
 			// Assertions
 			expect(recordingPath).toBeDefined();

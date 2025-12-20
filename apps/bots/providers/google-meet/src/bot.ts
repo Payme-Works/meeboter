@@ -374,21 +374,6 @@ export class GoogleMeetBot extends Bot {
 		this.logger.info("Cleanup complete");
 	}
 
-	// Alias for backward compatibility
-	async endLife(): Promise<void> {
-		await this.cleanup();
-	}
-
-	// Alias for backward compatibility
-	async leaveMeeting(): Promise<number> {
-		return this.leaveCall();
-	}
-
-	// Alias for backward compatibility
-	async joinMeeting(): Promise<number> {
-		return this.joinCall();
-	}
-
 	// ============================================
 	// MEETING MONITORING
 	// ============================================
@@ -396,7 +381,7 @@ export class GoogleMeetBot extends Bot {
 	/**
 	 * Monitor the call and handle exit conditions.
 	 */
-	private async monitorCall(): Promise<void> {
+	async monitorCall(): Promise<void> {
 		// Start recording if enabled
 		if (this.settings.recordingEnabled) {
 			this.logger.info("Starting recording");
@@ -507,16 +492,6 @@ export class GoogleMeetBot extends Bot {
 		}
 
 		return false;
-	}
-
-	// Alias for backward compatibility
-	async checkKicked(): Promise<boolean> {
-		return this.hasBeenRemovedFromCall();
-	}
-
-	// Alias for backward compatibility (renamed from meetingActions)
-	async meetingActions(): Promise<void> {
-		return this.monitorCall();
 	}
 
 	// ============================================
@@ -819,7 +794,7 @@ export class GoogleMeetBot extends Bot {
 	/**
 	 * Initialize browser with stealth settings.
 	 */
-	private async initializeBrowser(headless: boolean = false): Promise<void> {
+	async initializeBrowser(headless: boolean = false): Promise<void> {
 		this.logger.info("Initializing browser", { headless });
 
 		this.browser = await chromium.launch({
@@ -1026,15 +1001,5 @@ export class GoogleMeetBot extends Bot {
 		} catch (error) {
 			this.logger.error("Error taking screenshot", error as Error);
 		}
-	}
-
-	// Alias for backward compatibility
-	async captureScreenshot(filename?: string): Promise<void> {
-		await this.screenshot(filename);
-	}
-
-	// Backward compatibility alias
-	async launchBrowser(headless: boolean = false): Promise<void> {
-		await this.initializeBrowser(headless);
 	}
 }

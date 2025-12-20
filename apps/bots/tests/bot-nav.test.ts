@@ -70,7 +70,7 @@ const test_bot_join = async (
 
 	try {
 		//Await
-		await bot.joinMeeting();
+		await bot.joinCall();
 		passes = true; //if reaches, we got admitted into the meeting.
 	} catch (error) {
 		// If aobve fails, check if the message is the expected output of a waitingRoom timeout.
@@ -85,7 +85,7 @@ const test_bot_join = async (
 	}
 
 	// Close Meeting Regardless of anything
-	await bot.endLife();
+	await bot.cleanup();
 
 	return passes;
 };
@@ -188,15 +188,15 @@ describe("Bot fail join due to invalid URL", () => {
 			async (_eventType: string, _data: unknown) => {},
 		);
 
-		// Mock bot.joinMeeting to simulate the page setup and override waitForSelector
-		jest.spyOn(bot, "joinMeeting").mockImplementationOnce(async () => {
+		// Mock bot.joinCall to simulate the page setup and override waitForSelector
+		jest.spyOn(bot, "joinCall").mockImplementationOnce(async () => {
 			bot.page = {
 				waitForSelector: jest.fn(async () => {
 					throw new Error("Navigation failed: could not find specific element");
 				}),
 			} as unknown as typeof bot.page; // Mock the page object
 
-			throw new MeetingJoinError("Simulated joinMeeting failure");
+			throw new MeetingJoinError("Simulated joinCall failure");
 		});
 
 		// Create Bot, check if FAILS
@@ -220,15 +220,15 @@ describe("Bot fail join due to invalid URL", () => {
 			async (_eventType: string, _data: unknown) => {},
 		);
 
-		// Mock bot.joinMeeting to simulate the page setup and override waitForSelector
-		jest.spyOn(bot, "joinMeeting").mockImplementationOnce(async () => {
+		// Mock bot.joinCall to simulate the page setup and override waitForSelector
+		jest.spyOn(bot, "joinCall").mockImplementationOnce(async () => {
 			bot.page = {
 				waitForSelector: jest.fn(async () => {
 					throw new Error("Navigation failed: could not find specific element");
 				}),
 			} as unknown as typeof bot.page; // Mock the page object
 
-			throw new MeetingJoinError("Simulated joinMeeting failure");
+			throw new MeetingJoinError("Simulated joinCall failure");
 		});
 
 		// Create Bot, check if FAILS
@@ -253,15 +253,15 @@ describe("Bot fail join due to invalid URL", () => {
 			async (_eventType: string, _data: unknown) => {},
 		);
 
-		// Mock bot.joinMeeting to simulate the page setup and override waitForSelector
-		jest.spyOn(bot, "joinMeeting").mockImplementationOnce(async () => {
+		// Mock bot.joinCall to simulate the page setup and override waitForSelector
+		jest.spyOn(bot, "joinCall").mockImplementationOnce(async () => {
 			bot.page = {
 				waitForSelector: jest.fn(async () => {
 					throw new Error("Navigation failed: could not find specific element");
 				}),
 			} as unknown as typeof bot.page; // Mock the page object
 
-			throw new MeetingJoinError("Simulated joinMeeting failure");
+			throw new MeetingJoinError("Simulated joinCall failure");
 		});
 
 		// Create Bot, check if FAILS

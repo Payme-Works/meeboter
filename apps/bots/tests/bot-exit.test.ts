@@ -84,8 +84,8 @@ describe("Meet Bot Exit Tests", () => {
 		});
 
 		// Ensure bot would have ended it's life
-		jest.spyOn(bot, "endLife").mockImplementation(async () => {
-			console.log("Mock endLife called");
+		jest.spyOn(bot, "cleanup").mockImplementation(async () => {
+			console.log("Mock cleanup called");
 		});
 	});
 
@@ -99,9 +99,9 @@ describe("Meet Bot Exit Tests", () => {
 	 * This lets you check if the bot can join a meeting and if it can handle the waiting room -- good to know if the UI changed
 	 */
 	it("Detect Empty Participation and Exit the meeting", async () => {
-		// replace the bot.checkKicked function with a mock implementation
+		// replace the bot.hasBeenRemovedFromCall function with a mock implementation
 		// Here: We did not got kicked
-		jest.spyOn(bot, "checkKicked").mockImplementation(async () => {
+		jest.spyOn(bot, "hasBeenRemovedFromCall").mockImplementation(async () => {
 			return false;
 		});
 
@@ -115,15 +115,15 @@ describe("Meet Bot Exit Tests", () => {
 			{ id: "123", name: "Test User" },
 		]; //simulate it being only me in the meeting
 
-		await bot.meetingActions();
+		await bot.monitorCall();
 
-		expect(bot.endLife).toHaveBeenCalled(); //includes stopRecording()
+		expect(bot.cleanup).toHaveBeenCalled(); //includes stopRecording()
 	}, 60000); // Set max timeout to 60 seconds
 
 	it("Ensure on Bot Kicked proper events", async () => {
-		// replace the bot.checkKicked function with a mock implementation
+		// replace the bot.hasBeenRemovedFromCall function with a mock implementation
 		// i.e Ensure bot is always kicked right away
-		jest.spyOn(bot, "checkKicked").mockImplementation(async () => {
+		jest.spyOn(bot, "hasBeenRemovedFromCall").mockImplementation(async () => {
 			return true;
 		});
 
@@ -141,30 +141,30 @@ describe("Meet Bot Exit Tests", () => {
 			{ id: "102", name: "Fifth User" },
 		]; //simulate there being a lot of people in the meeting
 
-		await bot.meetingActions();
+		await bot.monitorCall();
 
-		// Ensure endLife would have been called
-		expect(bot.endLife).toHaveBeenCalled(); //includes stopRecording()
+		// Ensure cleanup would have been called
+		expect(bot.cleanup).toHaveBeenCalled(); //includes stopRecording()
 	}, 60000); // Set max timeout to 60 seconds
 
 	it("Ensure can leave meeting if UI does not allow for it", async () => {
 		// Kick Self
-		jest.spyOn(bot, "checkKicked").mockImplementation(async () => {
+		jest.spyOn(bot, "hasBeenRemovedFromCall").mockImplementation(async () => {
 			return true;
 		});
 
 		// Error on Leave Meeting (cannot click the button somehow)
-		jest.spyOn(bot, "leaveMeeting").mockImplementation(async () => {
-			console.log("Mock leaveMeeting called");
+		jest.spyOn(bot, "leaveCall").mockImplementation(async () => {
+			console.log("Mock leaveCall called");
 
 			throw new Error("Unable to leave meeting"); // Simulate an error when trying to leave the meeting
 		});
 
 		//Test Function
-		await bot.meetingActions();
+		await bot.monitorCall();
 
-		// Ensure end meeting calls endLife (closes browser) even if an irregular leaveMeeting event.
-		expect(bot.endLife).toHaveBeenCalled(); //includes stopRecording()
+		// Ensure end meeting calls cleanup (closes browser) even if an irregular leaveCall event.
+		expect(bot.cleanup).toHaveBeenCalled(); //includes stopRecording()
 	}, 6000);
 });
 
@@ -215,8 +215,8 @@ describe("Zoom Bot Exit Tests", () => {
 		bot.browser = {} as typeof bot.browser;
 
 		// Ensure bot would have ended it's life
-		jest.spyOn(bot, "endLife").mockImplementation(async () => {
-			console.log("Mock endLife called");
+		jest.spyOn(bot, "cleanup").mockImplementation(async () => {
+			console.log("Mock cleanup called");
 		});
 
 		jest.spyOn(bot, "startRecording").mockImplementation(async () => {
@@ -227,8 +227,8 @@ describe("Zoom Bot Exit Tests", () => {
 			console.log("Mock stopRecording called");
 		});
 
-		jest.spyOn(bot, "joinMeeting").mockImplementation(async () => {
-			console.log("Mock joinMeeting called");
+		jest.spyOn(bot, "joinCall").mockImplementation(async () => {
+			console.log("Mock joinCall called");
 		});
 	});
 
@@ -305,8 +305,8 @@ describe("Teams Bot Exit Tests", () => {
 		bot.browser = {} as typeof bot.browser;
 
 		// Add mock to ensure bot would have ended it's life
-		jest.spyOn(bot, "endLife").mockImplementation(async () => {
-			console.log("Mock endLife called");
+		jest.spyOn(bot, "cleanup").mockImplementation(async () => {
+			console.log("Mock cleanup called");
 		});
 	});
 
@@ -321,8 +321,8 @@ describe("Teams Bot Exit Tests", () => {
 
 	it.skip("Detect Empty Participation and Exit the meeting", async () => {
 		// Ensure bot would have ended it's life
-		jest.spyOn(bot, "joinMeeting").mockImplementation(async () => {
-			console.log("Mock joinMeeting called");
+		jest.spyOn(bot, "joinCall").mockImplementation(async () => {
+			console.log("Mock joinCall called");
 		});
 
 		// Empty Test -- no implementation yet
@@ -331,8 +331,8 @@ describe("Teams Bot Exit Tests", () => {
 
 	it.skip("Ensure on Bot Kicked proper events", async () => {
 		//
-		jest.spyOn(bot, "joinMeeting").mockImplementation(async () => {
-			console.log("Mock joinMeeting called");
+		jest.spyOn(bot, "joinCall").mockImplementation(async () => {
+			console.log("Mock joinCall called");
 		});
 
 		// Empty Test -- no implementation yet
@@ -340,8 +340,8 @@ describe("Teams Bot Exit Tests", () => {
 	});
 
 	it.skip("Ensure can leave meeting if UI does not allow for it", async () => {
-		jest.spyOn(bot, "joinMeeting").mockImplementation(async () => {
-			console.log("Mock joinMeeting called");
+		jest.spyOn(bot, "joinCall").mockImplementation(async () => {
+			console.log("Mock joinCall called");
 		});
 
 		// Empty Test -- no implementation yet

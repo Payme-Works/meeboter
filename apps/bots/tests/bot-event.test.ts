@@ -53,24 +53,24 @@ describe("Meet Event Tests", () => {
 			return 0;
 		});
 
-		jest.spyOn(bot, "leaveMeeting").mockImplementation(async () => {
-			console.log("Mock leaveMeeting called");
+		jest.spyOn(bot, "leaveCall").mockImplementation(async () => {
+			console.log("Mock leaveCall called");
 
 			return 0; // don't actually leave any meeting
 		});
 
 		// Keep track
-		jest.spyOn(bot, "endLife");
+		jest.spyOn(bot, "cleanup");
 
 		// Kicked right away.
-		jest.spyOn(bot, "checkKicked").mockImplementation(async () => {
-			console.log("Mock checkKicked called");
+		jest.spyOn(bot, "hasBeenRemovedFromCall").mockImplementation(async () => {
+			console.log("Mock hasBeenRemovedFromCall called");
 
 			return true;
 		});
 
 		// Launch a browser, don't go to any page
-		await bot.launchBrowser(true); // Headless mode
+		await bot.initializeBrowser(true); // Headless mode
 
 		if (!bot.page) {
 			throw new Error("Page not initialized");
@@ -153,7 +153,7 @@ describe("Meet Event Tests", () => {
 	// Cleanup
 	afterEach(async () => {
 		// ensure the bot is closed after each test
-		await bot.endLife();
+		await bot.cleanup();
 
 		// Remove mocks
 		jest.clearAllMocks();
@@ -164,7 +164,7 @@ describe("Meet Event Tests", () => {
 	 */
 	it("Detect a Person Joining", async () => {
 		// Setup Functions. Bot will get kicked rightaway.
-		await bot.meetingActions();
+		await bot.monitorCall();
 
 		await addParticipant(); // Add first participant
 
@@ -181,11 +181,11 @@ describe("Meet Event Tests", () => {
 	}, 60000);
 
 	/**
-	 * Check if a bot can detect a person joining
+	 * Check if a bot can detect a person leaving
 	 */
 	it("Detect a Person Leaving", async () => {
 		// Setup Functions. Bot will get kicked rightaway.
-		await bot.meetingActions();
+		await bot.monitorCall();
 
 		await addParticipant(); // Add first participant
 		await addParticipant();
@@ -244,7 +244,7 @@ describe("Zoom Event Tests", () => {
 
 	afterEach(async () => {
 		// ensure the bot is closed after each test
-		await bot.endLife();
+		await bot.cleanup();
 
 		// Remove mocks
 		jest.clearAllMocks();
@@ -300,7 +300,7 @@ describe("Teams Event Tests", () => {
 
 	afterEach(async () => {
 		// ensure the bot is closed after each test
-		await bot.endLife();
+		await bot.cleanup();
 
 		// Remove mocks
 		jest.clearAllMocks();

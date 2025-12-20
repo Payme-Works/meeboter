@@ -165,16 +165,6 @@ export class MicrosoftTeamsBot extends Bot {
 		this.logger.info("Cleanup complete");
 	}
 
-	// Alias for backward compatibility
-	async endLife(): Promise<void> {
-		await this.cleanup();
-	}
-
-	// Alias for backward compatibility
-	async joinMeeting(): Promise<void> {
-		await this.joinCall();
-	}
-
 	// ============================================
 	// MEETING MONITORING
 	// ============================================
@@ -206,7 +196,7 @@ export class MicrosoftTeamsBot extends Bot {
 	/**
 	 * Check if bot has been kicked (not implemented for Teams).
 	 */
-	async checkKicked(): Promise<boolean> {
+	async hasBeenRemovedFromCall(): Promise<boolean> {
 		return false;
 	}
 
@@ -335,7 +325,7 @@ export class MicrosoftTeamsBot extends Bot {
 	/**
 	 * Initialize browser.
 	 */
-	private async initializeBrowser(): Promise<void> {
+	async initializeBrowser(): Promise<void> {
 		this.logger.info("Initializing browser");
 
 		this.browser = (await launch({
@@ -353,11 +343,6 @@ export class MicrosoftTeamsBot extends Bot {
 
 		this.page = await this.browser.newPage();
 		this.logger.debug("Browser initialized");
-	}
-
-	// Alias for backward compatibility
-	async launchBrowser(): Promise<void> {
-		await this.initializeBrowser();
 	}
 
 	/**
