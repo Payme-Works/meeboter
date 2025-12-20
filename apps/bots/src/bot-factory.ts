@@ -1,9 +1,8 @@
 import type { Bot } from "./bot";
 import { env } from "./config/env";
-import { BotLogger, parseLogLevel } from "./logger";
+import type { BotLogger } from "./logger";
 import {
 	type BotConfig,
-	createTrpcClient,
 	type EventCode,
 	STATUS_EVENT_CODES,
 	Status,
@@ -14,9 +13,6 @@ import {
  * Options for creating a bot instance
  */
 interface CreateBotOptions {
-	/** Initial log level string from database */
-	initialLogLevel?: string;
-
 	/**
 	 * Callback fired when bot status changes (status events like IN_CALL, IN_WAITING_ROOM, etc.)
 	 * Used for capturing screenshots on status transitions for debugging purposes.
@@ -25,8 +21,11 @@ interface CreateBotOptions {
 	 */
 	onStatusChange?: (eventType: EventCode, bot: Bot) => Promise<void>;
 
-	/** Optional tRPC client (created if not provided) */
-	trpcClient?: TrpcClient;
+	/** tRPC client for API calls (required) */
+	trpcClient: TrpcClient;
+
+	/** Logger instance with streaming enabled (required) */
+	logger: BotLogger;
 }
 
 /**
@@ -47,17 +46,17 @@ function validPlatformForImage(platform: string, imageName: string): boolean {
  * the meeting platform specified in the configuration.
  *
  * @param config - Configuration data containing meeting info and bot settings
- * @param options - Optional configuration including initialLogLevel and onStatusChange callback
+ * @param options - Configuration including logger and trpcClient (required)
  * @returns Promise that resolves to a platform-specific bot instance
  * @throws Error if the platform is unsupported or if there's a platform/Docker image mismatch
  */
 export async function createBot(
 	config: BotConfig,
-	options?: CreateBotOptions,
+	options: CreateBotOptions,
 ): Promise<Bot> {
 	const botId = config.id;
 	const platform = config.meetingInfo.platform;
-	const { initialLogLevel, onStatusChange, trpcClient } = options ?? {};
+	const { onStatusChange, trpcClient: trpc, logger } = options;
 
 	// Retrieve Docker image name from environment variable
 	const dockerImageName = env.DOCKER_MEETING_PLATFORM;
@@ -73,19 +72,7 @@ export async function createBot(
 		);
 	}
 
-	// Create logger with initial log level from database
-	const logLevel = initialLogLevel ? parseLogLevel(initialLogLevel) : undefined;
-	const logger = new BotLogger(botId, { logLevel });
-
 	logger.info(`Creating bot for platform: ${platform}`);
-
-	// Use provided tRPC client or create one
-	const trpc =
-		trpcClient ??
-		createTrpcClient({
-			url: env.MILO_URL,
-			authToken: env.MILO_AUTH_TOKEN,
-		});
 
 	/**
 	 * Creates an event handler that reports events and triggers status change callbacks.

@@ -89,10 +89,11 @@ export const main = async () => {
 	};
 
 	try {
-		// Create the platform-specific bot instance
+		// Create the platform-specific bot instance using shared logger
 		bot = await createBot(botConfig, {
 			onStatusChange,
 			trpcClient: trpc,
+			logger,
 		});
 
 		// Start monitoring workers (only in production)
