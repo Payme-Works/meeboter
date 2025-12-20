@@ -168,7 +168,10 @@ export function MultiBotJoinDialog({ open, onClose }: MultiBotJoinDialogProps) {
 
 			onClose();
 		} catch (error) {
-			console.error("Failed to create bots:", error);
+			console.error(
+				"[app/bots/_components/multi-bot-join-dialog.tsx > handleSubmit] Failed to create bots",
+				error,
+			);
 
 			// Handle specific quota errors from the server
 			if (error instanceof Error && error.message.includes("Daily bot limit")) {

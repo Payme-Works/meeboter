@@ -13,6 +13,7 @@ import {
 	elementExists,
 	fillWithRetry,
 	navigateWithRetry,
+	withTimeout,
 } from "../../../src/helpers";
 import type { BotLogger } from "../../../src/logger";
 import {
@@ -38,6 +39,17 @@ const USER_AGENT =
 
 const SCREEN_WIDTH = 1920;
 const SCREEN_HEIGHT = 1080;
+
+// Cleanup timeouts (in milliseconds)
+const CLEANUP_TIMEOUTS = {
+	/** Timeout for FFmpeg to stop gracefully */
+	STOP_RECORDING: 10000,
+	/** Timeout for browser to close */
+	BROWSER_CLOSE: 15000,
+} as const;
+
+// Expected domain for Google Meet
+const GOOGLE_MEET_DOMAIN = "meet.google.com";
 
 // ============================================
 // SECTION 2: SELECTORS
@@ -339,39 +351,117 @@ export class GoogleMeetBot extends Bot {
 	 * Leave the call gracefully.
 	 */
 	async leaveCall(): Promise<number> {
+		const leaveStartTime = Date.now();
+
 		this.logger.setState("LEAVING");
-		this.logger.info("State: IN_CALL → LEAVING");
+
+		this.logger.info("[leaveCall] Starting leave process", {
+			hasPage: !!this.page,
+			pageUrl: this.page?.url() ?? "no page",
+		});
 
 		if (this.page) {
-			await clickIfExists(this.page, SELECTORS.leaveButton, { timeout: 1000 });
+			this.logger.debug("[leaveCall] Attempting to click leave button");
+
+			const clicked = await clickIfExists(this.page, SELECTORS.leaveButton, {
+				timeout: 1000,
+			});
+
+			this.logger.debug("[leaveCall] Leave button click result", { clicked });
 		}
+
+		this.logger.debug("[leaveCall] Calling cleanup()");
 
 		await this.cleanup();
 
-		this.logger.info("State: LEAVING → ENDED");
+		this.logger.info("[leaveCall] Leave complete", {
+			totalDurationMs: Date.now() - leaveStartTime,
+		});
 
 		return 0;
 	}
 
 	/**
 	 * Clean up resources (stop recording, close browser).
+	 * Uses timeouts to prevent hanging if browser/FFmpeg are unresponsive.
 	 */
 	async cleanup(): Promise<void> {
+		const cleanupStartTime = Date.now();
+
 		this.logger.setState("ENDING");
 
-		if (this.settings.recordingEnabled && this.ffmpegProcess) {
-			this.logger.info("Stopping recording");
+		this.logger.debug("[cleanup] Starting cleanup process", {
+			recordingEnabled: this.settings.recordingEnabled,
+			hasFFmpegProcess: !!this.ffmpegProcess,
+			hasBrowser: !!this.browser,
+		});
 
-			await this.stopRecording();
+		if (this.settings.recordingEnabled && this.ffmpegProcess) {
+			this.logger.info("[cleanup] Stopping recording", {
+				timeoutMs: CLEANUP_TIMEOUTS.STOP_RECORDING,
+			});
+
+			const recordingStopStart = Date.now();
+
+			try {
+				await withTimeout(
+					this.stopRecording(),
+					CLEANUP_TIMEOUTS.STOP_RECORDING,
+					"Stop recording",
+				);
+
+				this.logger.debug("[cleanup] Recording stopped successfully", {
+					durationMs: Date.now() - recordingStopStart,
+				});
+			} catch (error) {
+				this.logger.warn(
+					"[cleanup] Recording stop timed out, forcing SIGKILL",
+					{
+						error: error instanceof Error ? error.message : String(error),
+						durationMs: Date.now() - recordingStopStart,
+					},
+				);
+
+				// Force kill FFmpeg if it didn't stop gracefully
+				if (this.ffmpegProcess) {
+					this.ffmpegProcess.kill("SIGKILL");
+					this.ffmpegProcess = null;
+					this.logger.debug("[cleanup] FFmpeg process killed with SIGKILL");
+				}
+			}
 		}
 
 		if (this.browser) {
-			await this.browser.close();
+			this.logger.debug("[cleanup] Closing browser", {
+				timeoutMs: CLEANUP_TIMEOUTS.BROWSER_CLOSE,
+			});
 
-			this.logger.debug("Browser closed");
+			const browserCloseStart = Date.now();
+
+			try {
+				await withTimeout(
+					this.browser.close(),
+					CLEANUP_TIMEOUTS.BROWSER_CLOSE,
+					"Browser close",
+				);
+
+				this.logger.debug("[cleanup] Browser closed successfully", {
+					durationMs: Date.now() - browserCloseStart,
+				});
+			} catch (error) {
+				this.logger.warn("[cleanup] Browser close timed out", {
+					error: error instanceof Error ? error.message : String(error),
+					durationMs: Date.now() - browserCloseStart,
+				});
+
+				// Playwright doesn't expose the process directly, so we just log the warning
+				// The browser context should be cleaned up by the OS when the process exits
+			}
 		}
 
-		this.logger.info("Cleanup complete");
+		this.logger.info("[cleanup] Cleanup complete", {
+			totalDurationMs: Date.now() - cleanupStartTime,
+		});
 	}
 
 	// ============================================
@@ -382,20 +472,29 @@ export class GoogleMeetBot extends Bot {
 	 * Monitor the call and handle exit conditions.
 	 */
 	async monitorCall(): Promise<void> {
+		const monitorStartTime = Date.now();
+
+		this.logger.debug("[monitorCall] Starting call monitoring", {
+			recordingEnabled: this.settings.recordingEnabled,
+			chatEnabled: this.chatEnabled,
+		});
+
 		// Start recording if enabled
 		if (this.settings.recordingEnabled) {
-			this.logger.info("Starting recording");
+			this.logger.info("[monitorCall] Starting recording");
 			await this.startRecording();
 		}
 
 		// Open chat panel if chat is enabled
 		if (this.chatEnabled) {
+			this.logger.debug("[monitorCall] Opening chat panel");
 			await this.ensureChatPanelOpen();
 		}
 
-		this.logger.debug("Monitoring call for exit conditions");
+		this.logger.debug("[monitorCall] Entering monitoring loop");
 
 		let loopCount = 0;
+		let exitReason = "unknown";
 
 		// Simple monitoring loop with error handling
 		try {
@@ -404,29 +503,41 @@ export class GoogleMeetBot extends Bot {
 
 				// Log every 12 iterations (~1 minute) to show the bot is still monitoring
 				if (loopCount % 12 === 0) {
-					this.logger.trace("Still monitoring call", {
+					this.logger.trace("[monitorCall] Health check", {
 						loopCount,
 						leaveRequested: this.leaveRequested,
+						monitoringDurationMs: Date.now() - monitorStartTime,
+						pageUrl: this.page?.url() ?? "no page",
 					});
 				}
 
 				// Check 1: User requested leave via API?
 				if (this.leaveRequested) {
-					this.logger.info("Leaving: User requested via API");
+					exitReason = "user_requested_leave";
+					this.logger.info("[monitorCall] Exit: User requested via API");
 
 					break;
 				}
 
 				// Check 2: Were we kicked/removed?
 				try {
-					if (await this.hasBeenRemovedFromCall()) {
-						this.logger.info("Leaving: Removed from meeting");
+					const checkStart = Date.now();
+					const wasRemoved = await this.hasBeenRemovedFromCall();
+
+					if (wasRemoved) {
+						exitReason = "removed_from_call";
+
+						this.logger.info("[monitorCall] Exit: Removed from meeting", {
+							checkDurationMs: Date.now() - checkStart,
+						});
 
 						break;
 					}
 				} catch (error) {
+					exitReason = "removal_check_error";
+
 					this.logger.error(
-						"Error checking if removed from call",
+						"[monitorCall] Exit: Error checking removal status",
 						error instanceof Error ? error : new Error(String(error)),
 					);
 
@@ -439,7 +550,7 @@ export class GoogleMeetBot extends Bot {
 					try {
 						await this.processChatQueue();
 					} catch (error) {
-						this.logger.warn("Error processing chat queue", {
+						this.logger.warn("[monitorCall] Chat queue processing error", {
 							error: error instanceof Error ? error.message : String(error),
 						});
 					}
@@ -449,47 +560,103 @@ export class GoogleMeetBot extends Bot {
 				await setTimeout(5000);
 			}
 		} catch (error) {
+			exitReason = "unexpected_error";
+
 			this.logger.error(
-				"Unexpected error in monitoring loop",
+				"[monitorCall] Exit: Unexpected error in monitoring loop",
 				error instanceof Error ? error : new Error(String(error)),
 			);
 		}
 
-		this.logger.info("Exiting monitoring loop", { loopCount });
+		this.logger.info("[monitorCall] Exiting monitoring loop", {
+			loopCount,
+			exitReason,
+			totalMonitoringDurationMs: Date.now() - monitorStartTime,
+		});
+
+		this.logger.debug("[monitorCall] Calling leaveCall()");
 		await this.leaveCall();
+		this.logger.debug("[monitorCall] leaveCall() completed");
 	}
 
 	/**
 	 * Check if bot has been removed from the call.
-	 * Simple detection: kick dialog exists OR leave button gone.
+	 * Detects: wrong domain, kick dialog, or missing leave button.
 	 */
 	async hasBeenRemovedFromCall(): Promise<boolean> {
+		this.logger.trace("[hasBeenRemovedFromCall] Starting removal check");
+
 		if (!this.page) {
-			this.logger.warn("Page instance is null, treating as removed from call");
+			this.logger.warn(
+				"[hasBeenRemovedFromCall] Page is null, treating as removed",
+			);
 
 			return true;
 		}
 
-		// Check 1: Explicit kick dialog
+		// Check 1: Verify we're still on Google Meet domain
+		// This catches unexpected redirects (e.g., to other sites)
+		try {
+			const currentUrl = this.page.url();
+			const url = new URL(currentUrl);
+
+			this.logger.trace("[hasBeenRemovedFromCall] URL check", {
+				currentHostname: url.hostname,
+				expectedHostname: GOOGLE_MEET_DOMAIN,
+				fullUrl: currentUrl,
+			});
+
+			if (url.hostname !== GOOGLE_MEET_DOMAIN) {
+				this.logger.info("[hasBeenRemovedFromCall] REMOVED: Domain mismatch", {
+					currentDomain: url.hostname,
+					expectedDomain: GOOGLE_MEET_DOMAIN,
+					fullUrl: currentUrl,
+				});
+
+				return true;
+			}
+		} catch (error) {
+			this.logger.warn("[hasBeenRemovedFromCall] REMOVED: URL check failed", {
+				error: error instanceof Error ? error.message : String(error),
+			});
+
+			return true;
+		}
+
+		// Check 2: Explicit kick dialog
 		const hasKickDialog = await elementExists(this.page, SELECTORS.kickDialog);
 
+		this.logger.trace("[hasBeenRemovedFromCall] Kick dialog check", {
+			hasKickDialog,
+			selector: SELECTORS.kickDialog,
+		});
+
 		if (hasKickDialog) {
-			this.logger.info("Kick detected: Return to home screen dialog");
+			this.logger.info("[hasBeenRemovedFromCall] REMOVED: Kick dialog visible");
 
 			return true;
 		}
 
-		// Check 2: Leave button gone (call ended or kicked)
+		// Check 3: Leave button gone (call ended or kicked)
 		const hasLeaveButton = await elementExists(
 			this.page,
 			SELECTORS.leaveButton,
 		);
 
+		this.logger.trace("[hasBeenRemovedFromCall] Leave button check", {
+			hasLeaveButton,
+			selector: SELECTORS.leaveButton,
+		});
+
 		if (!hasLeaveButton) {
-			this.logger.info("Kick detected: Leave button no longer visible");
+			this.logger.info(
+				"[hasBeenRemovedFromCall] REMOVED: Leave button missing",
+			);
 
 			return true;
 		}
+
+		this.logger.trace("[hasBeenRemovedFromCall] Still in call");
 
 		return false;
 	}

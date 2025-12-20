@@ -9,3 +9,8 @@ export {
 	navigateWithRetry,
 } from "./navigate-with-retry";
 export { type WaitForElementOptions, waitForElement } from "./wait-for-element";
+export {
+	TimeoutError,
+	withTimeout,
+	withTimeoutOrDefault,
+} from "./with-timeout";

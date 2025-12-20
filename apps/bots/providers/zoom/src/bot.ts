@@ -7,6 +7,7 @@ import type { TRPCClient } from "@trpc/client";
 import puppeteer, { type Browser, type Frame, type Page } from "puppeteer";
 import { getStream, launch, wss } from "puppeteer-stream";
 import { Bot } from "../../../src/bot";
+import { withTimeout } from "../../../src/helpers";
 import type { BotLogger } from "../../../src/logger";
 import {
 	type BotConfig,
@@ -14,6 +15,19 @@ import {
 	type SpeakerTimeframe,
 	WaitingRoomTimeoutError,
 } from "../../../src/types";
+
+// Cleanup timeouts (in milliseconds)
+const CLEANUP_TIMEOUTS = {
+	/** Timeout for stream to stop */
+	STOP_RECORDING: 10000,
+	/** Timeout for browser to close */
+	BROWSER_CLOSE: 15000,
+	/** Timeout for WebSocket server to close */
+	WSS_CLOSE: 5000,
+} as const;
+
+// Expected domain for Zoom
+const ZOOM_DOMAIN = "app.zoom.us";
 
 // ============================================
 // SECTION 1: SELECTORS
@@ -128,13 +142,17 @@ export class ZoomBot extends Bot {
 	 * Monitor the call and handle exit conditions.
 	 */
 	private async monitorCall(): Promise<void> {
+		const monitorStartTime = Date.now();
+
+		this.logger.info("[monitorCall] Starting call monitoring");
+
 		if (!this.page) {
 			throw new Error("Page not initialized");
 		}
 
 		// Start recording if enabled
 		if (this.settings.recordingEnabled) {
-			this.logger.info("Starting recording");
+			this.logger.info("[monitorCall] Starting recording");
 			await this.startRecording();
 		}
 
@@ -146,37 +164,126 @@ export class ZoomBot extends Bot {
 			throw new Error("Failed to get meeting iframe for monitoring");
 		}
 
-		this.logger.debug("Monitoring call for exit conditions");
+		this.logger.debug("[monitorCall] Waiting for exit conditions", {
+			exitConditions: ["meetingEnd", "leaveButtonGone", "leaveRequest"],
+		});
 
 		// Race between exit conditions
-		await Promise.race([
-			this.waitForMeetingEnd(frame),
-			this.waitForLeaveButtonGone(frame),
-			this.waitForLeaveRequest(),
+		const exitReason = await Promise.race([
+			this.waitForMeetingEnd(frame).then(() => "meetingEnd" as const),
+			this.waitForLeaveButtonGone(frame).then(() => "leaveButtonGone" as const),
+			this.waitForLeaveRequest().then(() => "leaveRequest" as const),
 		]);
+
+		const monitorDurationMs = Date.now() - monitorStartTime;
+
+		this.logger.info("[monitorCall] Exit condition triggered", {
+			exitReason,
+			monitorDurationMs,
+			monitorDurationFormatted: `${Math.floor(monitorDurationMs / 60000)}m ${Math.floor((monitorDurationMs % 60000) / 1000)}s`,
+		});
 
 		await this.cleanup();
 	}
 
 	/**
 	 * Clean up resources.
+	 * Uses timeouts to prevent hanging if browser/stream are unresponsive.
 	 */
 	async cleanup(): Promise<void> {
-		this.logger.info("State: IN_CALL → ENDING");
+		const cleanupStartTime = Date.now();
 
-		await this.stopRecording();
+		this.logger.info("[cleanup] Starting cleanup process", {
+			hasFile: !!this.file,
+			hasBrowser: !!this.browser,
+		});
+
+		// Stop recording with timeout
+		this.logger.debug("[cleanup] Stopping recording", {
+			timeoutMs: CLEANUP_TIMEOUTS.STOP_RECORDING,
+		});
+
+		const recordingStopStart = Date.now();
+
+		try {
+			await withTimeout(
+				this.stopRecording(),
+				CLEANUP_TIMEOUTS.STOP_RECORDING,
+				"Stop recording",
+			);
+
+			this.logger.debug("[cleanup] Recording stopped successfully", {
+				durationMs: Date.now() - recordingStopStart,
+			});
+		} catch (error) {
+			this.logger.warn("[cleanup] Recording stop timed out", {
+				error: error instanceof Error ? error.message : String(error),
+				durationMs: Date.now() - recordingStopStart,
+			});
+		}
 
 		if (this.file) {
 			this.file.close();
 			this.file = null;
+			this.logger.debug("[cleanup] File stream closed");
 		}
 
 		if (this.browser) {
-			await this.browser.close();
-			(await wss).close();
+			// Close browser with timeout
+			this.logger.debug("[cleanup] Closing browser", {
+				timeoutMs: CLEANUP_TIMEOUTS.BROWSER_CLOSE,
+			});
+
+			const browserCloseStart = Date.now();
+
+			try {
+				await withTimeout(
+					this.browser.close(),
+					CLEANUP_TIMEOUTS.BROWSER_CLOSE,
+					"Browser close",
+				);
+
+				this.logger.debug("[cleanup] Browser closed successfully", {
+					durationMs: Date.now() - browserCloseStart,
+				});
+			} catch (error) {
+				this.logger.warn("[cleanup] Browser close timed out, forcing SIGKILL", {
+					error: error instanceof Error ? error.message : String(error),
+					durationMs: Date.now() - browserCloseStart,
+				});
+
+				// Force kill browser process if it didn't close gracefully
+				const browserProcess = this.browser.process();
+
+				if (browserProcess) {
+					browserProcess.kill("SIGKILL");
+					this.logger.debug("[cleanup] Browser process killed with SIGKILL");
+				}
+			}
+
+			// Close WebSocket server with timeout
+			this.logger.debug("[cleanup] Closing WebSocket server", {
+				timeoutMs: CLEANUP_TIMEOUTS.WSS_CLOSE,
+			});
+
+			try {
+				await withTimeout(
+					(async () => (await wss).close())(),
+					CLEANUP_TIMEOUTS.WSS_CLOSE,
+					"WebSocket server close",
+				);
+
+				this.logger.debug("[cleanup] WebSocket server closed");
+			} catch (error) {
+				this.logger.warn("[cleanup] WebSocket server close timed out", {
+					error: error instanceof Error ? error.message : String(error),
+				});
+			}
 		}
 
-		this.logger.info("Cleanup complete");
+		this.logger.info("[cleanup] Cleanup complete", {
+			totalDurationMs: Date.now() - cleanupStartTime,
+		});
 	}
 
 	// ============================================
@@ -239,9 +346,110 @@ export class ZoomBot extends Bot {
 	}
 
 	/**
-	 * Check if bot has been kicked (not implemented for Zoom).
+	 * Check if bot has been removed from the call.
+	 * Detects: wrong domain or missing leave button.
 	 */
 	async hasBeenRemovedFromCall(): Promise<boolean> {
+		this.logger.trace("[hasBeenRemovedFromCall] Starting removal check");
+
+		if (!this.page) {
+			this.logger.warn(
+				"[hasBeenRemovedFromCall] Page is null, treating as removed",
+			);
+
+			return true;
+		}
+
+		// Check 1: Verify we're still on Zoom domain
+		try {
+			const currentUrl = this.page.url();
+			const url = new URL(currentUrl);
+
+			this.logger.trace("[hasBeenRemovedFromCall] URL check", {
+				currentHostname: url.hostname,
+				expectedHostname: ZOOM_DOMAIN,
+				fullUrl: currentUrl,
+			});
+
+			if (url.hostname !== ZOOM_DOMAIN) {
+				this.logger.info(
+					"[hasBeenRemovedFromCall] REMOVED: Domain mismatch detected",
+					{
+						currentDomain: url.hostname,
+						expectedDomain: ZOOM_DOMAIN,
+						fullUrl: currentUrl,
+					},
+				);
+
+				return true;
+			}
+		} catch (error) {
+			this.logger.warn(
+				"[hasBeenRemovedFromCall] Error checking page URL, treating as removed",
+				{
+					error: error instanceof Error ? error.message : String(error),
+				},
+			);
+
+			return true;
+		}
+
+		// Check 2: Get iframe and check for leave button
+		try {
+			const iframe = await this.page.$(SELECTORS.iframe);
+
+			this.logger.trace("[hasBeenRemovedFromCall] Iframe check", {
+				iframeFound: !!iframe,
+				selector: SELECTORS.iframe,
+			});
+
+			if (!iframe) {
+				this.logger.info(
+					"[hasBeenRemovedFromCall] REMOVED: Meeting iframe not found",
+				);
+
+				return true;
+			}
+
+			const frame = await iframe.contentFrame();
+
+			this.logger.trace("[hasBeenRemovedFromCall] Frame access check", {
+				frameAccessible: !!frame,
+			});
+
+			if (!frame) {
+				this.logger.info(
+					"[hasBeenRemovedFromCall] REMOVED: Cannot access meeting iframe",
+				);
+
+				return true;
+			}
+
+			const leaveButton = await frame.$(SELECTORS.leaveButton);
+
+			this.logger.trace("[hasBeenRemovedFromCall] Leave button check", {
+				leaveButtonFound: !!leaveButton,
+				selector: SELECTORS.leaveButton,
+			});
+
+			if (!leaveButton) {
+				this.logger.info(
+					"[hasBeenRemovedFromCall] REMOVED: Leave button not found",
+				);
+
+				return true;
+			}
+		} catch (error) {
+			this.logger.trace(
+				"[hasBeenRemovedFromCall] Error checking elements, assuming still in call",
+				{
+					error: error instanceof Error ? error.message : String(error),
+				},
+			);
+		}
+
+		this.logger.trace("[hasBeenRemovedFromCall] Still in call");
+
 		return false;
 	}
 
