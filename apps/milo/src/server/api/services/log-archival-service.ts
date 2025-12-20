@@ -123,11 +123,10 @@ class LogArchivalService {
 				return { entries: [] };
 			}
 
-			// Sort by key (timestamp-based) in descending order for most recent first
+			// Sort by key (timestamp-based) in ascending order for chronological display
 			const sortedKeys = listResult.Contents.map((obj) => obj.Key)
 				.filter((key): key is string => key !== undefined)
-				.sort()
-				.reverse();
+				.sort();
 
 			// Fetch and parse log files
 			const allEntries: LogEntry[] = [];
@@ -171,10 +170,10 @@ class LogArchivalService {
 				}
 			}
 
-			// Sort all entries by timestamp descending
+			// Sort all entries by timestamp ascending (chronological order)
 			allEntries.sort(
 				(a, b) =>
-					new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+					new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
 			);
 
 			return {
