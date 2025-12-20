@@ -28,6 +28,7 @@ export interface Services {
 export interface CreateServicesOptions {
 	botId: number;
 	initialLogLevel?: string;
+
 	/** Getter function for the bot instance (set after bot is created) */
 	getBot: () => Bot | null;
 }
