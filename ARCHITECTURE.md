@@ -807,7 +807,6 @@ S3_BUCKET_NAME=meeboter-recordings
 
 # Bot images
 GHCR_ORG=payme-works
-BOT_IMAGE_TAG=latest
 ```
 
 #### Bot Containers

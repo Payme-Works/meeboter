@@ -17,7 +17,7 @@ type MeetingInfo = {
 	tenantId?: string;
 	messageId?: string;
 	threadId?: string;
-	platform?: "zoom" | "microsoft-teams" | "google";
+	platform?: "zoom" | "microsoft-teams" | "google-meet";
 };
 
 /**

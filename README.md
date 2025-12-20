@@ -457,7 +457,7 @@ When set to `auto`, the platform is auto-detected based on available credentials
 | `ECS_SECURITY_GROUPS` | Comma-separated security group IDs | Yes* |
 | `ECS_TASK_DEF_ZOOM` | Task definition for Zoom bot | Yes* |
 | `ECS_TASK_DEF_MICROSOFT_TEAMS` | Task definition for Microsoft Teams bot | Yes* |
-| `ECS_TASK_DEF_MEET` | Task definition for Meet bot | Yes* |
+| `ECS_TASK_DEF_GOOGLE_MEET` | Task definition for Google Meet bot | Yes* |
 | `ECS_ASSIGN_PUBLIC_IP` | Assign public IP to tasks | No | `true` |
 
 *Required when `DEPLOYMENT_PLATFORM=aws`

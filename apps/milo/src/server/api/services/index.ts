@@ -41,6 +41,9 @@ function createServices(): Services {
 	// For Coolify platform, also expose the underlying services
 	// for admin/monitoring operations (pool stats, slot recovery)
 	if (getPlatformType() === "coolify") {
+		const imagePullLock = new ImagePullLockService();
+		const deploymentQueue = new DeploymentQueueService();
+
 		const coolify = new CoolifyService(
 			{
 				apiUrl: env.COOLIFY_API_URL,
@@ -61,19 +64,11 @@ function createServices(): Services {
 			},
 			{
 				ghcrOrg: env.GHCR_ORG,
-				botImageTag: env.BOT_IMAGE_TAG,
 			},
-		);
-
-		const imagePullLock = new ImagePullLockService();
-		const deploymentQueue = new DeploymentQueueService();
-
-		const pool = new BotPoolService(
-			db,
-			coolify,
 			imagePullLock,
-			deploymentQueue,
 		);
+
+		const pool = new BotPoolService(db, coolify, deploymentQueue);
 
 		services.coolify = coolify;
 		services.pool = pool;

@@ -29,12 +29,12 @@ const quickBotSchema = z.object({
 
 type QuickBotFormData = z.infer<typeof quickBotSchema>;
 
-type Platform = "google" | "microsoft-teams" | "zoom" | "unknown" | null;
+type Platform = "google-meet" | "microsoft-teams" | "zoom" | "unknown" | null;
 
 function detectPlatform(url: string): Platform {
 	if (!url) return null;
 
-	if (url.includes("meet.google.com")) return "google";
+	if (url.includes("meet.google.com")) return "google-meet";
 
 	if (url.includes("teams.microsoft.com") || url.includes("teams.live.com"))
 		return "microsoft-teams";
@@ -46,7 +46,7 @@ function detectPlatform(url: string): Platform {
 
 function getPlatformDisplayName(platform: Platform): string {
 	switch (platform) {
-		case "google":
+		case "google-meet":
 			return "Google Meet";
 		case "microsoft-teams":
 			return "Microsoft Teams";

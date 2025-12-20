@@ -378,7 +378,7 @@ export const meetingInfoSchema = z.object({
 	messageId: z.string().optional().describe("Message ID"),
 	threadId: z.string().optional().describe("Thread ID"),
 	platform: z
-		.enum(["zoom", "microsoft-teams", "google"])
+		.enum(["zoom", "microsoft-teams", "google-meet"])
 		.optional()
 		.describe("Platform"),
 });

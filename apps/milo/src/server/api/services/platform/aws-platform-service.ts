@@ -29,7 +29,7 @@ export interface AWSPlatformConfig {
 	taskDefinitions: {
 		zoom: string;
 		"microsoft-teams": string;
-		meet: string;
+		"google-meet": string;
 	};
 
 	/** Whether to assign public IP to tasks */
@@ -195,8 +195,8 @@ export class AWSPlatformService implements PlatformService {
 				return this.config.taskDefinitions.zoom;
 			case "microsoft-teams":
 				return this.config.taskDefinitions["microsoft-teams"];
-			case "google":
-				return this.config.taskDefinitions.meet;
+			case "google-meet":
+				return this.config.taskDefinitions["google-meet"];
 			default:
 				throw new Error(`Unsupported platform: ${platform}`);
 		}
@@ -211,7 +211,7 @@ export class AWSPlatformService implements PlatformService {
 				return "zoom-bot";
 			case "microsoft-teams":
 				return "microsoft-teams-bot";
-			case "google":
+			case "google-meet":
 				return "google-meet-bot";
 			default:
 				throw new Error(`Unsupported platform: ${platform}`);

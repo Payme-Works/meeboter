@@ -32,12 +32,7 @@ interface CreateBotOptions {
  * Validates if the given platform matches the expected Docker image name.
  */
 function validPlatformForImage(platform: string, imageName: string): boolean {
-	if (platform === imageName) return true;
-
-	// Special case: ignore any mismatch between platform and bot name for Google Meet
-	if (platform === "google" && imageName === "meet") return true;
-
-	return false;
+	return platform === imageName;
 }
 
 /**
@@ -122,7 +117,7 @@ export async function createBot(
 	let bot: Bot;
 
 	switch (config.meetingInfo.platform) {
-		case "google": {
+		case "google-meet": {
 			const { GoogleMeetBot } = await import(
 				"../providers/google-meet/src/bot"
 			);

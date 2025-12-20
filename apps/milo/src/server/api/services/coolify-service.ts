@@ -1,4 +1,5 @@
 import type * as schema from "@/server/database/schema";
+import type { ImagePullLockService } from "./image-pull-lock-service";
 
 /**
  * Configuration for CoolifyService
@@ -30,7 +31,6 @@ interface BotEnvConfig {
  */
 interface ImageConfig {
 	ghcrOrg: string;
-	botImageTag: string;
 }
 
 /**
@@ -95,6 +95,7 @@ export class CoolifyService {
 		private readonly config: CoolifyConfig,
 		private readonly botEnvConfig: BotEnvConfig,
 		private readonly imageConfig: ImageConfig,
+		private readonly imagePullLock: ImagePullLockService,
 	) {}
 
 	/**
@@ -102,15 +103,14 @@ export class CoolifyService {
 	 */
 	selectBotImage(meetingInfo: schema.MeetingInfo): BotImage {
 		const baseImage = `ghcr.io/${this.imageConfig.ghcrOrg}/meeboter`;
-		const tag = this.imageConfig.botImageTag;
 
 		switch (meetingInfo.platform?.toLowerCase()) {
-			case "google":
-				return { name: `${baseImage}-google-meet-bot`, tag };
+			case "google-meet":
+				return { name: `${baseImage}-google-meet-bot`, tag: "latest" };
 			case "microsoft-teams":
-				return { name: `${baseImage}-microsoft-teams-bot`, tag };
+				return { name: `${baseImage}-microsoft-teams-bot`, tag: "latest" };
 			case "zoom":
-				return { name: `${baseImage}-zoom-bot`, tag };
+				return { name: `${baseImage}-zoom-bot`, tag: "latest" };
 			default:
 				throw new CoolifyDeploymentError(
 					`Unsupported platform: ${meetingInfo.platform}`,
@@ -683,6 +683,93 @@ export class CoolifyService {
 			status: "timeout",
 			error: `Deployment timed out after ${timeoutMs / 1000} seconds`,
 		};
+	}
+
+	/**
+	 * Starts an application with image pull lock coordination and retry logic.
+	 *
+	 * This method coordinates Docker image pulls across multiple deployments:
+	 * - First deployer acquires lock, pulls image, retries until success
+	 * - Subsequent deployers wait for lock, then use cached image
+	 *
+	 * @param applicationUuid - The Coolify application UUID
+	 * @param platform - Platform name for lock key (e.g., "google-meet")
+	 * @param imageTag - Docker image tag for lock key
+	 * @param maxRetries - Maximum retry attempts (default: 3)
+	 * @returns Promise that resolves when deployment succeeds
+	 */
+	async startWithLockAndRetry(
+		applicationUuid: string,
+		platform: string,
+		imageTag: string,
+		maxRetries: number = 3,
+	): Promise<DeploymentStatusResult> {
+		// Acquire lock - serializes deployments per platform/image
+		const { release: releaseLock, didWait } =
+			await this.imagePullLock.acquireLock(platform, imageTag);
+
+		try {
+			// Start deployment
+			console.log(
+				`[CoolifyService] Starting application ${applicationUuid} (didWait: ${didWait})`,
+			);
+
+			await this.startApplication(applicationUuid);
+
+			// Wait for deployment with retries
+			let attempt = 0;
+			let lastError: string | undefined;
+
+			while (attempt <= maxRetries) {
+				attempt++;
+
+				console.log(
+					`[CoolifyService] Waiting for deployment ${applicationUuid} (attempt ${attempt}/${maxRetries + 1})...`,
+				);
+
+				const result = await this.waitForDeployment(applicationUuid);
+
+				if (result.success) {
+					console.log(
+						`[CoolifyService] Deployment succeeded for ${applicationUuid}`,
+					);
+
+					return result;
+				}
+
+				lastError = result.error ?? "Deployment failed";
+
+				if (attempt <= maxRetries) {
+					console.log(
+						`[CoolifyService] Deployment failed for ${applicationUuid}, retrying (${attempt}/${maxRetries})... Error: ${lastError}`,
+					);
+
+					// Wait before retry with exponential backoff
+					const backoffMs = Math.min(1000 * 2 ** attempt, 30000);
+					await new Promise((resolve) => setTimeout(resolve, backoffMs));
+
+					// Trigger a new deployment
+					await this.startApplication(applicationUuid);
+				}
+			}
+
+			// All retries exhausted
+			console.error(
+				`[CoolifyService] Deployment failed for ${applicationUuid} after ${attempt} attempts: ${lastError}`,
+			);
+
+			return {
+				success: false,
+				status: "failed",
+				error: `Deployment failed after ${attempt} attempts: ${lastError}`,
+			};
+		} finally {
+			releaseLock();
+
+			console.log(
+				`[CoolifyService] Released image pull lock for ${platform}:${imageTag}`,
+			);
+		}
 	}
 
 	/**

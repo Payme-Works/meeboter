@@ -71,7 +71,6 @@ COOLIFY_DESTINATION_UUID="your-destination-uuid"
 
 # Bot Images (GitHub Container Registry)
 GHCR_ORG="your-github-org"
-BOT_IMAGE_TAG="latest"
 MILO_AUTH_TOKEN="your-milo-auth-token"
 ```
 
@@ -154,7 +153,7 @@ ECS_ASSIGN_PUBLIC_IP="true"
 # Task Definitions (family:revision or just family for latest)
 ECS_TASK_DEF_ZOOM="meeboter-zoom-bot:1"
 ECS_TASK_DEF_MICROSOFT_TEAMS="meeboter-microsoft-teams-bot:1"
-ECS_TASK_DEF_MEET="meeboter-google-meet-bot:1"
+ECS_TASK_DEF_GOOGLE_MEET="meeboter-google-meet-bot:1"
 
 # Bot Configuration
 MILO_AUTH_TOKEN="your-milo-auth-token"

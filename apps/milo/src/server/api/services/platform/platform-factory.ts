@@ -70,6 +70,9 @@ function detectPlatform(): "coolify" | "aws" | "local" {
  * Creates a Coolify platform service instance
  */
 function createCoolifyPlatformService(): CoolifyPlatformService {
+	const imagePullLock = new ImagePullLockService();
+	const deploymentQueue = new DeploymentQueueService();
+
 	const coolifyService = new CoolifyService(
 		{
 			apiUrl: env.COOLIFY_API_URL,
@@ -90,19 +93,11 @@ function createCoolifyPlatformService(): CoolifyPlatformService {
 		},
 		{
 			ghcrOrg: env.GHCR_ORG,
-			botImageTag: env.BOT_IMAGE_TAG,
 		},
-	);
-
-	const imagePullLock = new ImagePullLockService();
-	const deploymentQueue = new DeploymentQueueService();
-
-	const poolService = new BotPoolService(
-		db,
-		coolifyService,
 		imagePullLock,
-		deploymentQueue,
 	);
+
+	const poolService = new BotPoolService(db, coolifyService, deploymentQueue);
 
 	return new CoolifyPlatformService(poolService, coolifyService);
 }
@@ -126,7 +121,7 @@ function createAWSPlatformService(): AWSPlatformService {
 		taskDefinitions: {
 			zoom: env.ECS_TASK_DEF_ZOOM ?? "",
 			"microsoft-teams": env.ECS_TASK_DEF_MICROSOFT_TEAMS ?? "",
-			meet: env.ECS_TASK_DEF_MEET ?? "",
+			"google-meet": env.ECS_TASK_DEF_GOOGLE_MEET ?? "",
 		},
 		assignPublicIp: env.ECS_ASSIGN_PUBLIC_IP,
 	};

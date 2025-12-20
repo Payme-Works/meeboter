@@ -93,15 +93,15 @@ export function MultiBotJoinDialog({ open, onClose }: MultiBotJoinDialogProps) {
 
 	const detectPlatform = (
 		url: string,
-	): "google" | "microsoft-teams" | "zoom" => {
-		if (url.includes("meet.google.com")) return "google";
+	): "google-meet" | "microsoft-teams" | "zoom" => {
+		if (url.includes("meet.google.com")) return "google-meet";
 
 		if (url.includes("teams.microsoft.com") || url.includes("teams.live.com"))
 			return "microsoft-teams";
 
 		if (url.includes("zoom.us")) return "zoom";
 
-		return "google"; // Default to google
+		return "google-meet"; // Default to google-meet
 	};
 
 	// Calculate quota validation

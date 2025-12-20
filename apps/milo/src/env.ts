@@ -40,7 +40,6 @@ export const env = createEnv({
 
 		// GitHub Container Registry
 		GHCR_ORG: z.string(),
-		BOT_IMAGE_TAG: z.string().default("latest"),
 
 		// S3-Compatible Storage (MinIO or AWS S3)
 		S3_ENDPOINT: z.url(),
@@ -66,7 +65,7 @@ export const env = createEnv({
 		ECS_SECURITY_GROUPS: z.string().optional(),
 		ECS_TASK_DEF_ZOOM: z.string().optional(),
 		ECS_TASK_DEF_MICROSOFT_TEAMS: z.string().optional(),
-		ECS_TASK_DEF_MEET: z.string().optional(),
+		ECS_TASK_DEF_GOOGLE_MEET: z.string().optional(),
 		ECS_ASSIGN_PUBLIC_IP: z
 			.enum(["true", "false"])
 			.default("true")
@@ -103,7 +102,6 @@ export const env = createEnv({
 
 		// GHCR
 		GHCR_ORG: process.env.GHCR_ORG,
-		BOT_IMAGE_TAG: process.env.BOT_IMAGE_TAG,
 
 		// S3-Compatible Storage
 		S3_ENDPOINT: process.env.S3_ENDPOINT,
@@ -130,7 +128,7 @@ export const env = createEnv({
 		ECS_SECURITY_GROUPS: process.env.ECS_SECURITY_GROUPS,
 		ECS_TASK_DEF_ZOOM: process.env.ECS_TASK_DEF_ZOOM,
 		ECS_TASK_DEF_MICROSOFT_TEAMS: process.env.ECS_TASK_DEF_MICROSOFT_TEAMS,
-		ECS_TASK_DEF_MEET: process.env.ECS_TASK_DEF_MEET,
+		ECS_TASK_DEF_GOOGLE_MEET: process.env.ECS_TASK_DEF_GOOGLE_MEET,
 		ECS_ASSIGN_PUBLIC_IP: process.env.ECS_ASSIGN_PUBLIC_IP,
 	},
 
