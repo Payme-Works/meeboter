@@ -45,7 +45,15 @@ const caller = createCaller(createContext);
  * Hydration helpers for tRPC integration with React Server Components
  * Provides api client and HydrateClient component for seamless SSR/hydration
  */
-export const { trpc: api, HydrateClient } = createHydrationHelpers<AppRouter>(
+type HydrationHelpersType = ReturnType<
+	typeof createHydrationHelpers<AppRouter>
+>;
+
+const hydrationHelpers: HydrationHelpersType = createHydrationHelpers<AppRouter>(
 	caller,
 	getQueryClient,
 );
+
+export const api: HydrationHelpersType["trpc"] = hydrationHelpers.trpc;
+export const HydrateClient: HydrationHelpersType["HydrateClient"] =
+	hydrationHelpers.HydrateClient;
