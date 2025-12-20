@@ -22,7 +22,6 @@ src/bots/
 ├── package.json            # Global dependencies
 ├── package.json            # Workspace configuration
 ├── tsconfig.json           # Global ts configurations
-├── jest.config.js          # Jest configuration for tests
 
 ├── src/
 │   ├── index.ts          ! # Main script -- You'll want to look here first!!
@@ -37,9 +36,6 @@ src/bots/
 │   ├── tsconfig.json       # Bot-specific ts configurations
 │   ├── src/
 │   │   ├── bot.ts          # Platform-specific bot class
-
-├── __mocks__/              # Mock implementations for classes
-├── tests/                  # Jest test files
 ```
 
 ## Environment
