@@ -61,10 +61,10 @@ RUN echo "Tell Puppeteer to skip installing Chrome. We'll be using the installed
 ENV PUPPETEER_SKIP_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
-RUN echo "Install bun"
+RUN echo "Install bun globally"
 
-RUN curl -fsSL https://bun.sh/install | bash
-ENV PATH="/root/.bun/bin:${PATH}"
+RUN curl -fsSL https://bun.sh/install | BUN_INSTALL=/usr/local bash
+ENV PATH="/usr/local/bin:${PATH}"
 
 RUN echo "Convert entrypoint.sh to use Unix line endings"
 

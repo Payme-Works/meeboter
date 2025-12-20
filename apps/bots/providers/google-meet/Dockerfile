@@ -92,10 +92,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     unzip \
     && rm -rf /var/lib/apt/lists/*
 
-RUN echo "Install bun"
+RUN echo "Install bun globally"
 
-RUN curl -fsSL https://bun.sh/install | bash
-ENV PATH="/root/.bun/bin:${PATH}"
+RUN curl -fsSL https://bun.sh/install | BUN_INSTALL=/usr/local bash
+ENV PATH="/usr/local/bin:${PATH}"
 
 RUN echo "Copy node_modules and Playwright directory"
 
