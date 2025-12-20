@@ -43,8 +43,6 @@
         "@ffmpeg/ffmpeg": "^0.12.15",
         "@trpc/client": "^11.5.0",
         "@trpc/server": "^11.5.0",
-        "dotenv": "^16.4.5",
-        "fs-extra": "^11.2.0",
         "playwright": "1.52.0",
         "playwright-core": "1.52.0",
         "playwright-extra": "^4.3.6",
@@ -55,11 +53,7 @@
         "puppeteer-extra-plugin-stealth": "^2.11.2",
         "puppeteer-stream": "3.0.9",
         "superjson": "^2.2.1",
-        "tsx": "^4.20.5",
         "typescript": "^5.9.2",
-      },
-      "devDependencies": {
-        "@playwright/test": "1.52.0",
       },
     },
     "apps/bots/providers/microsoft-teams": {
@@ -67,11 +61,9 @@
       "version": "1.0.0",
       "dependencies": {
         "@trpc/client": "^11.5.0",
-        "dotenv": "^16.4.7",
         "puppeteer": "24.7.2",
         "puppeteer-stream": "3.0.20",
         "superjson": "^2.2.2",
-        "tsx": "^4.20.5",
         "typescript": "^5.9.2",
       },
     },
@@ -80,11 +72,9 @@
       "version": "1.0.0",
       "dependencies": {
         "@trpc/client": "^11.5.0",
-        "dotenv": "^16.4.7",
         "puppeteer": "24.7.2",
         "puppeteer-stream": "3.0.20",
         "superjson": "^2.2.2",
-        "tsx": "^4.20.5",
         "typescript": "^5.9.2",
       },
     },
@@ -1211,7 +1201,7 @@
 
     "framer-motion": ["framer-motion@12.23.26", "", { "dependencies": { "motion-dom": "^12.23.23", "motion-utils": "^12.23.6", "tslib": "^2.4.0" }, "peerDependencies": { "@emotion/is-prop-valid": "*", "react": "^18.0.0 || ^19.0.0", "react-dom": "^18.0.0 || ^19.0.0" }, "optionalPeers": ["@emotion/is-prop-valid", "react", "react-dom"] }, "sha512-cPcIhgR42xBn1Uj+PzOyheMtZ73H927+uWPDVhUMqxy8UHt6Okavb6xIz9J/phFUHUj0OncR6UvMfJTXoc/LKA=="],
 
-    "fs-extra": ["fs-extra@11.3.2", "", { "dependencies": { "graceful-fs": "^4.2.0", "jsonfile": "^6.0.1", "universalify": "^2.0.0" } }, "sha512-Xr9F6z6up6Ws+NjzMCZc6WXg2YFRlrLP9NQDO3VQrWrfiojdhS56TzueT88ze0uBdCTwEIhQ3ptnmKeWGFAe0A=="],
+    "fs-extra": ["fs-extra@9.1.0", "", { "dependencies": { "at-least-node": "^1.0.0", "graceful-fs": "^4.2.0", "jsonfile": "^6.0.1", "universalify": "^2.0.0" } }, "sha512-hcg3ZmepS30/7BSFqRvoo3DOMQu7IjqxO5nCDt+zM9XWjb33Wg7ziNT+Qvqbuc3+gWpzO02JubVyk2G4Zvo1OQ=="],
 
     "fs.realpath": ["fs.realpath@1.0.0", "", {}, "sha512-OO0pH2lK6a0hZnAdau5ItzHPI6pUlvI7jMVnxUQRtw4owF2wk8lOSabtGDCTP4Ggrg2MbGnWO9X8K1t4+fGMDw=="],
 
@@ -2032,8 +2022,6 @@
     "parse-entities/@types/unist": ["@types/unist@2.0.11", "", {}, "sha512-CmBKiL6NNo/OqgmMn95Fk9Whlp2mtvIv+KNpQKN2F4SjvrEesubTRWGYSg+BnWZOnlCaSTU1sMpsBOzgbYhnsA=="],
 
     "playwright/fsevents": ["fsevents@2.3.2", "", { "os": "darwin" }, "sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA=="],
-
-    "playwright-video/fs-extra": ["fs-extra@9.1.0", "", { "dependencies": { "at-least-node": "^1.0.0", "graceful-fs": "^4.2.0", "jsonfile": "^6.0.1", "universalify": "^2.0.0" } }, "sha512-hcg3ZmepS30/7BSFqRvoo3DOMQu7IjqxO5nCDt+zM9XWjb33Wg7ziNT+Qvqbuc3+gWpzO02JubVyk2G4Zvo1OQ=="],
 
     "prop-types/react-is": ["react-is@16.13.1", "", {}, "sha512-24e6ynE2H+OKt4kqsOvNd8kBpV65zoxbA4BVsEOB3ARVWQki/DHzaUoC5KuON/BiccDaCCTZBuOcfZs70kR8bQ=="],
 
