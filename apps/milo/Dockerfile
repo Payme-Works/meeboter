@@ -21,10 +21,10 @@ WORKDIR /app
 
 # First install dependencies (as they change less often)
 COPY --from=pruner /app/out/json/ .
-# Copy the original lockfile from monorepo root (more reliable than pruned lockfile)
+# Copy the original lockfile from monorepo root as a reference
 COPY --from=pruner /app/bun.lock ./bun.lock
-# Install dependencies
-RUN bun install --frozen-lockfile --ignore-scripts
+# Install dependencies (no --frozen-lockfile since pruned workspace differs from full monorepo)
+RUN bun install --ignore-scripts
 
 # Build the project
 COPY --from=pruner /app/out/full/ .
