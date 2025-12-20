@@ -1,5 +1,7 @@
 import type { Page } from "playwright";
 
+import type { BotLogger } from "../logger";
+
 export interface NavigateWithRetryOptions {
 	/** Maximum number of retry attempts (default: 10) */
 	maxRetries?: number;
@@ -9,6 +11,8 @@ export interface NavigateWithRetryOptions {
 	timeout?: number;
 	/** Wait until condition (default: "networkidle") */
 	waitUntil?: "load" | "domcontentloaded" | "networkidle" | "commit";
+	/** Logger instance for structured logging */
+	logger?: BotLogger;
 }
 
 /** Network errors that are safe to retry */
@@ -48,17 +52,20 @@ export async function navigateWithRetry(
 		baseDelayMs = 2000,
 		timeout = 30000,
 		waitUntil = "networkidle",
+		logger,
 	} = options;
 
 	for (let attempt = 1; attempt <= maxRetries; attempt++) {
 		try {
-			console.log(
-				`Navigation attempt ${attempt}/${maxRetries}: Navigating to "${url}"`,
-			);
+			if (logger) {
+				logger.debug(`Navigation attempt ${attempt}/${maxRetries}`, { url });
+			}
 
 			await page.goto(url, { waitUntil, timeout });
 
-			console.log("Successfully navigated to URL");
+			if (logger) {
+				logger.debug("Successfully navigated to URL", { url });
+			}
 
 			return true;
 		} catch (error) {
@@ -68,15 +75,22 @@ export async function navigateWithRetry(
 			if (isRetryableError(errorMessage) && attempt < maxRetries) {
 				const retryDelay = baseDelayMs * attempt;
 
-				console.warn(
-					`Navigation failed with retryable error: ${errorMessage}. Retrying in ${retryDelay}ms...`,
-				);
+				if (logger) {
+					logger.warn(
+						`Navigation failed with retryable error, retrying in ${retryDelay}ms`,
+						{ error: errorMessage, attempt, maxRetries },
+					);
+				}
 
 				await page.waitForTimeout(retryDelay);
 			} else {
-				console.error(
-					`Navigation failed after ${attempt} attempt(s): ${errorMessage}`,
-				);
+				if (logger) {
+					logger.error(
+						`Navigation failed after ${attempt} attempt(s)`,
+						new Error(errorMessage),
+						{ url },
+					);
+				}
 
 				throw new Error(
 					`Cannot navigate to URL "${url}" after ${attempt} attempts: ${errorMessage}`,

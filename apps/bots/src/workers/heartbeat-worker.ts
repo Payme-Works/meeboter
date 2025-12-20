@@ -29,40 +29,6 @@ function getRetryDelay(attempt: number): number {
 }
 
 /**
- * Retries an async operation with exponential backoff
- */
-async function retryOperation<T>(
-	operation: () => Promise<T>,
-	operationName: string,
-): Promise<T | null> {
-	for (let attempt = 0; attempt <= RETRY_CONFIG.maxRetries; attempt++) {
-		try {
-			return await operation();
-		} catch (error) {
-			if (attempt === RETRY_CONFIG.maxRetries) {
-				console.error(
-					`${operationName} failed after ${RETRY_CONFIG.maxRetries + 1} attempts:`,
-					error,
-				);
-
-				return null;
-			}
-
-			const delay = getRetryDelay(attempt);
-
-			console.warn(
-				`${operationName} failed (attempt ${attempt + 1}/${RETRY_CONFIG.maxRetries + 1}), retrying in ${delay}ms:`,
-				error instanceof Error ? error.message : String(error),
-			);
-
-			await setTimeout(delay);
-		}
-	}
-
-	return null;
-}
-
-/**
  * Callbacks for heartbeat events
  */
 export interface HeartbeatCallbacks {
@@ -122,6 +88,40 @@ export class HeartbeatWorker {
 	}
 
 	/**
+	 * Retries an async operation with exponential backoff
+	 */
+	private async retryOperation<T>(
+		operation: () => Promise<T>,
+		operationName: string,
+	): Promise<T | null> {
+		for (let attempt = 0; attempt <= RETRY_CONFIG.maxRetries; attempt++) {
+			try {
+				return await operation();
+			} catch (error) {
+				if (attempt === RETRY_CONFIG.maxRetries) {
+					this.logger.error(
+						`${operationName} failed after ${RETRY_CONFIG.maxRetries + 1} attempts`,
+						error instanceof Error ? error : new Error(String(error)),
+					);
+
+					return null;
+				}
+
+				const delay = getRetryDelay(attempt);
+
+				this.logger.warn(
+					`${operationName} failed (attempt ${attempt + 1}/${RETRY_CONFIG.maxRetries + 1}), retrying in ${delay}ms`,
+					{ error: error instanceof Error ? error.message : String(error) },
+				);
+
+				await setTimeout(delay);
+			}
+		}
+
+		return null;
+	}
+
+	/**
 	 * Internal heartbeat loop
 	 */
 	private async runHeartbeatLoop(
@@ -130,19 +130,19 @@ export class HeartbeatWorker {
 		abortSignal: AbortSignal,
 	): Promise<void> {
 		while (!abortSignal.aborted) {
-			const result = await retryOperation(async () => {
+			const result = await this.retryOperation(async () => {
 				return await this.trpc.bots.sendHeartbeat.mutate({
 					id: String(botId),
 				});
 			}, "Heartbeat");
 
 			if (result !== null) {
-				console.log(`[${new Date().toISOString()}] Heartbeat sent`);
+				this.logger.trace("Heartbeat sent");
 
 				// Check if user requested bot to leave
 				if (result.shouldLeave) {
-					console.log(
-						`[${new Date().toISOString()}] Received leave request from backend, signaling bot to leave`,
+					this.logger.info(
+						"Received leave request from backend, signaling bot to leave",
 					);
 
 					callbacks.onLeaveRequested();
@@ -152,8 +152,8 @@ export class HeartbeatWorker {
 
 				// Check if log level changed
 				if (result.logLevel && result.logLevel !== this.lastLogLevel) {
-					console.log(
-						`[${new Date().toISOString()}] Log level changed: ${this.lastLogLevel} -> ${result.logLevel}`,
+					this.logger.info(
+						`Log level changed: ${this.lastLogLevel} -> ${result.logLevel}`,
 					);
 
 					this.lastLogLevel = result.logLevel;
@@ -162,8 +162,8 @@ export class HeartbeatWorker {
 			} else {
 				// Do not log the entire heartbeat error if the user has set HEARTBEAT_DEBUG to false
 				if (env.HEARTBEAT_DEBUG) {
-					console.error(
-						`[${new Date().toISOString()}] Heartbeat failed after all retries, continuing bot operation`,
+					this.logger.error(
+						"Heartbeat failed after all retries, continuing bot operation",
 					);
 				}
 			}

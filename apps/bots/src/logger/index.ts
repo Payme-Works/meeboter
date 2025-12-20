@@ -407,22 +407,23 @@ export class BotLogger {
 		context?: LogContext,
 		error?: Error,
 	): void {
-		// Check if this level should be logged
-		if (level < this.logLevel) {
-			return;
-		}
-
 		const levelName = LOG_LEVEL_NAMES[level];
 		const elapsed = this.getElapsed();
 		const location = this.getCallerLocation();
 
-		// Add to breadcrumbs
+		// Always add to breadcrumbs (useful for debugging)
 		this.addBreadcrumb(levelName, message);
 
-		// Buffer for streaming to backend
+		// Always buffer ALL logs for streaming to backend (UI and S3)
+		// Log level filtering only affects console output, not backend streaming
 		this.bufferLogEntry(level, message, location, elapsed, context);
 
-		// Build the log line
+		// Check if this level should be output to console
+		if (level < this.logLevel) {
+			return;
+		}
+
+		// Build the log line for console output
 		const parts = [
 			colorizeLevel(
 				levelName as "TRACE" | "DEBUG" | "INFO" | "WARN" | "ERROR" | "FATAL",

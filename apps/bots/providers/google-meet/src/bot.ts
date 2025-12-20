@@ -200,7 +200,9 @@ export class GoogleMeetBot extends Bot {
 			url: normalizedUrl,
 		});
 
-		await navigateWithRetry(this.page, normalizedUrl);
+		await navigateWithRetry(this.page, normalizedUrl, {
+			logger: this.logger,
+		});
 
 		this.logger.info("State: NAVIGATING → WAITING_FOR_JOIN_SCREEN");
 
@@ -220,7 +222,11 @@ export class GoogleMeetBot extends Bot {
 
 		// Fill bot name with retry logic for timeout resilience
 		const botName = this.settings.botDisplayName || "Meeboter";
-		await fillWithRetry(this.page, nameInputSelector, botName);
+
+		await fillWithRetry(this.page, nameInputSelector, botName, {
+			logger: this.logger,
+		});
+
 		this.logger.info("Filled bot name", { name: botName });
 
 		// Disable media devices
@@ -355,11 +361,13 @@ export class GoogleMeetBot extends Bot {
 
 		if (this.settings.recordingEnabled && this.ffmpegProcess) {
 			this.logger.info("Stopping recording");
+
 			await this.stopRecording();
 		}
 
 		if (this.browser) {
 			await this.browser.close();
+
 			this.logger.debug("Browser closed");
 		}
 
@@ -402,31 +410,67 @@ export class GoogleMeetBot extends Bot {
 
 		this.logger.debug("Monitoring call for exit conditions");
 
-		// Simple monitoring loop
-		while (true) {
-			// Check 1: User requested leave via API?
-			if (this.leaveRequested) {
-				this.logger.info("Leaving: User requested via API");
+		let loopCount = 0;
 
-				break;
+		// Simple monitoring loop with error handling
+		try {
+			while (true) {
+				loopCount++;
+
+				// Log every 12 iterations (~1 minute) to show the bot is still monitoring
+				if (loopCount % 12 === 0) {
+					this.logger.trace("Still monitoring call", {
+						loopCount,
+						leaveRequested: this.leaveRequested,
+					});
+				}
+
+				// Check 1: User requested leave via API?
+				if (this.leaveRequested) {
+					this.logger.info("Leaving: User requested via API");
+
+					break;
+				}
+
+				// Check 2: Were we kicked/removed?
+				try {
+					if (await this.hasBeenRemovedFromCall()) {
+						this.logger.info("Leaving: Removed from meeting");
+
+						break;
+					}
+				} catch (error) {
+					this.logger.error(
+						"Error checking if removed from call",
+						error instanceof Error ? error : new Error(String(error)),
+					);
+
+					// Treat errors as potential removal
+					break;
+				}
+
+				// Check 3: Process chat messages if enabled
+				if (this.chatEnabled) {
+					try {
+						await this.processChatQueue();
+					} catch (error) {
+						this.logger.warn("Error processing chat queue", {
+							error: error instanceof Error ? error.message : String(error),
+						});
+					}
+				}
+
+				// Wait before next check
+				await setTimeout(5000);
 			}
-
-			// Check 2: Were we kicked/removed?
-			if (await this.hasBeenRemovedFromCall()) {
-				this.logger.info("Leaving: Removed from meeting");
-
-				break;
-			}
-
-			// Check 3: Process chat messages if enabled
-			if (this.chatEnabled) {
-				await this.processChatQueue();
-			}
-
-			// Wait before next check
-			await setTimeout(5000);
+		} catch (error) {
+			this.logger.error(
+				"Unexpected error in monitoring loop",
+				error instanceof Error ? error : new Error(String(error)),
+			);
 		}
 
+		this.logger.info("Exiting monitoring loop", { loopCount });
 		await this.leaveCall();
 	}
 
@@ -436,6 +480,8 @@ export class GoogleMeetBot extends Bot {
 	 */
 	async hasBeenRemovedFromCall(): Promise<boolean> {
 		if (!this.page) {
+			this.logger.warn("Page instance is null, treating as removed from call");
+
 			return true;
 		}
 

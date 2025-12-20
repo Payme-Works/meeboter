@@ -1,5 +1,7 @@
 import type { Page } from "playwright";
 
+import type { BotLogger } from "../logger";
+
 export interface FillWithRetryOptions {
 	/** Maximum number of retry attempts (default: 3) */
 	maxRetries?: number;
@@ -7,6 +9,8 @@ export interface FillWithRetryOptions {
 	baseDelayMs?: number;
 	/** Fill timeout in ms (default: 30000) */
 	timeout?: number;
+	/** Logger instance for structured logging */
+	logger?: BotLogger;
 }
 
 /** Errors that are safe to retry for fill operations */
@@ -41,17 +45,24 @@ export async function fillWithRetry(
 	value: string,
 	options: FillWithRetryOptions = {},
 ): Promise<boolean> {
-	const { maxRetries = 3, baseDelayMs = 1000, timeout = 30000 } = options;
+	const {
+		maxRetries = 3,
+		baseDelayMs = 1000,
+		timeout = 30000,
+		logger,
+	} = options;
 
 	for (let attempt = 1; attempt <= maxRetries; attempt++) {
 		try {
-			console.log(
-				`Fill attempt ${attempt}/${maxRetries}: Filling selector "${selector}"`,
-			);
+			if (logger) {
+				logger.debug(`Fill attempt ${attempt}/${maxRetries}`, { selector });
+			}
 
 			await page.fill(selector, value, { timeout });
 
-			console.log("Successfully filled input");
+			if (logger) {
+				logger.debug("Successfully filled input", { selector });
+			}
 
 			return true;
 		} catch (error) {
@@ -61,15 +72,22 @@ export async function fillWithRetry(
 			if (isRetryableError(errorMessage) && attempt < maxRetries) {
 				const retryDelay = baseDelayMs * attempt;
 
-				console.warn(
-					`Fill failed with retryable error: ${errorMessage}. Retrying in ${retryDelay}ms...`,
-				);
+				if (logger) {
+					logger.warn(
+						`Fill failed with retryable error, retrying in ${retryDelay}ms`,
+						{ error: errorMessage, attempt, maxRetries },
+					);
+				}
 
 				await page.waitForTimeout(retryDelay);
 			} else {
-				console.error(
-					`Fill failed after ${attempt} attempt(s): ${errorMessage}`,
-				);
+				if (logger) {
+					logger.error(
+						`Fill failed after ${attempt} attempt(s)`,
+						new Error(errorMessage),
+						{ selector },
+					);
+				}
 
 				throw new Error(
 					`Cannot fill selector "${selector}" after ${attempt} attempts: ${errorMessage}`,
