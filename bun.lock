@@ -25,7 +25,6 @@
         "@meeboter/milo": "workspace:*",
         "@t3-oss/env-core": "^0.12.0",
         "@trpc/client": "^11.5.0",
-        "dotenv": "^16.4.7",
         "superjson": "^2.2.2",
         "zod": "^4.2.1",
       },

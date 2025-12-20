@@ -1,9 +1,3 @@
-import dotenv from "dotenv";
-
-// Load environment variables before importing modules that use them
-dotenv.config({ path: "../.env.test" }); // Load .env.test for testing
-dotenv.config();
-
 import type { Bot } from "./bot";
 import { createBot } from "./bot-factory";
 import { env } from "./config/env";
