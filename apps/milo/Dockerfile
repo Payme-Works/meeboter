@@ -52,7 +52,7 @@ COPY --from=installer --chown=nextjs:nodejs /app/node_modules ./node_modules
 
 # Copy drizzle migration files and script
 COPY --from=installer --chown=nextjs:nodejs /app/apps/milo/drizzle ./apps/milo/drizzle
-COPY --from=installer --chown=nextjs:nodejs /app/apps/milo/drizzle-migrate.cjs ./apps/milo/drizzle-migrate.cjs
+COPY --from=installer --chown=nextjs:nodejs /app/apps/milo/drizzle-migrate.ts ./apps/milo/drizzle-migrate.ts
 
 # Copy and make entrypoint script executable
 COPY --chown=nextjs:nodejs apps/milo/entrypoint.sh ./apps/milo/entrypoint.sh
