@@ -644,11 +644,30 @@ export class GoogleMeetBot extends Bot {
 		// Check 3: In-call indicators (more reliable than leave button)
 		// The leave button is in the control bar which auto-hides after inactivity.
 		// In-call indicators (People/Chat buttons) are always visible.
+		this.logger.trace(
+			"[hasBeenRemovedFromCall] Checking in-call indicators",
+			{
+				indicatorCount: SELECTORS.inCallIndicators.length,
+			},
+		);
+
 		const indicatorResults: Record<string, boolean> = {};
 
 		for (const selector of SELECTORS.inCallIndicators) {
+			const checkStart = Date.now();
 			const exists = await elementExists(this.page, selector);
+			const checkDuration = Date.now() - checkStart;
+
 			indicatorResults[selector] = exists;
+
+			this.logger.trace(
+				"[hasBeenRemovedFromCall] Indicator check completed",
+				{
+					selector,
+					exists,
+					durationMs: checkDuration,
+				},
+			);
 
 			if (exists) {
 				this.logger.trace(
