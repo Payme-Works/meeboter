@@ -100,7 +100,7 @@ The `meeting_info` object is stored in the bot configuration (fetched from API) 
 ```json
 {
   "meeting_info": {
-    "platform": "google",
+    "platform": "google-meet",
     "meetingUrl": "<MEETING_LINK>"
   }
 }

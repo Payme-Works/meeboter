@@ -650,7 +650,7 @@ POST /api/trpc/bots.createBot
 Input:
 {
   meetingInfo: {
-    platform: "google" | "teams" | "zoom",
+    platform: "google-meet" | "microsoft-teams" | "zoom",
     meetingUrl: string,
     meetingId?: string,
     password?: string
@@ -1047,11 +1047,11 @@ async function deployQueuedBot(
 
 ```sql
 -- Add platform column to slots
-ALTER TABLE bot_pool_slots ADD COLUMN platform VARCHAR(50) NOT NULL DEFAULT 'google';
+ALTER TABLE bot_pool_slots ADD COLUMN platform VARCHAR(50) NOT NULL DEFAULT 'google-meet';
 CREATE INDEX idx_bot_pool_slots_platform ON bot_pool_slots(platform);
 
 -- Separate queue by platform
-ALTER TABLE bot_pool_queue ADD COLUMN platform VARCHAR(50) NOT NULL DEFAULT 'google';
+ALTER TABLE bot_pool_queue ADD COLUMN platform VARCHAR(50) NOT NULL DEFAULT 'google-meet';
 ```
 
 **Implementation:**
@@ -1068,7 +1068,7 @@ export interface PlatformPoolConfig {
 
 export const POOL_CONFIGS: PlatformPoolConfig[] = [
   {
-    platform: "google",
+    platform: "google-meet",
     maxSize: 100,
     image: "meeboter-google-meet-bot",
     prewarmCount: 5,
