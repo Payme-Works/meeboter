@@ -17,21 +17,23 @@ export const SELECTORS = {
 	muteButton: '[aria-label*="Turn off microphone"]',
 	cameraOffButton: '[aria-label*="Turn off camera"]',
 
-	// In-call indicators (presence of any indicates successful join)
-	// Prioritized by reliability: header elements first (always visible),
-	// then side panel buttons, then control bar buttons (can auto-hide)
-	inCallIndicators: [
-		// Always visible - header area
+	// Definitive in-call indicators (ONLY exist when truly in-call, not in waiting room)
+	// These are reliable for detecting successful admission
+	definitiveInCallIndicators: [
+		// Always visible - header area (only in-call)
 		"[data-meeting-title]",
-		// Side panel buttons - always visible
+		// Side panel buttons - only visible when in-call
 		'button[aria-label="Chat with everyone"]',
 		'button[aria-label="Meeting details"]',
 		'button[aria-label="Host controls"]',
 		'button[aria-label="Meeting tools"]',
-		// Control bar - may auto-hide but still reliable
-		'button[aria-label="More options"]',
+		// Leave button - only visible when in-call
 		'button[aria-label="Leave call"]',
 	],
+
+	// Less reliable indicators that may exist outside of call (e.g., waiting room)
+	// Used only as secondary confirmation, never alone
+	secondaryInCallIndicators: ['button[aria-label="More options"]'],
 
 	// Kick detection
 	kickDialog: '//button[.//span[text()="Return to home screen"]]',

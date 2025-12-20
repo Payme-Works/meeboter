@@ -640,7 +640,7 @@ export class GoogleMeetBot extends Bot {
 		// The leave button is in the control bar which auto-hides after inactivity.
 		// In-call indicators (People/Chat buttons) are always visible.
 		this.logger.trace("[hasBeenRemovedFromCall] Checking in-call indicators", {
-			indicatorCount: SELECTORS.inCallIndicators.length,
+			indicatorCount: SELECTORS.definitiveInCallIndicators.length,
 		});
 
 		const indicatorResults: Record<
@@ -650,7 +650,7 @@ export class GoogleMeetBot extends Bot {
 
 		let allTimedOut = true;
 
-		for (const selector of SELECTORS.inCallIndicators) {
+		for (const selector of SELECTORS.definitiveInCallIndicators) {
 			const result = await elementExistsWithDetails(this.page, selector);
 			indicatorResults[selector] = result;
 
@@ -1172,7 +1172,8 @@ export class GoogleMeetBot extends Bot {
 	}
 
 	/**
-	 * Check for in-call UI indicators (People button, Chat button, etc.).
+	 * Check for definitive in-call UI indicators (Meeting title, Chat button, etc.).
+	 * Only uses indicators that CANNOT exist in waiting room.
 	 * Uses Promise.all for faster parallel detection.
 	 */
 	private async hasInCallIndicators(): Promise<boolean> {
@@ -1180,8 +1181,8 @@ export class GoogleMeetBot extends Bot {
 
 		if (!page) return false;
 
-		// Check all indicators in parallel for faster detection
-		const checks = SELECTORS.inCallIndicators.map((selector) =>
+		// Check only definitive indicators that don't exist in waiting room
+		const checks = SELECTORS.definitiveInCallIndicators.map((selector) =>
 			elementExists(page, selector),
 		);
 
@@ -1191,7 +1192,7 @@ export class GoogleMeetBot extends Bot {
 	}
 
 	/**
-	 * Take a screenshot and upload to S3.
+	 * Take a screenshot, upload to S3, and persist to database.
 	 * @param filename - Local filename for the screenshot
 	 * @param trigger - Optional trigger description for S3 metadata
 	 * @returns The S3 key if uploaded, local path if S3 failed, or null on error
@@ -1219,6 +1220,18 @@ export class GoogleMeetBot extends Bot {
 
 			if (s3Result) {
 				this.logger.debug("Screenshot uploaded to S3", { key: s3Result.key });
+
+				// Persist screenshot to database
+				try {
+					await this.trpc.bots.addScreenshot.mutate({
+						id: String(this.settings.id),
+						screenshot: s3Result,
+					});
+				} catch (dbError) {
+					this.logger.warn("Failed to persist screenshot to database", {
+						error: dbError instanceof Error ? dbError.message : String(dbError),
+					});
+				}
 
 				return s3Result.key;
 			}

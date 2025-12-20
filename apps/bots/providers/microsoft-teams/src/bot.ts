@@ -627,7 +627,7 @@ export class MicrosoftTeamsBot extends Bot {
 	}
 
 	/**
-	 * Take a screenshot and upload to S3.
+	 * Take a screenshot, upload to S3, and persist to database.
 	 * @param filename - Local filename for the screenshot
 	 * @param trigger - Optional trigger description for S3 metadata
 	 * @returns The S3 key if uploaded, local path if S3 failed, or null on error
@@ -658,6 +658,18 @@ export class MicrosoftTeamsBot extends Bot {
 
 			if (s3Result) {
 				this.logger.debug("Screenshot uploaded to S3", { key: s3Result.key });
+
+				// Persist screenshot to database
+				try {
+					await this.trpc.bots.addScreenshot.mutate({
+						id: String(this.settings.id),
+						screenshot: s3Result,
+					});
+				} catch (dbError) {
+					this.logger.warn("Failed to persist screenshot to database", {
+						error: dbError instanceof Error ? dbError.message : String(dbError),
+					});
+				}
 
 				return s3Result.key;
 			}
