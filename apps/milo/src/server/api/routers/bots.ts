@@ -1658,6 +1658,46 @@ export const botsRouter = createTRPCRouter({
 				.set({ status: "LEAVING" })
 				.where(eq(botsTable.id, input.id));
 
+			// Safety net: if container is still alive after 15s, forcefully stop it
+			const coolifyServiceUuid = bot[0].coolifyServiceUuid;
+
+			if (coolifyServiceUuid && services.coolify) {
+				const botId = input.id;
+
+				setTimeout(async () => {
+					try {
+						// Check if bot is still in non-terminal state
+						const currentBot = await ctx.db
+							.select({ status: botsTable.status })
+							.from(botsTable)
+							.where(eq(botsTable.id, botId))
+							.limit(1);
+
+						const terminalStatuses = ["DONE", "FATAL"];
+
+						if (
+							currentBot[0] &&
+							!terminalStatuses.includes(currentBot[0].status)
+						) {
+							console.log(
+								`[Bots] Bot ${botId} still alive after 15s timeout, forcefully stopping container ${coolifyServiceUuid}`,
+							);
+
+							await services.coolify?.stopApplication(coolifyServiceUuid);
+
+							console.log(
+								`[Bots] Container ${coolifyServiceUuid} stopped for bot ${botId}`,
+							);
+						}
+					} catch (error) {
+						console.error(
+							`[Bots] Failed to stop container ${coolifyServiceUuid} for bot ${botId}:`,
+							error,
+						);
+					}
+				}, 15_000);
+			}
+
 			return { success: true };
 		}),
 
