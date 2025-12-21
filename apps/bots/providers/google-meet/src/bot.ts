@@ -217,21 +217,16 @@ export class GoogleMeetBot extends Bot {
 
 		this.logger.info("State: NAVIGATING → WAITING_FOR_JOIN_SCREEN");
 
-		// Dismiss any blocking dialogs
-		await this.dismissBlockingDialogs();
-
-		// Fill bot name with stability checks
+		// Fill bot name with full page reload on retry
 		const botName = this.settings.botDisplayName || "Meeboter";
-		let fillRetryCount = 0;
 
 		await withRetry(
 			async () => {
-				await this.fillNameInputWithStability(botName, fillRetryCount);
-				fillRetryCount++;
+				await this.navigateAndFillName(normalizedUrl, botName);
 			},
 			{
 				maxRetries: GOOGLE_MEET_CONFIG.NAME_FILL_MAX_RETRIES,
-				minDelayMs: 500,
+				minDelayMs: 1000,
 				logger: this.logger,
 				operationName: "Fill bot name",
 				isRetryable: (e) =>
@@ -572,24 +567,42 @@ export class GoogleMeetBot extends Bot {
 	}
 
 	/**
-	 * Fill the bot name input with stability checks.
-	 *
-	 * Key improvements over direct fill:
-	 * 1. Re-locates element fresh each attempt (avoids stale references)
-	 * 2. Waits for element to be visible before interacting
-	 * 3. Uses adaptive stabilization delay based on retry count
-	 * 4. Clears any existing text before filling
-	 * 5. Uses shorter timeout for faster failure detection
+	 * Navigate to the meeting URL and fill the bot name.
+	 * On retry, this performs a full page reload to reset state.
 	 */
-	private async fillNameInputWithStability(
+	private async navigateAndFillName(
+		meetingUrl: string,
 		botName: string,
-		retryCount: number,
 	): Promise<void> {
 		if (!this.page) {
 			throw new Error("Page not initialized");
 		}
 
-		// 1. Re-find the name input element fresh (avoids stale references)
+		// Reload the page to reset any bad state
+		await this.page.goto(meetingUrl, {
+			waitUntil: "domcontentloaded",
+			timeout: 30_000,
+		});
+
+		// Dismiss any blocking dialogs
+		await this.dismissBlockingDialogs();
+
+		// Find and fill the name input
+		await this.fillNameInput(botName);
+	}
+
+	/**
+	 * Fill the bot name input with stability checks.
+	 */
+	private async fillNameInput(botName: string): Promise<void> {
+		if (!this.page) {
+			throw new Error("Page not initialized");
+		}
+
+		// 1. Dismiss any blocking dialogs (critical for visibility)
+		await this.dismissPopupsQuick();
+
+		// 2. Find the name input element
 		const nameInputSelector = await this.findNameInput();
 
 		if (!nameInputSelector) {
@@ -598,21 +611,16 @@ export class GoogleMeetBot extends Bot {
 			throw new Error("Name input not found");
 		}
 
-		// 2. Wait for element to be visible
+		// 3. Wait for element to be visible
 		await this.page.waitForSelector(nameInputSelector, {
 			state: "visible",
 			timeout: GOOGLE_MEET_CONFIG.NAME_FILL_TIMEOUT_MS,
 		});
 
-		// 3. Adaptive stabilization delay: 200ms → 400ms → 800ms → 1000ms (capped)
-		const stabilizationMs = Math.min(
-			GOOGLE_MEET_CONFIG.NAME_FILL_STABILIZATION_BASE_MS * 2 ** retryCount,
-			GOOGLE_MEET_CONFIG.NAME_FILL_STABILIZATION_MAX_MS,
-		);
+		// 4. Short stabilization delay after visibility
+		await setTimeout(GOOGLE_MEET_CONFIG.NAME_FILL_STABILIZATION_BASE_MS);
 
-		await setTimeout(stabilizationMs);
-
-		// 4. Clear any existing text (triple-click selects all, then delete)
+		// 5. Clear any existing text (triple-click selects all, then delete)
 		const input = this.page.locator(nameInputSelector);
 
 		try {
@@ -622,7 +630,7 @@ export class GoogleMeetBot extends Bot {
 			// Input may be empty, continue with fill
 		}
 
-		// 5. Fill with shorter timeout for faster failure detection
+		// 6. Fill with shorter timeout for faster failure detection
 		await input.fill(botName, {
 			timeout: GOOGLE_MEET_CONFIG.NAME_FILL_TIMEOUT_MS,
 		});
