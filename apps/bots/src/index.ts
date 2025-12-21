@@ -1,6 +1,7 @@
 import type { Bot } from "./bot";
 import { createBot } from "./bot-factory";
 import { env } from "./config/env";
+import type { BotLogger } from "./logger";
 import { createServices } from "./services";
 import {
 	createTrpcClient,
@@ -9,6 +10,43 @@ import {
 	Status,
 	type TrpcClient,
 } from "./trpc";
+
+// Declare global logger type
+declare global {
+	var logger: BotLogger | undefined;
+}
+
+/**
+ * Global error handler for uncaught exceptions.
+ * Ensures logs are flushed before process exit.
+ */
+process.on("uncaughtException", async (error) => {
+	console.error("[FATAL] Uncaught exception:", error);
+
+	if (global.logger) {
+		global.logger.error("Uncaught exception", error);
+		await global.logger.shutdown();
+	}
+
+	process.exit(1);
+});
+
+/**
+ * Global error handler for unhandled promise rejections.
+ * Ensures logs are flushed before process exit.
+ */
+process.on("unhandledRejection", async (reason) => {
+	const error = reason instanceof Error ? reason : new Error(String(reason));
+
+	console.error("[FATAL] Unhandled rejection:", error);
+
+	if (global.logger) {
+		global.logger.error("Unhandled rejection", error);
+		await global.logger.shutdown();
+	}
+
+	process.exit(1);
+});
 
 /**
  * Reports an event and updates status if it's a status-changing event
@@ -100,6 +138,9 @@ export const main = async () => {
 	});
 
 	const { logger, trpc, uploadRecording, workers } = services;
+
+	// Set global logger reference for uncaught exception handling
+	global.logger = logger;
 
 	logger.info("Services initialized successfully");
 

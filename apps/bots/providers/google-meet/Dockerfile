@@ -1,6 +1,6 @@
 # Base
 
-FROM mcr.microsoft.com/playwright:v1.52.0-jammy AS base
+FROM mcr.microsoft.com/playwright:v1.57.0-jammy AS base
 
 RUN echo "Use the official Playwright Docker image as the base stage"
 
@@ -58,8 +58,8 @@ RUN bun install
 
 RUN echo "Install Playwright dependencies"
 
-RUN bunx playwright@1.52 install-deps
-RUN bunx playwright@1.52 install --with-deps
+RUN bunx playwright@1.57 install-deps
+RUN bunx playwright@1.57 install --with-deps
 
 RUN echo "Create Playwright directory"
 
@@ -67,7 +67,7 @@ RUN mkdir -p /root/ms-playwright && chmod -R 777 /root/ms-playwright
 
 # Runtime
 
-FROM mcr.microsoft.com/playwright:v1.52.0-jammy AS runtime
+FROM mcr.microsoft.com/playwright:v1.57.0-jammy AS runtime
 
 RUN echo "Use the official Playwright Docker image as the runtime stage"
 
