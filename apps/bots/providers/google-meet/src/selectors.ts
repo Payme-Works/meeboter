@@ -96,9 +96,10 @@ export const SELECTORS = {
 
 	// Connection lost indicators (network reconnection in progress)
 	// When these are visible, bot should wait for reconnection instead of exiting
-	// Includes English and Portuguese translations
+	// Includes English, Portuguese, and Spanish translations
 	connectionLostIndicators: [
-		// English
+		// English - exact text from Google Meet
+		'//*[contains(text(), "You lost your network connection")]',
 		'//*[contains(text(), "lost your network connection")]',
 		'//*[contains(text(), "Trying to reconnect")]',
 		'//*[contains(text(), "Lost connection")]',
@@ -107,6 +108,7 @@ export const SELECTORS = {
 		'//*[contains(text(), "Connection problem")]',
 		'//*[contains(text(), "connection problem")]',
 		// Portuguese
+		'//*[contains(text(), "Você perdeu a conexão")]',
 		'//*[contains(text(), "perdeu a conexão")]',
 		'//*[contains(text(), "Tentando reconectar")]',
 		'//*[contains(text(), "Reconectando")]',
@@ -115,8 +117,9 @@ export const SELECTORS = {
 		'//*[contains(text(), "conexão perdida")]',
 		'//*[contains(text(), "Problema de conexão")]',
 		// Spanish
+		'//*[contains(text(), "Perdiste la conexión")]',
 		'//*[contains(text(), "perdió la conexión")]',
-		'//*[contains(text(), "Reconectando")]',
+		'//*[contains(text(), "Intentando reconectar")]',
 		'//*[contains(text(), "Conexión perdida")]',
 	],
 
