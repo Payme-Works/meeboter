@@ -154,12 +154,6 @@ export const main = async () => {
 	// Track recording key for final status report
 	let recordingKey = "";
 
-	// Create status change handler for screenshot capture on status transitions
-	const onStatusChange = async (eventType: EventCode, botInstance: Bot) => {
-		logger.debug(`Status change detected: ${eventType}, capturing screenshot`);
-		await botInstance.screenshot(`state-change-${eventType}.png`, eventType);
-	};
-
 	try {
 		logger.info("Creating platform-specific bot instance...", {
 			platform: botConfig.meetingInfo.platform,
@@ -167,10 +161,15 @@ export const main = async () => {
 
 		// Create the platform-specific bot instance using shared services
 		bot = await createBot(botConfig, {
-			onStatusChange,
 			emitter,
 			logger,
 			trpcClient: trpc,
+		});
+
+		// Register status change listener for screenshot capture
+		emitter.on("event", (eventType: EventCode) => {
+			logger.debug(`Status change detected: ${eventType}, capturing screenshot`);
+			bot?.screenshot(`state-change-${eventType}.png`, eventType);
 		});
 
 		logger.info("Bot instance created successfully", {

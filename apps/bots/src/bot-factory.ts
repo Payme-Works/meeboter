@@ -2,20 +2,12 @@ import type { Bot } from "./bot";
 import { env } from "./config/env";
 import type { BotEventEmitter } from "./events";
 import type { BotLogger } from "./logger";
-import { type BotConfig, type EventCode, type TrpcClient } from "./trpc";
+import type { BotConfig, TrpcClient } from "./trpc";
 
 /**
  * Options for creating a bot instance
  */
 interface CreateBotOptions {
-	/**
-	 * Callback fired when bot status changes (status events like IN_CALL, IN_WAITING_ROOM, etc.)
-	 * Used for capturing screenshots on status transitions for debugging purposes.
-	 * @param eventType - The status event type
-	 * @param bot - The bot instance for capturing screenshots
-	 */
-	onStatusChange?: (eventType: EventCode, bot: Bot) => Promise<void>;
-
 	/** Event emitter for reporting bot events and managing state (required) */
 	emitter: BotEventEmitter;
 
@@ -49,12 +41,11 @@ export async function createBot(
 ): Promise<Bot> {
 	const botId = config.id;
 	const platform = config.meetingInfo.platform;
-	const { onStatusChange, emitter, logger, trpcClient: trpc } = options;
+	const { emitter, logger, trpcClient: trpc } = options;
 
 	logger.debug("createBot called", {
 		botId,
 		platform,
-		hasOnStatusChange: !!onStatusChange,
 		hasTrpc: !!trpc,
 	});
 
@@ -138,18 +129,6 @@ export async function createBot(
 			logger.error(`Unsupported platform: ${config.meetingInfo.platform}`);
 
 			throw new Error(`Unsupported platform: ${config.meetingInfo.platform}`);
-	}
-
-	// 4. Register onStatusChange listener if provided (needs bot reference)
-	if (onStatusChange) {
-		emitter.on("event", (eventCode) => {
-			onStatusChange(eventCode, bot).catch((err) => {
-				logger.warn(
-					`Failed to capture status change screenshot: ${err instanceof Error ? err.message : String(err)}`,
-				);
-			});
-		});
-		logger.debug("Status change listener registered");
 	}
 
 	return bot;
