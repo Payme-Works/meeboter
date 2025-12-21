@@ -71,7 +71,7 @@ FROM mcr.microsoft.com/playwright:v1.52.0-jammy AS runtime
 
 RUN echo "Use the official Playwright Docker image as the runtime stage"
 
-ENV DOCKER_MEETING_PLATFORM=meet
+ENV DOCKER_MEETING_PLATFORM=google-meet
 
 WORKDIR /app
 

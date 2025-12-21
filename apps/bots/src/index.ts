@@ -51,7 +51,16 @@ export const main = async () => {
 	let hasErrorOccurred = false;
 	const poolSlotUuid = env.POOL_SLOT_UUID;
 
-	console.log(`Fetching bot config for pool slot: ${poolSlotUuid}`);
+	// Early initialization logging (before logger is available)
+	console.log("[INIT] Bot container starting...");
+	console.log("[INIT] Environment:", {
+		NODE_ENV: env.NODE_ENV,
+		POOL_SLOT_UUID: poolSlotUuid,
+		MILO_URL: env.MILO_URL,
+		DOCKER_MEETING_PLATFORM: env.DOCKER_MEETING_PLATFORM || "(not set)",
+	});
+
+	console.log(`[INIT] Fetching bot config for pool slot: ${poolSlotUuid}`);
 
 	// Create a temporary tRPC client to fetch initial config
 	const bootstrapTrpc = createTrpcClient({
@@ -59,17 +68,29 @@ export const main = async () => {
 		authToken: env.MILO_AUTH_TOKEN,
 	});
 
+	console.log("[INIT] tRPC client created, calling bots.pool.getSlot...");
+
 	// Fetch bot configuration
 	const botConfig = await bootstrapTrpc.bots.pool.getSlot.query({
 		poolSlotUuid,
 	});
 
-	console.log("Received bot config:", botConfig);
+	console.log("[INIT] Bot config received:", {
+		id: botConfig.id,
+		platform: botConfig.meetingInfo.platform,
+		meetingUrl: botConfig.meetingInfo.meetingUrl?.slice(0, 50) + "...",
+		botDisplayName: botConfig.botDisplayName,
+		recordingEnabled: botConfig.recordingEnabled,
+		chatEnabled: botConfig.chatEnabled,
+	});
 
 	const botId = botConfig.id;
+	console.log(`[INIT] Bot ID: ${botId}`);
 
 	// Track bot instance (set after creation)
 	let bot: Bot | null = null;
+
+	console.log("[INIT] Creating services...");
 
 	// Create all services with dependency injection
 	const services = createServices({
@@ -78,6 +99,14 @@ export const main = async () => {
 	});
 
 	const { logger, trpc, storage, workers } = services;
+
+	logger.info("Services initialized successfully");
+	logger.debug("Service components ready", {
+		hasLogger: !!logger,
+		hasTrpc: !!trpc,
+		hasStorage: !!storage,
+		hasWorkers: !!workers,
+	});
 
 	// Track recording key for final status report
 	let recordingKey = "";
@@ -89,11 +118,19 @@ export const main = async () => {
 	};
 
 	try {
+		logger.info("Creating platform-specific bot instance...", {
+			platform: botConfig.meetingInfo.platform,
+		});
+
 		// Create the platform-specific bot instance using shared logger
 		bot = await createBot(botConfig, {
 			onStatusChange,
 			trpcClient: trpc,
 			logger,
+		});
+
+		logger.info("Bot instance created successfully", {
+			botType: bot.constructor.name,
 		});
 
 		// Start monitoring workers (only in production)

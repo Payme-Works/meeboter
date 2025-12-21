@@ -246,8 +246,8 @@ create_s3_bucket() {
 build_ecr_urls() {
     ECR_BASE="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
     ECR_SERVER="$ECR_BASE/$PROJECT_NAME-$TERRAFORM_WORKSPACE/server"
-    ECR_MEET="$ECR_BASE/$PROJECT_NAME-$TERRAFORM_WORKSPACE/bots/meet"
-    ECR_TEAMS="$ECR_BASE/$PROJECT_NAME-$TERRAFORM_WORKSPACE/bots/teams"
+    ECR_GOOGLE_MEET="$ECR_BASE/$PROJECT_NAME-$TERRAFORM_WORKSPACE/bots/google-meet"
+    ECR_MICROSOFT_TEAMS="$ECR_BASE/$PROJECT_NAME-$TERRAFORM_WORKSPACE/bots/microsoft-teams"
     ECR_ZOOM="$ECR_BASE/$PROJECT_NAME-$TERRAFORM_WORKSPACE/bots/zoom"
     
     log_info "ECR URLs configured for workspace: $TERRAFORM_WORKSPACE"
@@ -324,8 +324,8 @@ check_ecr_repositories() {
     
     local repos=(
         "$PROJECT_NAME-$TERRAFORM_WORKSPACE/server"
-        "$PROJECT_NAME-$TERRAFORM_WORKSPACE/bots/meet"
-        "$PROJECT_NAME-$TERRAFORM_WORKSPACE/bots/teams"
+        "$PROJECT_NAME-$TERRAFORM_WORKSPACE/bots/google-meet"
+        "$PROJECT_NAME-$TERRAFORM_WORKSPACE/bots/microsoft-teams"
         "$PROJECT_NAME-$TERRAFORM_WORKSPACE/bots/zoom"
     )
     
@@ -394,8 +394,8 @@ build_and_push_milo() {
         --build-arg AWS_SECRET_ACCESS_KEY="dummy" \
         --build-arg AWS_BUCKET_NAME="dummy" \
         --build-arg AWS_REGION="dummy" \
-        --build-arg ECS_TASK_DEFINITION_MEET="dummy" \
-        --build-arg ECS_TASK_DEFINITION_TEAMS="dummy" \
+        --build-arg ECS_TASK_DEFINITION_GOOGLE_MEET="dummy" \
+        --build-arg ECS_TASK_DEFINITION_MICROSOFT_TEAMS="dummy" \
         --build-arg ECS_TASK_DEFINITION_ZOOM="dummy" \
         --build-arg ECS_CLUSTER_NAME="dummy" \
         --build-arg ECS_SUBNETS="dummy" \
@@ -471,8 +471,8 @@ docker_cleanup() {
             
             # Remove any images that might have been built but not pushed or removed
             docker rmi "$ECR_SERVER:$TAG" "$ECR_SERVER:latest" 2>/dev/null || true
-            docker rmi "$ECR_MEET:$TAG" "$ECR_MEET:latest" 2>/dev/null || true
-            docker rmi "$ECR_TEAMS:$TAG" "$ECR_TEAMS:latest" 2>/dev/null || true
+            docker rmi "$ECR_GOOGLE_MEET:$TAG" "$ECR_GOOGLE_MEET:latest" 2>/dev/null || true
+            docker rmi "$ECR_MICROSOFT_TEAMS:$TAG" "$ECR_MICROSOFT_TEAMS:latest" 2>/dev/null || true
             docker rmi "$ECR_ZOOM:$TAG" "$ECR_ZOOM:latest" 2>/dev/null || true
             
             # Remove intermediate/untagged images
@@ -676,11 +676,11 @@ main() {
 
     docker_cleanup "standard"
 
-    build_and_push_bot_provider "google-meet" "$ECR_MEET"
+    build_and_push_bot_provider "google-meet" "$ECR_GOOGLE_MEET"
 
     docker_cleanup "standard"
 
-    build_and_push_bot_provider "teams" "$ECR_TEAMS"
+    build_and_push_bot_provider "microsoft-teams" "$ECR_MICROSOFT_TEAMS"
 
     docker_cleanup "standard"
 
@@ -698,8 +698,8 @@ main() {
     log_success "Deployment process completed!"
     log_info "Tagged images:"
     log_info "- Milo: $ECR_SERVER:$TAG"
-    log_info "- Google Meet Bot: $ECR_MEET:$TAG"
-    log_info "- Teams Bot: $ECR_TEAMS:$TAG"
+    log_info "- Google Meet Bot: $ECR_GOOGLE_MEET:$TAG"
+    log_info "- Microsoft Teams Bot: $ECR_MICROSOFT_TEAMS:$TAG"
     log_info "- Zoom Bot: $ECR_ZOOM:$TAG"
 }
 

@@ -183,12 +183,12 @@ resource "aws_ecs_task_definition" "server" {
           value = aws_ecs_cluster.this.name
         },
         {
-          name  = "ECS_TASK_DEFINITION_MEET"
-          value = aws_ecs_task_definition.meet_bot.family
+          name  = "ECS_TASK_DEFINITION_GOOGLE_MEET"
+          value = aws_ecs_task_definition.google_meet_bot.family
         },
         {
-          name  = "ECS_TASK_DEFINITION_TEAMS"
-          value = aws_ecs_task_definition.teams_bot.family
+          name  = "ECS_TASK_DEFINITION_MICROSOFT_TEAMS"
+          value = aws_ecs_task_definition.microsoft_teams_bot.family
         },
         {
           name  = "ECS_TASK_DEFINITION_ZOOM"
@@ -298,8 +298,8 @@ resource "aws_security_group_rule" "ecs_all_outbound" {
 }
 
 # One-off Tasks (bots)
-resource "aws_ecs_task_definition" "meet_bot" {
-  family                   = "${local.name}-meet-bot"
+resource "aws_ecs_task_definition" "google_meet_bot" {
+  family                   = "${local.name}-google-meet-bot"
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
   cpu                      = 512
@@ -310,7 +310,7 @@ resource "aws_ecs_task_definition" "meet_bot" {
   container_definitions = jsonencode([
     {
       name      = "bot"
-      image     = "${aws_ecr_repository.meet_bot.repository_url}:latest"
+      image     = "${aws_ecr_repository.google_meet_bot.repository_url}:latest"
       essential = true
       environment = [
         {
@@ -341,7 +341,7 @@ resource "aws_ecs_task_definition" "meet_bot" {
         options = {
           "awslogs-group"         = aws_cloudwatch_log_group.server.name
           "awslogs-region"        = var.aws_region
-          "awslogs-stream-prefix" = "meet-bot"
+          "awslogs-stream-prefix" = "google-meet-bot"
         }
       }
     }
@@ -398,8 +398,8 @@ resource "aws_ecs_task_definition" "zoom_bot" {
   ])
 }
 
-resource "aws_ecs_task_definition" "teams_bot" {
-  family                   = "${local.name}-teams-bot"
+resource "aws_ecs_task_definition" "microsoft_teams_bot" {
+  family                   = "${local.name}-microsoft-teams-bot"
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
   cpu                      = 512
@@ -410,7 +410,7 @@ resource "aws_ecs_task_definition" "teams_bot" {
   container_definitions = jsonencode([
     {
       name      = "bot"
-      image     = "${aws_ecr_repository.teams_bot.repository_url}:latest"
+      image     = "${aws_ecr_repository.microsoft_teams_bot.repository_url}:latest"
       essential = true
       environment = [
         {
@@ -441,7 +441,7 @@ resource "aws_ecs_task_definition" "teams_bot" {
         options = {
           "awslogs-group"         = aws_cloudwatch_log_group.server.name
           "awslogs-region"        = var.aws_region
-          "awslogs-stream-prefix" = "teams-bot"
+          "awslogs-stream-prefix" = "microsoft-teams-bot"
         }
       }
     }

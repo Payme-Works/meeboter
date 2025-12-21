@@ -53,8 +53,22 @@ export async function createBot(
 	const platform = config.meetingInfo.platform;
 	const { onStatusChange, trpcClient: trpc, logger } = options;
 
+	logger.debug("createBot called", {
+		botId,
+		platform,
+		hasOnStatusChange: !!onStatusChange,
+		hasTrpc: !!trpc,
+		hasLogger: !!logger,
+	});
+
 	// Retrieve Docker image name from environment variable
 	const dockerImageName = env.DOCKER_MEETING_PLATFORM;
+
+	logger.debug("Docker platform check", {
+		dockerImageName: dockerImageName || "(not set)",
+		configPlatform: platform,
+		willCheck: !!dockerImageName,
+	});
 
 	// Ensure the Docker image name matches the platform - safety check
 	// If local development (implies DOCKER_MEETING_PLATFORM is not set), we don't need this check
@@ -62,6 +76,10 @@ export async function createBot(
 		dockerImageName &&
 		!validPlatformForImage(platform ?? "", dockerImageName)
 	) {
+		logger.error("Platform mismatch detected", undefined, {
+			dockerImageName,
+			configPlatform: platform,
+		});
 		throw new Error(
 			`Docker image name ${dockerImageName} does not match platform ${platform}`,
 		);
@@ -116,41 +134,54 @@ export async function createBot(
 
 	let bot: Bot;
 
+	logger.debug("Loading platform module...", { platform: config.meetingInfo.platform });
+
 	switch (config.meetingInfo.platform) {
 		case "google-meet": {
+			logger.debug("Importing GoogleMeetBot module...");
 			const { GoogleMeetBot } = await import(
 				"../providers/google-meet/src/bot"
 			);
+			logger.debug("GoogleMeetBot module imported, creating instance...");
 
 			bot = new GoogleMeetBot(config, placeholderHandler, trpc, logger);
+			logger.debug("GoogleMeetBot instance created");
 
 			break;
 		}
 
 		case "microsoft-teams": {
+			logger.debug("Importing MicrosoftTeamsBot module...");
 			const { MicrosoftTeamsBot } = await import(
 				"../providers/microsoft-teams/src/bot"
 			);
+			logger.debug("MicrosoftTeamsBot module imported, creating instance...");
 
 			bot = new MicrosoftTeamsBot(config, placeholderHandler, trpc, logger);
+			logger.debug("MicrosoftTeamsBot instance created");
 
 			break;
 		}
 
 		case "zoom": {
+			logger.debug("Importing ZoomBot module...");
 			const { ZoomBot } = await import("../providers/zoom/src/bot");
+			logger.debug("ZoomBot module imported, creating instance...");
 
 			bot = new ZoomBot(config, placeholderHandler, trpc, logger);
+			logger.debug("ZoomBot instance created");
 
 			break;
 		}
 
 		default:
+			logger.error(`Unsupported platform: ${config.meetingInfo.platform}`);
 			throw new Error(`Unsupported platform: ${config.meetingInfo.platform}`);
 	}
 
 	// Replace placeholder with full event handler that has access to the bot instance
 	bot.onEvent = createEventHandler(bot);
+	logger.debug("Event handler attached to bot instance");
 
 	return bot;
 }

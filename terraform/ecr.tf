@@ -52,9 +52,9 @@ resource "aws_ecr_lifecycle_policy" "server" {
   })
 }
 
-# ECR Repository for Meet Bot
-resource "aws_ecr_repository" "meet_bot" {
-  name                 = "${local.name}/bots/meet"
+# ECR Repository for Google Meet Bot
+resource "aws_ecr_repository" "google_meet_bot" {
+  name                 = "${local.name}/bots/google-meet"
   image_tag_mutability = "MUTABLE"
 
   image_scanning_configuration {
@@ -62,13 +62,13 @@ resource "aws_ecr_repository" "meet_bot" {
   }
 
   tags = {
-    Name = "${local.name}-meet-bot-ecr"
+    Name = "${local.name}-google-meet-bot-ecr"
   }
 }
 
-# ECR Lifecycle Policy for Meet Bot
-resource "aws_ecr_lifecycle_policy" "meet_bot" {
-  repository = aws_ecr_repository.meet_bot.name
+# ECR Lifecycle Policy for Google Meet Bot
+resource "aws_ecr_lifecycle_policy" "google_meet_bot" {
+  repository = aws_ecr_repository.google_meet_bot.name
 
   policy = jsonencode({
     rules = [
@@ -102,9 +102,9 @@ resource "aws_ecr_lifecycle_policy" "meet_bot" {
   })
 }
 
-# ECR Repository for Teams Bot
-resource "aws_ecr_repository" "teams_bot" {
-  name                 = "${local.name}/bots/teams"
+# ECR Repository for Microsoft Teams Bot
+resource "aws_ecr_repository" "microsoft_teams_bot" {
+  name                 = "${local.name}/bots/microsoft-teams"
   image_tag_mutability = "MUTABLE"
 
   image_scanning_configuration {
@@ -112,13 +112,13 @@ resource "aws_ecr_repository" "teams_bot" {
   }
 
   tags = {
-    Name = "${local.name}-teams-bot-ecr"
+    Name = "${local.name}-microsoft-teams-bot-ecr"
   }
 }
 
-# ECR Lifecycle Policy for Teams Bot
-resource "aws_ecr_lifecycle_policy" "teams_bot" {
-  repository = aws_ecr_repository.teams_bot.name
+# ECR Lifecycle Policy for Microsoft Teams Bot
+resource "aws_ecr_lifecycle_policy" "microsoft_teams_bot" {
+  repository = aws_ecr_repository.microsoft_teams_bot.name
 
   policy = jsonencode({
     rules = [
