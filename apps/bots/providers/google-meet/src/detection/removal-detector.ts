@@ -218,6 +218,56 @@ export class GoogleMeetRemovalDetector implements RemovalDetector {
 			return { removed: false, immediate: false };
 		}
 
+		// Count timeouts to detect connection issues
+		const timedOutCount = Object.values(indicatorResults).filter(
+			(r) => r.timedOut,
+		).length;
+		const totalCount = Object.keys(indicatorResults).length;
+		const timeoutRatio = timedOutCount / totalCount;
+
+		// If most checks timed out (>40%), likely connection issue, use extended grace period
+		if (timeoutRatio > 0.4) {
+			// Treat as reconnection scenario
+			if (this.reconnectingDetectedTime === null) {
+				this.reconnectingDetectedTime = Date.now();
+
+				this.logger.info(
+					"[RemovalDetector] Connection instability detected (indicators timing out), starting extended grace period",
+					{
+						timedOutCount,
+						totalCount,
+						timeoutRatio: Math.round(timeoutRatio * 100) + "%",
+						indicatorResults,
+					},
+				);
+			}
+
+			const reconnectionDuration = Date.now() - this.reconnectingDetectedTime;
+
+			if (
+				reconnectionDuration >= GOOGLE_MEET_CONFIG.RECONNECTION_GRACE_PERIOD_MS
+			) {
+				this.logger.info(
+					"[RemovalDetector] REMOVED: Connection instability timeout after 5 minutes",
+					{ reconnectionDurationMs: reconnectionDuration },
+				);
+
+				return {
+					removed: true,
+					reason: "reconnection_timeout",
+					immediate: false,
+				};
+			}
+
+			this.logger.debug("[RemovalDetector] Waiting for connection to stabilize", {
+				reconnectionDurationMs: reconnectionDuration,
+				graceRemainingMs:
+					GOOGLE_MEET_CONFIG.RECONNECTION_GRACE_PERIOD_MS - reconnectionDuration,
+			});
+
+			return { removed: false, immediate: false, reconnecting: true };
+		}
+
 		// All checks timed out, page is unresponsive (assume still in call)
 		if (allTimedOut) {
 			this.logger.warn(
@@ -276,17 +326,31 @@ export class GoogleMeetRemovalDetector implements RemovalDetector {
 			return false;
 		}
 
+		this.logger.trace("[RemovalDetector] Checking for connection lost indicators", {
+			indicatorCount: SELECTORS.connectionLostIndicators.length,
+		});
+
 		for (const selector of SELECTORS.connectionLostIndicators) {
-			const exists = await elementExists(this.page, selector);
+			try {
+				const exists = await elementExists(this.page, selector);
 
-			if (exists) {
-				this.logger.trace("[RemovalDetector] Connection lost indicator found", {
+				if (exists) {
+					this.logger.info("[RemovalDetector] Connection lost indicator found", {
+						selector,
+					});
+
+					return true;
+				}
+			} catch (error) {
+				// Continue checking other selectors
+				this.logger.trace("[RemovalDetector] Error checking selector", {
 					selector,
+					error: error instanceof Error ? error.message : String(error),
 				});
-
-				return true;
 			}
 		}
+
+		this.logger.trace("[RemovalDetector] No connection lost indicators found");
 
 		return false;
 	}

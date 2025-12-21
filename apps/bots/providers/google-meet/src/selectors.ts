@@ -96,11 +96,28 @@ export const SELECTORS = {
 
 	// Connection lost indicators (network reconnection in progress)
 	// When these are visible, bot should wait for reconnection instead of exiting
+	// Includes English and Portuguese translations
 	connectionLostIndicators: [
+		// English
 		'//*[contains(text(), "lost your network connection")]',
 		'//*[contains(text(), "Trying to reconnect")]',
 		'//*[contains(text(), "Lost connection")]',
 		'//*[contains(text(), "Reconnecting")]',
+		'//*[contains(text(), "reconnecting")]',
+		'//*[contains(text(), "Connection problem")]',
+		'//*[contains(text(), "connection problem")]',
+		// Portuguese
+		'//*[contains(text(), "perdeu a conexão")]',
+		'//*[contains(text(), "Tentando reconectar")]',
+		'//*[contains(text(), "Reconectando")]',
+		'//*[contains(text(), "reconectando")]',
+		'//*[contains(text(), "Conexão perdida")]',
+		'//*[contains(text(), "conexão perdida")]',
+		'//*[contains(text(), "Problema de conexão")]',
+		// Spanish
+		'//*[contains(text(), "perdió la conexión")]',
+		'//*[contains(text(), "Reconectando")]',
+		'//*[contains(text(), "Conexión perdida")]',
 	],
 
 	// Chat
