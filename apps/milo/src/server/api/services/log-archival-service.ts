@@ -105,7 +105,7 @@ class LogArchivalService {
 	}> {
 		const s3Client = getS3ClientInstance();
 		const bucketName = getBucketName();
-		const prefix = `logs/${botId}/`;
+		const prefix = `bots/${botId}/logs/`;
 		const limit = options.limit ?? 100;
 
 		try {
@@ -248,12 +248,12 @@ class LogArchivalService {
 		const s3Client = getS3ClientInstance();
 		const bucketName = getBucketName();
 
-		// Create S3 key: logs/{botId}/{YYYY-MM-DD}/{timestamp}.jsonl
+		// Create S3 key: bots/{botId}/logs/{YYYY-MM-DD}/{timestamp}.jsonl
 		const now = new Date();
 		const dateStr = now.toISOString().split("T")[0];
 		const timestamp = now.getTime();
 		const suffix = isFinal ? "-final" : "";
-		const key = `logs/${botId}/${dateStr}/${timestamp}${suffix}.jsonl`;
+		const key = `bots/${botId}/logs/${dateStr}/${timestamp}${suffix}.jsonl`;
 
 		// Convert entries to JSONL format
 		const jsonl = entries.map((entry) => JSON.stringify(entry)).join("\n");

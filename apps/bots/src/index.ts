@@ -194,6 +194,7 @@ export const main = async () => {
 
 			recordingKey = await storage.uploadRecording(
 				bot.getRecordingPath(),
+				botId,
 				platform,
 				bot.getContentType(),
 			);

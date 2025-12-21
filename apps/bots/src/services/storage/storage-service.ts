@@ -39,6 +39,7 @@ export class StorageService {
 	 */
 	async uploadRecording(
 		filePath: string,
+		botId: number,
 		platform: string,
 		contentType: string,
 	): Promise<string> {
@@ -87,7 +88,7 @@ export class StorageService {
 		// Create UUID and initialize key
 		const uuid = crypto.randomUUID();
 		const extension = contentType.split("/")[1];
-		const key = `recordings/${uuid}-${platform}-recording.${extension}`;
+		const key = `bots/${botId}/recordings/${uuid}-${platform}.${extension}`;
 
 		try {
 			await this.provider.upload(key, fileContent, contentType);
@@ -127,7 +128,7 @@ export class StorageService {
 			const fileContent = readFileSync(localPath);
 			const uuid = crypto.randomUUID();
 			const timestamp = Date.now();
-			const key = `screenshots/bot-${botId}/${uuid}-${type}-${timestamp}.png`;
+			const key = `bots/${botId}/screenshots/${uuid}-${type}-${timestamp}.png`;
 
 			await this.provider.upload(key, fileContent, "image/png");
 			console.log(`Screenshot uploaded: ${key}`);
