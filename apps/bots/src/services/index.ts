@@ -2,11 +2,11 @@ import type { Bot } from "../bot";
 import { env } from "../config/env";
 import { BotLogger, parseLogLevel } from "../logger";
 import { createTrpcClient, type TrpcClient } from "../trpc";
+import { UploadRecordingUseCase } from "../use-cases";
 import { DurationMonitorWorker } from "../workers/duration-monitor-worker";
 import { HeartbeatWorker } from "../workers/heartbeat-worker";
 import { MessageQueueWorker } from "../workers/message-queue-worker";
 import { S3StorageProvider } from "./storage/s3-provider";
-import { StorageService } from "./storage/storage-service";
 
 /**
  * Container for all services in the application
@@ -14,7 +14,7 @@ import { StorageService } from "./storage/storage-service";
 interface Services {
 	logger: BotLogger;
 	trpc: TrpcClient;
-	storage: StorageService;
+	uploadRecording: UploadRecordingUseCase | null;
 	workers: {
 		heartbeat: HeartbeatWorker;
 		durationMonitor: DurationMonitorWorker;
@@ -37,7 +37,6 @@ interface CreateServicesOptions {
  * Creates all services with proper dependency injection
  */
 export function createServices(options: CreateServicesOptions): Services {
-	// Create in dependency order
 	const logLevel = options.initialLogLevel
 		? parseLogLevel(options.initialLogLevel)
 		: undefined;
@@ -49,19 +48,27 @@ export function createServices(options: CreateServicesOptions): Services {
 		authToken: env.MILO_AUTH_TOKEN,
 	});
 
-	// Enable log streaming to backend
 	logger.enableStreaming({ trpcClient: trpc });
 
-	// Create storage service with S3 provider
-	const s3Provider = new S3StorageProvider({
-		endpoint: env.S3_ENDPOINT,
-		region: env.S3_REGION,
-		accessKeyId: env.S3_ACCESS_KEY,
-		secretAccessKey: env.S3_SECRET_KEY,
-		bucketName: env.S3_BUCKET_NAME,
-	});
+	// Create storage use cases only if S3 is fully configured
+	let uploadRecording: UploadRecordingUseCase | null = null;
 
-	const storage = new StorageService(s3Provider);
+	const s3Endpoint = env.S3_ENDPOINT;
+	const s3AccessKey = env.S3_ACCESS_KEY;
+	const s3SecretKey = env.S3_SECRET_KEY;
+	const s3BucketName = env.S3_BUCKET_NAME;
+
+	if (s3Endpoint && s3AccessKey && s3SecretKey && s3BucketName) {
+		const storageService = new S3StorageProvider({
+			endpoint: s3Endpoint,
+			region: env.S3_REGION,
+			accessKeyId: s3AccessKey,
+			secretAccessKey: s3SecretKey,
+			bucketName: s3BucketName,
+		});
+
+		uploadRecording = new UploadRecordingUseCase(storageService);
+	}
 
 	const workers = {
 		heartbeat: new HeartbeatWorker(trpc, logger),
@@ -69,5 +76,5 @@ export function createServices(options: CreateServicesOptions): Services {
 		messageQueue: new MessageQueueWorker(trpc, options.getBot, logger),
 	};
 
-	return { logger, trpc, storage, workers };
+	return { logger, trpc, uploadRecording, workers };
 }

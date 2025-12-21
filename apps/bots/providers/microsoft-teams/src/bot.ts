@@ -10,14 +10,14 @@ import { Bot } from "../../../src/bot";
 import { env } from "../../../src/config/env";
 import { withTimeout } from "../../../src/helpers/with-timeout";
 import type { BotLogger } from "../../../src/logger";
-import { createS3ProviderFromEnv } from "../../../src/services/storage/s3-provider";
-import { StorageService } from "../../../src/services/storage/storage-service";
+import { S3StorageProvider } from "../../../src/services/storage/s3-provider";
 import {
 	type BotConfig,
 	type EventCode,
 	type SpeakerTimeframe,
 	WaitingRoomTimeoutError,
 } from "../../../src/types";
+import { UploadScreenshotUseCase } from "../../../src/use-cases";
 
 // Cleanup timeouts (in milliseconds)
 const CLEANUP_TIMEOUTS = {
@@ -65,7 +65,7 @@ export class MicrosoftTeamsBot extends Bot {
 	private recordingPath: string;
 	private contentType: string;
 	private meetingUrl: string;
-	private storageService: StorageService;
+	private uploadScreenshot: UploadScreenshotUseCase | null = null;
 
 	browser!: Browser;
 	page!: Page;
@@ -88,8 +88,23 @@ export class MicrosoftTeamsBot extends Bot {
 		this.recordingPath = path.resolve(__dirname, "recording.webm");
 		this.contentType = "video/webm";
 		this.meetingUrl = `https://teams.microsoft.com/v2/?meetingjoin=true#/l/meetup-join/19:meeting_${this.settings.meetingInfo.meetingId}@thread.v2/0?context=%7b%22Tid%22%3a%22${this.settings.meetingInfo.tenantId}%22%2c%22Oid%22%3a%22${this.settings.meetingInfo.organizerId}%22%7d&anon=true`;
-		const s3Provider = createS3ProviderFromEnv(env);
-		this.storageService = new StorageService(s3Provider);
+
+		if (
+			env.S3_ENDPOINT &&
+			env.S3_ACCESS_KEY &&
+			env.S3_SECRET_KEY &&
+			env.S3_BUCKET_NAME
+		) {
+			const storageService = new S3StorageProvider({
+				endpoint: env.S3_ENDPOINT,
+				region: env.S3_REGION,
+				accessKeyId: env.S3_ACCESS_KEY,
+				secretAccessKey: env.S3_SECRET_KEY,
+				bucketName: env.S3_BUCKET_NAME,
+			});
+
+			this.uploadScreenshot = new UploadScreenshotUseCase(storageService);
+		}
 	}
 
 	// --- Lifecycle methods ----------------------------------------
@@ -630,7 +645,7 @@ export class MicrosoftTeamsBot extends Bot {
 	 * Take a screenshot, upload to S3, and persist to database.
 	 * @param filename - Local filename for the screenshot
 	 * @param trigger - Optional trigger description for S3 metadata
-	 * @returns The S3 key if uploaded, local path if S3 failed, or null on error
+	 * @returns The S3 key if uploaded, local path if S3 not configured, or null on error
 	 */
 	async screenshot(
 		filename: string = "screenshot.png",
@@ -648,22 +663,25 @@ export class MicrosoftTeamsBot extends Bot {
 				type: "png",
 			});
 
-			const s3Result = await this.storageService.uploadScreenshot(
-				screenshotPath,
-				this.settings.id,
-				"manual",
-				this.logger.getState(),
-				trigger,
-			);
+			if (this.uploadScreenshot) {
+				const data = fs.readFileSync(screenshotPath);
 
-			if (s3Result) {
-				this.logger.debug("Screenshot uploaded to S3", { key: s3Result.key });
+				const result = await this.uploadScreenshot.execute({
+					botId: this.settings.id,
+					data,
+					type: "manual",
+					state: this.logger.getState(),
+					trigger,
+				});
 
-				// Persist screenshot to database
+				fs.unlinkSync(screenshotPath);
+
+				this.logger.debug("Screenshot uploaded to S3", { key: result.key });
+
 				try {
 					await this.trpc.bots.addScreenshot.mutate({
 						id: String(this.settings.id),
-						screenshot: s3Result,
+						screenshot: result,
 					});
 				} catch (dbError) {
 					this.logger.warn("Failed to persist screenshot to database", {
@@ -671,7 +689,7 @@ export class MicrosoftTeamsBot extends Bot {
 					});
 				}
 
-				return s3Result.key;
+				return result.key;
 			}
 
 			this.logger.debug("Screenshot saved locally", { path: screenshotPath });

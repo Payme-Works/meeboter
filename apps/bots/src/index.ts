@@ -53,6 +53,7 @@ export const main = async () => {
 
 	// Early initialization logging (before logger is available)
 	console.log("[INIT] Bot container starting...");
+
 	console.log("[INIT] Environment:", {
 		NODE_ENV: env.NODE_ENV,
 		POOL_SLOT_UUID: poolSlotUuid,
@@ -78,7 +79,7 @@ export const main = async () => {
 	console.log("[INIT] Bot config received:", {
 		id: botConfig.id,
 		platform: botConfig.meetingInfo.platform,
-		meetingUrl: botConfig.meetingInfo.meetingUrl?.slice(0, 50) + "...",
+		meetingUrl: `${botConfig.meetingInfo.meetingUrl?.slice(0, 50)}...`,
 		botDisplayName: botConfig.botDisplayName,
 		recordingEnabled: botConfig.recordingEnabled,
 		chatEnabled: botConfig.chatEnabled,
@@ -98,13 +99,14 @@ export const main = async () => {
 		getBot: () => bot,
 	});
 
-	const { logger, trpc, storage, workers } = services;
+	const { logger, trpc, uploadRecording, workers } = services;
 
 	logger.info("Services initialized successfully");
+
 	logger.debug("Service components ready", {
 		hasLogger: !!logger,
 		hasTrpc: !!trpc,
-		hasStorage: !!storage,
+		hasUploadRecording: !!uploadRecording,
 		hasWorkers: !!workers,
 	});
 
@@ -188,16 +190,24 @@ export const main = async () => {
 		});
 
 		// Upload recording if enabled and no error
-		if (!hasErrorOccurred && bot.settings.recordingEnabled) {
+		if (!hasErrorOccurred && bot.settings.recordingEnabled && uploadRecording) {
 			logger.info("Starting upload to storage...");
 			const platform = bot.settings.meetingInfo.platform ?? "unknown";
+			const recordingPath = bot.getRecordingPath();
+			const contentType = bot.getContentType();
 
-			recordingKey = await storage.uploadRecording(
-				bot.getRecordingPath(),
+			const { promises: fs } = await import("node:fs");
+			const data = await fs.readFile(recordingPath);
+
+			recordingKey = await uploadRecording.execute({
 				botId,
+				data,
 				platform,
-				bot.getContentType(),
-			);
+				contentType,
+			});
+
+			await fs.unlink(recordingPath);
+			logger.info("Recording uploaded successfully", { key: recordingKey });
 		}
 	} catch (error) {
 		hasErrorOccurred = true;

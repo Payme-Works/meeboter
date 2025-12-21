@@ -1,16 +1,29 @@
 import { S3Client } from "bun";
 
-import type { StorageConfig, StorageProvider } from "./storage-service";
+import { StorageService } from "./storage-service";
+
+/**
+ * Configuration for S3/S3-compatible storage.
+ * All fields are required for a valid configuration.
+ */
+interface S3Config {
+	endpoint: string;
+	region: string;
+	accessKeyId: string;
+	secretAccessKey: string;
+	bucketName: string;
+}
 
 /**
  * S3/MinIO storage provider using Bun's built-in S3Client.
  * Supports both AWS S3 and S3-compatible storage (MinIO, Cloudflare R2, etc.)
  */
-export class S3StorageProvider implements StorageProvider {
+export class S3StorageProvider extends StorageService {
 	private readonly client: S3Client;
-	private readonly bucketName: string;
 
-	constructor(config: StorageConfig) {
+	constructor(config: S3Config) {
+		super();
+
 		this.client = new S3Client({
 			endpoint: config.endpoint,
 			region: config.region,
@@ -18,42 +31,21 @@ export class S3StorageProvider implements StorageProvider {
 			secretAccessKey: config.secretAccessKey,
 			bucket: config.bucketName,
 		});
-
-		this.bucketName = config.bucketName ?? "";
-	}
-
-	/**
-	 * Checks if the provider is properly configured
-	 */
-	isConfigured(): boolean {
-		return Boolean(this.bucketName);
 	}
 
 	/**
 	 * Uploads a file to S3
+	 * @returns The storage key
 	 */
-	async upload(key: string, data: Buffer, contentType: string): Promise<void> {
+	async upload(
+		key: string,
+		data: Buffer,
+		contentType: string,
+	): Promise<string> {
 		await this.client.write(key, data, {
 			type: contentType,
 		});
-	}
-}
 
-/**
- * Creates an S3StorageProvider from environment variables
- */
-export function createS3ProviderFromEnv(env: {
-	S3_ENDPOINT?: string;
-	S3_REGION?: string;
-	S3_ACCESS_KEY?: string;
-	S3_SECRET_KEY?: string;
-	S3_BUCKET_NAME?: string;
-}): S3StorageProvider {
-	return new S3StorageProvider({
-		endpoint: env.S3_ENDPOINT,
-		region: env.S3_REGION,
-		accessKeyId: env.S3_ACCESS_KEY,
-		secretAccessKey: env.S3_SECRET_KEY,
-		bucketName: env.S3_BUCKET_NAME,
-	});
+		return key;
+	}
 }

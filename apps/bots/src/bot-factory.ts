@@ -80,6 +80,7 @@ export async function createBot(
 			dockerImageName,
 			configPlatform: platform,
 		});
+
 		throw new Error(
 			`Docker image name ${dockerImageName} does not match platform ${platform}`,
 		);
@@ -134,14 +135,18 @@ export async function createBot(
 
 	let bot: Bot;
 
-	logger.debug("Loading platform module...", { platform: config.meetingInfo.platform });
+	logger.debug("Loading platform module...", {
+		platform: config.meetingInfo.platform,
+	});
 
 	switch (config.meetingInfo.platform) {
 		case "google-meet": {
 			logger.debug("Importing GoogleMeetBot module...");
+
 			const { GoogleMeetBot } = await import(
 				"../providers/google-meet/src/bot"
 			);
+
 			logger.debug("GoogleMeetBot module imported, creating instance...");
 
 			bot = new GoogleMeetBot(config, placeholderHandler, trpc, logger);
@@ -152,9 +157,11 @@ export async function createBot(
 
 		case "microsoft-teams": {
 			logger.debug("Importing MicrosoftTeamsBot module...");
+
 			const { MicrosoftTeamsBot } = await import(
 				"../providers/microsoft-teams/src/bot"
 			);
+
 			logger.debug("MicrosoftTeamsBot module imported, creating instance...");
 
 			bot = new MicrosoftTeamsBot(config, placeholderHandler, trpc, logger);
@@ -176,6 +183,7 @@ export async function createBot(
 
 		default:
 			logger.error(`Unsupported platform: ${config.meetingInfo.platform}`);
+
 			throw new Error(`Unsupported platform: ${config.meetingInfo.platform}`);
 	}
 
