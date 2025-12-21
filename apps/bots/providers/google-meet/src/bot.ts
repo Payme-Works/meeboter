@@ -170,6 +170,14 @@ export class GoogleMeetBot extends Bot {
 	}
 
 	async joinCall(): Promise<number> {
+		const joinStartTime = Date.now();
+
+		this.logger.info("[joinCall] Starting join process", {
+			meetingUrl: this.meetingUrl,
+			botName: this.settings.botDisplayName,
+			botId: this.settings.id,
+		});
+
 		await this.initializeBrowser();
 
 		this.emitter.emit("event", EventCode.JOINING_CALL);
@@ -183,8 +191,9 @@ export class GoogleMeetBot extends Bot {
 		// Navigate to meeting URL
 		const normalizedUrl = this.normalizeUrl(this.meetingUrl);
 
-		this.logger.info("State: JOINING_CALL → NAVIGATING", {
+		this.logger.info("[joinCall] State: JOINING_CALL → NAVIGATING", {
 			url: normalizedUrl,
+			elapsedMs: Date.now() - joinStartTime,
 		});
 
 		await withRetry(
@@ -199,6 +208,14 @@ export class GoogleMeetBot extends Bot {
 					NAVIGATION_RETRYABLE_ERRORS.some((err) => e.message.includes(err)),
 			},
 		);
+
+		// Screenshot after initial navigation
+		await this.screenshot("initial-navigation.png", "initial_navigation");
+
+		this.logger.info("[joinCall] Initial navigation complete", {
+			currentUrl: this.page.url(),
+			elapsedMs: Date.now() - joinStartTime,
+		});
 
 		// Capture original meeting path for removal detection
 		this.originalMeetingPath = new URL(this.page.url()).pathname;
@@ -215,14 +232,19 @@ export class GoogleMeetBot extends Bot {
 			this.originalMeetingPath,
 		);
 
-		this.logger.info("State: NAVIGATING → WAITING_FOR_JOIN_SCREEN");
+		this.logger.info("[joinCall] State: NAVIGATING → WAITING_FOR_JOIN_SCREEN", {
+			originalMeetingPath: this.originalMeetingPath,
+			elapsedMs: Date.now() - joinStartTime,
+		});
 
 		// Fill bot name with full page reload on retry
 		const botName = this.settings.botDisplayName || "Meeboter";
+		let nameFillAttempt = 0;
 
 		await withRetry(
 			async () => {
-				await this.navigateAndFillName(normalizedUrl, botName);
+				nameFillAttempt++;
+				await this.navigateAndFillName(normalizedUrl, botName, nameFillAttempt);
 			},
 			{
 				maxRetries: GOOGLE_MEET_CONFIG.NAME_FILL_MAX_RETRIES,
@@ -234,20 +256,46 @@ export class GoogleMeetBot extends Bot {
 			},
 		);
 
-		this.logger.info("Filled bot name", { name: botName });
+		this.logger.info("[joinCall] Name filled successfully", {
+			name: botName,
+			attempts: nameFillAttempt,
+			elapsedMs: Date.now() - joinStartTime,
+		});
 
 		// Disable media devices
 		await this.disableMediaDevices();
 
+		// Screenshot before clicking join button
+		await this.screenshot("before-join-button.png", "before_join_button");
+
 		// Click join button
 		const isWaitingRoom = await this.clickJoinButton();
 
+		// Screenshot after clicking join button
+		await this.screenshot("after-join-button.png", "after_join_button");
+
+		this.logger.info("[joinCall] Join button clicked", {
+			isWaitingRoom,
+			elapsedMs: Date.now() - joinStartTime,
+		});
+
 		if (isWaitingRoom) {
 			this.emitter.emit("event", EventCode.IN_WAITING_ROOM);
+
+			this.logger.info("[joinCall] Entered waiting room", {
+				elapsedMs: Date.now() - joinStartTime,
+			});
 		}
 
 		// Wait for call entry
 		await this.waitForCallEntry();
+
+		// Screenshot when admitted to call
+		await this.screenshot("admitted-to-call.png", "admitted_to_call");
+
+		this.logger.info("[joinCall] Successfully admitted to call", {
+			totalJoinDurationMs: Date.now() - joinStartTime,
+		});
 
 		this.emitter.emit("event", EventCode.IN_CALL);
 
@@ -260,10 +308,37 @@ export class GoogleMeetBot extends Bot {
 		this.logger.info("[leaveCall] Starting leave process", {
 			hasPage: !!this.page,
 			pageUrl: this.page?.url() ?? "no page",
+			leaveRequested: this.leaveRequested,
 		});
 
+		// Screenshot before leaving
+		try {
+			await this.screenshot("before-leave.png", "before_leave");
+		} catch {
+			this.logger.debug(
+				"[leaveCall] Could not capture screenshot before leave",
+			);
+		}
+
 		if (this.page) {
-			await clickIfExists(this.page, SELECTORS.leaveButton, { timeout: 1000 });
+			const leaveButtonClicked = await clickIfExists(
+				this.page,
+				SELECTORS.leaveButton,
+				{ timeout: 1000 },
+			);
+
+			this.logger.debug("[leaveCall] Leave button click result", {
+				clicked: leaveButtonClicked,
+			});
+
+			// Screenshot after clicking leave button
+			try {
+				await this.screenshot("after-leave-button.png", "after_leave_button");
+			} catch {
+				this.logger.debug(
+					"[leaveCall] Could not capture screenshot after leave button",
+				);
+			}
 		}
 
 		await this.cleanup();
@@ -347,21 +422,29 @@ export class GoogleMeetBot extends Bot {
 		const monitorStartTime = Date.now();
 		const waitingRoomTimeout = this.settings.automaticLeave.waitingRoomTimeout;
 		let confirmedInCall = false;
+		let lastPeriodicScreenshotTime = 0;
+		const PERIODIC_SCREENSHOT_INTERVAL_MS = 60_000; // Screenshot every 60 seconds
 
-		this.logger.debug("[monitorCall] Starting call monitoring", {
+		this.logger.info("[monitorCall] Starting call monitoring", {
 			recordingEnabled: this.settings.recordingEnabled,
 			chatEnabled: this.chatEnabled,
+			waitingRoomTimeoutMs: waitingRoomTimeout,
 		});
 
 		if (this.settings.recordingEnabled) {
+			this.logger.debug("[monitorCall] Starting recording");
 			await this.startRecording();
 		}
 
 		if (this.chatEnabled) {
+			this.logger.debug("[monitorCall] Opening chat panel");
 			await this.ensureChatPanelOpen();
 		}
 
 		await this.dismissPopupsQuick();
+
+		// Screenshot at start of monitoring
+		await this.screenshot("monitor-start.png", "monitor_start");
 
 		let loopCount = 0;
 		let exitReason = "unknown";
@@ -374,29 +457,85 @@ export class GoogleMeetBot extends Bot {
 					await this.dismissPopupsQuick();
 				}
 
+				// Periodic screenshot for debugging
+				const now = Date.now();
+
+				if (
+					now - lastPeriodicScreenshotTime >=
+					PERIODIC_SCREENSHOT_INTERVAL_MS
+				) {
+					lastPeriodicScreenshotTime = now;
+
+					const elapsedMinutes = Math.floor((now - monitorStartTime) / 60_000);
+
+					try {
+						await this.screenshot(
+							`monitor-periodic-${elapsedMinutes}min.png`,
+							`monitor_periodic_${elapsedMinutes}min`,
+						);
+
+						this.logger.debug("[monitorCall] Periodic screenshot captured", {
+							elapsedMinutes,
+							loopCount,
+						});
+					} catch {
+						this.logger.trace(
+							"[monitorCall] Failed to capture periodic screenshot",
+						);
+					}
+				}
+
 				if (loopCount % MONITORING_CONFIG.HEALTH_CHECK_INTERVAL === 0) {
-					this.logger.trace("[monitorCall] Health check", {
+					this.logger.debug("[monitorCall] Health check", {
 						loopCount,
 						confirmedInCall,
-						monitoringDurationMs: Date.now() - monitorStartTime,
+						monitoringDurationMs: now - monitorStartTime,
+						currentUrl: this.page?.url() ?? "no page",
 					});
 				}
 
 				// Check 1: User requested leave
 				if (this.leaveRequested) {
 					exitReason = "user_requested_leave";
-					this.logger.info("[monitorCall] Exit: User requested via API");
+
+					this.logger.info("[monitorCall] Exit: User requested via API", {
+						monitoringDurationMs: now - monitorStartTime,
+					});
+
+					// Screenshot on user-requested leave
+					try {
+						await this.screenshot(
+							"exit-user-requested.png",
+							"exit_user_requested",
+						);
+					} catch {
+						// Ignore screenshot errors
+					}
 
 					break;
 				}
 
 				// Check 2: Waiting room timeout
 				if (!confirmedInCall) {
-					const elapsed = Date.now() - monitorStartTime;
+					const elapsed = now - monitorStartTime;
 
 					if (elapsed > waitingRoomTimeout) {
 						exitReason = "waiting_room_timeout";
-						this.logger.info("[monitorCall] Exit: Waiting room timeout");
+
+						this.logger.info("[monitorCall] Exit: Waiting room timeout", {
+							elapsedMs: elapsed,
+							timeoutMs: waitingRoomTimeout,
+						});
+
+						// Screenshot on waiting room timeout
+						try {
+							await this.screenshot(
+								"exit-waiting-room-timeout.png",
+								"exit_waiting_room_timeout",
+							);
+						} catch {
+							// Ignore screenshot errors
+						}
 
 						break;
 					}
@@ -416,19 +555,50 @@ export class GoogleMeetBot extends Bot {
 								this.logger.info("[monitorCall] Exit: Removed from meeting", {
 									reason: result.reason,
 									checkDurationMs: checkDuration,
+									monitoringDurationMs: now - monitorStartTime,
 								});
+
+								// Screenshot on removal
+								try {
+									await this.screenshot(
+										`exit-removed-${result.reason}.png`,
+										`exit_removed_${result.reason}`,
+									);
+								} catch {
+									// Ignore screenshot errors
+								}
 
 								break;
 							}
 
 							this.logger.debug(
 								"[monitorCall] Removal detected but not confirmed in-call",
+								{ reason: result.reason },
 							);
 						} else if (!confirmedInCall && checkDuration < 5000) {
 							confirmedInCall = true;
-							this.logger.info("[monitorCall] Confirmed in-call");
+
+							this.logger.info("[monitorCall] Confirmed in-call", {
+								elapsedMs: now - monitorStartTime,
+								checkDurationMs: checkDuration,
+							});
+
+							// Screenshot when confirmed in-call
+							try {
+								await this.screenshot(
+									"confirmed-in-call.png",
+									"confirmed_in_call",
+								);
+							} catch {
+								// Ignore screenshot errors
+							}
 						}
 					} catch (error) {
+						this.logger.warn("[monitorCall] Removal check error", {
+							error: error instanceof Error ? error.message : String(error),
+							confirmedInCall,
+						});
+
 						if (confirmedInCall) {
 							exitReason = "removal_check_error";
 
@@ -436,6 +606,16 @@ export class GoogleMeetBot extends Bot {
 								"[monitorCall] Exit: Removal check error",
 								error instanceof Error ? error : new Error(String(error)),
 							);
+
+							// Screenshot on removal check error
+							try {
+								await this.screenshot(
+									"exit-removal-check-error.png",
+									"exit_removal_check_error",
+								);
+							} catch {
+								// Ignore screenshot errors
+							}
 
 							break;
 						}
@@ -460,11 +640,22 @@ export class GoogleMeetBot extends Bot {
 				"[monitorCall] Exit: Unexpected error",
 				error instanceof Error ? error : new Error(String(error)),
 			);
+
+			// Screenshot on unexpected error
+			try {
+				await this.screenshot(
+					"exit-unexpected-error.png",
+					"exit_unexpected_error",
+				);
+			} catch {
+				// Ignore screenshot errors
+			}
 		}
 
 		this.logger.info("[monitorCall] Exiting monitoring loop", {
 			loopCount,
 			exitReason,
+			confirmedInCall,
 			totalMonitoringDurationMs: Date.now() - monitorStartTime,
 		});
 
@@ -480,34 +671,96 @@ export class GoogleMeetBot extends Bot {
 
 		const timeout = this.settings.automaticLeave.waitingRoomTimeout;
 		const startTime = Date.now();
+		let checkCount = 0;
+		let lastScreenshotTime = 0;
+		const WAITING_SCREENSHOT_INTERVAL_MS = 10_000; // Screenshot every 10 seconds while waiting
 
-		this.logger.debug("Waiting for call entry", {
+		this.logger.info("[waitForCallEntry] Starting admission wait", {
+			timeoutMs: timeout,
 			timeoutSeconds: timeout / 1000,
 		});
+
+		// Screenshot at start of waiting
+		await this.screenshot("waiting-for-admission.png", "waiting_for_admission");
 
 		// Run checks sequentially without delay: check -> check -> check
 		// Each check takes ~500-700ms with parallel selector detection
 		while (Date.now() - startTime < timeout) {
+			checkCount++;
+			const now = Date.now();
+			const elapsed = now - startTime;
+
+			// Periodic screenshot while waiting
+			if (now - lastScreenshotTime >= WAITING_SCREENSHOT_INTERVAL_MS) {
+				lastScreenshotTime = now;
+				const elapsedSeconds = Math.floor(elapsed / 1000);
+
+				try {
+					await this.screenshot(
+						`waiting-${elapsedSeconds}s.png`,
+						`waiting_${elapsedSeconds}s`,
+					);
+
+					this.logger.debug("[waitForCallEntry] Waiting screenshot captured", {
+						elapsedSeconds,
+						checkCount,
+					});
+				} catch {
+					// Ignore screenshot errors
+				}
+			}
+
 			const result = await this.admissionDetector.check();
 
 			if (result.admitted) {
+				this.logger.debug("[waitForCallEntry] Admission detected, verifying", {
+					method: result.method,
+					elapsedMs: elapsed,
+					checkCount,
+				});
+
 				// Quick stabilization check to avoid false positives
 				await setTimeout(DETECTION_TIMEOUTS.STABILIZATION_DELAY);
 				const verified = await this.admissionDetector.check();
 
 				if (verified.admitted) {
-					this.logger.debug("Admission confirmed (verified)", {
+					this.logger.info("[waitForCallEntry] Admission confirmed", {
 						method: result.method,
+						elapsedMs: Date.now() - startTime,
+						checkCount,
 					});
 
 					return;
 				}
 
-				this.logger.debug("Admission detected but not stable");
+				this.logger.debug(
+					"[waitForCallEntry] Admission not stable, continuing",
+				);
+			}
+
+			// Log progress every 50 checks (~25-35 seconds)
+			if (checkCount % 50 === 0) {
+				this.logger.debug("[waitForCallEntry] Still waiting for admission", {
+					checkCount,
+					elapsedMs: elapsed,
+					remainingMs: timeout - elapsed,
+				});
 			}
 
 			// No delay between checks, run continuously for fastest detection
 		}
+
+		// Screenshot on timeout
+		try {
+			await this.screenshot("admission-timeout.png", "admission_timeout");
+		} catch {
+			// Ignore screenshot errors
+		}
+
+		this.logger.warn("[waitForCallEntry] Admission timeout", {
+			timeoutMs: timeout,
+			checkCount,
+		});
 
 		throw new WaitingRoomTimeoutError(
 			`Bot was not admitted within ${timeout / 1000}s`,
@@ -573,10 +826,16 @@ export class GoogleMeetBot extends Bot {
 	private async navigateAndFillName(
 		meetingUrl: string,
 		botName: string,
+		attempt = 1,
 	): Promise<void> {
 		if (!this.page) {
 			throw new Error("Page not initialized");
 		}
+
+		this.logger.debug("[navigateAndFillName] Starting", {
+			attempt,
+			meetingUrl,
+		});
 
 		// Reload the page to reset any bad state
 		await this.page.goto(meetingUrl, {
@@ -584,17 +843,29 @@ export class GoogleMeetBot extends Bot {
 			timeout: 30_000,
 		});
 
+		// Screenshot after navigation
+		await this.screenshot(
+			`name-fill-attempt-${attempt}-after-navigation.png`,
+			`name_fill_attempt_${attempt}_navigation`,
+		);
+
 		// Dismiss any blocking dialogs
 		await this.dismissBlockingDialogs();
 
+		// Screenshot after dismissing dialogs
+		await this.screenshot(
+			`name-fill-attempt-${attempt}-after-dialogs.png`,
+			`name_fill_attempt_${attempt}_dialogs`,
+		);
+
 		// Find and fill the name input
-		await this.fillNameInput(botName);
+		await this.fillNameInput(botName, attempt);
 	}
 
 	/**
 	 * Fill the bot name input with stability checks.
 	 */
-	private async fillNameInput(botName: string): Promise<void> {
+	private async fillNameInput(botName: string, attempt = 1): Promise<void> {
 		if (!this.page) {
 			throw new Error("Page not initialized");
 		}
@@ -606,19 +877,46 @@ export class GoogleMeetBot extends Bot {
 		const nameInputSelector = await this.findNameInput();
 
 		if (!nameInputSelector) {
+			// Screenshot when name input not found
+			await this.screenshot(
+				`name-fill-attempt-${attempt}-input-not-found.png`,
+				`name_fill_attempt_${attempt}_input_not_found`,
+			);
+
 			await this.checkBlockingScreens();
 
 			throw new Error("Name input not found");
 		}
 
-		// 3. Wait for element to be visible
-		await this.page.waitForSelector(nameInputSelector, {
-			state: "visible",
-			timeout: GOOGLE_MEET_CONFIG.NAME_FILL_TIMEOUT_MS,
+		this.logger.debug("[fillNameInput] Name input found", {
+			attempt,
+			selector: nameInputSelector,
 		});
+
+		// 3. Wait for element to be visible
+		try {
+			await this.page.waitForSelector(nameInputSelector, {
+				state: "visible",
+				timeout: GOOGLE_MEET_CONFIG.NAME_FILL_TIMEOUT_MS,
+			});
+		} catch (error) {
+			// Screenshot when visibility wait fails
+			await this.screenshot(
+				`name-fill-attempt-${attempt}-not-visible.png`,
+				`name_fill_attempt_${attempt}_not_visible`,
+			);
+
+			throw error;
+		}
 
 		// 4. Short stabilization delay after visibility
 		await setTimeout(GOOGLE_MEET_CONFIG.NAME_FILL_STABILIZATION_BASE_MS);
+
+		// Screenshot before filling
+		await this.screenshot(
+			`name-fill-attempt-${attempt}-before-fill.png`,
+			`name_fill_attempt_${attempt}_before_fill`,
+		);
 
 		// 5. Clear any existing text (triple-click selects all, then delete)
 		const input = this.page.locator(nameInputSelector);
@@ -631,9 +929,30 @@ export class GoogleMeetBot extends Bot {
 		}
 
 		// 6. Fill with shorter timeout for faster failure detection
-		await input.fill(botName, {
-			timeout: GOOGLE_MEET_CONFIG.NAME_FILL_TIMEOUT_MS,
-		});
+		try {
+			await input.fill(botName, {
+				timeout: GOOGLE_MEET_CONFIG.NAME_FILL_TIMEOUT_MS,
+			});
+
+			// Screenshot after successful fill
+			await this.screenshot(
+				`name-fill-attempt-${attempt}-success.png`,
+				`name_fill_attempt_${attempt}_success`,
+			);
+
+			this.logger.debug("[fillNameInput] Name filled successfully", {
+				attempt,
+				botName,
+			});
+		} catch (error) {
+			// Screenshot on fill failure
+			await this.screenshot(
+				`name-fill-attempt-${attempt}-fill-failed.png`,
+				`name_fill_attempt_${attempt}_fill_failed`,
+			);
+
+			throw error;
+		}
 	}
 
 	private async checkBlockingScreens(): Promise<void> {
@@ -675,9 +994,25 @@ export class GoogleMeetBot extends Bot {
 	private async disableMediaDevices(): Promise<void> {
 		if (!this.page) return;
 
-		await clickIfExists(this.page, SELECTORS.muteButton, { timeout: 500 });
-		await clickIfExists(this.page, SELECTORS.cameraOffButton, { timeout: 500 });
-		this.logger.debug("Media devices disabled");
+		this.logger.debug("[disableMediaDevices] Disabling camera and microphone");
+
+		const muteResult = await clickIfExists(this.page, SELECTORS.muteButton, {
+			timeout: 500,
+		});
+
+		const cameraResult = await clickIfExists(
+			this.page,
+			SELECTORS.cameraOffButton,
+			{ timeout: 500 },
+		);
+
+		this.logger.debug("[disableMediaDevices] Media devices disabled", {
+			muteButtonClicked: muteResult,
+			cameraButtonClicked: cameraResult,
+		});
+
+		// Screenshot after disabling media
+		await this.screenshot("media-disabled.png", "media_disabled");
 	}
 
 	private async clickJoinButton(): Promise<boolean> {
@@ -685,7 +1020,12 @@ export class GoogleMeetBot extends Bot {
 			throw new Error("Page not initialized");
 		}
 
-		this.logger.debug("Looking for join button");
+		const startTime = Date.now();
+
+		this.logger.info("[clickJoinButton] Looking for join button", {
+			joinNowSelector: SELECTORS.joinNowButton,
+			askToJoinSelector: SELECTORS.askToJoinButton,
+		});
 
 		const joinNowPromise = this.page
 			.waitForSelector(SELECTORS.joinNowButton, { timeout: 60000 })
@@ -697,14 +1037,36 @@ export class GoogleMeetBot extends Bot {
 
 		try {
 			const result = await Promise.race([joinNowPromise, askToJoinPromise]);
+
+			this.logger.debug("[clickJoinButton] Join button found", {
+				buttonType: result.isWaitingRoom ? "Ask to join" : "Join now",
+				elapsedMs: Date.now() - startTime,
+			});
+
 			await this.page.click(result.button);
 
-			this.logger.debug("Clicked join button", {
+			this.logger.info("[clickJoinButton] Join button clicked", {
 				isWaitingRoom: result.isWaitingRoom,
+				elapsedMs: Date.now() - startTime,
 			});
 
 			return result.isWaitingRoom;
-		} catch {
+		} catch (error) {
+			this.logger.warn("[clickJoinButton] Could not find join button", {
+				elapsedMs: Date.now() - startTime,
+				error: error instanceof Error ? error.message : String(error),
+			});
+
+			// Screenshot on join button timeout
+			try {
+				await this.screenshot(
+					"join-button-not-found.png",
+					"join_button_not_found",
+				);
+			} catch {
+				// Ignore screenshot errors
+			}
+
 			throw new WaitingRoomTimeoutError(
 				"Could not find join button within 60 seconds",
 			);
@@ -960,11 +1322,20 @@ export class GoogleMeetBot extends Bot {
 	// --- Browser ---
 
 	async initializeBrowser(headless = false): Promise<void> {
-		this.logger.info("Initializing browser", { headless });
+		const startTime = Date.now();
+
+		this.logger.info("[initializeBrowser] Starting browser initialization", {
+			headless,
+			browserArgsCount: this.browserArgs.length,
+		});
 
 		this.browser = await chromium.launch({
 			headless,
 			args: this.browserArgs,
+		});
+
+		this.logger.debug("[initializeBrowser] Browser launched", {
+			elapsedMs: Date.now() - startTime,
 		});
 
 		const context = await this.browser.newContext({
@@ -974,6 +1345,11 @@ export class GoogleMeetBot extends Bot {
 				width: SCREEN_DIMENSIONS.WIDTH,
 				height: SCREEN_DIMENSIONS.HEIGHT,
 			},
+		});
+
+		this.logger.debug("[initializeBrowser] Context created", {
+			viewport: `${SCREEN_DIMENSIONS.WIDTH}x${SCREEN_DIMENSIONS.HEIGHT}`,
+			elapsedMs: Date.now() - startTime,
 		});
 
 		this.page = await context.newPage();
@@ -992,6 +1368,10 @@ export class GoogleMeetBot extends Bot {
 			Object.defineProperty(navigator, "languages", {
 				get: () => ["en-US", "en"],
 			});
+		});
+
+		this.logger.info("[initializeBrowser] Browser ready", {
+			totalInitTimeMs: Date.now() - startTime,
 		});
 	}
 

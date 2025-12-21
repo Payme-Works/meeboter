@@ -222,6 +222,7 @@ export class GoogleMeetRemovalDetector implements RemovalDetector {
 		const timedOutCount = Object.values(indicatorResults).filter(
 			(r) => r.timedOut,
 		).length;
+
 		const totalCount = Object.keys(indicatorResults).length;
 		const timeoutRatio = timedOutCount / totalCount;
 
@@ -236,7 +237,7 @@ export class GoogleMeetRemovalDetector implements RemovalDetector {
 					{
 						timedOutCount,
 						totalCount,
-						timeoutRatio: Math.round(timeoutRatio * 100) + "%",
+						timeoutRatio: `${Math.round(timeoutRatio * 100)}%`,
 						indicatorResults,
 					},
 				);
@@ -259,11 +260,15 @@ export class GoogleMeetRemovalDetector implements RemovalDetector {
 				};
 			}
 
-			this.logger.debug("[RemovalDetector] Waiting for connection to stabilize", {
-				reconnectionDurationMs: reconnectionDuration,
-				graceRemainingMs:
-					GOOGLE_MEET_CONFIG.RECONNECTION_GRACE_PERIOD_MS - reconnectionDuration,
-			});
+			this.logger.debug(
+				"[RemovalDetector] Waiting for connection to stabilize",
+				{
+					reconnectionDurationMs: reconnectionDuration,
+					graceRemainingMs:
+						GOOGLE_MEET_CONFIG.RECONNECTION_GRACE_PERIOD_MS -
+						reconnectionDuration,
+				},
+			);
 
 			return { removed: false, immediate: false, reconnecting: true };
 		}
@@ -326,18 +331,24 @@ export class GoogleMeetRemovalDetector implements RemovalDetector {
 			return false;
 		}
 
-		this.logger.trace("[RemovalDetector] Checking for connection lost indicators", {
-			indicatorCount: SELECTORS.connectionLostIndicators.length,
-		});
+		this.logger.trace(
+			"[RemovalDetector] Checking for connection lost indicators",
+			{
+				indicatorCount: SELECTORS.connectionLostIndicators.length,
+			},
+		);
 
 		for (const selector of SELECTORS.connectionLostIndicators) {
 			try {
 				const exists = await elementExists(this.page, selector);
 
 				if (exists) {
-					this.logger.info("[RemovalDetector] Connection lost indicator found", {
-						selector,
-					});
+					this.logger.info(
+						"[RemovalDetector] Connection lost indicator found",
+						{
+							selector,
+						},
+					);
 
 					return true;
 				}
