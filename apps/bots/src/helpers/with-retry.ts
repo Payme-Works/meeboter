@@ -6,22 +6,17 @@ import type { BotLogger } from "../logger";
 interface WithRetryOptions {
 	/** Maximum number of retry attempts (default: 3) */
 	maxRetries?: number;
-	/** Base delay between retries in ms (default: 1000) */
-	baseDelayMs?: number;
+	/** Minimum delay between retries in ms, scales linearly with attempt (default: 1000) */
+	minDelayMs?: number;
 	/** Logger instance for structured logging */
 	logger?: BotLogger;
 	/** Operation name for logging (default: "Operation") */
 	operationName?: string;
 	/** Function to determine if an error is retryable (default: always retry) */
 	isRetryable?: (error: Error) => boolean;
-	/** Delay function to wait between retries */
-	delay?: (ms: number) => Promise<void>;
 }
 
-/**
- * Default delay using setTimeout
- */
-const defaultDelay = (ms: number): Promise<void> =>
+const sleep = (ms: number): Promise<void> =>
 	new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
@@ -57,11 +52,10 @@ export async function withRetry<T>(
 ): Promise<T> {
 	const {
 		maxRetries = 3,
-		baseDelayMs = 1000,
+		minDelayMs = 1000,
 		logger,
 		operationName = "Operation",
 		isRetryable = () => true,
-		delay = defaultDelay,
 	} = options;
 
 	let lastError: Error | undefined;
@@ -79,7 +73,7 @@ export async function withRetry<T>(
 			const canRetry = isRetryable(lastError) && attempt < maxRetries;
 
 			if (canRetry) {
-				const retryDelay = baseDelayMs * attempt;
+				const retryDelay = minDelayMs * attempt;
 
 				if (logger) {
 					logger.warn(`${operationName} failed, retrying in ${retryDelay}ms`, {
@@ -89,7 +83,7 @@ export async function withRetry<T>(
 					});
 				}
 
-				await delay(retryDelay);
+				await sleep(retryDelay);
 			} else {
 				if (logger) {
 					logger.error(

@@ -177,12 +177,11 @@ export class GoogleMeetBot extends Bot {
 				page.goto(normalizedUrl, { waitUntil: "networkidle", timeout: 30000 }),
 			{
 				maxRetries: 10,
-				baseDelayMs: 2000,
+				minDelayMs: 2000,
 				logger: this.logger,
 				operationName: "Navigate to meeting",
 				isRetryable: (e) =>
 					NAVIGATION_RETRYABLE_ERRORS.some((err) => e.message.includes(err)),
-				delay: (ms) => page.waitForTimeout(ms),
 			},
 		);
 
@@ -223,12 +222,11 @@ export class GoogleMeetBot extends Bot {
 			() => page.fill(nameInputSelector, botName, { timeout: 30000 }),
 			{
 				maxRetries: 3,
-				baseDelayMs: 1000,
+				minDelayMs: 1000,
 				logger: this.logger,
 				operationName: "Fill bot name",
 				isRetryable: (e) =>
 					FILL_RETRYABLE_ERRORS.some((err) => e.message.includes(err)),
-				delay: (ms) => page.waitForTimeout(ms),
 			},
 		);
 
