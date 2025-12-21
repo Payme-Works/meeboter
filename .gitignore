@@ -80,3 +80,5 @@ lerna-debug.log*
 
 # Lab assets
 apps/lab/assets
+
+tmp/
