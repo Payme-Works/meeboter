@@ -17,15 +17,38 @@ export const SELECTORS = {
 	muteButton: '[aria-label*="Turn off microphone"]',
 	cameraOffButton: '[aria-label*="Turn off camera"]',
 
-	// Definitive in-call indicators (ONLY exist when truly in-call, not in waiting room)
-	// These are reliable for detecting successful admission
-	// NOTE: [data-meeting-title] and Leave button exist in waiting room, so excluded
-	definitiveInCallIndicators: [
-		// Side panel buttons - only visible when in-call
+	// Admission indicators - used to detect when bot has been admitted to the call
+	// These appear quickly after admission and are reliable for fast detection
+	// Includes Leave button since it only appears AFTER clicking Join (not in waiting room)
+	admissionIndicators: [
+		// Leave button - appears immediately after admission
+		'button[aria-label="Leave call"]',
+		// Meeting title in header - appears after admission
+		"[data-meeting-title]",
+		// Side panel buttons - may take longer to appear
+		'button[aria-label="Chat with everyone"]',
+		'button[aria-label="Meeting details"]',
+	],
+
+	// Removal indicators - used to detect if bot was kicked/removed from call
+	// Stricter set that avoids false positives during page transitions
+	// Uses side panel buttons which are more stable than control bar elements
+	removalIndicators: [
 		'button[aria-label="Chat with everyone"]',
 		'button[aria-label="Meeting details"]',
 		'button[aria-label="Host controls"]',
 		'button[aria-label="Meeting tools"]',
+		// Also check Leave button as backup
+		'button[aria-label="Leave call"]',
+	],
+
+	// Legacy alias for backwards compatibility
+	definitiveInCallIndicators: [
+		'button[aria-label="Chat with everyone"]',
+		'button[aria-label="Meeting details"]',
+		'button[aria-label="Host controls"]',
+		'button[aria-label="Meeting tools"]',
+		'button[aria-label="Leave call"]',
 	],
 
 	// Less reliable indicators that may exist outside of call (e.g., waiting room)

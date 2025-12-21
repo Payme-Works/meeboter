@@ -736,10 +736,10 @@ export class GoogleMeetBot extends Bot {
 			return true;
 		}
 
-		// Check 4: In-call indicators with 30-second debounce
+		// Check 4: Removal indicators with 30-second debounce
 		// This prevents false positives during Google Meet reconnections
-		this.logger.trace("[hasBeenRemovedFromCall] Checking in-call indicators", {
-			indicatorCount: SELECTORS.definitiveInCallIndicators.length,
+		this.logger.trace("[hasBeenRemovedFromCall] Checking removal indicators", {
+			indicatorCount: SELECTORS.removalIndicators.length,
 		});
 
 		const indicatorResults: Record<
@@ -750,7 +750,7 @@ export class GoogleMeetBot extends Bot {
 		let allTimedOut = true;
 		let foundIndicator = false;
 
-		for (const selector of SELECTORS.definitiveInCallIndicators) {
+		for (const selector of SELECTORS.removalIndicators) {
 			const result = await elementExistsWithDetails(this.page, selector);
 			indicatorResults[selector] = result;
 
@@ -1327,8 +1327,8 @@ export class GoogleMeetBot extends Bot {
 	}
 
 	/**
-	 * Check for definitive in-call UI indicators (Meeting title, Chat button, etc.).
-	 * Only uses indicators that CANNOT exist in waiting room.
+	 * Check for admission indicators (Leave button, Meeting title, etc.).
+	 * Uses indicators that appear quickly after admission for fast detection.
 	 * Uses Promise.all for faster parallel detection.
 	 */
 	private async hasInCallIndicators(): Promise<boolean> {
@@ -1336,8 +1336,8 @@ export class GoogleMeetBot extends Bot {
 
 		if (!page) return false;
 
-		// Check only definitive indicators that don't exist in waiting room
-		const checks = SELECTORS.definitiveInCallIndicators.map((selector) =>
+		// Check admission indicators that appear quickly after joining
+		const checks = SELECTORS.admissionIndicators.map((selector) =>
 			elementExists(page, selector),
 		);
 
