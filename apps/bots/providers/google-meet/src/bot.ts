@@ -1261,7 +1261,10 @@ export class GoogleMeetBot extends Bot {
 
 	/**
 	 * Wait for successful call entry.
-	 * Checks for in-call UI indicators (People/Chat buttons only appear when truly in call).
+	 * Checks for in-call UI indicators with stabilization to prevent false positives.
+	 *
+	 * Stabilization: If admission is detected, we wait briefly and verify again
+	 * to ensure it's not a transitional state (e.g., page refreshing).
 	 */
 	private async waitForCallEntry(): Promise<void> {
 		if (!this.page) {
@@ -1271,28 +1274,56 @@ export class GoogleMeetBot extends Bot {
 		const timeout = this.settings.automaticLeave.waitingRoomTimeout;
 		const startTime = Date.now();
 		const checkInterval = 1000; // Check every second for faster detection
+		const stabilizationDelayMs = 500; // Short delay to verify admission is stable
 
 		this.logger.debug("Waiting for call entry", {
 			timeoutSeconds: timeout / 1000,
 		});
 
 		while (Date.now() - startTime < timeout) {
-			// Check for in-call UI indicators (these only appear when truly in call)
+			// Check for in-call UI indicators
 			const isInCall = await this.hasInCallIndicators();
 
 			if (isInCall) {
-				this.logger.debug("Admission confirmed via in-call indicators");
+				// Stabilization: Wait briefly and verify the state is stable
+				// This prevents false positives during page transitions
+				await setTimeout(stabilizationDelayMs);
 
-				return;
+				const stillInCall = await this.hasInCallIndicators();
+
+				if (stillInCall) {
+					this.logger.debug(
+						"Admission confirmed via in-call indicators (verified)",
+					);
+
+					return;
+				}
+
+				this.logger.debug(
+					"Admission detected but not stable, continuing to wait",
+				);
 			}
 
 			// Also check for admission confirmation text as fallback
 			const hasAdmissionText = await this.hasAdmissionConfirmation();
 
 			if (hasAdmissionText) {
-				this.logger.debug("Admission confirmed via confirmation text");
+				// Verify text is stable too
+				await setTimeout(stabilizationDelayMs);
 
-				return;
+				const stillHasText = await this.hasAdmissionConfirmation();
+
+				if (stillHasText) {
+					this.logger.debug(
+						"Admission confirmed via confirmation text (verified)",
+					);
+
+					return;
+				}
+
+				this.logger.debug(
+					"Admission text detected but not stable, continuing to wait",
+				);
 			}
 
 			await setTimeout(checkInterval);
@@ -1328,49 +1359,117 @@ export class GoogleMeetBot extends Bot {
 
 	/**
 	 * Check for admission indicators.
-	 * Uses a two-phase approach for fast and accurate detection:
-	 * 1. Quick check: Leave button exists AND no waiting room text → admitted
-	 * 2. Fallback: Side panel buttons (slower but reliable)
+	 * Uses a three-phase approach prioritizing reliability over speed:
+	 *
+	 * 1. Definitive check: Side panel buttons (ONLY exist when truly in-call)
+	 * 2. Structural check: Leave button + no Cancel/Ask to join buttons
+	 * 3. Text fallback: Admission confirmation texts
+	 *
+	 * IMPORTANT: The Cancel button and Ask to join button are the most reliable
+	 * waiting room indicators because they're structural elements, not text.
 	 */
 	private async hasInCallIndicators(): Promise<boolean> {
 		const page = this.page;
 
 		if (!page) return false;
 
-		// Phase 1: Fast check using Leave button + absence of waiting room text
-		// Leave button appears immediately after admission
-		const hasLeaveButton = await elementExists(
-			page,
-			SELECTORS.leaveButton,
-			1000,
-		);
+		// Phase 1: Check for definitive in-call indicators (side panel buttons)
+		// These NEVER exist in waiting room - if any is found, we're definitely in-call
+		for (const selector of SELECTORS.admissionIndicators) {
+			if (await elementExists(page, selector, 500)) {
+				this.logger.trace("[hasInCallIndicators] Found definitive indicator", {
+					selector,
+				});
 
-		if (hasLeaveButton) {
-			// Verify we're not in waiting room by checking for waiting room text
-			let inWaitingRoom = false;
-
-			for (const selector of SELECTORS.waitingRoomIndicators) {
-				if (await elementExists(page, selector, 300)) {
-					inWaitingRoom = true;
-
-					break;
-				}
-			}
-
-			if (!inWaitingRoom) {
-				// Leave button exists and no waiting room text → admitted
 				return true;
 			}
 		}
 
-		// Phase 2: Fallback to side panel buttons (slower but reliable)
-		const checks = SELECTORS.admissionIndicators.map((selector) =>
-			elementExists(page, selector, 1000),
+		// Phase 2: Check Leave button + absence of waiting room structural elements
+		// Leave button appears quickly after admission but also exists in waiting room
+		const hasLeaveButton = await elementExists(
+			page,
+			SELECTORS.leaveButton,
+			500,
 		);
 
-		const results = await Promise.all(checks);
+		if (hasLeaveButton) {
+			// Check for waiting room structural elements (more reliable than text)
+			const inWaitingRoom = await this.hasWaitingRoomStructuralIndicators();
 
-		return results.some((found) => found);
+			if (!inWaitingRoom) {
+				this.logger.trace(
+					"[hasInCallIndicators] Leave button found, no waiting room elements - admitted",
+				);
+
+				return true;
+			}
+
+			this.logger.trace(
+				"[hasInCallIndicators] Leave button found but still in waiting room",
+			);
+		}
+
+		return false;
+	}
+
+	/**
+	 * Check for waiting room structural indicators.
+	 * These are buttons/elements that ONLY exist in the waiting room:
+	 * - Cancel button (appears after clicking "Ask to join")
+	 * - Ask to join button (before clicking, or if still visible)
+	 *
+	 * Using structural elements is more reliable than text matching.
+	 */
+	private async hasWaitingRoomStructuralIndicators(): Promise<boolean> {
+		if (!this.page) return false;
+
+		// Check Cancel button first - most reliable waiting room indicator
+		// It ONLY exists after clicking "Ask to join" and before being admitted
+		const cancelSelectors = [
+			'button[aria-label="Cancel"]',
+			'//button[.//span[text()="Cancel"]]',
+			'//button[contains(., "Cancel")]',
+		];
+
+		for (const selector of cancelSelectors) {
+			if (await elementExists(this.page, selector, 200)) {
+				this.logger.trace(
+					"[hasWaitingRoomStructuralIndicators] Found Cancel button",
+					{ selector },
+				);
+
+				return true;
+			}
+		}
+
+		// Check if Ask to join button is still visible (shouldn't be after admission)
+		if (await elementExists(this.page, SELECTORS.askToJoinButton, 200)) {
+			this.logger.trace(
+				"[hasWaitingRoomStructuralIndicators] Ask to join button still visible",
+			);
+
+			return true;
+		}
+
+		// Check for waiting room text patterns as fallback (less reliable)
+		for (const selector of SELECTORS.waitingRoomIndicators) {
+			// Skip button selectors (already checked above)
+			if (selector.includes("Cancel") || selector.includes("Ask to join")) {
+				continue;
+			}
+
+			if (await elementExists(this.page, selector, 150)) {
+				this.logger.trace(
+					"[hasWaitingRoomStructuralIndicators] Found waiting room text",
+					{ selector },
+				);
+
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/**

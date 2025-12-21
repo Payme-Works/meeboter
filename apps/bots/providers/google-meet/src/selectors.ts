@@ -29,11 +29,31 @@ export const SELECTORS = {
 	],
 
 	// Waiting room indicators - if these exist, bot is NOT yet admitted
+	// PRIORITY ORDER: Structural elements first (buttons), then text patterns
+	//
+	// NOTE: The hasWaitingRoomStructuralIndicators() method in bot.ts checks
+	// Cancel and Ask to join buttons first (most reliable), then uses these
+	// text patterns as fallback.
 	waitingRoomIndicators: [
-		'//*[contains(text(), "Waiting for the host")]',
-		'//*[contains(text(), "Someone will let you in")]',
-		'//*[contains(text(), "Ask to join")]',
-		'//*[contains(text(), "Asking to be let in")]',
+		// Structural elements (most reliable - checked first in code)
+		'button[aria-label="Cancel"]',
+		'//button[.//span[text()="Cancel"]]',
+		'//button[contains(., "Cancel")]',
+		'//button[.//span[text()="Ask to join"]]',
+
+		// Text patterns (less reliable - used as fallback)
+		// Using broader patterns to catch variations in Google Meet's text
+		'//*[contains(text(), "Waiting for")]',
+		'//*[contains(text(), "waiting for")]',
+		'//*[contains(text(), "let you in")]',
+		'//*[contains(text(), "Asking to be")]',
+		'//*[contains(text(), "asking to be")]',
+		'//*[contains(text(), "will let you in")]',
+		'//*[contains(text(), "to join")]',
+
+		// Waiting room specific UI elements
+		'[data-call-state="waiting"]',
+		'[aria-label*="waiting"]',
 	],
 
 	// Removal indicators - used to detect if bot was kicked/removed from call
