@@ -32,12 +32,7 @@ import {
 	GoogleMeetAdmissionDetector,
 	GoogleMeetRemovalDetector,
 } from "./detection";
-import {
-	ADMISSION_CONFIRMATION_TEXTS,
-	SCREEN_DIMENSIONS,
-	SELECTORS,
-	USER_AGENT,
-} from "./selectors";
+import { SCREEN_DIMENSIONS, SELECTORS, USER_AGENT } from "./selectors";
 
 // Stealth plugin setup
 const stealthPlugin = StealthPlugin();
@@ -444,17 +439,18 @@ export class GoogleMeetBot extends Bot {
 
 		const timeout = this.settings.automaticLeave.waitingRoomTimeout;
 		const startTime = Date.now();
-		let iterationCount = 0;
 
 		this.logger.debug("Waiting for call entry", {
 			timeoutSeconds: timeout / 1000,
 		});
 
+		// Run checks sequentially without delay: check -> check -> check
+		// Each check takes ~500-700ms with parallel selector detection
 		while (Date.now() - startTime < timeout) {
-			iterationCount++;
 			const result = await this.admissionDetector.check();
 
 			if (result.admitted) {
+				// Quick stabilization check to avoid false positives
 				await setTimeout(DETECTION_TIMEOUTS.STABILIZATION_DELAY);
 				const verified = await this.admissionDetector.check();
 
@@ -469,48 +465,12 @@ export class GoogleMeetBot extends Bot {
 				this.logger.debug("Admission detected but not stable");
 			}
 
-			// Text fallback - only check every 10 iterations (~10s) to avoid slow page.textContent
-			if (iterationCount % 10 === 0) {
-				const hasAdmissionText = await this.hasAdmissionConfirmation();
-
-				if (hasAdmissionText) {
-					await setTimeout(DETECTION_TIMEOUTS.STABILIZATION_DELAY);
-					const stillHasText = await this.hasAdmissionConfirmation();
-
-					if (stillHasText) {
-						this.logger.debug("Admission confirmed via text");
-
-						return;
-					}
-				}
-			}
-
-			await setTimeout(DETECTION_TIMEOUTS.CHECK_INTERVAL);
+			// No delay between checks - run continuously for fastest detection
 		}
 
 		throw new WaitingRoomTimeoutError(
 			`Bot was not admitted within ${timeout / 1000}s`,
 		);
-	}
-
-	private async hasAdmissionConfirmation(): Promise<boolean> {
-		if (!this.page) return false;
-
-		try {
-			const pageText = await this.page.textContent("body");
-
-			if (!pageText) return false;
-
-			for (const text of ADMISSION_CONFIRMATION_TEXTS) {
-				if (pageText.toLowerCase().includes(text.toLowerCase())) {
-					return true;
-				}
-			}
-
-			return false;
-		} catch {
-			return false;
-		}
 	}
 
 	// --- Pre-join Helpers ---
