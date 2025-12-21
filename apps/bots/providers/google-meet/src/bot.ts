@@ -78,12 +78,12 @@ type Participant = {
 export class GoogleMeetBot extends Bot {
 	private browserArgs: string[];
 	protected browser?: Browser;
-	// Protected for test access
+
 	page?: Page;
 
 	private meetingUrl: string;
 	private recordingPath: string;
-	// Protected for backward compatibility with tests (participant monitoring removed)
+
 	participants: Participant[] = [];
 
 	private ffmpegProcess: ChildProcessWithoutNullStreams | null = null;
@@ -93,6 +93,14 @@ export class GoogleMeetBot extends Bot {
 	private chatEnabled: boolean = false;
 	private chatPanelOpen: boolean = false;
 	private removalCheckCount: number = 0;
+
+	// Track sustained indicator absence for debounced removal detection
+	private indicatorsMissingStartTime: number | null = null;
+	private originalMeetingPath: string | null = null;
+
+	/** Threshold for sustained indicator absence before confirming removal (30 seconds) */
+	private static readonly SUSTAINED_ABSENCE_THRESHOLD_MS = 30000;
+
 	private uploadScreenshot: UploadScreenshotUseCase | null = null;
 
 	constructor(
@@ -176,6 +184,9 @@ export class GoogleMeetBot extends Bot {
 		await navigateWithRetry(this.page, normalizedUrl, {
 			logger: this.logger,
 		});
+
+		// Capture original meeting path for later comparison (removal detection)
+		this.originalMeetingPath = new URL(this.page.url()).pathname;
 
 		this.logger.info("State: NAVIGATING → WAITING_FOR_JOIN_SCREEN");
 
@@ -630,11 +641,18 @@ export class GoogleMeetBot extends Bot {
 
 	/**
 	 * Check if bot has been removed from the call.
-	 * Detects: wrong domain, kick dialog, or missing in-call indicators.
+	 * Uses a hybrid approach for reliable detection:
 	 *
-	 * Note: We use in-call indicators (People/Chat buttons) instead of the leave button
-	 * because Google Meet auto-hides the control bar after inactivity, making the
-	 * leave button unreliable for presence detection.
+	 * Immediate exit:
+	 * - Kick dialog visible ("Return to home screen")
+	 * - Domain changed (not on meet.google.com)
+	 * - URL path changed (different meeting code)
+	 *
+	 * Delayed exit (30-second debounce):
+	 * - All indicators missing for 30+ consecutive seconds
+	 *
+	 * This prevents false positives during Google Meet's internal reconnections
+	 * which briefly cause DOM elements to be missing.
 	 */
 	async hasBeenRemovedFromCall(): Promise<boolean> {
 		this.removalCheckCount++;
@@ -654,22 +672,45 @@ export class GoogleMeetBot extends Bot {
 
 		// Check 1: Verify we're still on Google Meet domain
 		// This catches unexpected redirects (e.g., to other sites)
+		let currentPath: string;
+
 		try {
 			const currentUrl = this.page.url();
 			const url = new URL(currentUrl);
+			currentPath = url.pathname;
 
 			this.logger.trace("[hasBeenRemovedFromCall] URL check", {
 				currentHostname: url.hostname,
 				expectedHostname: GOOGLE_MEET_DOMAIN,
+				currentPath,
+				originalPath: this.originalMeetingPath,
 				fullUrl: currentUrl,
 			});
 
+			// Domain changed - immediate removal
 			if (url.hostname !== GOOGLE_MEET_DOMAIN) {
 				this.logger.info("[hasBeenRemovedFromCall] REMOVED: Domain mismatch", {
 					currentDomain: url.hostname,
 					expectedDomain: GOOGLE_MEET_DOMAIN,
 					fullUrl: currentUrl,
 				});
+
+				return true;
+			}
+
+			// Check 2: URL path changed (redirected to different meeting or homepage)
+			if (
+				this.originalMeetingPath &&
+				currentPath !== this.originalMeetingPath
+			) {
+				this.logger.info(
+					"[hasBeenRemovedFromCall] REMOVED: Meeting path changed",
+					{
+						originalPath: this.originalMeetingPath,
+						currentPath,
+						fullUrl: currentUrl,
+					},
+				);
 
 				return true;
 			}
@@ -681,7 +722,7 @@ export class GoogleMeetBot extends Bot {
 			return true;
 		}
 
-		// Check 2: Explicit kick dialog
+		// Check 3: Explicit kick dialog - immediate removal
 		const hasKickDialog = await elementExists(this.page, SELECTORS.kickDialog);
 
 		this.logger.trace("[hasBeenRemovedFromCall] Kick dialog check", {
@@ -695,9 +736,8 @@ export class GoogleMeetBot extends Bot {
 			return true;
 		}
 
-		// Check 3: In-call indicators (more reliable than leave button)
-		// The leave button is in the control bar which auto-hides after inactivity.
-		// In-call indicators (People/Chat buttons) are always visible.
+		// Check 4: In-call indicators with 30-second debounce
+		// This prevents false positives during Google Meet reconnections
 		this.logger.trace("[hasBeenRemovedFromCall] Checking in-call indicators", {
 			indicatorCount: SELECTORS.definitiveInCallIndicators.length,
 		});
@@ -708,6 +748,7 @@ export class GoogleMeetBot extends Bot {
 		> = {};
 
 		let allTimedOut = true;
+		let foundIndicator = false;
 
 		for (const selector of SELECTORS.definitiveInCallIndicators) {
 			const result = await elementExistsWithDetails(this.page, selector);
@@ -722,6 +763,8 @@ export class GoogleMeetBot extends Bot {
 
 			// If we found an indicator (not timed out), we're still in call
 			if (result.exists && !result.timedOut) {
+				foundIndicator = true;
+
 				this.logger.trace(
 					"[hasBeenRemovedFromCall] In-call indicator found, still in call",
 					{
@@ -729,7 +772,7 @@ export class GoogleMeetBot extends Bot {
 					},
 				);
 
-				return false;
+				break; // No need to check more indicators
 			}
 
 			// Track if at least one check completed without timeout
@@ -738,23 +781,76 @@ export class GoogleMeetBot extends Bot {
 			}
 		}
 
+		// If we found an indicator, reset the absence timer and return not removed
+		if (foundIndicator) {
+			if (this.indicatorsMissingStartTime !== null) {
+				this.logger.debug(
+					"[hasBeenRemovedFromCall] Indicators recovered, resetting absence timer",
+					{
+						absenceDurationMs: Date.now() - this.indicatorsMissingStartTime,
+					},
+				);
+			}
+
+			this.indicatorsMissingStartTime = null;
+
+			return false;
+		}
+
 		// If ALL checks timed out, the page is unresponsive - don't assume removed
+		// But also don't reset the absence timer (we're in limbo)
 		if (allTimedOut) {
 			this.logger.warn(
 				"[hasBeenRemovedFromCall] All indicator checks timed out, page unresponsive, assuming still in call",
 				{
 					indicatorResults,
+					indicatorsMissingStartTime: this.indicatorsMissingStartTime,
 				},
 			);
 
 			return false;
 		}
 
-		// At least one check completed without timeout and found nothing
-		// This is a definitive "not in call" result
+		// No indicators found and at least one check completed without timeout
+		// Start or continue the absence timer
+		if (this.indicatorsMissingStartTime === null) {
+			// First time indicators are missing - start the timer
+			this.indicatorsMissingStartTime = Date.now();
+
+			this.logger.info(
+				"[hasBeenRemovedFromCall] No indicators found, starting 30-second grace period",
+				{
+					checkedIndicators: indicatorResults,
+				},
+			);
+
+			return false;
+		}
+
+		// Check if we've exceeded the sustained absence threshold
+		const absenceDuration = Date.now() - this.indicatorsMissingStartTime;
+
+		if (absenceDuration < GoogleMeetBot.SUSTAINED_ABSENCE_THRESHOLD_MS) {
+			// Still within grace period
+			this.logger.debug(
+				"[hasBeenRemovedFromCall] No indicators found, within grace period",
+				{
+					absenceDurationMs: absenceDuration,
+					thresholdMs: GoogleMeetBot.SUSTAINED_ABSENCE_THRESHOLD_MS,
+					remainingMs:
+						GoogleMeetBot.SUSTAINED_ABSENCE_THRESHOLD_MS - absenceDuration,
+				},
+			);
+
+			return false;
+		}
+
+		// Exceeded 30-second threshold - confirmed removal
 		this.logger.info(
-			"[hasBeenRemovedFromCall] REMOVED: No in-call indicators found",
+			"[hasBeenRemovedFromCall] REMOVED: Indicators missing for 30+ seconds",
 			{
+				absenceDurationMs: absenceDuration,
+				thresholdMs: GoogleMeetBot.SUSTAINED_ABSENCE_THRESHOLD_MS,
 				checkedIndicators: indicatorResults,
 			},
 		);
