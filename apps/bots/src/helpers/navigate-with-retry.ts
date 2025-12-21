@@ -1,6 +1,7 @@
 import type { Page } from "playwright";
 
 import type { BotLogger } from "../logger";
+import { withRetry } from "./with-retry";
 
 interface NavigateWithRetryOptions {
 	/** Maximum number of retry attempts (default: 10) */
@@ -30,8 +31,8 @@ const RETRYABLE_ERRORS = [
 /**
  * Check if an error is retryable (transient network error).
  */
-function isRetryableError(errorMessage: string): boolean {
-	return RETRYABLE_ERRORS.some((err) => errorMessage.includes(err));
+function isRetryableError(error: Error): boolean {
+	return RETRYABLE_ERRORS.some((err) => error.message.includes(err));
 }
 
 /**
@@ -55,49 +56,14 @@ export async function navigateWithRetry(
 		logger,
 	} = options;
 
-	for (let attempt = 1; attempt <= maxRetries; attempt++) {
-		try {
-			if (logger) {
-				logger.debug(`Navigation attempt ${attempt}/${maxRetries}`, { url });
-			}
+	await withRetry(() => page.goto(url, { waitUntil, timeout }), {
+		maxRetries,
+		baseDelayMs,
+		logger,
+		operationName: `Navigate to "${url}"`,
+		isRetryable: isRetryableError,
+		delay: (ms) => page.waitForTimeout(ms),
+	});
 
-			await page.goto(url, { waitUntil, timeout });
-
-			if (logger) {
-				logger.debug("Successfully navigated to URL", { url });
-			}
-
-			return true;
-		} catch (error) {
-			const errorMessage =
-				error instanceof Error ? error.message : String(error);
-
-			if (isRetryableError(errorMessage) && attempt < maxRetries) {
-				const retryDelay = baseDelayMs * attempt;
-
-				if (logger) {
-					logger.warn(
-						`Navigation failed with retryable error, retrying in ${retryDelay}ms`,
-						{ error: errorMessage, attempt, maxRetries },
-					);
-				}
-
-				await page.waitForTimeout(retryDelay);
-			} else {
-				if (logger) {
-					logger.error(
-						`Navigation failed after ${attempt} attempt(s)`,
-						new Error(errorMessage),
-						{ url },
-					);
-				}
-
-				throw new Error(
-					`Cannot navigate to URL "${url}" after ${attempt} attempts: ${errorMessage}`,
-				);
-			}
-		}
-	}
-
-	return false;
+	return true;
 }

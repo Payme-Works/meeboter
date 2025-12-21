@@ -1,6 +1,7 @@
 import type { Page } from "playwright";
 
 import type { BotLogger } from "../logger";
+import { withRetry } from "./with-retry";
 
 interface FillWithRetryOptions {
 	/** Maximum number of retry attempts (default: 3) */
@@ -26,8 +27,8 @@ const RETRYABLE_ERRORS = [
 /**
  * Check if an error is retryable (transient DOM/timing error).
  */
-function isRetryableError(errorMessage: string): boolean {
-	return RETRYABLE_ERRORS.some((err) => errorMessage.includes(err));
+function isRetryableError(error: Error): boolean {
+	return RETRYABLE_ERRORS.some((err) => error.message.includes(err));
 }
 
 /**
@@ -52,49 +53,14 @@ export async function fillWithRetry(
 		logger,
 	} = options;
 
-	for (let attempt = 1; attempt <= maxRetries; attempt++) {
-		try {
-			if (logger) {
-				logger.debug(`Fill attempt ${attempt}/${maxRetries}`, { selector });
-			}
+	await withRetry(() => page.fill(selector, value, { timeout }), {
+		maxRetries,
+		baseDelayMs,
+		logger,
+		operationName: `Fill "${selector}"`,
+		isRetryable: isRetryableError,
+		delay: (ms) => page.waitForTimeout(ms),
+	});
 
-			await page.fill(selector, value, { timeout });
-
-			if (logger) {
-				logger.debug("Successfully filled input", { selector });
-			}
-
-			return true;
-		} catch (error) {
-			const errorMessage =
-				error instanceof Error ? error.message : String(error);
-
-			if (isRetryableError(errorMessage) && attempt < maxRetries) {
-				const retryDelay = baseDelayMs * attempt;
-
-				if (logger) {
-					logger.warn(
-						`Fill failed with retryable error, retrying in ${retryDelay}ms`,
-						{ error: errorMessage, attempt, maxRetries },
-					);
-				}
-
-				await page.waitForTimeout(retryDelay);
-			} else {
-				if (logger) {
-					logger.error(
-						`Fill failed after ${attempt} attempt(s)`,
-						new Error(errorMessage),
-						{ selector },
-					);
-				}
-
-				throw new Error(
-					`Cannot fill selector "${selector}" after ${attempt} attempts: ${errorMessage}`,
-				);
-			}
-		}
-	}
-
-	return false;
+	return true;
 }
