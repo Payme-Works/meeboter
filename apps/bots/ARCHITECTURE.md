@@ -50,6 +50,9 @@ apps/bots/
 │   │   ├── bot-errors.ts         # Bot-specific errors
 │   │   ├── meeting-errors.ts     # Meeting-related errors
 │   │   └── storage-errors.ts     # S3/storage errors
+│   ├── events/
+│   │   ├── index.ts              # Exports
+│   │   └── bot-event-emitter.ts  # BotEventEmitter class
 │   ├── helpers/                  # Browser automation utilities
 │   │   ├── click-if-exists.ts
 │   │   ├── element-exists.ts
@@ -81,6 +84,29 @@ apps/bots/
 ```
 
 ## Core Components
+
+### BotEventEmitter (`src/events/bot-event-emitter.ts`)
+
+Centralized event emitter for bot lifecycle events. Handles event reporting to backend and state management.
+
+```typescript
+class BotEventEmitter extends EventEmitter {
+  // State management
+  getState(): string;
+  setState(newState: string): void;  // Emits 'stateChange'
+
+  // Event emission (reports to backend automatically)
+  async emitEvent(eventCode: EventCode, data?: Record<string, unknown>): Promise<void>;
+
+  // Event listeners
+  on(event: 'event', listener: (code, data?) => void): this;
+  on(event: 'stateChange', listener: (newState, oldState) => void): this;
+}
+```
+
+- **Single source of truth** for bot state
+- **Automatic backend reporting** via tRPC on event emission
+- **Listener pattern** for extensibility (logger subscribes to state changes)
 
 ### Abstract Bot (`src/bot.ts`)
 

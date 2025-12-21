@@ -1,5 +1,6 @@
 import type { Page } from "playwright";
 
+import type { BotEventEmitter } from "../events";
 import type { TrpcClient } from "../trpc";
 import {
 	colorizeBotId,
@@ -103,9 +104,9 @@ export class BotLogger {
 	private readonly startTime: Date;
 	private readonly maxBreadcrumbs: number;
 	private readonly breadcrumbs: Breadcrumb[] = [];
+	private readonly eventEmitter: BotEventEmitter;
 	private page?: Page;
 
-	private currentState = "INITIALIZING";
 	private logLevel: LogLevel = LogLevel.TRACE;
 
 	// Streaming configuration
@@ -116,6 +117,7 @@ export class BotLogger {
 
 	constructor(
 		botId: number,
+		eventEmitter: BotEventEmitter,
 		options?: {
 			page?: Page;
 			logLevel?: LogLevel;
@@ -123,10 +125,23 @@ export class BotLogger {
 		},
 	) {
 		this.botId = botId;
+		this.eventEmitter = eventEmitter;
 		this.startTime = new Date();
 		this.page = options?.page;
 		this.logLevel = options?.logLevel ?? LogLevel.TRACE;
 		this.maxBreadcrumbs = options?.maxBreadcrumbs ?? 20;
+
+		// Subscribe to state changes from event emitter
+		this.eventEmitter.on("stateChange", (newState, oldState) => {
+			this.debug(`State: ${oldState} → ${newState}`);
+		});
+	}
+
+	/**
+	 * Gets the current bot state from the event emitter.
+	 */
+	private get currentState(): string {
+		return this.eventEmitter.getState();
 	}
 
 	/**
@@ -272,21 +287,6 @@ export class BotLogger {
 	setPage(page: Page): void {
 		this.page = page;
 		this.debug("Page instance set for screenshot capture");
-	}
-
-	/**
-	 * Updates the current bot state for logging context
-	 */
-	setState(state: string): void {
-		this.currentState = state;
-		this.debug(`State changed to ${state}`);
-	}
-
-	/**
-	 * Gets the current bot state
-	 */
-	getState(): string {
-		return this.currentState;
 	}
 
 	/**

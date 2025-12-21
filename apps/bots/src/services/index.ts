@@ -1,5 +1,6 @@
 import type { Bot } from "../bot";
 import { env } from "../config/env";
+import { BotEventEmitter } from "../events";
 import { BotLogger, parseLogLevel } from "../logger";
 import { createTrpcClient, type TrpcClient } from "../trpc";
 import { UploadRecordingUseCase } from "../use-cases";
@@ -12,6 +13,7 @@ import { S3StorageProvider } from "./storage/s3-provider";
  * Container for all services in the application
  */
 interface Services {
+	eventEmitter: BotEventEmitter;
 	logger: BotLogger;
 	trpc: TrpcClient;
 	uploadRecording: UploadRecordingUseCase | null;
@@ -41,12 +43,19 @@ export function createServices(options: CreateServicesOptions): Services {
 		? parseLogLevel(options.initialLogLevel)
 		: undefined;
 
-	const logger = new BotLogger(options.botId, { logLevel });
-
 	const trpc = createTrpcClient({
 		url: env.MILO_URL,
 		authToken: env.MILO_AUTH_TOKEN,
 	});
+
+	// Create event emitter first (shared between logger and bot)
+	const eventEmitter = new BotEventEmitter({
+		botId: options.botId,
+		trpc,
+	});
+
+	// Create logger with event emitter
+	const logger = new BotLogger(options.botId, eventEmitter, { logLevel });
 
 	logger.enableStreaming({ trpcClient: trpc });
 
@@ -76,5 +85,5 @@ export function createServices(options: CreateServicesOptions): Services {
 		messageQueue: new MessageQueueWorker(trpc, options.getBot, logger),
 	};
 
-	return { logger, trpc, uploadRecording, workers };
+	return { eventEmitter, logger, trpc, uploadRecording, workers };
 }

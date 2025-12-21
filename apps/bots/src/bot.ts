@@ -1,11 +1,11 @@
 import type { AppRouter } from "@meeboter/milo";
 import type { TRPCClient } from "@trpc/client";
 import { env } from "./config/env";
-import { BotLogger } from "./logger";
+import type { BotEventEmitter } from "./events";
+import type { BotLogger } from "./logger";
 import {
 	type BotConfig,
 	createTrpcClient,
-	type EventCode,
 	type SpeakerTimeframe,
 } from "./trpc";
 
@@ -21,14 +21,8 @@ export abstract class Bot {
 	/** Logger instance for structured logging with breadcrumbs and screenshots */
 	readonly logger: BotLogger;
 
-	/**
-	 * Event handler function for reporting bot lifecycle and operational events.
-	 * This function is injected during bot creation to handle event reporting.
-	 */
-	onEvent: (
-		eventType: EventCode,
-		data?: Record<string, unknown>,
-	) => Promise<void>;
+	/** Event emitter for reporting bot lifecycle events and managing state */
+	readonly eventEmitter: BotEventEmitter;
 
 	/**
 	 * tRPC client instance for making API calls to the backend
@@ -42,24 +36,22 @@ export abstract class Bot {
 	protected leaveRequested: boolean = false;
 
 	/**
-	 * Creates a new Bot instance with the provided configuration and event handler.
+	 * Creates a new Bot instance with the provided configuration and dependencies.
 	 *
 	 * @param settings - Bot configuration containing meeting info and other parameters
-	 * @param onEvent - Event handler function for reporting bot events
+	 * @param eventEmitter - Event emitter for reporting bot events and managing state
+	 * @param logger - Logger instance for structured logging
 	 * @param trpc - tRPC client instance for backend API calls (optional, creates default if not provided)
-	 * @param logger - Optional logger instance (created if not provided)
 	 */
 	constructor(
 		settings: BotConfig,
-		onEvent: (
-			eventType: EventCode,
-			data?: Record<string, unknown>,
-		) => Promise<void>,
+		eventEmitter: BotEventEmitter,
+		logger: BotLogger,
 		trpc?: TRPCClient<AppRouter>,
-		logger?: BotLogger,
 	) {
 		this.settings = settings;
-		this.onEvent = onEvent;
+		this.eventEmitter = eventEmitter;
+		this.logger = logger;
 
 		// Create default tRPC client if not provided (for backward compatibility with tests)
 		this.trpc =
@@ -68,8 +60,6 @@ export abstract class Bot {
 				url: env.MILO_URL,
 				authToken: env.MILO_AUTH_TOKEN,
 			});
-
-		this.logger = logger || new BotLogger(settings.id);
 	}
 
 	/**

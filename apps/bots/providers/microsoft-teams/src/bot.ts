@@ -9,12 +9,12 @@ import { getStream, launch, wss } from "puppeteer-stream";
 import { Bot } from "../../../src/bot";
 import { env } from "../../../src/config/env";
 import { CLEANUP_TIMEOUTS } from "../../../src/constants";
+import type { BotEventEmitter } from "../../../src/events";
 import { withTimeout } from "../../../src/helpers/with-timeout";
 import type { BotLogger } from "../../../src/logger";
 import { S3StorageProvider } from "../../../src/services/storage/s3-provider";
 import {
 	type BotConfig,
-	type EventCode,
 	type SpeakerTimeframe,
 	WaitingRoomTimeoutError,
 } from "../../../src/types";
@@ -49,14 +49,11 @@ export class MicrosoftTeamsBot extends Bot {
 
 	constructor(
 		botSettings: BotConfig,
-		onEvent: (
-			eventType: EventCode,
-			data?: Record<string, unknown>,
-		) => Promise<void>,
+		eventEmitter: BotEventEmitter,
+		logger: BotLogger,
 		trpc?: TRPCClient<AppRouter>,
-		logger?: BotLogger,
 	) {
-		super(botSettings, onEvent, trpc, logger);
+		super(botSettings, eventEmitter, logger, trpc);
 
 		this.recordingPath = path.resolve(__dirname, "recording.webm");
 		this.contentType = "video/webm";
@@ -584,7 +581,7 @@ export class MicrosoftTeamsBot extends Bot {
 					botId: this.settings.id,
 					data,
 					type: "manual",
-					state: this.logger.getState(),
+					state: this.eventEmitter.getState(),
 					trigger,
 				});
 

@@ -137,7 +137,7 @@ export const main = async () => {
 		getBot: () => bot,
 	});
 
-	const { logger, trpc, uploadRecording, workers } = services;
+	const { eventEmitter, logger, trpc, uploadRecording, workers } = services;
 
 	// Set global logger reference for uncaught exception handling
 	global.logger = logger;
@@ -165,11 +165,12 @@ export const main = async () => {
 			platform: botConfig.meetingInfo.platform,
 		});
 
-		// Create the platform-specific bot instance using shared logger
+		// Create the platform-specific bot instance using shared services
 		bot = await createBot(botConfig, {
 			onStatusChange,
-			trpcClient: trpc,
+			eventEmitter,
 			logger,
+			trpcClient: trpc,
 		});
 
 		logger.info("Bot instance created successfully", {

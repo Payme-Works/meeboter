@@ -9,6 +9,7 @@ import { chromium } from "playwright-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import { Bot } from "../../../src/bot";
 import { env } from "../../../src/config/env";
+import type { BotEventEmitter } from "../../../src/events";
 import {
 	CLEANUP_TIMEOUTS,
 	DETECTION_TIMEOUTS,
@@ -101,14 +102,11 @@ export class GoogleMeetBot extends Bot {
 
 	constructor(
 		botSettings: BotConfig,
-		onEvent: (
-			eventType: EventCode,
-			data?: Record<string, unknown>,
-		) => Promise<void>,
+		eventEmitter: BotEventEmitter,
+		logger: BotLogger,
 		trpc?: TRPCClient<AppRouter>,
-		logger?: BotLogger,
 	) {
-		super(botSettings, onEvent, trpc, logger);
+		super(botSettings, eventEmitter, logger, trpc);
 
 		this.recordingPath = path.resolve(__dirname, "recording.mp4");
 		this.meetingUrl = botSettings.meetingInfo.meetingUrl ?? "";
@@ -155,9 +153,9 @@ export class GoogleMeetBot extends Bot {
 	async joinCall(): Promise<number> {
 		await this.initializeBrowser();
 
-		await this.onEvent(EventCode.JOINING_CALL);
+		await this.eventEmitter.emitEvent(EventCode.JOINING_CALL);
 
-		this.logger.setState("JOINING_CALL");
+		this.eventEmitter.setState("JOINING_CALL");
 		this.logger.info("State: LAUNCHING → JOINING_CALL");
 
 		if (!this.page) {
@@ -240,24 +238,24 @@ export class GoogleMeetBot extends Bot {
 		const isWaitingRoom = await this.clickJoinButton();
 
 		if (isWaitingRoom) {
-			this.logger.setState("IN_WAITING_ROOM");
+			this.eventEmitter.setState("IN_WAITING_ROOM");
 			this.logger.info("State: JOINING → IN_WAITING_ROOM");
-			await this.onEvent(EventCode.IN_WAITING_ROOM);
+			await this.eventEmitter.emitEvent(EventCode.IN_WAITING_ROOM);
 		}
 
 		// Wait for call entry
 		await this.waitForCallEntry();
 
-		this.logger.setState("IN_CALL");
+		this.eventEmitter.setState("IN_CALL");
 		this.logger.info("State: WAITING → IN_CALL");
-		await this.onEvent(EventCode.IN_CALL);
+		await this.eventEmitter.emitEvent(EventCode.IN_CALL);
 
 		return 0;
 	}
 
 	async leaveCall(): Promise<number> {
 		const leaveStartTime = Date.now();
-		this.logger.setState("LEAVING");
+		this.eventEmitter.setState("LEAVING");
 
 		this.logger.info("[leaveCall] Starting leave process", {
 			hasPage: !!this.page,
@@ -279,7 +277,7 @@ export class GoogleMeetBot extends Bot {
 
 	async cleanup(): Promise<void> {
 		const cleanupStartTime = Date.now();
-		this.logger.setState("ENDING");
+		this.eventEmitter.setState("ENDING");
 
 		this.logger.debug("[cleanup] Starting cleanup process", {
 			recordingEnabled: this.settings.recordingEnabled,
@@ -598,7 +596,7 @@ export class GoogleMeetBot extends Bot {
 		for (const check of blockingChecks) {
 			if (await elementExists(this.page, check.selector)) {
 				this.logger.warn(`Blocking screen detected: ${check.msg}`);
-				await this.onEvent(check.event);
+				await this.eventEmitter.emitEvent(check.event);
 
 				return;
 			}
@@ -966,7 +964,7 @@ export class GoogleMeetBot extends Bot {
 					botId: this.settings.id,
 					data,
 					type: "manual",
-					state: this.logger.getState(),
+					state: this.eventEmitter.getState(),
 					trigger,
 				});
 

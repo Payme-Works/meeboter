@@ -1,13 +1,8 @@
 import type { Bot } from "./bot";
 import { env } from "./config/env";
+import type { BotEventEmitter } from "./events";
 import type { BotLogger } from "./logger";
-import {
-	type BotConfig,
-	type EventCode,
-	STATUS_EVENT_CODES,
-	Status,
-	type TrpcClient,
-} from "./trpc";
+import { type BotConfig, type EventCode, type TrpcClient } from "./trpc";
 
 /**
  * Options for creating a bot instance
@@ -21,11 +16,14 @@ interface CreateBotOptions {
 	 */
 	onStatusChange?: (eventType: EventCode, bot: Bot) => Promise<void>;
 
+	/** Event emitter for reporting bot events and managing state (required) */
+	eventEmitter: BotEventEmitter;
+
+	/** Logger instance (required) */
+	logger: BotLogger;
+
 	/** tRPC client for API calls (required) */
 	trpcClient: TrpcClient;
-
-	/** Logger instance with streaming enabled (required) */
-	logger: BotLogger;
 }
 
 /**
@@ -41,7 +39,7 @@ function validPlatformForImage(platform: string, imageName: string): boolean {
  * the meeting platform specified in the configuration.
  *
  * @param config - Configuration data containing meeting info and bot settings
- * @param options - Configuration including logger and trpcClient (required)
+ * @param options - Configuration including trpcClient (required)
  * @returns Promise that resolves to a platform-specific bot instance
  * @throws Error if the platform is unsupported or if there's a platform/Docker image mismatch
  */
@@ -51,14 +49,13 @@ export async function createBot(
 ): Promise<Bot> {
 	const botId = config.id;
 	const platform = config.meetingInfo.platform;
-	const { onStatusChange, trpcClient: trpc, logger } = options;
+	const { onStatusChange, eventEmitter, logger, trpcClient: trpc } = options;
 
 	logger.debug("createBot called", {
 		botId,
 		platform,
 		hasOnStatusChange: !!onStatusChange,
 		hasTrpc: !!trpc,
-		hasLogger: !!logger,
 	});
 
 	// Retrieve Docker image name from environment variable
@@ -88,57 +85,13 @@ export async function createBot(
 
 	logger.info(`Creating bot for platform: ${platform}`);
 
-	/**
-	 * Creates an event handler that reports events and triggers status change callbacks.
-	 * The bot instance is captured in a closure to enable screenshot capture on status changes.
-	 */
-	const createEventHandler =
-		(bot: Bot) =>
-		async (eventType: EventCode, data?: Record<string, unknown>) => {
-			// Report the event to the events log
-			await trpc.bots.events.report.mutate({
-				id: String(botId),
-				event: {
-					eventType,
-					eventTime: new Date(),
-					data: data
-						? {
-								description:
-									(data.message as string) || (data.description as string),
-								sub_code: data.sub_code as string | undefined,
-							}
-						: null,
-				},
-			});
-
-			// Also update status if this is a status-changing event
-			if (STATUS_EVENT_CODES.includes(eventType)) {
-				await trpc.bots.updateStatus.mutate({
-					id: String(botId),
-					status: eventType as unknown as Status,
-				});
-			}
-
-			// Trigger onStatusChange callback for status events (non-blocking)
-			if (onStatusChange && eventType in Status) {
-				onStatusChange(eventType, bot).catch((err) => {
-					logger.warn(
-						`Failed to capture status change screenshot: ${err instanceof Error ? err.message : String(err)}`,
-					);
-				});
-			}
-		};
-
-	// Placeholder event handler used during bot construction
-	// Will be replaced with the full handler after bot creation
-	const placeholderHandler = async () => {};
-
 	let bot: Bot;
 
 	logger.debug("Loading platform module...", {
 		platform: config.meetingInfo.platform,
 	});
 
+	// 3. Create platform-specific bot with emitter and logger
 	switch (config.meetingInfo.platform) {
 		case "google-meet": {
 			logger.debug("Importing GoogleMeetBot module...");
@@ -149,7 +102,7 @@ export async function createBot(
 
 			logger.debug("GoogleMeetBot module imported, creating instance...");
 
-			bot = new GoogleMeetBot(config, placeholderHandler, trpc, logger);
+			bot = new GoogleMeetBot(config, eventEmitter, logger, trpc);
 			logger.debug("GoogleMeetBot instance created");
 
 			break;
@@ -164,7 +117,7 @@ export async function createBot(
 
 			logger.debug("MicrosoftTeamsBot module imported, creating instance...");
 
-			bot = new MicrosoftTeamsBot(config, placeholderHandler, trpc, logger);
+			bot = new MicrosoftTeamsBot(config, eventEmitter, logger, trpc);
 			logger.debug("MicrosoftTeamsBot instance created");
 
 			break;
@@ -175,7 +128,7 @@ export async function createBot(
 			const { ZoomBot } = await import("../providers/zoom/src/bot");
 			logger.debug("ZoomBot module imported, creating instance...");
 
-			bot = new ZoomBot(config, placeholderHandler, trpc, logger);
+			bot = new ZoomBot(config, eventEmitter, logger, trpc);
 			logger.debug("ZoomBot instance created");
 
 			break;
@@ -187,9 +140,17 @@ export async function createBot(
 			throw new Error(`Unsupported platform: ${config.meetingInfo.platform}`);
 	}
 
-	// Replace placeholder with full event handler that has access to the bot instance
-	bot.onEvent = createEventHandler(bot);
-	logger.debug("Event handler attached to bot instance");
+	// 4. Register onStatusChange listener if provided (needs bot reference)
+	if (onStatusChange) {
+		eventEmitter.on("event", (eventCode) => {
+			onStatusChange(eventCode, bot).catch((err) => {
+				logger.warn(
+					`Failed to capture status change screenshot: ${err instanceof Error ? err.message : String(err)}`,
+				);
+			});
+		});
+		logger.debug("Status change listener registered");
+	}
 
 	return bot;
 }
