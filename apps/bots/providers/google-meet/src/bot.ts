@@ -444,12 +444,14 @@ export class GoogleMeetBot extends Bot {
 
 		const timeout = this.settings.automaticLeave.waitingRoomTimeout;
 		const startTime = Date.now();
+		let iterationCount = 0;
 
 		this.logger.debug("Waiting for call entry", {
 			timeoutSeconds: timeout / 1000,
 		});
 
 		while (Date.now() - startTime < timeout) {
+			iterationCount++;
 			const result = await this.admissionDetector.check();
 
 			if (result.admitted) {
@@ -467,17 +469,19 @@ export class GoogleMeetBot extends Bot {
 				this.logger.debug("Admission detected but not stable");
 			}
 
-			// Text fallback
-			const hasAdmissionText = await this.hasAdmissionConfirmation();
+			// Text fallback - only check every 10 iterations (~10s) to avoid slow page.textContent
+			if (iterationCount % 10 === 0) {
+				const hasAdmissionText = await this.hasAdmissionConfirmation();
 
-			if (hasAdmissionText) {
-				await setTimeout(DETECTION_TIMEOUTS.STABILIZATION_DELAY);
-				const stillHasText = await this.hasAdmissionConfirmation();
+				if (hasAdmissionText) {
+					await setTimeout(DETECTION_TIMEOUTS.STABILIZATION_DELAY);
+					const stillHasText = await this.hasAdmissionConfirmation();
 
-				if (stillHasText) {
-					this.logger.debug("Admission confirmed via text");
+					if (stillHasText) {
+						this.logger.debug("Admission confirmed via text");
 
-					return;
+						return;
+					}
 				}
 			}
 

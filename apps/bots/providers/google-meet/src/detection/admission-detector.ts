@@ -17,12 +17,23 @@ import { SELECTORS } from "../selectors";
  * 3. Text fallback: Admission confirmation texts
  */
 export class GoogleMeetAdmissionDetector implements AdmissionDetector {
+	private checkCount = 0;
+
 	constructor(
 		private readonly page: Page,
 		private readonly logger: BotLogger,
 	) {}
 
 	async check(): Promise<AdmissionResult> {
+		this.checkCount++;
+
+		// Log periodically to show detector is running (every 30 checks = ~30s at 1s interval)
+		if (this.checkCount % 30 === 0) {
+			this.logger.trace("[AdmissionDetector] Still checking for admission", {
+				checkCount: this.checkCount,
+			});
+		}
+
 		// Phase 1: Check for definitive in-call indicators (side panel buttons)
 		// These NEVER exist in waiting room - if any is found, we're definitely in-call
 		for (const selector of SELECTORS.admissionIndicators) {
@@ -49,21 +60,31 @@ export class GoogleMeetAdmissionDetector implements AdmissionDetector {
 			DETECTION_TIMEOUTS.ELEMENT_CHECK,
 		);
 
-		if (hasLeaveButton) {
-			const inWaitingRoom = await this.isInWaitingRoom();
-
-			if (!inWaitingRoom) {
+		if (!hasLeaveButton) {
+			// Log when Leave button is missing (helps debug UI state issues)
+			if (this.checkCount % 10 === 0) {
 				this.logger.trace(
-					"[AdmissionDetector] Leave button found, no waiting room elements - admitted",
+					"[AdmissionDetector] Leave button not found, waiting...",
+					{ checkCount: this.checkCount },
 				);
-
-				return { admitted: true, method: "structural_check", stable: false };
 			}
 
-			this.logger.trace(
-				"[AdmissionDetector] Leave button found but still in waiting room",
-			);
+			return { admitted: false, stable: true };
 		}
+
+		const inWaitingRoom = await this.isInWaitingRoom();
+
+		if (!inWaitingRoom) {
+			this.logger.trace(
+				"[AdmissionDetector] Leave button found, no waiting room elements - admitted",
+			);
+
+			return { admitted: true, method: "structural_check", stable: false };
+		}
+
+		this.logger.trace(
+			"[AdmissionDetector] Leave button found but still in waiting room",
+		);
 
 		return { admitted: false, stable: true };
 	}
