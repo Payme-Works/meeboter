@@ -50,7 +50,7 @@ describe("GoogleMeetAdmissionDetector", () => {
 		 */
 		it("should NOT detect admission when Cancel button exists", async () => {
 			elementExistsSpy.mockImplementation((_page: Page, selector: string) => {
-				// Side panel buttons - don't exist in waiting room
+				// Side panel buttons (don't exist in waiting room)
 				if (selector.includes("Chat with everyone"))
 					return Promise.resolve(false);
 
@@ -60,10 +60,10 @@ describe("GoogleMeetAdmissionDetector", () => {
 
 				if (selector.includes("Meeting tools")) return Promise.resolve(false);
 
-				// Leave button - may exist in waiting room
+				// Leave button (may exist in waiting room)
 				if (selector.includes("Leave call")) return Promise.resolve(true);
 
-				// Cancel button - exists in waiting room
+				// Cancel button (exists in waiting room)
 				if (selector.includes("Cancel")) return Promise.resolve(true);
 
 				return Promise.resolve(false);
@@ -89,7 +89,7 @@ describe("GoogleMeetAdmissionDetector", () => {
 		 */
 		it("should NOT detect admission when Ask to join button exists", async () => {
 			elementExistsSpy.mockImplementation((_page: Page, selector: string) => {
-				// Side panel buttons - don't exist
+				// Side panel buttons (don't exist)
 				if (selector.includes("Chat with everyone"))
 					return Promise.resolve(false);
 
@@ -99,10 +99,10 @@ describe("GoogleMeetAdmissionDetector", () => {
 
 				if (selector.includes("Meeting tools")) return Promise.resolve(false);
 
-				// Leave button - doesn't exist yet
+				// Leave button (doesn't exist yet)
 				if (selector.includes("Leave call")) return Promise.resolve(false);
 
-				// Ask to join - still visible
+				// Ask to join (still visible)
 				if (selector.includes("Ask to join")) return Promise.resolve(true);
 
 				return Promise.resolve(false);
@@ -127,7 +127,7 @@ describe("GoogleMeetAdmissionDetector", () => {
 		 */
 		it("should detect admission via Chat button (definitive)", async () => {
 			elementExistsSpy.mockImplementation((_page: Page, selector: string) => {
-				// Chat button exists - definitive indicator
+				// Chat button exists (definitive indicator)
 				if (selector.includes("Chat with everyone"))
 					return Promise.resolve(true);
 
@@ -158,7 +158,7 @@ describe("GoogleMeetAdmissionDetector", () => {
 		 */
 		it("should NOT detect admission with only Leave button (no side panel)", async () => {
 			elementExistsSpy.mockImplementation((_page: Page, selector: string) => {
-				// Side panel buttons - don't exist
+				// Side panel buttons (don't exist)
 				if (selector.includes("Chat with everyone"))
 					return Promise.resolve(false);
 
@@ -219,5 +219,4 @@ describe("GoogleMeetAdmissionDetector", () => {
 			expect(result.stable).toBe(true);
 		});
 	});
-
 });

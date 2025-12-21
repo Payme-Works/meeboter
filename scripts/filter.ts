@@ -30,14 +30,29 @@ if (!scriptName) {
 // Remaining arguments are passed to the script
 const scriptArgs = args.slice(2);
 
-// Find matching packages using Bun.Glob
-const appsGlob = new Bun.Glob("apps/*/package.json");
-const packagesGlob = new Bun.Glob("packages/*/package.json");
+// Read workspaces from root package.json
+const rootPkgJson = JSON.parse(
+	readFileSync(join(process.cwd(), "package.json"), "utf-8"),
+);
 
-const packageJsonPaths = [
-	...appsGlob.scanSync(process.cwd()),
-	...packagesGlob.scanSync(process.cwd()),
-];
+const workspaces = (rootPkgJson.workspaces as string[]) || [];
+
+// Filter out exclusion patterns and create globs for package.json files
+const packageJsonPaths: string[] = [];
+
+for (const workspace of workspaces) {
+	if (workspace.startsWith("!")) continue;
+
+	const pattern = workspace.endsWith("/**")
+		? `${workspace.slice(0, -3)}/*/package.json`
+		: `${workspace}/package.json`;
+
+	const glob = new Bun.Glob(pattern);
+
+	for (const path of glob.scanSync(process.cwd())) {
+		packageJsonPaths.push(path);
+	}
+}
 
 // Find packages matching the pattern
 const matchingPackages: { name: string; path: string }[] = [];

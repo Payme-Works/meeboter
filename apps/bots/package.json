@@ -4,7 +4,8 @@
 	"scripts": {
 		"start": "bun src/index.ts",
 		"dev": "bun src/index.ts",
-		"typecheck": "tsc --noEmit"
+		"typecheck": "tsc --noEmit",
+		"test": "bun test src providers/*/src"
 	},
 	"dependencies": {
 		"@meeboter/milo": "workspace:*",
@@ -16,6 +17,7 @@
 	},
 	"devDependencies": {
 		"@meeboter/typescript-config": "workspace:*",
+		"@playwright/test": "^1.57.0",
 		"@types/bun": "^1.2.16",
 		"typescript": "^5.9.2"
 	}

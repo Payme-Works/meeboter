@@ -12,7 +12,7 @@ import { CLEANUP_TIMEOUTS } from "../../../src/constants";
 import type { BotEventEmitter } from "../../../src/events";
 import { withTimeout } from "../../../src/helpers/with-timeout";
 import type { BotLogger } from "../../../src/logger";
-import { S3StorageProvider } from "../../../src/services/storage/s3-provider";
+import type { StorageService } from "../../../src/services/storage/storage-service";
 import {
 	type BotConfig,
 	type SpeakerTimeframe,
@@ -56,21 +56,37 @@ export class ZoomBot extends Bot {
 		this.contentType = "video/mp4";
 		this.meetingUrl = `https://app.zoom.us/wc/${this.settings.meetingInfo.meetingId}/join?fromPWA=1&pwd=${this.settings.meetingInfo.meetingPassword}`;
 
+		// Initialize S3 storage lazily via dynamic import (Bun-specific API)
+		this.initializeS3Storage();
+	}
+
+	/**
+	 * Initialize S3 storage provider via dynamic import.
+	 */
+	private initializeS3Storage(): void {
 		if (
 			env.S3_ENDPOINT &&
 			env.S3_ACCESS_KEY &&
 			env.S3_SECRET_KEY &&
 			env.S3_BUCKET_NAME
 		) {
-			const storageService = new S3StorageProvider({
-				endpoint: env.S3_ENDPOINT,
-				region: env.S3_REGION,
-				accessKeyId: env.S3_ACCESS_KEY,
-				secretAccessKey: env.S3_SECRET_KEY,
-				bucketName: env.S3_BUCKET_NAME,
-			});
+			import("../../../src/services/storage/s3-provider")
+				.then(({ S3StorageProvider }) => {
+					const storageService: StorageService = new S3StorageProvider({
+						endpoint: env.S3_ENDPOINT!,
+						region: env.S3_REGION,
+						accessKeyId: env.S3_ACCESS_KEY!,
+						secretAccessKey: env.S3_SECRET_KEY!,
+						bucketName: env.S3_BUCKET_NAME!,
+					});
 
-			this.uploadScreenshot = new UploadScreenshotUseCase(storageService);
+					this.uploadScreenshot = new UploadScreenshotUseCase(storageService);
+				})
+				.catch((error) => {
+					this.logger.warn("S3 storage not available", {
+						error: error instanceof Error ? error.message : String(error),
+					});
+				});
 		}
 	}
 

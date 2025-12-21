@@ -235,11 +235,11 @@ describe("GoogleMeetRemovalDetector", () => {
 					});
 				});
 
-				// First check - starts the timer
+				// First check (starts the timer)
 				const result1 = await detector.check();
 				expect(result1.removed).toBe(false);
 
-				// Second check - still within grace period
+				// Second check (still within grace period)
 				const result2 = await detector.check();
 				expect(result2.removed).toBe(false);
 			});
@@ -305,7 +305,7 @@ describe("GoogleMeetRemovalDetector", () => {
 					});
 				});
 
-				// First check - starts timer
+				// First check (starts timer)
 				await detector.check();
 
 				// Simulate time passing by manually setting the internal timer

@@ -155,7 +155,7 @@ export class BotDeploymentService {
 			}
 
 			// Deployed successfully, update with platform identifier
-			// Status stays as DEPLOYING - the bot itself will update to JOINING_CALL
+			// Status stays as DEPLOYING, the bot itself will update to JOINING_CALL
 			// when it actually starts attempting to join the meeting
 			const result = await this.db
 				.update(botsTable)

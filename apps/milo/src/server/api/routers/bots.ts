@@ -116,7 +116,7 @@ const poolSubRouter = createTRPCRouter({
 		)
 		.output(botConfigSchema)
 		.query(async ({ input, ctx }): Promise<typeof botConfigSchema._output> => {
-			// Terminal states - bots in these states should NOT be restarted
+			// Terminal states (bots in these states should NOT be restarted)
 			const terminalStatuses = ["DONE", "FATAL"] as const;
 
 			// Primary lookup: check the slot's assignedBotId (authoritative source)
@@ -129,7 +129,7 @@ const poolSubRouter = createTRPCRouter({
 				.limit(1);
 
 			if (slotResult[0]?.assignedBotId) {
-				// Slot has an assigned bot - use that
+				// Slot has an assigned bot, use that
 				const botResult = await ctx.db
 					.select()
 					.from(botsTable)
@@ -1651,7 +1651,7 @@ export const botsRouter = createTRPCRouter({
 				},
 			});
 
-			// Set status to LEAVING - bot will see this and gracefully exit
+			// Set status to LEAVING, bot will see this and gracefully exit
 			// Bot will then set status to DONE, which triggers container release
 			await ctx.db
 				.update(botsTable)

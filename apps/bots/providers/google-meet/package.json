@@ -1,14 +1,7 @@
 {
 	"name": "@meeboter/bots-google-meet",
-	"version": "1.0.0",
 	"private": true,
-	"dependencies": {
-		"@trpc/client": "^11.5.0",
-		"@trpc/server": "^11.5.0",
-		"playwright": "^1.50.0",
-		"playwright-core": "^1.50.0",
-		"playwright-extra": "^4.3.6",
-		"puppeteer-extra-plugin-stealth": "^2.11.2",
-		"typescript": "^5.9.2"
+	"scripts": {
+		"test:e2e": "set -a && source ../../.env.test.local && set +a && ../../node_modules/.bin/playwright test --config=playwright.config.ts"
 	}
 }

@@ -58,7 +58,7 @@ export async function createBot(
 		willCheck: !!dockerImageName,
 	});
 
-	// Ensure the Docker image name matches the platform - safety check
+	// Ensure the Docker image name matches the platform (safety check)
 	// If local development (implies DOCKER_MEETING_PLATFORM is not set), we don't need this check
 	if (
 		dockerImageName &&

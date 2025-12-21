@@ -47,7 +47,7 @@ export class GoogleMeetRemovalDetector implements RemovalDetector {
 			return urlCheck;
 		}
 
-		// Check 2: Explicit kick dialog - immediate removal
+		// Check 2: Explicit kick dialog (immediate removal)
 		const hasKickDialog = await elementExists(this.page, SELECTORS.kickDialog);
 
 		if (hasKickDialog) {
@@ -86,7 +86,7 @@ export class GoogleMeetRemovalDetector implements RemovalDetector {
 				originalPath: this.originalMeetingPath,
 			});
 
-			// Domain changed - immediate removal
+			// Domain changed (immediate removal)
 			if (url.hostname !== GOOGLE_MEET_CONFIG.DOMAIN) {
 				this.logger.info("[RemovalDetector] REMOVED: Domain mismatch", {
 					currentDomain: url.hostname,
@@ -96,7 +96,7 @@ export class GoogleMeetRemovalDetector implements RemovalDetector {
 				return { removed: true, reason: "domain_changed", immediate: true };
 			}
 
-			// Path changed - redirected to different meeting or homepage
+			// Path changed (redirected to different meeting or homepage)
 			if (
 				this.originalMeetingPath &&
 				url.pathname !== this.originalMeetingPath
@@ -156,14 +156,14 @@ export class GoogleMeetRemovalDetector implements RemovalDetector {
 			}
 		}
 
-		// Found an indicator - reset timer and return not removed
+		// Found an indicator, reset timer and return not removed
 		if (foundIndicator) {
 			this.resetAbsenceTimer();
 
 			return { removed: false, immediate: false };
 		}
 
-		// All checks timed out - page is unresponsive, assume still in call
+		// All checks timed out, page is unresponsive (assume still in call)
 		if (allTimedOut) {
 			this.logger.warn(
 				"[RemovalDetector] All indicator checks timed out, page unresponsive",
@@ -173,7 +173,7 @@ export class GoogleMeetRemovalDetector implements RemovalDetector {
 			return { removed: false, immediate: false };
 		}
 
-		// No indicators found - start or continue absence timer
+		// No indicators found, start or continue absence timer
 		if (this.indicatorsMissingStartTime === null) {
 			this.indicatorsMissingStartTime = Date.now();
 
@@ -199,7 +199,7 @@ export class GoogleMeetRemovalDetector implements RemovalDetector {
 			return { removed: false, immediate: false };
 		}
 
-		// Exceeded threshold - confirmed removal
+		// Exceeded threshold (confirmed removal)
 		this.logger.info(
 			"[RemovalDetector] REMOVED: Indicators missing for 30+ seconds",
 			{

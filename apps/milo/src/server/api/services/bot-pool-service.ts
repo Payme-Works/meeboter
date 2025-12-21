@@ -896,7 +896,7 @@ export class BotPoolService {
 
 		await this.removeFromQueue(nextEntry.botId);
 
-		// Set status to DEPLOYING - the bot itself will update to JOINING_CALL
+		// Set status to DEPLOYING, the bot itself will update to JOINING_CALL
 		// when it actually starts attempting to join the meeting
 		await this.db
 			.update(botsTable)

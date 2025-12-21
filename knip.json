@@ -6,12 +6,17 @@
 			"project": ["scripts/**/*.ts"]
 		},
 		"apps/bots": {
-			"entry": ["src/index.ts"],
+			"entry": ["src/index.ts", "src/**/*.test.ts"],
 			"project": ["src/**/*.ts"]
 		},
 		"apps/bots/providers/*": {
-			"entry": ["src/bot.ts", "src/selectors.ts", "src/**/*.test.ts"],
-			"project": ["src/**/*.ts"]
+			"entry": [
+				"src/bot.ts",
+				"src/selectors.ts",
+				"src/**/*.test.ts",
+				"e2e/**/*.ts"
+			],
+			"project": ["src/**/*.ts", "e2e/**/*.ts"]
 		},
 		"apps/milo": {
 			"entry": [
@@ -38,5 +43,8 @@
 		"**/.turbo/**",
 		"**/coverage/**"
 	],
-	"ignoreDependencies": []
+	"ignoreDependencies": [],
+	"rules": {
+		"enumMembers": "off"
+	}
 }

@@ -2,7 +2,7 @@
  * CSS and XPath selectors for Google Meet UI elements
  */
 export const SELECTORS = {
-	// Join flow - multiple selectors for resilience
+	// Join flow (multiple selectors for resilience)
 	nameInput: [
 		'input[aria-label="Your name"]',
 		'input[placeholder="Your name"]',
@@ -17,31 +17,31 @@ export const SELECTORS = {
 	muteButton: '[aria-label*="Turn off microphone"]',
 	cameraOffButton: '[aria-label*="Turn off camera"]',
 
-	// Admission indicators - used to detect when bot has been admitted to the call
+	// Admission indicators, used to detect when bot has been admitted to the call
 	// IMPORTANT: Leave button and meeting title exist in waiting room, so excluded
 	// Only side panel buttons reliably indicate true admission
 	admissionIndicators: [
-		// Side panel buttons - only visible when truly in-call
+		// Side panel buttons (only visible when truly in-call)
 		'button[aria-label="Chat with everyone"]',
 		'button[aria-label="Meeting details"]',
 		'button[aria-label="Host controls"]',
 		'button[aria-label="Meeting tools"]',
 	],
 
-	// Waiting room indicators - if these exist, bot is NOT yet admitted
+	// Waiting room indicators (if these exist, bot is NOT yet admitted)
 	// PRIORITY ORDER: Structural elements first (buttons), then text patterns
 	//
 	// NOTE: The hasWaitingRoomStructuralIndicators() method in bot.ts checks
 	// Cancel and Ask to join buttons first (most reliable), then uses these
 	// text patterns as fallback.
 	waitingRoomIndicators: [
-		// Structural elements (most reliable - checked first in code)
+		// Structural elements (most reliable, checked first in code)
 		'button[aria-label="Cancel"]',
 		'//button[.//span[text()="Cancel"]]',
 		'//button[contains(., "Cancel")]',
 		'//button[.//span[text()="Ask to join"]]',
 
-		// Text patterns (less reliable - used as fallback)
+		// Text patterns (less reliable, used as fallback)
 		// Using broader patterns to catch variations in Google Meet's text
 		'//*[contains(text(), "Waiting for")]',
 		'//*[contains(text(), "waiting for")]',
@@ -66,7 +66,7 @@ export const SELECTORS = {
 		'[aria-label*="waiting"]',
 	],
 
-	// Removal indicators - used to detect if bot was kicked/removed from call
+	// Removal indicators, used to detect if bot was kicked/removed from call
 	// Stricter set that avoids false positives during page transitions
 	// Uses side panel buttons which are more stable than control bar elements
 	removalIndicators: [

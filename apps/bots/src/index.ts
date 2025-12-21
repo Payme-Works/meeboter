@@ -168,7 +168,10 @@ export const main = async () => {
 
 		// Register status change listener for screenshot capture
 		emitter.on("event", (eventType: EventCode) => {
-			logger.debug(`Status change detected: ${eventType}, capturing screenshot`);
+			logger.debug(
+				`Status change detected: ${eventType}, capturing screenshot`,
+			);
+
 			bot?.screenshot(`state-change-${eventType}.png`, eventType);
 		});
 

@@ -365,7 +365,11 @@ z.url()    // NOT z.string().url()
 - Don't push changes until tests pass
 - Always write code in English
 - **NEVER write obvious comments**, don't add comments that describe what the next line does when the code is self-explanatory (e.g., `// Clear token` before `clearToken()`). Comments should explain "why", not "what"
-- **Use commas instead of hyphens in descriptions**, NEVER use em dashes or hyphens as separators in comments or descriptions
+- **CRITICAL: NEVER use hyphens as separators in logs/comments** - Use commas or parentheses instead of em dashes or hyphens
+  - ✅ Prefer: `Screenshot saved (no admit button found)`
+  - ✅ Prefer: `Meet ready, it will be reused for all tests`
+  - ❌ Avoid: `Screenshot saved - no admit button found`
+  - ❌ Avoid: `Meet ready - it will be reused for all tests`
 - **ALWAYS use i18n for user-facing text** - Use `useTranslations()` hook and proper translation keys
 - **Use sentence case for translations** - Only capitalize first word and proper nouns
 - **Use contextual error toast titles** - NEVER use generic "Error" as toast titles

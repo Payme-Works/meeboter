@@ -32,6 +32,7 @@ describe("BotEventEmitter", () => {
 
 	beforeEach(() => {
 		mockTrpc = createMockTrpc();
+
 		emitter = new BotEventEmitter({
 			botId: 123,
 			trpc: mockTrpc as unknown as TrpcClient,
@@ -155,6 +156,7 @@ describe("BotEventEmitter", () => {
 			await Promise.resolve();
 
 			expect(stateChangeListener).toHaveBeenCalledTimes(1);
+
 			expect(stateChangeListener).toHaveBeenCalledWith(
 				EventCode.JOINING_CALL,
 				"INITIALIZING",
@@ -172,11 +174,13 @@ describe("BotEventEmitter", () => {
 			await Promise.resolve();
 
 			expect(stateChangeListener).toHaveBeenCalledTimes(2);
+
 			expect(stateChangeListener).toHaveBeenNthCalledWith(
 				1,
 				EventCode.JOINING_CALL,
 				"INITIALIZING",
 			);
+
 			expect(stateChangeListener).toHaveBeenNthCalledWith(
 				2,
 				EventCode.IN_WAITING_ROOM,
@@ -207,6 +211,7 @@ describe("BotEventEmitter", () => {
 			await new Promise((resolve) => setTimeout(resolve, 10));
 
 			expect(mockTrpc.bots.events.report.mutate).toHaveBeenCalledTimes(1);
+
 			expect(mockTrpc.bots.events.report.mutate).toHaveBeenCalledWith({
 				id: "123",
 				event: {
@@ -242,6 +247,7 @@ describe("BotEventEmitter", () => {
 			await new Promise((resolve) => setTimeout(resolve, 10));
 
 			expect(mockTrpc.bots.updateStatus.mutate).toHaveBeenCalledTimes(1);
+
 			expect(mockTrpc.bots.updateStatus.mutate).toHaveBeenCalledWith({
 				id: "123",
 				status: EventCode.IN_CALL,
@@ -314,6 +320,7 @@ describe("BotEventEmitter", () => {
 
 			expect(screenshotCapture).toHaveBeenCalledTimes(2);
 			expect(screenshotCapture).toHaveBeenNthCalledWith(1, EventCode.IN_CALL);
+
 			expect(screenshotCapture).toHaveBeenNthCalledWith(
 				2,
 				EventCode.CALL_ENDED,
@@ -398,10 +405,12 @@ describe("BotEventEmitter", () => {
 			await new Promise((resolve) => setTimeout(resolve, 10));
 
 			expect(emitter.getState()).toBe(EventCode.FATAL);
+
 			expect(stateChangeListener).toHaveBeenCalledWith(
 				EventCode.FATAL,
 				"INITIALIZING",
 			);
+
 			expect(mockTrpc.bots.events.report.mutate).toHaveBeenCalledWith({
 				id: "123",
 				event: {

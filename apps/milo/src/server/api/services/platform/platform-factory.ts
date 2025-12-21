@@ -169,7 +169,7 @@ function createLocalPlatformService(): LocalPlatformService {
 export function createPlatformService(): PlatformService {
 	const configuredPlatform = env.DEPLOYMENT_PLATFORM;
 
-	// During build phase, env vars may be undefined - default to local
+	// During build phase, env vars may be undefined (default to local)
 	if (!configuredPlatform) {
 		console.log(
 			"[PlatformFactory] No platform configured (build phase?), using local",
@@ -225,7 +225,7 @@ export function createPlatformService(): PlatformService {
 export function getPlatformType(): "coolify" | "aws" | "local" {
 	const configuredPlatform = env.DEPLOYMENT_PLATFORM;
 
-	// During build phase, env vars may be undefined - default to local
+	// During build phase, env vars may be undefined (default to local)
 	if (!configuredPlatform) {
 		return "local";
 	}

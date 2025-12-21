@@ -704,7 +704,7 @@ export class CoolifyService {
 		imageTag: string,
 		maxRetries: number = 3,
 	): Promise<DeploymentStatusResult> {
-		// Acquire lock - serializes deployments per platform/image
+		// Acquire lock (serializes deployments per platform/image)
 		const { release: releaseLock, didWait } =
 			await this.imagePullLock.acquireLock(platform, imageTag);
 

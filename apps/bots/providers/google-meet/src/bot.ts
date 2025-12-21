@@ -9,12 +9,12 @@ import { chromium } from "playwright-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import { Bot } from "../../../src/bot";
 import { env } from "../../../src/config/env";
-import type { BotEventEmitter } from "../../../src/events";
 import {
 	CLEANUP_TIMEOUTS,
 	DETECTION_TIMEOUTS,
 	MONITORING_CONFIG,
 } from "../../../src/constants";
+import type { BotEventEmitter } from "../../../src/events";
 import { clickIfExists } from "../../../src/helpers/click-if-exists";
 import { elementExists } from "../../../src/helpers/element-exists";
 import { withRetry } from "../../../src/helpers/with-retry";
@@ -43,7 +43,7 @@ const FILL_RETRYABLE_ERRORS = [
 ];
 
 import type { BotLogger } from "../../../src/logger";
-import { S3StorageProvider } from "../../../src/services/storage/s3-provider";
+import type { StorageService } from "../../../src/services/storage/storage-service";
 import {
 	type BotConfig,
 	EventCode,
@@ -112,22 +112,8 @@ export class GoogleMeetBot extends Bot {
 		this.meetingUrl = config.meetingInfo.meetingUrl ?? "";
 		this.chatEnabled = config.chatEnabled ?? false;
 
-		if (
-			env.S3_ENDPOINT &&
-			env.S3_ACCESS_KEY &&
-			env.S3_SECRET_KEY &&
-			env.S3_BUCKET_NAME
-		) {
-			const storageService = new S3StorageProvider({
-				endpoint: env.S3_ENDPOINT,
-				region: env.S3_REGION,
-				accessKeyId: env.S3_ACCESS_KEY,
-				secretAccessKey: env.S3_SECRET_KEY,
-				bucketName: env.S3_BUCKET_NAME,
-			});
-
-			this.uploadScreenshot = new UploadScreenshotUseCase(storageService);
-		}
+		// Initialize S3 storage lazily via dynamic import (Bun-specific API)
+		this.initializeS3Storage();
 
 		this.browserArgs = [
 			"--incognito",
@@ -141,6 +127,38 @@ export class GoogleMeetBot extends Bot {
 			"--use-file-for-fake-audio-capture=/dev/null",
 			'--auto-select-desktop-capture-source="Chrome"',
 		];
+	}
+
+	/**
+	 * Initialize S3 storage provider via dynamic import.
+	 * Uses Bun-specific S3Client, so we import dynamically to avoid
+	 * breaking Node.js-based test runners like Playwright.
+	 */
+	private initializeS3Storage(): void {
+		if (
+			env.S3_ENDPOINT &&
+			env.S3_ACCESS_KEY &&
+			env.S3_SECRET_KEY &&
+			env.S3_BUCKET_NAME
+		) {
+			import("../../../src/services/storage/s3-provider")
+				.then(({ S3StorageProvider }) => {
+					const storageService: StorageService = new S3StorageProvider({
+						endpoint: env.S3_ENDPOINT!,
+						region: env.S3_REGION,
+						accessKeyId: env.S3_ACCESS_KEY!,
+						secretAccessKey: env.S3_SECRET_KEY!,
+						bucketName: env.S3_BUCKET_NAME!,
+					});
+
+					this.uploadScreenshot = new UploadScreenshotUseCase(storageService);
+				})
+				.catch((error) => {
+					this.logger.warn("S3 storage not available", {
+						error: error instanceof Error ? error.message : String(error),
+					});
+				});
+		}
 	}
 
 	// --- Lifecycle ---
@@ -498,7 +516,7 @@ export class GoogleMeetBot extends Bot {
 				this.logger.debug("Admission detected but not stable");
 			}
 
-			// No delay between checks - run continuously for fastest detection
+			// No delay between checks, run continuously for fastest detection
 		}
 
 		throw new WaitingRoomTimeoutError(
