@@ -105,10 +105,10 @@ export class GoogleMeetBot extends Bot {
 			eventType: EventCode,
 			data?: Record<string, unknown>,
 		) => Promise<void>,
-		trpcInstance?: TRPCClient<AppRouter>,
+		trpc?: TRPCClient<AppRouter>,
 		logger?: BotLogger,
 	) {
-		super(botSettings, onEvent, trpcInstance, logger);
+		super(botSettings, onEvent, trpc, logger);
 
 		this.recordingPath = path.resolve(__dirname, "recording.mp4");
 		this.meetingUrl = botSettings.meetingInfo.meetingUrl ?? "";
@@ -156,6 +156,7 @@ export class GoogleMeetBot extends Bot {
 		await this.initializeBrowser();
 
 		await this.onEvent(EventCode.JOINING_CALL);
+
 		this.logger.setState("JOINING_CALL");
 		this.logger.info("State: LAUNCHING → JOINING_CALL");
 

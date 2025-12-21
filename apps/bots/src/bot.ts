@@ -46,7 +46,7 @@ export abstract class Bot {
 	 *
 	 * @param settings - Bot configuration containing meeting info and other parameters
 	 * @param onEvent - Event handler function for reporting bot events
-	 * @param trpcInstance - tRPC client instance for backend API calls (optional, creates default if not provided)
+	 * @param trpc - tRPC client instance for backend API calls (optional, creates default if not provided)
 	 * @param logger - Optional logger instance (created if not provided)
 	 */
 	constructor(
@@ -55,7 +55,7 @@ export abstract class Bot {
 			eventType: EventCode,
 			data?: Record<string, unknown>,
 		) => Promise<void>,
-		trpcInstance?: TRPCClient<AppRouter>,
+		trpc?: TRPCClient<AppRouter>,
 		logger?: BotLogger,
 	) {
 		this.settings = settings;
@@ -63,7 +63,7 @@ export abstract class Bot {
 
 		// Create default tRPC client if not provided (for backward compatibility with tests)
 		this.trpc =
-			trpcInstance ??
+			trpc ??
 			createTrpcClient({
 				url: env.MILO_URL,
 				authToken: env.MILO_AUTH_TOKEN,

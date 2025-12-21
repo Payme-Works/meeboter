@@ -50,10 +50,10 @@ export class ZoomBot extends Bot {
 			eventType: EventCode,
 			data?: Record<string, unknown>,
 		) => Promise<void>,
-		trpcInstance?: TRPCClient<AppRouter>,
+		trpc?: TRPCClient<AppRouter>,
 		logger?: BotLogger,
 	) {
-		super(botSettings, onEvent, trpcInstance, logger);
+		super(botSettings, onEvent, trpc, logger);
 
 		this.recordingPath = path.resolve(__dirname, "recording.mp4");
 		this.contentType = "video/mp4";
