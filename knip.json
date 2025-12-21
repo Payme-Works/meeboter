@@ -10,7 +10,7 @@
 			"project": ["src/**/*.ts"]
 		},
 		"apps/bots/providers/*": {
-			"entry": ["src/bot.ts", "src/selectors.ts"],
+			"entry": ["src/bot.ts", "src/selectors.ts", "src/**/*.test.ts"],
 			"project": ["src/**/*.ts"]
 		},
 		"apps/milo": {
