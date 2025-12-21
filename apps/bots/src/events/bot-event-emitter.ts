@@ -16,6 +16,8 @@ interface BotEventEmitterOptions {
 /**
  * Centralized event emitter for bot lifecycle events.
  * Handles event reporting to backend and state management.
+ *
+ * State is automatically updated when status events are emitted.
  */
 export class BotEventEmitter extends EventEmitter {
 	private state: string = "INITIALIZING";
@@ -38,21 +40,20 @@ export class BotEventEmitter extends EventEmitter {
 	}
 
 	/**
-	 * Updates the bot state and emits a stateChange event.
-	 */
-	setState(newState: string): void {
-		const oldState = this.state;
-		this.state = newState;
-		this.emit("stateChange", newState, oldState);
-	}
-
-	/**
 	 * Emits a bot event, reports to backend, and updates status if applicable.
+	 * State is automatically set for status-changing events.
 	 */
 	async emitEvent(
 		eventCode: EventCode,
 		data?: Record<string, unknown>,
 	): Promise<void> {
+		// Auto-set state for status events
+		if (STATUS_EVENT_CODES.includes(eventCode)) {
+			const oldState = this.state;
+			this.state = eventCode;
+			this.emit("stateChange", eventCode, oldState);
+		}
+
 		// Emit to local listeners
 		this.emit("event", eventCode, data);
 
@@ -72,7 +73,7 @@ export class BotEventEmitter extends EventEmitter {
 			},
 		});
 
-		// Update status if this is a status-changing event
+		// Update backend status if this is a status-changing event
 		if (STATUS_EVENT_CODES.includes(eventCode)) {
 			await this.trpc.bots.updateStatus.mutate({
 				id: String(this.botId),
@@ -87,5 +88,4 @@ export class BotEventEmitter extends EventEmitter {
 			}
 		}
 	}
-
 }

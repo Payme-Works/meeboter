@@ -155,9 +155,6 @@ export class GoogleMeetBot extends Bot {
 
 		await this.emitter.emitEvent(EventCode.JOINING_CALL);
 
-		this.emitter.setState("JOINING_CALL");
-		this.logger.info("State: LAUNCHING → JOINING_CALL");
-
 		if (!this.page) {
 			throw new Error("Page not initialized");
 		}
@@ -238,16 +235,12 @@ export class GoogleMeetBot extends Bot {
 		const isWaitingRoom = await this.clickJoinButton();
 
 		if (isWaitingRoom) {
-			this.emitter.setState("IN_WAITING_ROOM");
-			this.logger.info("State: JOINING → IN_WAITING_ROOM");
 			await this.emitter.emitEvent(EventCode.IN_WAITING_ROOM);
 		}
 
 		// Wait for call entry
 		await this.waitForCallEntry();
 
-		this.emitter.setState("IN_CALL");
-		this.logger.info("State: WAITING → IN_CALL");
 		await this.emitter.emitEvent(EventCode.IN_CALL);
 
 		return 0;
@@ -255,7 +248,6 @@ export class GoogleMeetBot extends Bot {
 
 	async leaveCall(): Promise<number> {
 		const leaveStartTime = Date.now();
-		this.emitter.setState("LEAVING");
 
 		this.logger.info("[leaveCall] Starting leave process", {
 			hasPage: !!this.page,
@@ -277,7 +269,6 @@ export class GoogleMeetBot extends Bot {
 
 	async cleanup(): Promise<void> {
 		const cleanupStartTime = Date.now();
-		this.emitter.setState("ENDING");
 
 		this.logger.debug("[cleanup] Starting cleanup process", {
 			recordingEnabled: this.settings.recordingEnabled,
