@@ -19,16 +19,13 @@ export const SELECTORS = {
 
 	// Definitive in-call indicators (ONLY exist when truly in-call, not in waiting room)
 	// These are reliable for detecting successful admission
+	// NOTE: [data-meeting-title] and Leave button exist in waiting room, so excluded
 	definitiveInCallIndicators: [
-		// Always visible - header area (only in-call)
-		"[data-meeting-title]",
 		// Side panel buttons - only visible when in-call
 		'button[aria-label="Chat with everyone"]',
 		'button[aria-label="Meeting details"]',
 		'button[aria-label="Host controls"]',
 		'button[aria-label="Meeting tools"]',
-		// Leave button - only visible when in-call
-		'button[aria-label="Leave call"]',
 	],
 
 	// Less reliable indicators that may exist outside of call (e.g., waiting room)
