@@ -101,16 +101,16 @@ export class GoogleMeetBot extends Bot {
 	private uploadScreenshot: UploadScreenshotUseCase | null = null;
 
 	constructor(
-		botSettings: BotConfig,
+		config: BotConfig,
 		eventEmitter: BotEventEmitter,
 		logger: BotLogger,
 		trpc?: TRPCClient<AppRouter>,
 	) {
-		super(botSettings, eventEmitter, logger, trpc);
+		super(config, eventEmitter, logger, trpc);
 
 		this.recordingPath = path.resolve(__dirname, "recording.mp4");
-		this.meetingUrl = botSettings.meetingInfo.meetingUrl ?? "";
-		this.chatEnabled = botSettings.chatEnabled ?? false;
+		this.meetingUrl = config.meetingInfo.meetingUrl ?? "";
+		this.chatEnabled = config.chatEnabled ?? false;
 
 		if (
 			env.S3_ENDPOINT &&

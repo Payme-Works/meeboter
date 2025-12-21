@@ -48,12 +48,12 @@ export class MicrosoftTeamsBot extends Bot {
 	private stream!: Transform;
 
 	constructor(
-		botSettings: BotConfig,
+		config: BotConfig,
 		eventEmitter: BotEventEmitter,
 		logger: BotLogger,
 		trpc?: TRPCClient<AppRouter>,
 	) {
-		super(botSettings, eventEmitter, logger, trpc);
+		super(config, eventEmitter, logger, trpc);
 
 		this.recordingPath = path.resolve(__dirname, "recording.webm");
 		this.contentType = "video/webm";
