@@ -109,16 +109,32 @@ function formatStatus(status: string): string {
 		.join(" ");
 }
 
+const SCREENSHOT_REFRESH_INTERVAL_MS = 5_000; // Refresh every 5 seconds when viewing screenshots
+
 export function BotDetailsDialog({ botId, onClose }: BotDetailsDialogProps) {
 	const [activeTab, setActiveTab] = useState<
 		"details" | "events" | "logs" | "screenshots" | "chat"
 	>("details");
 
+	// Auto-refresh when viewing screenshots tab
+	const isScreenshotsTabActive = activeTab === "screenshots";
+
 	const {
 		data: bot,
 		isLoading: botLoading,
 		error: botError,
-	} = api.bots.getBot.useQuery({ id: String(botId) }, { enabled: !!botId });
+		isRefetching: botRefetching,
+		refetch: refetchBot,
+	} = api.bots.getBot.useQuery(
+		{ id: String(botId) },
+		{
+			enabled: !!botId,
+			refetchInterval: isScreenshotsTabActive
+				? SCREENSHOT_REFRESH_INTERVAL_MS
+				: false,
+			refetchIntervalInBackground: true, // Keep refreshing even when browser tab is not focused
+		},
+	);
 
 	const {
 		data: events = [],
@@ -432,6 +448,8 @@ export function BotDetailsDialog({ botId, onClose }: BotDetailsDialogProps) {
 							<ScreenshotViewer
 								screenshots={bot?.screenshots ?? []}
 								isLoading={botLoading}
+								isRefetching={botRefetching}
+								onRefresh={() => refetchBot()}
 							/>
 						</div>
 					)}

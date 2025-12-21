@@ -29,6 +29,8 @@ import { api } from "@/trpc/react";
 interface ScreenshotViewerProps {
 	screenshots: ScreenshotData[];
 	isLoading?: boolean;
+	isRefetching?: boolean;
+	onRefresh?: () => void;
 }
 
 const TYPE_CONFIG: Record<
@@ -101,6 +103,8 @@ function ScreenshotImage({
 export function ScreenshotViewer({
 	screenshots,
 	isLoading,
+	isRefetching,
+	onRefresh,
 }: ScreenshotViewerProps) {
 	const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
 
@@ -127,6 +131,20 @@ export function ScreenshotViewer({
 				<p className="text-xs mt-1 opacity-70">
 					Screenshots are captured automatically during errors
 				</p>
+				{onRefresh ? (
+					<Button
+						variant="ghost"
+						size="sm"
+						onClick={onRefresh}
+						disabled={isRefetching}
+						className="mt-3"
+					>
+						<RefreshCw
+							className={cn("h-4 w-4 mr-2", isRefetching && "animate-spin")}
+						/>
+						Refresh
+					</Button>
+				) : null}
 			</div>
 		);
 	}
@@ -150,9 +168,28 @@ export function ScreenshotViewer({
 		<>
 			<div className="space-y-3">
 				<div className="flex items-center justify-between">
-					<h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-						Screenshots ({screenshots.length})
-					</h4>
+					<div className="flex items-center gap-2">
+						<h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+							Screenshots ({screenshots.length})
+						</h4>
+						{isRefetching ? (
+							<RefreshCw className="h-3 w-3 text-muted-foreground animate-spin" />
+						) : null}
+					</div>
+					{onRefresh ? (
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={onRefresh}
+							disabled={isRefetching}
+							className="h-7 px-2 text-xs"
+						>
+							<RefreshCw
+								className={cn("h-3 w-3 mr-1", isRefetching && "animate-spin")}
+							/>
+							Refresh
+						</Button>
+					) : null}
 				</div>
 
 				<ScrollArea className="w-full whitespace-nowrap">
