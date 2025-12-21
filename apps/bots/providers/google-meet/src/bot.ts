@@ -637,12 +637,6 @@ export class GoogleMeetBot extends Bot {
 			return true;
 		}
 
-		// Take screenshot for debugging
-		await this.screenshot(
-			`removal-check-${checkId}.png`,
-			`removal-check-${checkId}`,
-		);
-
 		// Check 1: Verify we're still on Google Meet domain
 		// This catches unexpected redirects (e.g., to other sites)
 		try {
