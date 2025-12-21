@@ -83,7 +83,7 @@ interface LogContext {
  */
 interface StreamingConfig {
 	/** tRPC client for backend communication */
-	trpcClient: TrpcClient;
+	trpc: TrpcClient;
 
 	/** Interval for flushing logs to backend (ms) */
 	flushInterval?: number;
@@ -196,7 +196,7 @@ export class BotLogger {
 		this.logBuffer = [];
 
 		try {
-			await this.streamingConfig.trpcClient.bots.logs.stream.mutate({
+			await this.streamingConfig.trpc.bots.logs.stream.mutate({
 				botId: String(this.botId),
 				entries: entriesToSend,
 			});
@@ -268,7 +268,7 @@ export class BotLogger {
 		// Tell backend to flush to S3
 		if (this.streamingConfig) {
 			try {
-				await this.streamingConfig.trpcClient.bots.logs.flush.mutate({
+				await this.streamingConfig.trpc.bots.logs.flush.mutate({
 					botId: String(this.botId),
 				});
 			} catch (error) {

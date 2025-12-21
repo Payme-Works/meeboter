@@ -15,7 +15,7 @@ interface CreateBotOptions {
 	logger: BotLogger;
 
 	/** tRPC client for API calls (required) */
-	trpcClient: TrpcClient;
+	trpc: TrpcClient;
 }
 
 /**
@@ -31,7 +31,7 @@ function validPlatformForImage(platform: string, imageName: string): boolean {
  * the meeting platform specified in the configuration.
  *
  * @param config - Configuration data containing meeting info and bot settings
- * @param options - Configuration including trpcClient (required)
+ * @param options - Configuration including trpc client (required)
  * @returns Promise that resolves to a platform-specific bot instance
  * @throws Error if the platform is unsupported or if there's a platform/Docker image mismatch
  */
@@ -41,7 +41,7 @@ export async function createBot(
 ): Promise<Bot> {
 	const botId = config.id;
 	const platform = config.meetingInfo.platform;
-	const { emitter, logger, trpcClient: trpc } = options;
+	const { emitter, logger, trpc } = options;
 
 	logger.debug("createBot called", {
 		botId,

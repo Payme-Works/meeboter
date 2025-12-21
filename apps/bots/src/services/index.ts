@@ -57,7 +57,7 @@ export function createServices(options: CreateServicesOptions): Services {
 	// Create logger with event emitter
 	const logger = new BotLogger(options.botId, emitter, { logLevel });
 
-	logger.enableStreaming({ trpcClient: trpc });
+	logger.enableStreaming({ trpc });
 
 	// Create storage use cases only if S3 is fully configured
 	let uploadRecording: UploadRecordingUseCase | null = null;

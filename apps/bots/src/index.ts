@@ -163,7 +163,7 @@ export const main = async () => {
 		bot = await createBot(botConfig, {
 			emitter,
 			logger,
-			trpcClient: trpc,
+			trpc,
 		});
 
 		// Register status change listener for screenshot capture
