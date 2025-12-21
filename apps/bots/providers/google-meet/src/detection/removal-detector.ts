@@ -14,11 +14,14 @@ import { SELECTORS } from "../selectors";
  * Uses a hybrid approach for reliable detection:
  * - Immediate exit: Kick dialog, domain change, path change
  * - Delayed exit: 30-second debounce for sustained indicator absence
+ * - Connection recovery: 5-minute grace period when reconnection detected
  *
- * This prevents false positives during Google Meet's internal reconnections.
+ * This prevents false positives during Google Meet's internal reconnections
+ * and network interruptions.
  */
 export class GoogleMeetRemovalDetector implements RemovalDetector {
 	private indicatorsMissingStartTime: number | null = null;
+	private reconnectingDetectedTime: number | null = null;
 	private checkCount = 0;
 
 	constructor(
@@ -124,6 +127,58 @@ export class GoogleMeetRemovalDetector implements RemovalDetector {
 			return { removed: true, reason: "page_null", immediate: true };
 		}
 
+		// Priority 1: Check if network reconnection is in progress
+		const isReconnecting = await this.checkReconnectionStatus();
+
+		if (isReconnecting) {
+			// Start tracking reconnection time if not already
+			if (this.reconnectingDetectedTime === null) {
+				this.reconnectingDetectedTime = Date.now();
+
+				this.logger.info(
+					"[RemovalDetector] Network reconnection detected, starting extended grace period",
+				);
+			}
+
+			const reconnectionDuration = Date.now() - this.reconnectingDetectedTime;
+
+			// Check if we've exceeded the reconnection grace period (5 minutes)
+			if (
+				reconnectionDuration >= GOOGLE_MEET_CONFIG.RECONNECTION_GRACE_PERIOD_MS
+			) {
+				this.logger.info(
+					"[RemovalDetector] REMOVED: Reconnection timeout after 5 minutes",
+					{ reconnectionDurationMs: reconnectionDuration },
+				);
+
+				return {
+					removed: true,
+					reason: "reconnection_timeout",
+					immediate: false,
+				};
+			}
+
+			this.logger.debug("[RemovalDetector] Waiting for reconnection", {
+				reconnectionDurationMs: reconnectionDuration,
+				graceRemainingMs:
+					GOOGLE_MEET_CONFIG.RECONNECTION_GRACE_PERIOD_MS -
+					reconnectionDuration,
+			});
+
+			// Still reconnecting, tell caller to wait
+			return { removed: false, immediate: false, reconnecting: true };
+		}
+
+		// If we were reconnecting but now aren't, reset the timer
+		if (this.reconnectingDetectedTime !== null) {
+			this.logger.info("[RemovalDetector] Network reconnection completed", {
+				reconnectionDurationMs: Date.now() - this.reconnectingDetectedTime,
+			});
+
+			this.reconnectingDetectedTime = null;
+		}
+
+		// Priority 2: Check removal indicators
 		this.logger.trace("[RemovalDetector] Checking removal indicators", {
 			indicatorCount: SELECTORS.removalIndicators.length,
 		});
@@ -209,5 +264,30 @@ export class GoogleMeetRemovalDetector implements RemovalDetector {
 		);
 
 		return { removed: true, reason: "sustained_absence", immediate: false };
+	}
+
+	/**
+	 * Check if Google Meet is showing connection lost/reconnecting indicators.
+	 * When network is lost, Google Meet shows messages like "You lost your network connection"
+	 * or "Trying to reconnect" and the normal in-call indicators may disappear.
+	 */
+	private async checkReconnectionStatus(): Promise<boolean> {
+		if (!this.page) {
+			return false;
+		}
+
+		for (const selector of SELECTORS.connectionLostIndicators) {
+			const exists = await elementExists(this.page, selector);
+
+			if (exists) {
+				this.logger.trace("[RemovalDetector] Connection lost indicator found", {
+					selector,
+				});
+
+				return true;
+			}
+		}
+
+		return false;
 	}
 }

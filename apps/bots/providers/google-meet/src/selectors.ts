@@ -94,6 +94,15 @@ export const SELECTORS = {
 	// Kick detection
 	kickDialog: '//button[.//span[text()="Return to home screen"]]',
 
+	// Connection lost indicators (network reconnection in progress)
+	// When these are visible, bot should wait for reconnection instead of exiting
+	connectionLostIndicators: [
+		'//*[contains(text(), "lost your network connection")]',
+		'//*[contains(text(), "Trying to reconnect")]',
+		'//*[contains(text(), "Lost connection")]',
+		'//*[contains(text(), "Reconnecting")]',
+	],
+
 	// Chat
 	chatButton: '//button[@aria-label="Chat with everyone"]',
 	chatToggleButton: '//button[@aria-label="Toggle chat"]',

@@ -51,6 +51,7 @@ import {
 	WaitingRoomTimeoutError,
 } from "../../../src/types";
 import { UploadScreenshotUseCase } from "../../../src/use-cases";
+import { GOOGLE_MEET_CONFIG } from "./constants";
 import {
 	GoogleMeetAdmissionDetector,
 	GoogleMeetRemovalDetector,
@@ -219,24 +220,18 @@ export class GoogleMeetBot extends Bot {
 		// Dismiss any blocking dialogs
 		await this.dismissBlockingDialogs();
 
-		// Wait for name input field
-		const nameInputSelector = await this.findNameInput();
-
-		if (!nameInputSelector) {
-			await this.checkBlockingScreens();
-			this.logger.error("Name input field not found within 30s");
-
-			throw new Error("Failed to find name input field");
-		}
-
-		// Fill bot name
+		// Fill bot name with stability checks
 		const botName = this.settings.botDisplayName || "Meeboter";
+		let fillRetryCount = 0;
 
 		await withRetry(
-			() => page.fill(nameInputSelector, botName, { timeout: 30000 }),
+			async () => {
+				await this.fillNameInputWithStability(botName, fillRetryCount);
+				fillRetryCount++;
+			},
 			{
-				maxRetries: 3,
-				minDelayMs: 1000,
+				maxRetries: GOOGLE_MEET_CONFIG.NAME_FILL_MAX_RETRIES,
+				minDelayMs: 500,
 				logger: this.logger,
 				operationName: "Fill bot name",
 				isRetryable: (e) =>
@@ -574,6 +569,63 @@ export class GoogleMeetBot extends Bot {
 		}
 
 		return null;
+	}
+
+	/**
+	 * Fill the bot name input with stability checks.
+	 *
+	 * Key improvements over direct fill:
+	 * 1. Re-locates element fresh each attempt (avoids stale references)
+	 * 2. Waits for element to be visible before interacting
+	 * 3. Uses adaptive stabilization delay based on retry count
+	 * 4. Clears any existing text before filling
+	 * 5. Uses shorter timeout for faster failure detection
+	 */
+	private async fillNameInputWithStability(
+		botName: string,
+		retryCount: number,
+	): Promise<void> {
+		if (!this.page) {
+			throw new Error("Page not initialized");
+		}
+
+		// 1. Re-find the name input element fresh (avoids stale references)
+		const nameInputSelector = await this.findNameInput();
+
+		if (!nameInputSelector) {
+			await this.checkBlockingScreens();
+
+			throw new Error("Name input not found");
+		}
+
+		// 2. Wait for element to be visible
+		await this.page.waitForSelector(nameInputSelector, {
+			state: "visible",
+			timeout: GOOGLE_MEET_CONFIG.NAME_FILL_TIMEOUT_MS,
+		});
+
+		// 3. Adaptive stabilization delay: 200ms → 400ms → 800ms → 1000ms (capped)
+		const stabilizationMs = Math.min(
+			GOOGLE_MEET_CONFIG.NAME_FILL_STABILIZATION_BASE_MS * 2 ** retryCount,
+			GOOGLE_MEET_CONFIG.NAME_FILL_STABILIZATION_MAX_MS,
+		);
+
+		await setTimeout(stabilizationMs);
+
+		// 4. Clear any existing text (triple-click selects all, then delete)
+		const input = this.page.locator(nameInputSelector);
+
+		try {
+			await input.click({ clickCount: 3, timeout: 2000 });
+			await this.page.keyboard.press("Backspace");
+		} catch {
+			// Input may be empty, continue with fill
+		}
+
+		// 5. Fill with shorter timeout for faster failure detection
+		await input.fill(botName, {
+			timeout: GOOGLE_MEET_CONFIG.NAME_FILL_TIMEOUT_MS,
+		});
 	}
 
 	private async checkBlockingScreens(): Promise<void> {

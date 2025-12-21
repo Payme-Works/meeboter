@@ -129,8 +129,15 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
 			log("Creating meet...");
 			log("Navigating to meet.google.com...");
 
-			await hostPage.goto("https://meet.google.com");
-			await hostPage.waitForLoadState("networkidle");
+			// Use domcontentloaded instead of networkidle (Google Meet has persistent connections)
+			await hostPage.goto("https://meet.google.com", {
+				waitUntil: "domcontentloaded",
+			});
+
+			// Wait for the page to be interactive (New Meeting button visible)
+			await hostPage
+				.getByRole("button", { name: /new meeting|nova reunião/i })
+				.waitFor({ state: "visible", timeout: 30_000 });
 
 			log("Page loaded");
 

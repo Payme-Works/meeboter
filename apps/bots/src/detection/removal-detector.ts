@@ -10,9 +10,12 @@ export type RemovalResult = {
 		| "sustained_absence"
 		| "page_null"
 		| "iframe_missing"
-		| "leave_button_missing";
+		| "leave_button_missing"
+		| "reconnection_timeout";
 	/** true = immediate removal (no grace period), false = requires sustained absence */
 	immediate: boolean;
+	/** true = network reconnection in progress, bot should wait */
+	reconnecting?: boolean;
 };
 
 /**

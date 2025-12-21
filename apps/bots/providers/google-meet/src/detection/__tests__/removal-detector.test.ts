@@ -377,8 +377,142 @@ describe("GoogleMeetRemovalDetector", () => {
 		});
 	});
 
+	describe("Network Reconnection Scenarios (5-minute grace period)", () => {
+		describe("Scenario 9: Network connection lost (reconnection in progress)", () => {
+			/**
+			 * SCENARIO: Network connection lost, Google Meet showing reconnection UI
+			 *
+			 * UI State:
+			 * - "You lost your network connection" text visible
+			 * - OR "Trying to reconnect" text visible
+			 * - Normal in-call indicators may be missing
+			 *
+			 * Expected: removed = false, reconnecting = true
+			 * Rationale: Bot should wait for network to restore, not exit
+			 */
+			it("should detect reconnection and NOT remove when connection lost indicators visible", async () => {
+				// Connection lost indicator visible
+				elementExistsSpy.mockImplementation((_page: Page, selector: string) => {
+					if (
+						selector.includes("lost your network connection") ||
+						selector.includes("Trying to reconnect")
+					) {
+						return Promise.resolve(true);
+					}
+
+					return Promise.resolve(false);
+				});
+
+				const result = await detector.check();
+
+				expect(result.removed).toBe(false);
+				expect(result.reconnecting).toBe(true);
+			});
+
+			it("should start tracking reconnection time when first detected", async () => {
+				elementExistsSpy.mockImplementation((_page: Page, selector: string) => {
+					if (selector.includes("lost your network connection")) {
+						return Promise.resolve(true);
+					}
+
+					return Promise.resolve(false);
+				});
+
+				// First check
+				const result1 = await detector.check();
+				expect(result1.reconnecting).toBe(true);
+
+				// Second check (still reconnecting)
+				const result2 = await detector.check();
+				expect(result2.reconnecting).toBe(true);
+				expect(result2.removed).toBe(false);
+			});
+		});
+
+		describe("Scenario 10: Reconnection successful (connection restored)", () => {
+			/**
+			 * SCENARIO: Network restored after being lost
+			 *
+			 * Timeline:
+			 * - t=0: Connection lost indicator appears
+			 * - t=30s: Still reconnecting
+			 * - t=60s: Connection restored, normal indicators return
+			 *
+			 * Expected: removed = false, reconnecting = undefined (back to normal)
+			 */
+			it("should clear reconnection state when connection is restored", async () => {
+				// First: connection lost
+				elementExistsSpy.mockImplementation((_page: Page, selector: string) => {
+					if (selector.includes("lost your network connection")) {
+						return Promise.resolve(true);
+					}
+
+					return Promise.resolve(false);
+				});
+
+				await detector.check(); // Starts reconnection tracking
+
+				// Now: connection restored, indicators back
+				elementExistsSpy.mockImplementation(() => Promise.resolve(false));
+
+				elementExistsWithDetailsSpy.mockImplementation(
+					(_page: Page, selector: string) => {
+						if (selector.includes("Chat with everyone")) {
+							return Promise.resolve({
+								exists: true,
+								timedOut: false,
+								durationMs: 50,
+							});
+						}
+
+						return Promise.resolve({
+							exists: false,
+							timedOut: false,
+							durationMs: 50,
+						});
+					},
+				);
+
+				const result = await detector.check();
+
+				expect(result.removed).toBe(false);
+				expect(result.reconnecting).toBeUndefined();
+			});
+		});
+
+		describe("Scenario 11: Reconnection timeout (connection never restored)", () => {
+			/**
+			 * SCENARIO: Network lost and never recovered within 5 minutes
+			 *
+			 * Timeline:
+			 * - t=0: Connection lost
+			 * - t=5min+: Still showing reconnection UI
+			 *
+			 * Expected: removed = true, reason = "reconnection_timeout"
+			 * Rationale: After 5 minutes, assume connection is permanently lost
+			 *
+			 * Note: This test would require mocking Date.now() for full verification.
+			 * Here we verify the initial reconnection detection behavior.
+			 */
+			it("should detect reconnection initially (timeout requires time simulation)", async () => {
+				elementExistsSpy.mockImplementation((_page: Page, selector: string) => {
+					if (selector.includes("Reconnecting")) {
+						return Promise.resolve(true);
+					}
+
+					return Promise.resolve(false);
+				});
+
+				const result = await detector.check();
+
+				expect(result.removed).toBe(false);
+				expect(result.reconnecting).toBe(true);
+			});
+		});
+	});
+
 	describe("Edge Cases", () => {
-		describe("Scenario 9: URL parsing error", () => {
+		describe("Scenario 12: URL parsing error", () => {
 			/**
 			 * SCENARIO: page.url() throws or returns invalid URL
 			 *
@@ -404,7 +538,7 @@ describe("GoogleMeetRemovalDetector", () => {
 			});
 		});
 
-		describe("Scenario 10: Leave button as backup indicator", () => {
+		describe("Scenario 13: Leave button as backup indicator", () => {
 			/**
 			 * SCENARIO: Side panel buttons missing but Leave button exists
 			 *
@@ -471,24 +605,37 @@ describe("GoogleMeetRemovalDetector", () => {
  *                          └─────────────────┘   ┌───────┴───────┐
  *                                                │ Kick visible? │
  *                                                │               ▼
- *                                      ┌─────────▼─────┐  ┌───────────────┐
- *                                      │ REMOVED:      │  │ Check removal │
- *                                      │ kick_dialog   │  │ indicators    │
- *                                      │ immediate:true│  └───────────────┘
+ *                                      ┌─────────▼─────┐  ┌────────────────────┐
+ *                                      │ REMOVED:      │  │ Check reconnection │
+ *                                      │ kick_dialog   │  │ status             │
+ *                                      │ immediate:true│  └────────────────────┘
  *                                      └───────────────┘          │
  *                                                        ┌────────┴────────┐
- *                                                        │ Found?          │ All timed out?
- *                                                        │                 │
- *                                              ┌─────────▼───┐    ┌────────▼────────┐
- *                                              │ NOT REMOVED │    │ NOT REMOVED     │
- *                                              │ Reset timer │    │ (unresponsive)  │
- *                                              └─────────────┘    └─────────────────┘
- *                                                                         │
- *                                                                         │ Not found
- *                                                                         ▼
- *                                                        ┌─────────────────────────────┐
- *                                                        │ Timer started?              │
- *                                                        └─────────────────────────────┘
+ *                                                        │ Reconnecting?   │ NO
+ *                                                        │                 ▼
+ *                                              ┌─────────▼──────┐  ┌───────────────┐
+ *                                              │ >= 5 min?      │  │ Check removal │
+ *                                              └────────────────┘  │ indicators    │
+ *                                                │ YES     │ NO   └───────────────┘
+ *                                                ▼         ▼              │
+ *                                     ┌──────────────┐ ┌─────────────┐    │
+ *                                     │ REMOVED:     │ │ NOT REMOVED │    │
+ *                                     │ reconnection_│ │ reconnecting│    │
+ *                                     │ timeout      │ │ = true      │    │
+ *                                     └──────────────┘ └─────────────┘    │
+ *                                                               ┌─────────┴─────────┐
+ *                                                               │ Found?            │ All timed out?
+ *                                                               │                   │
+ *                                                     ┌─────────▼───┐    ┌──────────▼────────┐
+ *                                                     │ NOT REMOVED │    │ NOT REMOVED       │
+ *                                                     │ Reset timer │    │ (unresponsive)    │
+ *                                                     └─────────────┘    └───────────────────┘
+ *                                                                                │
+ *                                                                                │ Not found
+ *                                                                                ▼
+ *                                                        ┌─────────────────────────────────────┐
+ *                                                        │ Absence timer started?              │
+ *                                                        └─────────────────────────────────────┘
  *                                                               │ NO            │ YES
  *                                                               ▼               ▼
  *                                                        ┌─────────────┐ ┌─────────────────┐
