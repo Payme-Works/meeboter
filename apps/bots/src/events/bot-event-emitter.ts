@@ -15,9 +15,11 @@ interface BotEventEmitterOptions {
 
 /**
  * Centralized event emitter for bot lifecycle events.
- * Handles event reporting to backend and state management.
  *
- * State is automatically updated when status events are emitted.
+ * Uses native EventEmitter.emit() for events. Listeners handle:
+ * - Auto-setting state for status events
+ * - Reporting events to backend
+ * - Updating backend status
  */
 export class BotEventEmitter extends EventEmitter {
 	private state: string = "INITIALIZING";
@@ -30,6 +32,11 @@ export class BotEventEmitter extends EventEmitter {
 		this.botId = options.botId;
 		this.trpc = options.trpc;
 		this.onStatusChange = options.onStatusChange;
+
+		// Listen to our own events and handle backend reporting
+		this.on("event", (eventCode: EventCode, data?: Record<string, unknown>) => {
+			this.handleEvent(eventCode, data);
+		});
 	}
 
 	/**
@@ -40,13 +47,12 @@ export class BotEventEmitter extends EventEmitter {
 	}
 
 	/**
-	 * Emits a bot event, reports to backend, and updates status if applicable.
-	 * State is automatically set for status-changing events.
+	 * Handles event processing: state updates, backend reporting, status changes.
 	 */
-	async emitEvent(
+	private handleEvent(
 		eventCode: EventCode,
 		data?: Record<string, unknown>,
-	): Promise<void> {
+	): void {
 		// Auto-set state for status events
 		if (STATUS_EVENT_CODES.includes(eventCode)) {
 			const oldState = this.state;
@@ -54,10 +60,20 @@ export class BotEventEmitter extends EventEmitter {
 			this.emit("stateChange", eventCode, oldState);
 		}
 
-		// Emit to local listeners
-		this.emit("event", eventCode, data);
+		// Report to backend (fire-and-forget, errors logged)
+		this.reportToBackend(eventCode, data).catch(() => {
+			// Errors are logged in reportToBackend
+		});
+	}
 
-		// Report to backend
+	/**
+	 * Reports event to backend and updates status if applicable.
+	 */
+	private async reportToBackend(
+		eventCode: EventCode,
+		data?: Record<string, unknown>,
+	): Promise<void> {
+		// Report event
 		await this.trpc.bots.events.report.mutate({
 			id: String(this.botId),
 			event: {
@@ -73,7 +89,7 @@ export class BotEventEmitter extends EventEmitter {
 			},
 		});
 
-		// Update backend status if this is a status-changing event
+		// Update status if this is a status-changing event
 		if (STATUS_EVENT_CODES.includes(eventCode)) {
 			await this.trpc.bots.updateStatus.mutate({
 				id: String(this.botId),

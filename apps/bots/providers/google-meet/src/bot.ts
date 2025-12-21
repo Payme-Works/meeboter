@@ -153,7 +153,7 @@ export class GoogleMeetBot extends Bot {
 	async joinCall(): Promise<number> {
 		await this.initializeBrowser();
 
-		await this.emitter.emitEvent(EventCode.JOINING_CALL);
+		this.emitter.emit("event", EventCode.JOINING_CALL);
 
 		if (!this.page) {
 			throw new Error("Page not initialized");
@@ -235,13 +235,13 @@ export class GoogleMeetBot extends Bot {
 		const isWaitingRoom = await this.clickJoinButton();
 
 		if (isWaitingRoom) {
-			await this.emitter.emitEvent(EventCode.IN_WAITING_ROOM);
+			this.emitter.emit("event", EventCode.IN_WAITING_ROOM);
 		}
 
 		// Wait for call entry
 		await this.waitForCallEntry();
 
-		await this.emitter.emitEvent(EventCode.IN_CALL);
+		this.emitter.emit("event", EventCode.IN_CALL);
 
 		return 0;
 	}
@@ -587,7 +587,7 @@ export class GoogleMeetBot extends Bot {
 		for (const check of blockingChecks) {
 			if (await elementExists(this.page, check.selector)) {
 				this.logger.warn(`Blocking screen detected: ${check.msg}`);
-				await this.emitter.emitEvent(check.event);
+				this.emitter.emit("event", check.event);
 
 				return;
 			}

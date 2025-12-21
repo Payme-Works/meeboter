@@ -91,12 +91,11 @@ Centralized event emitter for bot lifecycle events. Handles event reporting to b
 
 ```typescript
 class BotEventEmitter extends EventEmitter {
-  // State management
+  // State management (auto-set from status events)
   getState(): string;
-  setState(newState: string): void;  // Emits 'stateChange'
 
-  // Event emission (reports to backend automatically)
-  async emitEvent(eventCode: EventCode, data?: Record<string, unknown>): Promise<void>;
+  // Event emission via native EventEmitter
+  emit("event", eventCode: EventCode, data?: Record<string, unknown>): boolean;
 
   // Event listeners
   on(event: 'event', listener: (code, data?) => void): this;
@@ -104,9 +103,10 @@ class BotEventEmitter extends EventEmitter {
 }
 ```
 
-- **Single source of truth** for bot state
-- **Automatic backend reporting** via tRPC on event emission
-- **Listener pattern** for extensibility (logger subscribes to state changes)
+- **Single source of truth** for bot state (derived from events)
+- **Self-listening pattern** - listens to its own "event" events for side effects
+- **Automatic backend reporting** via tRPC (fire-and-forget in listener)
+- **Auto state management** - status events automatically update state
 
 ### Abstract Bot (`src/bot.ts`)
 
