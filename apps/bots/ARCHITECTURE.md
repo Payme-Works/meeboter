@@ -53,9 +53,8 @@ apps/bots/
 │   ├── helpers/                  # Browser automation utilities
 │   │   ├── click-if-exists.ts
 │   │   ├── element-exists.ts
-│   │   ├── fill-with-retry.ts
-│   │   ├── navigate-with-retry.ts
 │   │   ├── wait-for-element.ts
+│   │   ├── with-retry.ts         # Generic retry wrapper
 │   │   └── with-timeout.ts
 │   ├── logger/                   # Logging infrastructure
 │   │   ├── index.ts              # BotLogger class
@@ -273,9 +272,8 @@ Shared utilities for reliable browser automation:
 |--------|---------|
 | `clickIfExists` | Click element if present, with timeout |
 | `elementExists` | Check element presence with optional details |
-| `fillWithRetry` | Fill input with retry on timeout |
-| `navigateWithRetry` | Navigate with retry on network errors |
 | `waitForElement` | Wait for element with configurable timeout |
+| `withRetry` | Generic retry wrapper for any async operation |
 | `withTimeout` | Wrap promise with timeout and error |
 
 ## Configuration

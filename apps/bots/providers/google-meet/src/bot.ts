@@ -16,9 +16,31 @@ import {
 } from "../../../src/constants";
 import { clickIfExists } from "../../../src/helpers/click-if-exists";
 import { elementExists } from "../../../src/helpers/element-exists";
-import { fillWithRetry } from "../../../src/helpers/fill-with-retry";
-import { navigateWithRetry } from "../../../src/helpers/navigate-with-retry";
+import { withRetry } from "../../../src/helpers/with-retry";
 import { withTimeout } from "../../../src/helpers/with-timeout";
+
+/** Network errors that are safe to retry for navigation */
+const NAVIGATION_RETRYABLE_ERRORS = [
+	"ERR_SOCKET_NOT_CONNECTED",
+	"ERR_CONNECTION_REFUSED",
+	"ERR_CONNECTION_RESET",
+	"ERR_NETWORK_CHANGED",
+	"ERR_INTERNET_DISCONNECTED",
+	"ERR_NAME_NOT_RESOLVED",
+	"net::ERR_",
+	"Navigation timeout",
+];
+
+/** DOM/timing errors that are safe to retry for fill operations */
+const FILL_RETRYABLE_ERRORS = [
+	"Timeout",
+	"timeout",
+	"Target page, context or browser has been closed",
+	"Element is not visible",
+	"Element is not attached",
+	"Element is outside of the viewport",
+];
+
 import type { BotLogger } from "../../../src/logger";
 import { S3StorageProvider } from "../../../src/services/storage/s3-provider";
 import {
@@ -141,6 +163,8 @@ export class GoogleMeetBot extends Bot {
 			throw new Error("Page not initialized");
 		}
 
+		const page = this.page;
+
 		// Navigate to meeting URL
 		const normalizedUrl = this.normalizeUrl(this.meetingUrl);
 
@@ -148,7 +172,19 @@ export class GoogleMeetBot extends Bot {
 			url: normalizedUrl,
 		});
 
-		await navigateWithRetry(this.page, normalizedUrl, { logger: this.logger });
+		await withRetry(
+			() =>
+				page.goto(normalizedUrl, { waitUntil: "networkidle", timeout: 30000 }),
+			{
+				maxRetries: 10,
+				baseDelayMs: 2000,
+				logger: this.logger,
+				operationName: "Navigate to meeting",
+				isRetryable: (e) =>
+					NAVIGATION_RETRYABLE_ERRORS.some((err) => e.message.includes(err)),
+				delay: (ms) => page.waitForTimeout(ms),
+			},
+		);
 
 		// Capture original meeting path for removal detection
 		this.originalMeetingPath = new URL(this.page.url()).pathname;
@@ -183,9 +219,18 @@ export class GoogleMeetBot extends Bot {
 		// Fill bot name
 		const botName = this.settings.botDisplayName || "Meeboter";
 
-		await fillWithRetry(this.page, nameInputSelector, botName, {
-			logger: this.logger,
-		});
+		await withRetry(
+			() => page.fill(nameInputSelector, botName, { timeout: 30000 }),
+			{
+				maxRetries: 3,
+				baseDelayMs: 1000,
+				logger: this.logger,
+				operationName: "Fill bot name",
+				isRetryable: (e) =>
+					FILL_RETRYABLE_ERRORS.some((err) => e.message.includes(err)),
+				delay: (ms) => page.waitForTimeout(ms),
+			},
+		);
 
 		this.logger.info("Filled bot name", { name: botName });
 
