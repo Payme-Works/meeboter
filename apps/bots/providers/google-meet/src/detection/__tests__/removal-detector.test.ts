@@ -155,7 +155,7 @@ describe("GoogleMeetRemovalDetector", () => {
 			 * Expected: removed = true, reason = "kick_dialog", immediate = true
 			 */
 			it("should detect removal when kick dialog is visible", async () => {
-				elementExistsSpy.mockImplementation((_page, selector) => {
+				elementExistsSpy.mockImplementation((_page: Page, selector: string) => {
 					if (selector.includes("Return to home screen")) {
 						return Promise.resolve(true);
 					}
@@ -186,21 +186,23 @@ describe("GoogleMeetRemovalDetector", () => {
 			it("should NOT detect removal when indicators are present", async () => {
 				elementExistsSpy.mockImplementation(() => Promise.resolve(false));
 
-				elementExistsWithDetailsSpy.mockImplementation((_page, selector) => {
-					if (selector.includes("Chat with everyone")) {
+				elementExistsWithDetailsSpy.mockImplementation(
+					(_page: Page, selector: string) => {
+						if (selector.includes("Chat with everyone")) {
+							return Promise.resolve({
+								exists: true,
+								timedOut: false,
+								durationMs: 50,
+							});
+						}
+
 						return Promise.resolve({
-							exists: true,
+							exists: false,
 							timedOut: false,
 							durationMs: 50,
 						});
-					}
-
-					return Promise.resolve({
-						exists: false,
-						timedOut: false,
-						durationMs: 50,
-					});
-				});
+					},
+				);
 
 				const result = await detector.check();
 
@@ -257,21 +259,23 @@ describe("GoogleMeetRemovalDetector", () => {
 				await detector.check(); // Starts timer
 
 				// Now: indicators reappear
-				elementExistsWithDetailsSpy.mockImplementation((_page, selector) => {
-					if (selector.includes("Chat with everyone")) {
+				elementExistsWithDetailsSpy.mockImplementation(
+					(_page: Page, selector: string) => {
+						if (selector.includes("Chat with everyone")) {
+							return Promise.resolve({
+								exists: true,
+								timedOut: false,
+								durationMs: 50,
+							});
+						}
+
 						return Promise.resolve({
-							exists: true,
+							exists: false,
 							timedOut: false,
 							durationMs: 50,
 						});
-					}
-
-					return Promise.resolve({
-						exists: false,
-						timedOut: false,
-						durationMs: 50,
-					});
-				});
+					},
+				);
 
 				const result = await detector.check();
 
@@ -413,21 +417,23 @@ describe("GoogleMeetRemovalDetector", () => {
 			it("should NOT detect removal when Leave button exists", async () => {
 				elementExistsSpy.mockImplementation(() => Promise.resolve(false));
 
-				elementExistsWithDetailsSpy.mockImplementation((_page, selector) => {
-					if (selector.includes("Leave call")) {
+				elementExistsWithDetailsSpy.mockImplementation(
+					(_page: Page, selector: string) => {
+						if (selector.includes("Leave call")) {
+							return Promise.resolve({
+								exists: true,
+								timedOut: false,
+								durationMs: 50,
+							});
+						}
+
 						return Promise.resolve({
-							exists: true,
+							exists: false,
 							timedOut: false,
 							durationMs: 50,
 						});
-					}
-
-					return Promise.resolve({
-						exists: false,
-						timedOut: false,
-						durationMs: 50,
-					});
-				});
+					},
+				);
 
 				const result = await detector.check();
 

@@ -51,6 +51,16 @@ export const SELECTORS = {
 		'//*[contains(text(), "will let you in")]',
 		'//*[contains(text(), "to join")]',
 
+		// New waiting room text pattern (observed in production)
+		// Example: "Please wait until a meeting host brings you into the call"
+		'//*[contains(text(), "Please wait until")]',
+		'//*[contains(text(), "brings you into the call")]',
+		'//*[contains(text(), "meeting host")]',
+
+		// Waiting room image alt text
+		'img[alt*="Please wait until"]',
+		'img[alt*="brings you into the call"]',
+
 		// Waiting room specific UI elements
 		'[data-call-state="waiting"]',
 		'[aria-label*="waiting"]',

@@ -50,7 +50,7 @@ describe("GoogleMeetAdmissionDetector", () => {
 		 * Expected: admitted = false (should NOT falsely detect admission)
 		 */
 		it("should NOT detect admission when Cancel button exists", async () => {
-			elementExistsSpy.mockImplementation((_page, selector) => {
+			elementExistsSpy.mockImplementation((_page: Page, selector: string) => {
 				// Side panel buttons - don't exist in waiting room
 				if (selector.includes("Chat with everyone"))
 					return Promise.resolve(false);
@@ -89,7 +89,7 @@ describe("GoogleMeetAdmissionDetector", () => {
 		 * Expected: admitted = false
 		 */
 		it("should NOT detect admission when Ask to join button exists", async () => {
-			elementExistsSpy.mockImplementation((_page, selector) => {
+			elementExistsSpy.mockImplementation((_page: Page, selector: string) => {
 				// Side panel buttons - don't exist
 				if (selector.includes("Chat with everyone"))
 					return Promise.resolve(false);
@@ -127,7 +127,7 @@ describe("GoogleMeetAdmissionDetector", () => {
 		 * Expected: admitted = true, method = "definitive_indicator", stable = true
 		 */
 		it("should detect admission via Chat button (definitive)", async () => {
-			elementExistsSpy.mockImplementation((_page, selector) => {
+			elementExistsSpy.mockImplementation((_page: Page, selector: string) => {
 				// Chat button exists - definitive indicator
 				if (selector.includes("Chat with everyone"))
 					return Promise.resolve(true);
@@ -157,7 +157,7 @@ describe("GoogleMeetAdmissionDetector", () => {
 		 * Note: stable = false means caller should wait for stabilization
 		 */
 		it("should detect admission via structural check (leave + no waiting room)", async () => {
-			elementExistsSpy.mockImplementation((_page, selector) => {
+			elementExistsSpy.mockImplementation((_page: Page, selector: string) => {
 				// Side panel buttons - not loaded yet
 				if (selector.includes("Chat with everyone"))
 					return Promise.resolve(false);
@@ -201,7 +201,7 @@ describe("GoogleMeetAdmissionDetector", () => {
 		 * Expected: admitted = false (waiting room text takes precedence)
 		 */
 		it("should NOT detect admission when waiting room text exists", async () => {
-			elementExistsSpy.mockImplementation((_page, selector) => {
+			elementExistsSpy.mockImplementation((_page: Page, selector: string) => {
 				// Side panel buttons - don't exist
 				if (selector.includes("Chat with everyone"))
 					return Promise.resolve(false);
@@ -235,6 +235,92 @@ describe("GoogleMeetAdmissionDetector", () => {
 		});
 	});
 
+	describe("Scenario 5b: False positive prevention - 'Please wait until' pattern", () => {
+		/**
+		 * SCENARIO: Production false positive case
+		 *
+		 * Actual Google Meet text: "Please wait until a meeting host brings you into the call"
+		 *
+		 * UI State:
+		 * - Leave button: EXISTS
+		 * - Waiting room text: EXISTS ("Please wait until a meeting host brings you into the call")
+		 * - Cancel button: DOES NOT exist (not visible in this state)
+		 * - Side panel buttons: DO NOT exist
+		 *
+		 * Expected: admitted = false (waiting room text takes precedence)
+		 */
+		it("should NOT detect admission when 'Please wait until' text exists", async () => {
+			elementExistsSpy.mockImplementation((_page: Page, selector: string) => {
+				// Side panel buttons - don't exist
+				if (selector.includes("Chat with everyone"))
+					return Promise.resolve(false);
+
+				if (selector.includes("Meeting details")) return Promise.resolve(false);
+
+				if (selector.includes("Host controls")) return Promise.resolve(false);
+
+				if (selector.includes("Meeting tools")) return Promise.resolve(false);
+
+				// Leave button - exists
+				if (selector.includes("Leave call")) return Promise.resolve(true);
+
+				// Cancel button - doesn't exist in this specific waiting room state
+				if (selector.includes("Cancel")) return Promise.resolve(false);
+
+				// Ask to join - doesn't exist
+				if (selector.includes("Ask to join")) return Promise.resolve(false);
+
+				// Production waiting room text pattern
+				if (selector.includes("Please wait until"))
+					return Promise.resolve(true);
+
+				if (selector.includes("brings you into the call"))
+					return Promise.resolve(true);
+
+				if (selector.includes("meeting host")) return Promise.resolve(true);
+
+				return Promise.resolve(false);
+			});
+
+			const result = await detector.check();
+
+			expect(result.admitted).toBe(false);
+		});
+
+		it("should NOT detect admission when waiting room image alt text exists", async () => {
+			elementExistsSpy.mockImplementation((_page: Page, selector: string) => {
+				// Side panel buttons - don't exist
+				if (selector.includes("Chat with everyone"))
+					return Promise.resolve(false);
+
+				if (selector.includes("Meeting details")) return Promise.resolve(false);
+
+				if (selector.includes("Host controls")) return Promise.resolve(false);
+
+				if (selector.includes("Meeting tools")) return Promise.resolve(false);
+
+				// Leave button - exists
+				if (selector.includes("Leave call")) return Promise.resolve(true);
+
+				// Cancel button - doesn't exist
+				if (selector.includes("Cancel")) return Promise.resolve(false);
+
+				// Ask to join - doesn't exist
+				if (selector.includes("Ask to join")) return Promise.resolve(false);
+
+				// Image alt text selector matches
+				if (selector.includes('img[alt*="Please wait until"]'))
+					return Promise.resolve(true);
+
+				return Promise.resolve(false);
+			});
+
+			const result = await detector.check();
+
+			expect(result.admitted).toBe(false);
+		});
+	});
+
 	describe("Scenario 6: Meeting details button as definitive indicator", () => {
 		/**
 		 * SCENARIO: Different definitive indicator found
@@ -242,7 +328,7 @@ describe("GoogleMeetAdmissionDetector", () => {
 		 * Expected: Any definitive indicator should work
 		 */
 		it("should detect admission via Meeting details button", async () => {
-			elementExistsSpy.mockImplementation((_page, selector) => {
+			elementExistsSpy.mockImplementation((_page: Page, selector: string) => {
 				if (selector.includes("Meeting details")) return Promise.resolve(true);
 
 				return Promise.resolve(false);
@@ -276,7 +362,7 @@ describe("GoogleMeetAdmissionDetector", () => {
 
 	describe("isInWaitingRoom()", () => {
 		it("should return true when Cancel button exists", async () => {
-			elementExistsSpy.mockImplementation((_page, selector) => {
+			elementExistsSpy.mockImplementation((_page: Page, selector: string) => {
 				if (selector.includes("Cancel")) return Promise.resolve(true);
 
 				return Promise.resolve(false);
@@ -288,7 +374,7 @@ describe("GoogleMeetAdmissionDetector", () => {
 		});
 
 		it("should return true when Ask to join button exists", async () => {
-			elementExistsSpy.mockImplementation((_page, selector) => {
+			elementExistsSpy.mockImplementation((_page: Page, selector: string) => {
 				if (selector.includes("Cancel")) return Promise.resolve(false);
 
 				if (selector.includes("Ask to join")) return Promise.resolve(true);
