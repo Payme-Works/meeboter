@@ -8,6 +8,7 @@ import puppeteer, { type Browser, type Frame, type Page } from "puppeteer";
 import { getStream, launch, wss } from "puppeteer-stream";
 import { Bot } from "../../../src/bot";
 import { env } from "../../../src/config/env";
+import { CLEANUP_TIMEOUTS } from "../../../src/constants";
 import { withTimeout } from "../../../src/helpers/with-timeout";
 import type { BotLogger } from "../../../src/logger";
 import { S3StorageProvider } from "../../../src/services/storage/s3-provider";
@@ -18,43 +19,8 @@ import {
 	WaitingRoomTimeoutError,
 } from "../../../src/types";
 import { UploadScreenshotUseCase } from "../../../src/use-cases";
-
-// Cleanup timeouts (in milliseconds)
-const CLEANUP_TIMEOUTS = {
-	/** Timeout for stream to stop */
-	STOP_RECORDING: 10000,
-	/** Timeout for browser to close */
-	BROWSER_CLOSE: 15000,
-	/** Timeout for WebSocket server to close */
-	WSS_CLOSE: 5000,
-} as const;
-
-// Expected domain for Zoom
-const ZOOM_DOMAIN = "app.zoom.us";
-
-// --- Selectors ------------------------------------------------
-
-const SELECTORS = {
-	// Iframe
-	iframe: ".pwa-webclient__iframe",
-
-	// Pre-join controls
-	muteButton: "#preview-audio-control-button",
-	stopVideoButton: "#preview-video-control-button",
-	nameInput: "#input-for-name",
-	joinButton: "button.zm-btn.preview-join-button",
-
-	// In-call controls
-	leaveButton: 'button[aria-label="Leave"]',
-
-	// Modals
-	acceptCookiesButton: "#onetrust-accept-btn-handler",
-	acceptTermsButton: "#wc_agree1",
-
-	// Meeting end detection
-	meetingEndedOkButton:
-		'div[aria-label="Meeting is end now"] button.zm-btn.zm-btn-legacy.zm-btn--primary.zm-btn__outline--blue',
-} as const;
+import { ZoomRemovalDetector } from "./detection";
+import { SELECTORS } from "./selectors";
 
 // --- Zoom bot class -------------------------------------------
 
@@ -71,6 +37,7 @@ export class ZoomBot extends Bot {
 	private contentType: string;
 	private meetingUrl: string;
 	private uploadScreenshot: UploadScreenshotUseCase | null = null;
+	private removalDetector: ZoomRemovalDetector | null = null;
 
 	browser!: Browser;
 	page!: Page;
@@ -126,6 +93,9 @@ export class ZoomBot extends Bot {
 	async joinCall(): Promise<void> {
 		await this.initializeBrowser();
 
+		// Initialize removal detector now that page is ready
+		this.removalDetector = new ZoomRemovalDetector(this.page, this.logger);
+
 		this.logger.info("State: LAUNCHING → NAVIGATING");
 
 		// Navigate to meeting
@@ -133,7 +103,7 @@ export class ZoomBot extends Bot {
 		this.logger.info("State: NAVIGATING → WAITING_FOR_IFRAME");
 
 		// Wait for iframe to load
-		const iframe = await this.page.waitForSelector(SELECTORS.iframe);
+		const iframe = await this.page.waitForSelector(SELECTORS.webClientIframe);
 		const frame = await iframe?.contentFrame();
 
 		if (!frame) {
@@ -353,110 +323,16 @@ export class ZoomBot extends Bot {
 
 	/**
 	 * Check if bot has been removed from the call.
-	 * Detects: wrong domain or missing leave button.
+	 * Delegates to the RemovalDetector for detection logic.
 	 */
 	async hasBeenRemovedFromCall(): Promise<boolean> {
-		this.logger.trace("[hasBeenRemovedFromCall] Starting removal check");
-
-		if (!this.page) {
-			this.logger.warn(
-				"[hasBeenRemovedFromCall] Page is null, treating as removed",
-			);
-
+		if (!this.removalDetector) {
 			return true;
 		}
 
-		// Check 1: Verify we're still on Zoom domain
-		try {
-			const currentUrl = this.page.url();
-			const url = new URL(currentUrl);
+		const result = await this.removalDetector.check();
 
-			this.logger.trace("[hasBeenRemovedFromCall] URL check", {
-				currentHostname: url.hostname,
-				expectedHostname: ZOOM_DOMAIN,
-				fullUrl: currentUrl,
-			});
-
-			if (url.hostname !== ZOOM_DOMAIN) {
-				this.logger.info(
-					"[hasBeenRemovedFromCall] REMOVED: Domain mismatch detected",
-					{
-						currentDomain: url.hostname,
-						expectedDomain: ZOOM_DOMAIN,
-						fullUrl: currentUrl,
-					},
-				);
-
-				return true;
-			}
-		} catch (error) {
-			this.logger.warn(
-				"[hasBeenRemovedFromCall] Error checking page URL, treating as removed",
-				{
-					error: error instanceof Error ? error.message : String(error),
-				},
-			);
-
-			return true;
-		}
-
-		// Check 2: Get iframe and check for leave button
-		try {
-			const iframe = await this.page.$(SELECTORS.iframe);
-
-			this.logger.trace("[hasBeenRemovedFromCall] Iframe check", {
-				iframeFound: !!iframe,
-				selector: SELECTORS.iframe,
-			});
-
-			if (!iframe) {
-				this.logger.info(
-					"[hasBeenRemovedFromCall] REMOVED: Meeting iframe not found",
-				);
-
-				return true;
-			}
-
-			const frame = await iframe.contentFrame();
-
-			this.logger.trace("[hasBeenRemovedFromCall] Frame access check", {
-				frameAccessible: !!frame,
-			});
-
-			if (!frame) {
-				this.logger.info(
-					"[hasBeenRemovedFromCall] REMOVED: Cannot access meeting iframe",
-				);
-
-				return true;
-			}
-
-			const leaveButton = await frame.$(SELECTORS.leaveButton);
-
-			this.logger.trace("[hasBeenRemovedFromCall] Leave button check", {
-				leaveButtonFound: !!leaveButton,
-				selector: SELECTORS.leaveButton,
-			});
-
-			if (!leaveButton) {
-				this.logger.info(
-					"[hasBeenRemovedFromCall] REMOVED: Leave button not found",
-				);
-
-				return true;
-			}
-		} catch (error) {
-			this.logger.trace(
-				"[hasBeenRemovedFromCall] Error checking elements, assuming still in call",
-				{
-					error: error instanceof Error ? error.message : String(error),
-				},
-			);
-		}
-
-		this.logger.trace("[hasBeenRemovedFromCall] Still in call");
-
-		return false;
+		return result.removed;
 	}
 
 	// --- Recording ------------------------------------------------

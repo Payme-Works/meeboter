@@ -8,6 +8,7 @@ import puppeteer, { type Browser, type Page } from "puppeteer";
 import { getStream, launch, wss } from "puppeteer-stream";
 import { Bot } from "../../../src/bot";
 import { env } from "../../../src/config/env";
+import { CLEANUP_TIMEOUTS } from "../../../src/constants";
 import { withTimeout } from "../../../src/helpers/with-timeout";
 import type { BotLogger } from "../../../src/logger";
 import { S3StorageProvider } from "../../../src/services/storage/s3-provider";
@@ -18,37 +19,8 @@ import {
 	WaitingRoomTimeoutError,
 } from "../../../src/types";
 import { UploadScreenshotUseCase } from "../../../src/use-cases";
-
-// Cleanup timeouts (in milliseconds)
-const CLEANUP_TIMEOUTS = {
-	/** Timeout for stream to stop */
-	STOP_RECORDING: 10000,
-	/** Timeout for browser to close */
-	BROWSER_CLOSE: 15000,
-	/** Timeout for WebSocket server to close */
-	WSS_CLOSE: 5000,
-} as const;
-
-// Expected domain for Microsoft Teams
-const TEAMS_DOMAIN = "teams.microsoft.com";
-
-// --- Selectors ------------------------------------------------
-
-const SELECTORS = {
-	// Pre-join controls
-	displayNameInput: '[data-tid="prejoin-display-name-input"]',
-	muteButton: '[data-tid="toggle-mute"]',
-	joinButton: '[data-tid="prejoin-join-button"]',
-
-	// In-call controls
-	leaveButton:
-		'button[aria-label="Leave (Ctrl+Shift+H)"], button[aria-label="Leave (⌘+Shift+H)"]',
-	peopleButton: '[aria-label="People"]',
-
-	// Participants panel
-	attendeesTree: '[role="tree"]',
-	participantItem: '[data-tid^="participantsInCall-"]',
-} as const;
+import { MicrosoftTeamsRemovalDetector } from "./detection";
+import { SELECTORS } from "./selectors";
 
 // --- Microsoft Teams bot class --------------------------------
 
@@ -66,6 +38,7 @@ export class MicrosoftTeamsBot extends Bot {
 	private contentType: string;
 	private meetingUrl: string;
 	private uploadScreenshot: UploadScreenshotUseCase | null = null;
+	private removalDetector: MicrosoftTeamsRemovalDetector | null = null;
 
 	browser!: Browser;
 	page!: Page;
@@ -122,6 +95,12 @@ export class MicrosoftTeamsBot extends Bot {
 	 */
 	async joinCall(): Promise<void> {
 		await this.initializeBrowser();
+
+		// Initialize removal detector now that page is ready
+		this.removalDetector = new MicrosoftTeamsRemovalDetector(
+			this.page,
+			this.logger,
+		);
 
 		this.logger.info("State: LAUNCHING → NAVIGATING");
 
@@ -353,81 +332,16 @@ export class MicrosoftTeamsBot extends Bot {
 
 	/**
 	 * Check if bot has been removed from the call.
-	 * Detects: wrong domain or missing leave button.
+	 * Delegates to the RemovalDetector for detection logic.
 	 */
 	async hasBeenRemovedFromCall(): Promise<boolean> {
-		this.logger.trace("[hasBeenRemovedFromCall] Starting removal check");
-
-		if (!this.page) {
-			this.logger.warn(
-				"[hasBeenRemovedFromCall] Page is null, treating as removed",
-			);
-
+		if (!this.removalDetector) {
 			return true;
 		}
 
-		// Check 1: Verify we're still on Teams domain
-		try {
-			const currentUrl = this.page.url();
-			const url = new URL(currentUrl);
+		const result = await this.removalDetector.check();
 
-			this.logger.trace("[hasBeenRemovedFromCall] URL check", {
-				currentHostname: url.hostname,
-				expectedHostname: TEAMS_DOMAIN,
-				fullUrl: currentUrl,
-			});
-
-			if (url.hostname !== TEAMS_DOMAIN) {
-				this.logger.info(
-					"[hasBeenRemovedFromCall] REMOVED: Domain mismatch detected",
-					{
-						currentDomain: url.hostname,
-						expectedDomain: TEAMS_DOMAIN,
-						fullUrl: currentUrl,
-					},
-				);
-
-				return true;
-			}
-		} catch (error) {
-			this.logger.warn(
-				"[hasBeenRemovedFromCall] Error checking page URL, treating as removed",
-				{
-					error: error instanceof Error ? error.message : String(error),
-				},
-			);
-
-			return true;
-		}
-
-		// Check 2: Leave button gone (call ended or kicked)
-		try {
-			const leaveButton = await this.page.$(SELECTORS.leaveButton);
-
-			this.logger.trace("[hasBeenRemovedFromCall] Leave button check", {
-				leaveButtonFound: !!leaveButton,
-				selector: SELECTORS.leaveButton,
-			});
-
-			if (!leaveButton) {
-				this.logger.info(
-					"[hasBeenRemovedFromCall] REMOVED: Leave button not found",
-				);
-
-				return true;
-			}
-		} catch (error) {
-			this.logger.trace(
-				"[hasBeenRemovedFromCall] Error checking leave button, assuming still in call",
-				{
-					error: error instanceof Error ? error.message : String(error),
-				},
-			);
-		}
-
-		this.logger.trace("[hasBeenRemovedFromCall] Still in call");
-
-		return false;
+		return result.removed;
 	}
 
 	// --- Participant tracking -------------------------------------
@@ -438,7 +352,7 @@ export class MicrosoftTeamsBot extends Bot {
 	private async openParticipantsPanel(): Promise<void> {
 		this.logger.debug("Opening participants panel");
 		await this.page.locator(SELECTORS.peopleButton).click();
-		await this.page.waitForSelector(SELECTORS.attendeesTree);
+		await this.page.waitForSelector(SELECTORS.participantsTree);
 		this.logger.debug("Participants panel opened");
 	}
 
@@ -450,17 +364,17 @@ export class MicrosoftTeamsBot extends Bot {
 			try {
 				const currentParticipants = await this.page.evaluate(
 					(selectors) => {
-						const tree = document.querySelector(selectors.attendeesTree);
+						const tree = document.querySelector(selectors.participantsTree);
 
 						if (!tree) return [];
 
 						const items = Array.from(
-							tree.querySelectorAll(selectors.participantItem),
+							tree.querySelectorAll(selectors.participantInCall),
 						);
 
 						return items
 							.map((el) => {
-								const nameSpan = el.querySelector("span[title]");
+								const nameSpan = (el as Element).querySelector("span[title]");
 
 								return (
 									nameSpan?.getAttribute("title") ||
@@ -471,8 +385,8 @@ export class MicrosoftTeamsBot extends Bot {
 							.filter((name) => name);
 					},
 					{
-						attendeesTree: SELECTORS.attendeesTree,
-						participantItem: SELECTORS.participantItem,
+						participantsTree: SELECTORS.participantsTree,
+						participantInCall: SELECTORS.participantInCall,
 					},
 				);
 
@@ -588,7 +502,7 @@ export class MicrosoftTeamsBot extends Bot {
 
 		this.logger.debug("Entered display name");
 
-		await this.page.locator(SELECTORS.muteButton).click();
+		await this.page.locator(SELECTORS.toggleMute).click();
 		this.logger.debug("Muted microphone");
 	}
 
