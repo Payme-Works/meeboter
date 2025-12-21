@@ -9,6 +9,28 @@ import type { BotLogger } from "../../../../src/logger";
 import { SELECTORS } from "../selectors";
 
 /**
+ * Check if any of the given selectors exist on the page (parallel check).
+ * Returns the first matching selector or null if none match.
+ */
+async function anyElementExists(
+	page: Page,
+	selectors: readonly string[],
+	timeout: number,
+): Promise<string | null> {
+	const results = await Promise.all(
+		selectors.map(async (selector) => {
+			const exists = await elementExists(page, selector, timeout);
+
+			return { selector, exists };
+		}),
+	);
+
+	const found = results.find((r) => r.exists);
+
+	return found ? found.selector : null;
+}
+
+/**
  * Google Meet admission detector.
  *
  * Uses a three-phase approach prioritizing reliability over speed:
@@ -26,57 +48,59 @@ export class GoogleMeetAdmissionDetector implements AdmissionDetector {
 
 	async check(): Promise<AdmissionResult> {
 		this.checkCount++;
+		const startTime = Date.now();
 
-		// Log periodically to show detector is running (every 30 checks = ~30s at 1s interval)
+		// Log periodically to show detector is running (every 30 checks)
 		if (this.checkCount % 30 === 0) {
 			this.logger.trace("[AdmissionDetector] Still checking for admission", {
 				checkCount: this.checkCount,
 			});
 		}
 
-		// Phase 1: Check for definitive in-call indicators (side panel buttons)
-		// These NEVER exist in waiting room - if any is found, we're definitely in-call
-		for (const selector of SELECTORS.admissionIndicators) {
-			if (
-				await elementExists(
-					this.page,
-					selector,
-					DETECTION_TIMEOUTS.ELEMENT_CHECK,
-				)
-			) {
-				this.logger.trace("[AdmissionDetector] Found definitive indicator", {
-					selector,
-				});
+		// Phase 1: Check admission indicators AND Leave button in PARALLEL
+		// This reduces worst-case from 2.5s to 0.5s per check
+		const [admissionIndicator, hasLeaveButton] = await Promise.all([
+			anyElementExists(
+				this.page,
+				SELECTORS.admissionIndicators,
+				DETECTION_TIMEOUTS.ELEMENT_CHECK,
+			),
+			elementExists(
+				this.page,
+				SELECTORS.leaveButton,
+				DETECTION_TIMEOUTS.ELEMENT_CHECK,
+			),
+		]);
 
-				return { admitted: true, method: "definitive_indicator", stable: true };
-			}
+		// If any definitive indicator found, we're definitely in-call
+		if (admissionIndicator) {
+			this.logger.trace("[AdmissionDetector] Found definitive indicator", {
+				selector: admissionIndicator,
+				durationMs: Date.now() - startTime,
+			});
+
+			return { admitted: true, method: "definitive_indicator", stable: true };
 		}
-
-		// Phase 2: Check Leave button + absence of waiting room structural elements
-		// Leave button appears quickly after admission but also exists in waiting room
-		const hasLeaveButton = await elementExists(
-			this.page,
-			SELECTORS.leaveButton,
-			DETECTION_TIMEOUTS.ELEMENT_CHECK,
-		);
 
 		if (!hasLeaveButton) {
 			// Log when Leave button is missing (helps debug UI state issues)
 			if (this.checkCount % 10 === 0) {
 				this.logger.trace(
 					"[AdmissionDetector] Leave button not found, waiting...",
-					{ checkCount: this.checkCount },
+					{ checkCount: this.checkCount, durationMs: Date.now() - startTime },
 				);
 			}
 
 			return { admitted: false, stable: true };
 		}
 
+		// Phase 2: Check if still in waiting room (parallel check)
 		const inWaitingRoom = await this.isInWaitingRoom();
 
 		if (!inWaitingRoom) {
 			this.logger.trace(
 				"[AdmissionDetector] Leave button found, no waiting room elements - admitted",
+				{ durationMs: Date.now() - startTime },
 			);
 
 			return { admitted: true, method: "structural_check", stable: false };
@@ -84,69 +108,66 @@ export class GoogleMeetAdmissionDetector implements AdmissionDetector {
 
 		this.logger.trace(
 			"[AdmissionDetector] Leave button found but still in waiting room",
+			{ durationMs: Date.now() - startTime },
 		);
 
 		return { admitted: false, stable: true };
 	}
 
 	async isInWaitingRoom(): Promise<boolean> {
-		// Check Cancel button first - most reliable waiting room indicator
-		// It ONLY exists after clicking "Ask to join" and before being admitted
+		// Check all waiting room indicators in PARALLEL for speed
+		// This reduces worst-case from 3s+ to ~200ms per check
+
 		const cancelSelectors = [
 			'button[aria-label="Cancel"]',
 			'//button[.//span[text()="Cancel"]]',
 			'//button[contains(., "Cancel")]',
-		];
+		] as const;
 
-		for (const selector of cancelSelectors) {
-			if (
-				await elementExists(
-					this.page,
-					selector,
-					DETECTION_TIMEOUTS.ELEMENT_CHECK_FAST,
-				)
-			) {
-				this.logger.trace("[AdmissionDetector] Found Cancel button", {
-					selector,
-				});
+		// Filter text patterns (exclude button selectors already in cancelSelectors)
+		const textPatterns = SELECTORS.waitingRoomIndicators.filter(
+			(s) => !s.includes("Cancel") && !s.includes("Ask to join"),
+		);
 
-				return true;
-			}
-		}
-
-		// Check if Ask to join button is still visible (shouldn't be after admission)
-		if (
-			await elementExists(
+		// Check Cancel buttons, Ask to join, and text patterns in parallel
+		const [cancelButton, askToJoinButton, textPattern] = await Promise.all([
+			anyElementExists(
+				this.page,
+				cancelSelectors,
+				DETECTION_TIMEOUTS.ELEMENT_CHECK_FAST,
+			),
+			elementExists(
 				this.page,
 				SELECTORS.askToJoinButton,
 				DETECTION_TIMEOUTS.ELEMENT_CHECK_FAST,
-			)
-		) {
+			),
+			anyElementExists(
+				this.page,
+				textPatterns,
+				DETECTION_TIMEOUTS.ELEMENT_CHECK_FAST,
+			),
+		]);
+
+		if (cancelButton) {
+			this.logger.trace("[AdmissionDetector] Found Cancel button", {
+				selector: cancelButton,
+			});
+
+			return true;
+		}
+
+		if (askToJoinButton) {
 			this.logger.trace("[AdmissionDetector] Ask to join button still visible");
 
 			return true;
 		}
 
-		// Check for waiting room text patterns as fallback (less reliable)
-		for (const selector of SELECTORS.waitingRoomIndicators) {
-			// Skip button selectors (already checked above)
-			if (selector.includes("Cancel") || selector.includes("Ask to join")) {
-				continue;
-			}
+		if (textPattern) {
+			this.logger.trace("[AdmissionDetector] Found waiting room text", {
+				selector: textPattern,
+			});
 
-			if (
-				await elementExists(
-					this.page,
-					selector,
-					DETECTION_TIMEOUTS.ELEMENT_CHECK_FAST - 50,
-				)
-			) {
-				this.logger.trace("[AdmissionDetector] Found waiting room text", {
-					selector,
-				});
-
-				return true;
-			}
+			return true;
 		}
 
 		return false;
