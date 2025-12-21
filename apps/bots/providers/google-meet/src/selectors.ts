@@ -18,16 +18,22 @@ export const SELECTORS = {
 	cameraOffButton: '[aria-label*="Turn off camera"]',
 
 	// Admission indicators - used to detect when bot has been admitted to the call
-	// These appear quickly after admission and are reliable for fast detection
-	// Includes Leave button since it only appears AFTER clicking Join (not in waiting room)
+	// IMPORTANT: Leave button and meeting title exist in waiting room, so excluded
+	// Only side panel buttons reliably indicate true admission
 	admissionIndicators: [
-		// Leave button - appears immediately after admission
-		'button[aria-label="Leave call"]',
-		// Meeting title in header - appears after admission
-		"[data-meeting-title]",
-		// Side panel buttons - may take longer to appear
+		// Side panel buttons - only visible when truly in-call
 		'button[aria-label="Chat with everyone"]',
 		'button[aria-label="Meeting details"]',
+		'button[aria-label="Host controls"]',
+		'button[aria-label="Meeting tools"]',
+	],
+
+	// Waiting room indicators - if these exist, bot is NOT yet admitted
+	waitingRoomIndicators: [
+		'//*[contains(text(), "Waiting for the host")]',
+		'//*[contains(text(), "Someone will let you in")]',
+		'//*[contains(text(), "Ask to join")]',
+		'//*[contains(text(), "Asking to be let in")]',
 	],
 
 	// Removal indicators - used to detect if bot was kicked/removed from call

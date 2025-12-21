@@ -1327,8 +1327,8 @@ export class GoogleMeetBot extends Bot {
 	}
 
 	/**
-	 * Check for admission indicators (Leave button, Meeting title, etc.).
-	 * Uses indicators that appear quickly after admission for fast detection.
+	 * Check for admission indicators (side panel buttons).
+	 * Also verifies waiting room indicators are NOT present to avoid false positives.
 	 * Uses Promise.all for faster parallel detection.
 	 */
 	private async hasInCallIndicators(): Promise<boolean> {
@@ -1336,7 +1336,15 @@ export class GoogleMeetBot extends Bot {
 
 		if (!page) return false;
 
-		// Check admission indicators that appear quickly after joining
+		// First, check if we're still in waiting room (quick check)
+		// If any waiting room indicator exists, we're definitely not admitted
+		for (const selector of SELECTORS.waitingRoomIndicators) {
+			if (await elementExists(page, selector, 500)) {
+				return false;
+			}
+		}
+
+		// Check admission indicators (side panel buttons)
 		const checks = SELECTORS.admissionIndicators.map((selector) =>
 			elementExists(page, selector),
 		);
