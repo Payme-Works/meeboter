@@ -1327,26 +1327,45 @@ export class GoogleMeetBot extends Bot {
 	}
 
 	/**
-	 * Check for admission indicators (side panel buttons).
-	 * Also verifies waiting room indicators are NOT present to avoid false positives.
-	 * Uses Promise.all for faster parallel detection.
+	 * Check for admission indicators.
+	 * Uses a two-phase approach for fast and accurate detection:
+	 * 1. Quick check: Leave button exists AND no waiting room text → admitted
+	 * 2. Fallback: Side panel buttons (slower but reliable)
 	 */
 	private async hasInCallIndicators(): Promise<boolean> {
 		const page = this.page;
 
 		if (!page) return false;
 
-		// First, check if we're still in waiting room (quick check)
-		// If any waiting room indicator exists, we're definitely not admitted
-		for (const selector of SELECTORS.waitingRoomIndicators) {
-			if (await elementExists(page, selector, 500)) {
-				return false;
+		// Phase 1: Fast check using Leave button + absence of waiting room text
+		// Leave button appears immediately after admission
+		const hasLeaveButton = await elementExists(
+			page,
+			SELECTORS.leaveButton,
+			1000,
+		);
+
+		if (hasLeaveButton) {
+			// Verify we're not in waiting room by checking for waiting room text
+			let inWaitingRoom = false;
+
+			for (const selector of SELECTORS.waitingRoomIndicators) {
+				if (await elementExists(page, selector, 300)) {
+					inWaitingRoom = true;
+
+					break;
+				}
+			}
+
+			if (!inWaitingRoom) {
+				// Leave button exists and no waiting room text → admitted
+				return true;
 			}
 		}
 
-		// Check admission indicators (side panel buttons)
+		// Phase 2: Fallback to side panel buttons (slower but reliable)
 		const checks = SELECTORS.admissionIndicators.map((selector) =>
-			elementExists(page, selector),
+			elementExists(page, selector, 1000),
 		);
 
 		const results = await Promise.all(checks);
