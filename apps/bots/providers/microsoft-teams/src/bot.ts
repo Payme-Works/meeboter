@@ -49,11 +49,11 @@ export class MicrosoftTeamsBot extends Bot {
 
 	constructor(
 		config: BotConfig,
-		eventEmitter: BotEventEmitter,
+		emitter: BotEventEmitter,
 		logger: BotLogger,
 		trpc?: TRPCClient<AppRouter>,
 	) {
-		super(config, eventEmitter, logger, trpc);
+		super(config, emitter, logger, trpc);
 
 		this.recordingPath = path.resolve(__dirname, "recording.webm");
 		this.contentType = "video/webm";
@@ -581,7 +581,7 @@ export class MicrosoftTeamsBot extends Bot {
 					botId: this.settings.id,
 					data,
 					type: "manual",
-					state: this.eventEmitter.getState(),
+					state: this.emitter.getState(),
 					trigger,
 				});
 

@@ -17,7 +17,7 @@ interface CreateBotOptions {
 	onStatusChange?: (eventType: EventCode, bot: Bot) => Promise<void>;
 
 	/** Event emitter for reporting bot events and managing state (required) */
-	eventEmitter: BotEventEmitter;
+	emitter: BotEventEmitter;
 
 	/** Logger instance (required) */
 	logger: BotLogger;
@@ -49,7 +49,7 @@ export async function createBot(
 ): Promise<Bot> {
 	const botId = config.id;
 	const platform = config.meetingInfo.platform;
-	const { onStatusChange, eventEmitter, logger, trpcClient: trpc } = options;
+	const { onStatusChange, emitter, logger, trpcClient: trpc } = options;
 
 	logger.debug("createBot called", {
 		botId,
@@ -102,7 +102,7 @@ export async function createBot(
 
 			logger.debug("GoogleMeetBot module imported, creating instance...");
 
-			bot = new GoogleMeetBot(config, eventEmitter, logger, trpc);
+			bot = new GoogleMeetBot(config, emitter, logger, trpc);
 			logger.debug("GoogleMeetBot instance created");
 
 			break;
@@ -117,7 +117,7 @@ export async function createBot(
 
 			logger.debug("MicrosoftTeamsBot module imported, creating instance...");
 
-			bot = new MicrosoftTeamsBot(config, eventEmitter, logger, trpc);
+			bot = new MicrosoftTeamsBot(config, emitter, logger, trpc);
 			logger.debug("MicrosoftTeamsBot instance created");
 
 			break;
@@ -128,7 +128,7 @@ export async function createBot(
 			const { ZoomBot } = await import("../providers/zoom/src/bot");
 			logger.debug("ZoomBot module imported, creating instance...");
 
-			bot = new ZoomBot(config, eventEmitter, logger, trpc);
+			bot = new ZoomBot(config, emitter, logger, trpc);
 			logger.debug("ZoomBot instance created");
 
 			break;
@@ -142,7 +142,7 @@ export async function createBot(
 
 	// 4. Register onStatusChange listener if provided (needs bot reference)
 	if (onStatusChange) {
-		eventEmitter.on("event", (eventCode) => {
+		emitter.on("event", (eventCode) => {
 			onStatusChange(eventCode, bot).catch((err) => {
 				logger.warn(
 					`Failed to capture status change screenshot: ${err instanceof Error ? err.message : String(err)}`,

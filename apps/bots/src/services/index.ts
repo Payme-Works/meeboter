@@ -13,7 +13,7 @@ import { S3StorageProvider } from "./storage/s3-provider";
  * Container for all services in the application
  */
 interface Services {
-	eventEmitter: BotEventEmitter;
+	emitter: BotEventEmitter;
 	logger: BotLogger;
 	trpc: TrpcClient;
 	uploadRecording: UploadRecordingUseCase | null;
@@ -49,13 +49,13 @@ export function createServices(options: CreateServicesOptions): Services {
 	});
 
 	// Create event emitter first (shared between logger and bot)
-	const eventEmitter = new BotEventEmitter({
+	const emitter = new BotEventEmitter({
 		botId: options.botId,
 		trpc,
 	});
 
 	// Create logger with event emitter
-	const logger = new BotLogger(options.botId, eventEmitter, { logLevel });
+	const logger = new BotLogger(options.botId, emitter, { logLevel });
 
 	logger.enableStreaming({ trpcClient: trpc });
 
@@ -85,5 +85,5 @@ export function createServices(options: CreateServicesOptions): Services {
 		messageQueue: new MessageQueueWorker(trpc, options.getBot, logger),
 	};
 
-	return { eventEmitter, logger, trpc, uploadRecording, workers };
+	return { emitter, logger, trpc, uploadRecording, workers };
 }

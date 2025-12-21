@@ -104,7 +104,7 @@ export class BotLogger {
 	private readonly startTime: Date;
 	private readonly maxBreadcrumbs: number;
 	private readonly breadcrumbs: Breadcrumb[] = [];
-	private readonly eventEmitter: BotEventEmitter;
+	private readonly emitter: BotEventEmitter;
 	private page?: Page;
 
 	private logLevel: LogLevel = LogLevel.TRACE;
@@ -117,7 +117,7 @@ export class BotLogger {
 
 	constructor(
 		botId: number,
-		eventEmitter: BotEventEmitter,
+		emitter: BotEventEmitter,
 		options?: {
 			page?: Page;
 			logLevel?: LogLevel;
@@ -125,14 +125,14 @@ export class BotLogger {
 		},
 	) {
 		this.botId = botId;
-		this.eventEmitter = eventEmitter;
+		this.emitter = emitter;
 		this.startTime = new Date();
 		this.page = options?.page;
 		this.logLevel = options?.logLevel ?? LogLevel.TRACE;
 		this.maxBreadcrumbs = options?.maxBreadcrumbs ?? 20;
 
 		// Subscribe to state changes from event emitter
-		this.eventEmitter.on("stateChange", (newState, oldState) => {
+		this.emitter.on("stateChange", (newState, oldState) => {
 			this.debug(`State: ${oldState} → ${newState}`);
 		});
 	}
@@ -141,7 +141,7 @@ export class BotLogger {
 	 * Gets the current bot state from the event emitter.
 	 */
 	private get currentState(): string {
-		return this.eventEmitter.getState();
+		return this.emitter.getState();
 	}
 
 	/**

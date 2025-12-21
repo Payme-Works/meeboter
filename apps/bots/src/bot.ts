@@ -22,7 +22,7 @@ export abstract class Bot {
 	readonly logger: BotLogger;
 
 	/** Event emitter for reporting bot lifecycle events and managing state */
-	readonly eventEmitter: BotEventEmitter;
+	readonly emitter: BotEventEmitter;
 
 	/**
 	 * tRPC client instance for making API calls to the backend
@@ -39,18 +39,18 @@ export abstract class Bot {
 	 * Creates a new Bot instance with the provided configuration and dependencies.
 	 *
 	 * @param settings - Bot configuration containing meeting info and other parameters
-	 * @param eventEmitter - Event emitter for reporting bot events and managing state
+	 * @param emitter - Event emitter for reporting bot events and managing state
 	 * @param logger - Logger instance for structured logging
 	 * @param trpc - tRPC client instance for backend API calls (optional, creates default if not provided)
 	 */
 	constructor(
 		settings: BotConfig,
-		eventEmitter: BotEventEmitter,
+		emitter: BotEventEmitter,
 		logger: BotLogger,
 		trpc?: TRPCClient<AppRouter>,
 	) {
 		this.settings = settings;
-		this.eventEmitter = eventEmitter;
+		this.emitter = emitter;
 		this.logger = logger;
 
 		// Create default tRPC client if not provided (for backward compatibility with tests)
