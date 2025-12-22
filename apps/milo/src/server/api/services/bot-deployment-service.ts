@@ -154,14 +154,15 @@ export class BotDeploymentService {
 				};
 			}
 
-			// Deployed successfully, clear any previous deployment error
+			// Deployed successfully, update platform info and clear any previous deployment error
 			// Status stays as DEPLOYING, the bot itself will update to JOINING_CALL
 			// when it actually starts attempting to join the meeting
-			// Note: applicationUuid is stored on the pool slot, not on the bot
 			const result = await this.db
 				.update(botsTable)
 				.set({
 					deploymentError: null,
+					deploymentPlatform: this.platform.platformName,
+					platformIdentifier: deployResult.identifier ?? null,
 				})
 				.where(eq(botsTable.id, botId))
 				.returning();
