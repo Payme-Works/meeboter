@@ -791,10 +791,75 @@ Container components should only contain props needed for internal state managem
 <DatePicker date={date} setDate={setDate} triggerClassName="min-w-72" align="end" />
 ```
 
-### 2. Display Values as Children
+### 2. Full Composition Over Props
+Break components into composable sub-components instead of passing data as props. Each logical part becomes a separate component that accepts children.
+
+```tsx
+// ✅ CORRECT: Full composition pattern
+function PlatformHeader({ children }: { children: React.ReactNode }) {
+    return (
+        <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">{children}</div>
+        </div>
+    );
+}
+
+function PlatformHeaderIcon({ children }: { children: React.ReactNode }) {
+    return (
+        <div className="h-10 w-10 bg-muted rounded-lg flex items-center justify-center">
+            {children}
+        </div>
+    );
+}
+
+function PlatformHeaderTitle({ children }: { children: React.ReactNode }) {
+    return (
+        <div>
+            <h3 className="font-semibold">{children}</h3>
+            <p className="text-xs text-muted-foreground">Deployment Platform</p>
+        </div>
+    );
+}
+
+function PlatformHeaderStatus({ isActive }: { isActive: boolean }) {
+    return <Badge>{isActive ? "Active" : "Inactive"}</Badge>;
+}
+
+// Usage - fully composable
+<PlatformHeader>
+    <PlatformHeaderIcon>
+        <Container className="h-5 w-5 text-muted-foreground" />
+    </PlatformHeaderIcon>
+
+    <PlatformHeaderTitle>Kubernetes</PlatformHeaderTitle>
+
+    <PlatformHeaderStatus isActive={isActive} />
+</PlatformHeader>
+
+// ❌ WRONG: Props-based API
+<PlatformHeader
+    platform="Kubernetes"
+    icon={Container}
+    isActive={isActive}
+/>
+
+// ❌ WRONG: Partial composition (icon as children, but title as prop)
+<PlatformHeader platform="Kubernetes" isActive={isActive}>
+    <Container className="h-5 w-5" />
+</PlatformHeader>
+```
+
+**Benefits of full composition:**
+- Each part independently customizable
+- Caller controls all styling and content
+- Easy to add/remove/reorder parts
+- No complex prop interfaces
+- Consistent with React's composition model
+
+### 3. Display Values as Children
 When a prop has a corresponding child component, pass the value as children to that component instead of as a prop to the container.
 
-### 3. Context Pattern for Shared State
+### 4. Context Pattern for Shared State
 Use React Context when multiple sub-components need to access the same state. The context should:
 - Be defined as a type with all shared values
 - Use `null` as default and throw error if used outside provider
@@ -808,7 +873,7 @@ const contextValue = React.useMemo(
 );
 ```
 
-### 4. Named Exports with Prefix Convention
+### 5. Named Exports with Prefix Convention
 Use named exports with the base component name as prefix (e.g., `DatePicker`, `DatePickerTrigger`, `DatePickerContent`). Export all public components at the end of the file.
 
 ```tsx
@@ -820,7 +885,7 @@ export function DatePicker() { /* ... */ }
 export function DatePickerTrigger() { /* ... */ }
 ```
 
-### 5. Responsive Composition Pattern
+### 6. Responsive Composition Pattern
 When components have different implementations for different screen sizes (Popover vs Drawer), handle the variation in the root component and sub-components.
 
 ```tsx
@@ -851,17 +916,18 @@ function ComponentTrigger({ className }: TriggerProps) {
 }
 ```
 
-### 6. Break Down All Components
+### 7. Break Down All Components
 Complex components like menus, dropdowns, date pickers, and forms should be broken down into composition patterns. Each logical unit becomes a separate component.
 
 **Summary of Composition Pattern Rules:**
 1. **Minimal container props** - State/logic in container, styling in sub-components
-2. **Display values as children** - Pass to dedicated components
-3. **Context for shared state** - Memoized context when 2+ children need same data
-4. **Named exports with prefix** - All exports at end of file
-5. **Responsive composition** - Root component chooses wrapper, sub-components adapt
-6. **Break down all components** - Complex components always use composition
-7. **Direct props for single consumers** - No context needed for single data consumers
+2. **Full composition over props** - Break into sub-components, each part accepts children
+3. **Display values as children** - Pass to dedicated components
+4. **Context for shared state** - Memoized context when 2+ children need same data
+5. **Named exports with prefix** - All exports at end of file
+6. **Responsive composition** - Root component chooses wrapper, sub-components adapt
+7. **Break down all components** - Complex components always use composition
+8. **Direct props for single consumers** - No context needed for single data consumers
 
 ## Configuration Object Formatting (tsup, bunfig, etc.)
 

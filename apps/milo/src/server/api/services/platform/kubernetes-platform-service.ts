@@ -1,11 +1,9 @@
 import {
 	BatchV1Api,
 	CoreV1Api,
-	type CoreV1Event,
 	KubeConfig,
 	type V1EnvVar,
 	type V1Job,
-	type V1Pod,
 } from "@kubernetes/client-node";
 
 import { env } from "@/env";
@@ -59,12 +57,29 @@ export interface KubernetesBotEnvConfig {
 }
 
 /**
- * Extended Job information including pods and events
+ * Extended Job information including pods and events.
+ * Uses plain objects instead of K8s class instances for proper JSON serialization.
  */
 export interface KubernetesJob {
-	job: V1Job;
-	pods: V1Pod[];
-	events: CoreV1Event[];
+	job: Record<string, unknown>;
+	pods: Record<string, unknown>[];
+	events: Record<string, unknown>[];
+}
+
+/**
+ * Converts K8s client class instances to plain JSON objects.
+ * Required because @kubernetes/client-node returns class instances
+ * that don't serialize correctly through tRPC.
+ */
+function toPlainObject(obj: unknown): Record<string, unknown> {
+	return JSON.parse(JSON.stringify(obj)) as Record<string, unknown>;
+}
+
+/**
+ * Converts an array of K8s client class instances to plain JSON objects.
+ */
+function toPlainObjectArray(obj: unknown[]): Record<string, unknown>[] {
+	return JSON.parse(JSON.stringify(obj)) as Record<string, unknown>[];
 }
 
 /**
@@ -231,9 +246,9 @@ export class KubernetesPlatformService implements PlatformService {
 			});
 
 			return {
-				job,
-				pods: podList.items,
-				events: eventList.items,
+				job: toPlainObject(job),
+				pods: toPlainObjectArray(podList.items),
+				events: toPlainObjectArray(eventList.items),
 			};
 		} catch (error) {
 			if (this.isNotFoundError(error)) {
@@ -281,14 +296,14 @@ export class KubernetesPlatformService implements PlatformService {
 	/**
 	 * Gets events for a Job (useful for debugging scheduling issues)
 	 */
-	async getJobEvents(jobName: string): Promise<CoreV1Event[]> {
+	async getJobEvents(jobName: string): Promise<Record<string, unknown>[]> {
 		try {
 			const eventList = await this.coreApi.listNamespacedEvent({
 				namespace: this.config.namespace,
 				fieldSelector: `involvedObject.name=${jobName}`,
 			});
 
-			return eventList.items;
+			return toPlainObjectArray(eventList.items);
 		} catch {
 			return [];
 		}

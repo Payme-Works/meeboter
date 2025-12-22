@@ -329,11 +329,7 @@ const k8sSubRouter = createTRPCRouter({
 				return null;
 			}
 
-			return {
-				job: result.job as unknown as Record<string, unknown>,
-				pods: result.pods as unknown as Record<string, unknown>[],
-				events: result.events as unknown as Record<string, unknown>[],
-			};
+			return result;
 		}),
 
 	/**
@@ -384,9 +380,7 @@ const k8sSubRouter = createTRPCRouter({
 				});
 			}
 
-			const events = await services.k8s.getJobEvents(input.jobName);
-
-			return events as unknown as Record<string, unknown>[];
+			return services.k8s.getJobEvents(input.jobName);
 		}),
 
 	/**

@@ -6,14 +6,15 @@ import {
 	Box,
 	CheckCircle,
 	Clock,
+	Cloud,
 	Container,
 	HardDrive,
+	Hexagon,
 	Loader2,
 	RefreshCw,
 	Server,
 	XCircle,
 } from "lucide-react";
-import Image from "next/image";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -91,49 +92,54 @@ export function PlatformTab({
 	}
 }
 
-interface PlatformHeaderProps {
-	platform: string;
-	icon?: string;
-	isActive: boolean;
-}
+// ─── Platform Header Composition ────────────────────────────────────────────
 
-function PlatformHeader({ platform, icon, isActive }: PlatformHeaderProps) {
+function PlatformHeader({ children }: { children: React.ReactNode }) {
 	return (
 		<div className="flex items-center justify-between mb-6">
-			<div className="flex items-center gap-3">
-				{icon ? (
-					<div className="h-10 w-10 bg-muted rounded-lg flex items-center justify-center">
-						<Image src={icon} alt={platform} width={24} height={24} />
-					</div>
-				) : (
-					<div className="h-10 w-10 bg-muted rounded-lg flex items-center justify-center">
-						<Server className="h-5 w-5 text-muted-foreground" />
-					</div>
-				)}
-				<div>
-					<h3 className="font-semibold">{platform}</h3>
-					<p className="text-xs text-muted-foreground">Deployment Platform</p>
-				</div>
-			</div>
-			<Badge
-				variant="outline"
-				className={cn(
-					"text-xs",
-					isActive
-						? "bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-400 dark:border-green-800"
-						: "bg-muted text-muted-foreground",
-				)}
-			>
-				{isActive ? (
-					<>
-						<span className="h-1.5 w-1.5 rounded-full bg-green-500 mr-1.5 animate-pulse" />
-						Active
-					</>
-				) : (
-					"Inactive"
-				)}
-			</Badge>
+			<div className="flex items-center gap-3">{children}</div>
 		</div>
+	);
+}
+
+function PlatformHeaderIcon({ children }: { children: React.ReactNode }) {
+	return (
+		<div className="h-10 w-10 bg-muted rounded-lg flex items-center justify-center">
+			{children}
+		</div>
+	);
+}
+
+function PlatformHeaderTitle({ children }: { children: React.ReactNode }) {
+	return (
+		<div>
+			<h3 className="font-semibold">{children}</h3>
+
+			<p className="text-xs text-muted-foreground">Deployment Platform</p>
+		</div>
+	);
+}
+
+function PlatformHeaderStatus({ isActive }: { isActive: boolean }) {
+	return (
+		<Badge
+			variant="outline"
+			className={cn(
+				"text-xs ml-auto",
+				isActive
+					? "bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-400 dark:border-green-800"
+					: "bg-muted text-muted-foreground",
+			)}
+		>
+			{isActive ? (
+				<>
+					<span className="h-1.5 w-1.5 rounded-full bg-green-500 mr-1.5 animate-pulse" />
+					Active
+				</>
+			) : (
+				"Inactive"
+			)}
+		</Badge>
 	);
 }
 
@@ -162,11 +168,15 @@ function K8sPlatformView({
 	if (!platformIdentifier) {
 		return (
 			<div className="p-6">
-				<PlatformHeader
-					platform="Kubernetes"
-					icon="/platform-logos/kubernetes.svg"
-					isActive={isActive}
-				/>
+				<PlatformHeader>
+					<PlatformHeaderIcon>
+						<Container className="h-5 w-5 text-muted-foreground" />
+					</PlatformHeaderIcon>
+
+					<PlatformHeaderTitle>Kubernetes</PlatformHeaderTitle>
+
+					<PlatformHeaderStatus isActive={isActive} />
+				</PlatformHeader>
 				<div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
 					<AlertCircle className="h-8 w-8 mb-2 opacity-50" />
 					<p className="text-sm">No job identifier available</p>
@@ -178,11 +188,15 @@ function K8sPlatformView({
 	if (isLoading) {
 		return (
 			<div className="p-6 space-y-4">
-				<PlatformHeader
-					platform="Kubernetes"
-					icon="/platform-logos/kubernetes.svg"
-					isActive={isActive}
-				/>
+				<PlatformHeader>
+					<PlatformHeaderIcon>
+						<Container className="h-5 w-5 text-muted-foreground" />
+					</PlatformHeaderIcon>
+
+					<PlatformHeaderTitle>Kubernetes</PlatformHeaderTitle>
+
+					<PlatformHeaderStatus isActive={isActive} />
+				</PlatformHeader>
 				<Skeleton className="h-32 w-full" />
 				<Skeleton className="h-32 w-full" />
 			</div>
@@ -192,11 +206,15 @@ function K8sPlatformView({
 	if (!jobData) {
 		return (
 			<div className="p-6">
-				<PlatformHeader
-					platform="Kubernetes"
-					icon="/platform-logos/kubernetes.svg"
-					isActive={isActive}
-				/>
+				<PlatformHeader>
+					<PlatformHeaderIcon>
+						<Container className="h-5 w-5 text-muted-foreground" />
+					</PlatformHeaderIcon>
+
+					<PlatformHeaderTitle>Kubernetes</PlatformHeaderTitle>
+
+					<PlatformHeaderStatus isActive={isActive} />
+				</PlatformHeader>
 				<div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
 					<XCircle className="h-8 w-8 mb-2 opacity-50" />
 					<p className="text-sm">Job not found: {platformIdentifier}</p>
@@ -263,11 +281,15 @@ function K8sPlatformView({
 	return (
 		<div className="p-6 space-y-4">
 			<div className="flex items-center justify-between">
-				<PlatformHeader
-					platform="Kubernetes"
-					icon="/platform-logos/kubernetes.svg"
-					isActive={isActive}
-				/>
+				<PlatformHeader>
+					<PlatformHeaderIcon>
+						<Container className="h-5 w-5 text-muted-foreground" />
+					</PlatformHeaderIcon>
+
+					<PlatformHeaderTitle>Kubernetes</PlatformHeaderTitle>
+
+					<PlatformHeaderStatus isActive={isActive} />
+				</PlatformHeader>
 				<Button
 					variant="ghost"
 					size="sm"
@@ -481,11 +503,15 @@ function CoolifyPlatformView({
 }: CoolifyPlatformViewProps) {
 	return (
 		<div className="p-6 space-y-4">
-			<PlatformHeader
-				platform="Coolify"
-				icon="/platform-logos/coolify.svg"
-				isActive={isActive}
-			/>
+			<PlatformHeader>
+				<PlatformHeaderIcon>
+					<Hexagon className="h-5 w-5 text-muted-foreground" />
+				</PlatformHeaderIcon>
+
+				<PlatformHeaderTitle>Coolify</PlatformHeaderTitle>
+
+				<PlatformHeaderStatus isActive={isActive} />
+			</PlatformHeader>
 
 			<Card>
 				<CardHeader className="pb-2">
@@ -545,11 +571,15 @@ function AwsPlatformView({
 
 	return (
 		<div className="p-6 space-y-4">
-			<PlatformHeader
-				platform="AWS ECS"
-				icon="/platform-logos/aws.svg"
-				isActive={isActive}
-			/>
+			<PlatformHeader>
+				<PlatformHeaderIcon>
+					<Cloud className="h-5 w-5 text-muted-foreground" />
+				</PlatformHeaderIcon>
+
+				<PlatformHeaderTitle>AWS ECS</PlatformHeaderTitle>
+
+				<PlatformHeaderStatus isActive={isActive} />
+			</PlatformHeader>
 
 			<Card>
 				<CardHeader className="pb-2">
@@ -601,7 +631,15 @@ function AwsPlatformView({
 function LocalPlatformView() {
 	return (
 		<div className="p-6 space-y-4">
-			<PlatformHeader platform="Local Development" isActive={false} />
+			<PlatformHeader>
+				<PlatformHeaderIcon>
+					<HardDrive className="h-5 w-5 text-muted-foreground" />
+				</PlatformHeaderIcon>
+
+				<PlatformHeaderTitle>Local Development</PlatformHeaderTitle>
+
+				<PlatformHeaderStatus isActive={false} />
+			</PlatformHeader>
 
 			<Card>
 				<CardHeader className="pb-2">
