@@ -1,15 +1,16 @@
 # Deployment Guide
 
-This guide covers deploying Meeboter bots using either Coolify (pool-based) or AWS ECS (task-based) deployment strategies.
+This guide covers deploying Meeboter bots using Coolify (pool-based), AWS ECS (task-based), or Kubernetes (pod-based) deployment strategies.
 
 ## Platform Selection
 
-Meeboter supports two deployment platforms:
+Meeboter supports three deployment platforms:
 
 | Platform | Model | Best For |
 |----------|-------|----------|
 | **Coolify** | Pool-based | Self-hosted, bare-metal, cost-efficient at scale |
 | **AWS ECS** | Task-based | Cloud-native, auto-scaling, pay-per-use |
+| **Kubernetes** | Pod-based | Enterprise, multi-cloud, existing K8s infrastructure |
 
 ### Auto-Detection
 
@@ -17,16 +18,18 @@ By default (`DEPLOYMENT_PLATFORM=auto`), Meeboter detects the platform based on 
 
 1. If `COOLIFY_API_URL` and `COOLIFY_API_TOKEN` are set → Uses Coolify
 2. If `AWS_REGION` and `ECS_CLUSTER` are set → Uses AWS ECS
-3. If both are configured → Coolify takes precedence (explicit selection recommended)
+3. If `KUBE_NAMESPACE` is set → Uses Kubernetes
+4. If multiple are configured → Explicit selection recommended
 
 ### Explicit Selection
 
 Set `DEPLOYMENT_PLATFORM` to explicitly choose:
 
 ```bash
-DEPLOYMENT_PLATFORM="coolify"  # Force Coolify platform
-DEPLOYMENT_PLATFORM="aws"      # Force AWS ECS platform
-DEPLOYMENT_PLATFORM="auto"     # Auto-detect (default)
+DEPLOYMENT_PLATFORM="coolify"    # Force Coolify platform
+DEPLOYMENT_PLATFORM="aws"        # Force AWS ECS platform
+DEPLOYMENT_PLATFORM="kubernetes" # Force Kubernetes platform
+DEPLOYMENT_PLATFORM="auto"       # Auto-detect (default)
 ```
 
 ---
@@ -233,9 +236,102 @@ The Meeboter API needs permissions to manage ECS tasks:
 
 ---
 
+## Kubernetes Deployment (Pod-Based)
+
+Kubernetes deployment uses Kubernetes Jobs to create ephemeral pods for each meeting, similar to AWS ECS. Pods are created on-demand and automatically cleaned up after the meeting ends.
+
+> **Design Document:** [`docs/plans/2025-12-22-kubernetes-bot-deployment-design.md`](docs/plans/2025-12-22-kubernetes-bot-deployment-design.md)
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Kubernetes Cluster                        │
+│                                                              │
+│   Meeting 1 → [Job/Pod A] ────────────────────→ Completed   │
+│   Meeting 2 → [Job/Pod B] ──────────────→ Completed         │
+│   Meeting 3 → [Job/Pod C] ──→ Running...                    │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Prerequisites
+
+1. **Kubernetes Cluster**: K3s, K8s, or managed Kubernetes (EKS, GKE, AKS)
+2. **kubectl access**: Valid kubeconfig for the cluster
+3. **Namespace**: Dedicated namespace for Meeboter bots
+4. **Container Registry Access**: Ability to pull from GHCR
+
+### Environment Variables
+
+```bash
+# Platform Selection
+DEPLOYMENT_PLATFORM="kubernetes"
+
+# Kubernetes Configuration
+KUBE_NAMESPACE="meeboter"
+KUBE_CONFIG_PATH="/path/to/kubeconfig"  # Optional, uses default if not set
+
+# Bot Resources (per bot)
+KUBE_CPU_REQUEST="250m"
+KUBE_CPU_LIMIT="500m"
+KUBE_MEMORY_REQUEST="768Mi"
+KUBE_MEMORY_LIMIT="1Gi"
+
+# Bot Configuration
+MILO_AUTH_TOKEN="your-milo-auth-token"
+MILO_URL="https://meeboter.yourdomain.com"
+```
+
+### Cluster Setup
+
+1. **Create namespace**:
+```bash
+kubectl create namespace meeboter
+```
+
+2. **Create image pull secret** (for private registries):
+```bash
+kubectl create secret docker-registry ghcr-secret \
+  --docker-server=ghcr.io \
+  --docker-username=YOUR_GITHUB_USERNAME \
+  --docker-password=YOUR_GITHUB_PAT \
+  --namespace=meeboter
+```
+
+3. **Apply ResourceQuota** (optional, for capacity limits):
+```yaml
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: meeboter-quota
+  namespace: meeboter
+spec:
+  hard:
+    pods: "100"
+    requests.cpu: "25"
+    requests.memory: "75Gi"
+```
+
+### Capacity Planning
+
+| Cluster Size | Total CPU | Total RAM | Max Bots |
+|--------------|-----------|-----------|----------|
+| 1 node (20 cores, 56GB) | 20 cores | 56 GB | 40-80 |
+| 3 nodes (60 cores, 168GB) | 60 cores | 168 GB | 120-240 |
+
+### Kubernetes-Specific Features
+
+- **Job completion tracking**: Automatically detects when bots finish
+- **Pod logs**: Full log access via kubectl
+- **Resource limits**: Prevents runaway containers
+- **Node scheduling**: Distributes bots across available nodes
+
+---
+
 ## Bot Image Configuration
 
-Both platforms require bot container images. Meeboter supports:
+All platforms require bot container images. Meeboter supports:
 
 - **Zoom Bot**: `ghcr.io/{org}/meeboter-zoom-bot:{tag}`
 - **Microsoft Teams Bot**: `ghcr.io/{org}/meeboter-microsoft-teams-bot:{tag}`

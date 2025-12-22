@@ -39,14 +39,6 @@ This applies to ALL tasks including: new features, bug fixes, refactoring, confi
 
 ### Task-Based Rule Lookup
 
-#### When Working on USE CASES or DOMAIN LOGIC
-**Triggers**: Creating/modifying use cases, domain entities, repositories, mappers, business logic
-**MUST READ**:
-- [rules/DOMAIN_ENTITIES.md](rules/DOMAIN_ENTITIES.md) - Validation patterns, entity sync, repository design
-- [rules/apps/mesh/LOGGING.md](rules/apps/mesh/LOGGING.md) - Audit logging in use cases (LogOptions, LogType, LogCategory)
-
-**Search for**: `Grep pattern="use.case|entity|repository|mapper" path="rules/"`
-
 #### When Working on AUTHENTICATION or API KEYS
 **Triggers**: Auth flows, sessions, API keys, Better-Auth, OAuth, sign-in/sign-up
 **MUST READ**:
@@ -59,7 +51,6 @@ This applies to ALL tasks including: new features, bug fixes, refactoring, confi
 **MUST READ**:
 - [rules/COMPONENT_PATTERNS.md](rules/COMPONENT_PATTERNS.md) - Component organization, Sheet vs Dialog, z-index, tables
 - [rules/CODE_STYLE.md](rules/CODE_STYLE.md) - JSX conventions, composition patterns, React keys
-- [rules/apps/tera/COMPONENTS.md](rules/apps/tera/COMPONENTS.md) - Tera-specific patterns, table columns, TimestampHoverCard
 - [rules/libraries/NEXTJS.md](rules/libraries/NEXTJS.md) - "use client"/"use server" directives, component boundaries
 
 **Search for**: `Grep pattern="component|dialog|sheet|table|jsx" path="rules/"`
@@ -74,7 +65,7 @@ This applies to ALL tasks including: new features, bug fixes, refactoring, confi
 #### When Working on NAMING (Interfaces, Variables, Files)
 **Triggers**: Naming interfaces, types, booleans, enums, files, components
 **MUST READ**:
-- [rules/NAMING_CONVENTIONS.md](rules/NAMING_CONVENTIONS.md) - Request/Response vs Input/Output, boolean prefixes, dialog naming, **no Details/Info/Data suffixes**
+- [rules/NAMING_CONVENTIONS.md](rules/NAMING_CONVENTIONS.md) - Interface naming, boolean prefixes, dialog naming, **no Details/Info/Data suffixes**
 
 **Search for**: `Grep pattern="naming|interface|boolean|enum" path="rules/"`
 
@@ -88,41 +79,19 @@ This applies to ALL tasks including: new features, bug fixes, refactoring, confi
 #### When Working on ZOD SCHEMAS
 **Triggers**: Creating Zod schemas, validation, tRPC input/output, z.enum, z.object, z.void
 **MUST READ**:
-- [rules/libraries/ZOD.md](rules/libraries/ZOD.md) - Zod best practices, enum validation, empty inputs, v4 migration
+- [rules/libraries/ZOD.md](rules/libraries/ZOD.md) - Zod best practices, enum validation, empty inputs
 
 **Search for**: `Grep pattern="z\.|zod|schema" path="rules/"`
 
-#### When Working on DATABASE (Prisma/MongoDB)
-**Triggers**: Migrations, queries, schema changes, MongoDB operations, raw SQL queries
+#### When Working on DATABASE (Drizzle ORM)
+**Triggers**: Migrations, queries, schema changes, PostgreSQL operations
 **MUST READ**:
-- [rules/packages/database/PRISMA.md](rules/packages/database/PRISMA.md) - PostgreSQL/Prisma patterns, raw SQL queries, schema reference
-- [rules/packages/database/MONGODB.md](rules/packages/database/MONGODB.md) - MongoDB patterns, migration system
+- [apps/milo/src/server/database/](apps/milo/src/server/database/) - Schema definitions
+- [apps/milo/drizzle/](apps/milo/drizzle/) - Migration files
 
-**CRITICAL**: Before writing ANY raw PostgreSQL/psql queries, read the Prisma schema at `packages/database/prisma/schema.prisma` to understand table names, column names (camelCase), and relationships.
+**CRITICAL**: Before writing ANY database operations, check the schema at `apps/milo/src/server/database/schema/` to understand table structures.
 
-**Search for**: `Grep pattern="prisma|mongodb|migration|database" path="rules/"`
-
-#### When Working on TENANT/ORGANIZATION Context
-**Triggers**: Multi-tenancy, organization data, tenant resolution
-**MUST READ**:
-- [rules/apps/mesh/TENANT_CONTEXT.md](rules/apps/mesh/TENANT_CONTEXT.md) - Backend tenant resolution (**NEVER accept tenantId from frontend**)
-- [rules/apps/tera/TENANT_CONTEXT.md](rules/apps/tera/TENANT_CONTEXT.md) - Frontend tenant context
-
-**Search for**: `Grep pattern="tenant|organization|context" path="rules/"`
-
-#### When Working on tRPC ROUTERS or PROCEDURES
-**Triggers**: tRPC routers, procedures, prefetching, React Query
-**MUST READ**:
-- [rules/apps/tera/TRPC.md](rules/apps/tera/TRPC.md) - Server-side prefetching, infinite queries, Next.js integration
-
-**Search for**: `Grep pattern="trpc|procedure|prefetch|query" path="rules/"`
-
-#### When Working on ERROR HANDLING or TOAST MESSAGES
-**Triggers**: Error toasts, mutation errors, backend error translation, UseCaseError
-**MUST READ**:
-- [rules/packages/transactional/ERROR_MESSAGES.md](rules/packages/transactional/ERROR_MESSAGES.md) - Error message i18n, useErrorMessagesTranslations hook
-
-**Search for**: `Grep pattern="error|toast|UseCaseError|transactional" path="rules/"`
+**Search for**: `Grep pattern="drizzle|schema|migration|database" path="apps/milo/"`
 
 #### When DEBUGGING or INVESTIGATING ERRORS
 **Triggers**: tRPC errors, console errors, unexpected behavior, tracing issues, bug investigation
@@ -142,17 +111,13 @@ This applies to ALL tasks including: new features, bug fixes, refactoring, confi
 | `rules/DOMAIN_ENTITIES.md` | Entities, validation, mappers, repositories |
 | `rules/AUTHENTICATION.md` | Better-Auth, API keys, OAuth, sessions |
 | `rules/DEBUGGING.md` | Error investigation, tracing, debugging protocol |
-| `rules/libraries/ZOD.md` | Zod best practices, enum validation, empty inputs, v4 migration |
-| `rules/libraries/REACT_TABLE.md` | TanStack React Table, table meta types, column definitions, row selection |
-| `rules/packages/database/PRISMA.md` | PostgreSQL/Prisma patterns, raw SQL, schema reference |
-| `rules/packages/database/MONGODB.md` | MongoDB, migrations, database operations |
-| `rules/apps/mesh/TENANT_CONTEXT.md` | Backend tenant resolution |
-| `rules/apps/tera/TENANT_CONTEXT.md` | Frontend tenant context |
-| `rules/apps/tera/TRPC.md` | tRPC prefetching, Next.js integration |
-| `rules/apps/tera/COMPONENTS.md` | Table columns, TimestampHoverCard, shared components |
+| `rules/PACKAGE_EXPORTS.md` | Module exports and package organization |
+| `rules/libraries/ZOD.md` | Zod best practices, enum validation, empty inputs |
+| `rules/libraries/REACT_TABLE.md` | TanStack React Table, table meta types, column definitions |
 | `rules/libraries/NEXTJS.md` | "use client"/"use server" directives, component boundaries |
-| `rules/apps/mesh/LOGGING.md` | Use case audit logging |
-| `rules/packages/transactional/ERROR_MESSAGES.md` | Error message i18n, backend error translation |
+| `rules/libraries/BUN.md` | Bun runtime standards and patterns |
+| `rules/libraries/TAILWINDCSS.md` | Tailwind CSS patterns and utilities |
+| `rules/libraries/MOTION.md` | Animation and motion patterns |
 
 ### Rule Search Commands
 
@@ -179,14 +144,6 @@ When adding, modifying, or deleting ANY rule:
 4. **Update cross-references** - If renaming or moving rules, update all references in other files
 5. **Verify completeness** - After changes, run `Grep` again to confirm all instances were updated
 
-```bash
-# Before making rule changes, always search first
-Grep pattern="your-rule-topic" path="rules/" output_mode="content"
-
-# After changes, verify all files were updated
-Grep pattern="old-pattern" path="rules/"  # Should return no matches
-```
-
 **Key principle**: Rules may be split across multiple files. ANY rule change requires searching and updating ALL relevant files to maintain consistency.
 
 ## Critical Instructions
@@ -203,7 +160,7 @@ Grep pattern="old-pattern" path="rules/"  # Should return no matches
 - **ALWAYS run unit tests after EVERY code change** - `bun run test`
 - **ZERO warnings and errors policy** - Fix ALL warnings and errors before considering a task complete
 - **Run build verification** - Always run `bun run build` to ensure successful compilation
-- **ALWAYS test UI changes with Playwright MCP** - After ANY UI change, use Playwright MCP tools to verify the changes work correctly (see [rules/TESTING.md](rules/TESTING.md#playwright-browser-testing-mcp-mandatory))
+- **ALWAYS test UI changes with Playwright** - After ANY UI change, verify the changes work correctly
 
 ### Development Server Management
 - **NEVER start development servers automatically** - Only start servers when explicitly requested by the user
@@ -215,44 +172,16 @@ Grep pattern="old-pattern" path="rules/"  # Should return no matches
 ### Docker Operations
 - **Docker system cleanup** - Always run `docker system prune -f` before testing with Docker
 
-### MongoDB Access (MANDATORY)
-- **Always use mongosh CLI** - For MongoDB operations, use the `mongosh` command-line tool with proper authSource
-```bash
-mongosh "mongodb://mongodb:mongodb@localhost:27017/payme_works_gate?authSource=admin" --eval "db.tenants.find({}).pretty()"
-```
-
-### Prisma Database Migrations (MANDATORY)
-- **NEVER manually create migration files** - Always use `bun turbo migrate:dev --filter=@gate/database -- --name <migration_name>`
-- **Use --create-only** - In Claude Code or CI/CD, use `--create-only` to create migration without applying
-- **Database drift requires user consent** - Get explicit user consent before running `migrate:reset`
+### Drizzle Database Migrations (MANDATORY)
+- **Use Drizzle Kit for migrations** - Use `bun turbo db:generate --filter=@meeboter/milo -- --name <migration_name>` to generate
+- **Apply migrations** - Use `bun turbo db:migrate --filter=@meeboter/milo` to apply
+- **Database drift requires user consent** - Get explicit user consent before running destructive operations
 - **Development vs production** - Database reset ONLY on local development databases
 
 ### Database Query Optimization (MANDATORY)
-- **ALWAYS use `select` statements in Prisma queries** - Select only the fields you need for maximum performance
-- **Avoid `include` when possible** - Use nested `select` instead of `include` to fetch only required relation fields
-- **Example - Prefer this:**
-  ```typescript
-  const user = await prisma.user.findUnique({
-    where: { id },
-    select: {
-      id: true,
-      email: true,
-      organization: {
-        select: { tenantId: true },
-      },
-    },
-  });
-  ```
-- **Instead of:**
-  ```typescript
-  const user = await prisma.user.findUnique({
-    where: { id },
-    include: { organization: true }, // Fetches ALL organization fields
-  });
-  ```
-
-### Module Updates
-- **CRITICAL: Update NestJS modules when adding new use cases** - Add new providers to the appropriate module's providers array
+- **ALWAYS select only needed fields** - Use Drizzle's select to fetch only required columns
+- **Avoid fetching entire rows** - Select specific columns for better performance
+- **Use proper indexes** - Check schema for available indexes before writing queries
 
 ## Agent Behavior
 
@@ -261,8 +190,7 @@ mongosh "mongodb://mongodb:mongodb@localhost:27017/payme_works_gate?authSource=a
 - **Read README.md files** first for product requirements
 - **Research latest documentation** when working with third-party libraries
 - **Proactively search the web** for solutions using WebSearch tool
-- **ALWAYS prioritize WebSearch over firecrawl** - Use Claude's built-in WebSearch tool FIRST
-- **NEVER use Bash for file editing or writing** - Always use Claude Code tools (Read, Edit, Write) instead of CLI commands like `sed`, `awk`, `echo >`, `cat <<EOF`, etc. for file operations
+- **NEVER use Bash for file editing or writing** - Always use Claude Code tools (Read, Edit, Write) instead of CLI commands
 
 ### Proactive Web Search During Investigation, Debugging, and Testing (MANDATORY)
 When investigating bugs, debugging errors, or testing features, ALWAYS search the web proactively:
@@ -270,50 +198,9 @@ When investigating bugs, debugging errors, or testing features, ALWAYS search th
 - **Search before getting stuck** - If stuck for more than a few minutes, search immediately
 - **Search for library-specific patterns** - Find correct usage and common pitfalls
 - **Search for version-specific issues** - Include version numbers when relevant
-- **Consult official library documentation** - ALWAYS check official docs, GitHub wiki, and GitHub issues/discussions for the library in question
-- **Key library resources** - Better Auth (better-auth.com, GitHub wiki), tRPC (trpc.io), Prisma (prisma.io), Next.js (nextjs.org), Zod (zod.dev)
-- **See detailed patterns** - [rules/DEBUGGING.md](rules/DEBUGGING.md#proactive-web-search-critical) and [rules/TESTING.md](rules/TESTING.md#proactive-web-search-during-testing-critical)
-
-### Proactive Code Quality Enforcement (MANDATORY)
-Actively scan for and fix violations of:
-- Coding style guidelines (naming conventions, formatting, structure)
-- Architecture patterns (repository pattern, DDD, clean architecture)
-- Technology-specific best practices (Zod v4, React patterns, TypeScript standards)
-- Security concerns (XSS, SQL injection, command injection)
-- Performance anti-patterns and accessibility issues
-
-### External Repository Research (MANDATORY)
-When instructed to check external repositories for implementation patterns:
-- **NEVER assume or guess implementations**
-- **Literally iterate through repository files** using web scraping tools
-- **Trace function origins** to find exact source files
-- **Clone implementations exactly**, adapting only import paths and types
+- **Consult official library documentation** - ALWAYS check official docs, GitHub wiki, and GitHub issues/discussions
 
 ## Cross-Cutting Patterns (CRITICAL)
-
-### Tenant Context Security (MANDATORY)
-**NEVER accept tenantId as input from frontend. Backend ALWAYS resolves tenant from session.**
-
-```typescript
-// Backend Router - CORRECT
-.mutation(async ({ input, ctx }) => {
-    const result = await this.useCase.execute({
-        ...input,
-        tenantId: ctx.tenant.id,  // From context, NOT input
-    });
-});
-
-// Input Schema - NO tenantId
-export const inputSchema = z.object({
-    name: z.string(),
-    // NEVER: tenantId: z.string()
-});
-
-// Frontend - NO tenantId in mutations
-createMutation.mutate({ name: data.name });  // No tenantId
-```
-
-**Security**: Prevents tenant ID spoofing attacks.
 
 ### tRPC Server-Side Prefetching (MANDATORY)
 Always prefetch tRPC queries in async Next.js server pages:
@@ -324,8 +211,8 @@ import { prefetch, trpc } from "@/lib/trpc/server";
 export default async function Page({ searchParams }) {
     const search = searchParamsCache.parse(await searchParams);
 
-    prefetch(trpc.logs.list.queryOptions({
-        level: search.level || [],
+    prefetch(trpc.bots.list.queryOptions({
+        status: search.status || [],
         take: search.size,
     }));
 
@@ -335,20 +222,16 @@ export default async function Page({ searchParams }) {
 
 **Benefits**: Eliminates request waterfalls, data available immediately.
 
-### Zod v4 Essential Patterns (MANDATORY)
+### Zod Essential Patterns (MANDATORY)
 ```typescript
 // Empty inputs - use z.void()
 export const myInputSchema = z.void();  // NOT z.object({})
 
 // Enums - use z.enum()
-const schema = z.enum(MyEnum);  // NOT z.nativeEnum()
+const schema = z.enum(["value1", "value2"]);
 
 // Records - specify both key and value
 z.record(z.string(), z.string())  // NOT z.record(z.string())
-
-// Email/URL - top-level functions
-z.email()  // NOT z.string().email()
-z.url()    // NOT z.string().url()
 ```
 
 ### Next.js "use client" Directive (MANDATORY)
@@ -364,110 +247,46 @@ z.url()    // NOT z.string().url()
 - Avoid inline CSS
 - Don't push changes until tests pass
 - Always write code in English
-- **NEVER write obvious comments**, don't add comments that describe what the next line does when the code is self-explanatory (e.g., `// Clear token` before `clearToken()`). Comments should explain "why", not "what"
-- **CRITICAL: NEVER use hyphens as separators in logs/comments** - Use commas or parentheses instead of em dashes or hyphens
-  - ✅ Prefer: `Screenshot saved (no admit button found)`
-  - ✅ Prefer: `Meet ready, it will be reused for all tests`
-  - ❌ Avoid: `Screenshot saved - no admit button found`
-  - ❌ Avoid: `Meet ready - it will be reused for all tests`
-- **CRITICAL: Use box-drawing lines for section headings** - Use `// ─── Section Name ────────────────────` format with blank lines above AND below, NEVER equals signs (`=`) or other characters. See [rules/CODE_STYLE.md](rules/CODE_STYLE.md#section-comment-headings-mandatory)
-- **ALWAYS use i18n for user-facing text** - Use `useTranslations()` hook and proper translation keys
-- **Use sentence case for translations** - Only capitalize first word and proper nouns
-- **Use contextual error toast titles** - NEVER use generic "Error" as toast titles
-- **Clean up unused i18n messages** - Remove unused keys from ALL locale files
-- **ALWAYS add translations to ALL locale files** - en.json, pt-BR.json, es.json
+- **NEVER write obvious comments** - Comments should explain "why", not "what"
+- **CRITICAL: Use box-drawing lines for section headings** - Use `// ─── Section Name ────────────────────` format
 - **Use react-hook-form + zod + shadcn** for all forms
-- **SUPER IMPORTANT: NEVER use `any` type** - Use `Record<string, unknown>`, `unknown`, or specific interfaces
+- **NEVER use `any` type** - Use `Record<string, unknown>`, `unknown`, or specific interfaces
 - **NEVER use linter suppression comments** - Fix the underlying issue instead
 - **NEVER use nested ternary expressions** - Use if-else or helper functions
-- **Use Prisma-generated types** instead of custom types for database operations
-- **Create only necessary functions** - Avoid over-engineering
 - **ALWAYS implement type-safe code** - Prioritize type safety in all implementations
-- **Use ternary for conditional JSX rendering** - Use `{condition ? (<Component />) : null}` instead of `{condition && <Component />)}`. See [rules/CODE_STYLE.md](rules/CODE_STYLE.md#conditional-rendering-in-jsx)
-- **CRITICAL: Blank lines before JSDoc blocks in interfaces** - Always add a blank line before multi-line JSDoc comments in interface/type definitions. See [rules/CODE_STYLE.md](rules/CODE_STYLE.md#jsdoc-comment-spacing-in-interfaces-critical)
-- **CRITICAL: NEVER use "Details", "Info", or "Data" suffixes** in variable names, types, props, or function names. Use simple descriptive names instead (e.g., `platform` not `platformDetails`, `PlatformSection` not `PlatformDetailsSection`). See [rules/NAMING_CONVENTIONS.md](rules/NAMING_CONVENTIONS.md#avoid-details-info-and-data-suffixes)
+- **Use ternary for conditional JSX rendering** - Use `{condition ? (<Component />) : null}` instead of `{condition && <Component />)}`
+- **CRITICAL: NEVER use "Details", "Info", or "Data" suffixes** in variable names, types, or function names
 
 ## File Structure & Organization
 
 - **NEVER create index.ts files for re-exports only** - Import directly from source files
 - **One component per file** - Each component should have its own dedicated file
 - **Documentation filenames MUST be uppercase** - All `.md` files use UPPERCASE names
-- **Colocate providers with their usage**, if a provider is only used in one place, place it in a `_providers` folder next to where it's used (e.g., `app/[locale]/(protected)/_providers/`) instead of a global `src/providers` folder
 
 ## Error Handling
 
 - **Functions should not be entirely wrapped in try-catch** - Let errors propagate to calling code
 - **Use try-catch at function usage points** - Wrap individual function calls where used
-- **NEVER use generic `new UseCaseError()`** - Use `TranslatableUseCaseError` for i18n
-- **Use OperationFailedError for try-catch blocks** - Import from `@/application/errors/common/operation-failed-error`
 
 ## Workspace & Monorepo Configuration
 
-### Application Ports
-- **Mesh app** - Port 3333 (`http://localhost:3333`)
-- **Tera app** - Port 3000 (`http://localhost:3000`)
+### Application Structure
+- **Milo app** - Port 3000 (`http://localhost:3000`) - Main API and dashboard
+- **Bots app** - Platform-specific meeting bots (Google Meet, Microsoft Teams, Zoom)
 
 ### Next.js Navigation
 - **NEVER use window.location** - Use Next.js `Link` component or `useRouter` hook
 - **Use Link for navigation links** - Use `router.push()` only for programmatic navigation
 
-### Next.js 16 Middleware (Tera App)
-- **Middleware file location** - `apps/tera/src/proxy.ts` (not `middleware.ts`)
-- **Public paths** - Add new public auth pages to `PUBLIC_PATHS` in `proxy.ts`
-
-## Logging Standards
-
-### Logger Service Integration
-- **Use injected LoggerService** - Inject through constructor instead of creating `new Logger()`
-
-### Custom Logger Requirements
-LogOptions required fields:
-- `action: string` - Describes the operation being logged
-- `type: LogType` - USER, ADMIN, or SYSTEM
-- `category: LogCategory` - FINANCIAL, USER_MANAGEMENT, SECURITY, SYSTEM_STATUS
-- `performedBy?: string` - User ID who performed the action
-- `affectedUserId?: string` - User ID affected (if different from performer)
-- `metadata?: JsonObject` - Optional additional context
-
-### Tenant Context Logging
-- **Use protected procedures** for endpoints that need audit logging
-- **Let context propagate automatically** via AsyncLocalStorage
-- **Don't pass tenant context as parameters** when context is available
-
-### Console.log Standards (Frontend/Client-Side)
-- **Use file path with function name prefixes** - Format: `[file/path/to/file.ts > functionName]` (e.g., `[lib/auth/client.ts > getSession]`, `[infra/auth/better-auth/better-auth.config.ts > resolveTenant]`)
-- **Use relative paths** - Paths relative to app root (apps/tera/ or apps/mesh/)
-- **Always include function/method name** - After `>` separator in the prefix
-- **Use sentence case** - Capitalize first word only in log messages
-- **Write descriptive messages** - Describe what happened, not just function names
-- **Use multi-line formatting** - For messages longer than ~80 characters
-- **Use appropriate log levels** - `console.error()` for errors, `console.warn()` for warnings, `console.log()` for info
-- **Never log sensitive data** - Truncate tokens, never log passwords or full credit card numbers
-- **See detailed rules** - [rules/apps/mesh/LOGGING.md](rules/apps/mesh/LOGGING.md#consolelog-standards-frontendclient-side)
-
 ## Development Testing Instructions
 
 ### Manual Testing Workflow
 1. **Development Servers** - NEVER start automatically, only when explicitly requested
-   - Mesh app: `bun turbo dev --filter=@gate/mesh` (port 3333)
-   - Tera app: `bun turbo dev --filter=@gate/tera` (port 3000)
+   - Milo app: `bun turbo dev --filter=@meeboter/milo` (port 3000)
 
-2. **Authentication** - Use test credentials:
-   - **Email**: `test@test.com`
-   - **Password**: `Test@231`
-
-### Development URLs (PRIORITIZE localhost)
-- **Default (fastest)**: Use `localhost:3000` (Tera) and `localhost:3333` (Mesh)
-- **Access Tera**: `http://localhost:3000`
-- **Access Mesh**: `http://localhost:3333`
-
-### Cross-Domain OAuth Configuration (Only when testing OAuth)
-Only use custom domains when testing OAuth flows with different origins:
-- **Frontend URL**: `http://app.payme.local:3000` (must match `NEXT_PUBLIC_APP_URL`)
-- **Backend URL**: `http://api.payme.local:3333` (must match `BETTER_AUTH_URL`)
-- Requires `/etc/hosts` entries:
-  - `127.0.0.1 api.payme.local`
-  - `127.0.0.1 app.payme.local`
+### Development URLs
+- **Default**: Use `localhost:3000` for Milo
+- **API Docs**: `http://localhost:3000/docs`
 
 ## Common Commands Reference
 
@@ -486,9 +305,7 @@ docker system prune -f    # Clean up before testing
 ### Turborepo Workflow Commands
 ```bash
 # Package-specific operations
-bun turbo dev --filter=@gate/mesh              # Start Mesh dev server
-bun turbo dev --filter=@gate/tera              # Start Tera dev server
-bun turbo test:e2e --filter=@gate/mesh         # Run Mesh E2E tests
+bun turbo dev --filter=@meeboter/milo        # Start Milo dev server
 
 # Workspace-wide commands
 bun run lint
@@ -496,10 +313,16 @@ bun run typecheck
 bun run build
 ```
 
-### Port Checking
+### Database Commands
 ```bash
-lsof -ti:3333 || echo "Mesh server not running"
-lsof -ti:3000 || echo "Tera server not running"
+# Generate a new migration
+bun turbo db:generate --filter=@meeboter/milo -- --name <migration_name>
+
+# Apply migrations
+bun turbo db:migrate --filter=@meeboter/milo
+
+# Open Drizzle Studio (database UI)
+bun turbo db:studio --filter=@meeboter/milo
 ```
 
 ## Session Completion (MANDATORY)
@@ -508,29 +331,8 @@ lsof -ti:3000 || echo "Tera server not running"
 After completing all implementation tasks in a session, you MUST:
 
 1. **Create a comprehensive testing plan** - Document all changes made and how to manually verify them
-2. **Use Playwright MCP for testing** - Execute the testing plan using browser automation
-3. **Verify each feature works end-to-end** - Test the full user flow, not just individual components
-4. **Document test results** - Take screenshots of successful tests when relevant
-5. **Report any issues found** - If tests fail, document the issue and fix before considering the session complete
-
-### Testing Plan Format
-```markdown
-## Manual Testing Plan
-
-### Changes Made
-- [List all features implemented]
-- [List all bug fixes]
-
-### Test Cases
-1. **Feature/Fix Name**
-   - Steps to test
-   - Expected result
-   - Actual result: [PASS/FAIL]
-
-2. **Feature/Fix Name**
-   - Steps to test
-   - Expected result
-   - Actual result: [PASS/FAIL]
-```
+2. **Verify each feature works end-to-end** - Test the full user flow, not just individual components
+3. **Document test results** - Take screenshots of successful tests when relevant
+4. **Report any issues found** - If tests fail, document the issue and fix before considering the session complete
 
 **Key principle**: No session is complete until all changes have been manually tested and verified working.

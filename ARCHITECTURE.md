@@ -2,8 +2,8 @@
 
 > Comprehensive technical documentation for the Meeboter meeting bot platform
 
-**Last Updated:** December 2024 (Image Pull Lock added)
-**Status:** Production (Coolify-hosted)
+**Last Updated:** December 2024 (Kubernetes support added)
+**Status:** Production (Coolify, AWS ECS, Kubernetes-hosted)
 
 ---
 
@@ -76,10 +76,10 @@ Meeboter is a meeting bot platform that joins video conferences (Google Meet, Mi
 | Component | Technology | Purpose |
 |-----------|------------|---------|
 | Server | Next.js + tRPC | API endpoints, authentication, bot orchestration |
-| Database | PostgreSQL | Bot state, user data, subscriptions |
-| Storage | MinIO (S3-compatible) | Meeting recordings |
-| Bot Runtime | Docker containers | Puppeteer-based meeting bots |
-| Orchestration | Coolify | Container management, deployment |
+| Database | PostgreSQL + Drizzle ORM | Bot state, user data, subscriptions |
+| Storage | MinIO/S3 (S3-compatible) | Meeting recordings |
+| Bot Runtime | Docker containers | Playwright/Puppeteer-based meeting bots |
+| Orchestration | Coolify / AWS ECS / Kubernetes | Container management, deployment |
 | Bot Pool | Custom implementation | Reusable bot slots for fast deployment |
 | Image Pull Lock | In-memory coordination | Prevents redundant parallel image pulls |
 
@@ -136,9 +136,30 @@ The `@meeboter/bots` package implements platform-specific meeting bots using a *
 
 ## 3. Infrastructure Architecture
 
+Meeboter supports three deployment platforms through a unified platform abstraction layer:
+
+| Platform | Model | Best For |
+|----------|-------|----------|
+| **Coolify** | Pool-based | Self-hosted, bare-metal, cost-efficient at scale |
+| **AWS ECS** | Task-based | Cloud-native, auto-scaling, pay-per-use |
+| **Kubernetes** | Pod-based | Enterprise, multi-cloud, existing K8s infrastructure |
+
+### Platform Abstraction (`services/platform/`)
+
+All deployment platforms implement a common `PlatformService` interface:
+
+| File | Description |
+|------|-------------|
+| `platform-service.ts` | Abstract platform interface |
+| `platform-factory.ts` | Creates platform service based on config |
+| `coolify-platform-service.ts` | Coolify pool-based deployment |
+| `aws-platform-service.ts` | AWS ECS task-based deployment |
+| `kubernetes-platform-service.ts` | Kubernetes pod-based deployment |
+| `local-platform-service.ts` | Local development mode |
+
 ### Coolify-Based Deployment
 
-Meeboter runs entirely on Coolify, a self-hosted platform-as-a-service. This provides:
+Coolify is a self-hosted platform-as-a-service providing:
 
 - **Single management plane** - All services visible in one UI
 - **Automatic SSL** - Let's Encrypt certificates via Traefik
@@ -291,9 +312,7 @@ Bandwidth: 1x image size
 
 Slots in `error` state or stuck in `deploying` state are unusable, reducing pool capacity. The **Slot Recovery** background job attempts to recover these slots by stopping and resetting them.
 
-> **Design Documents:**
-> - [`docs/plans/2025-12-16-error-slot-recovery-design.md`](docs/plans/2025-12-16-error-slot-recovery-design.md)
-> - [`docs/plans/2025-12-17-deploying-slot-status-design.md`](docs/plans/2025-12-17-deploying-slot-status-design.md)
+> **Design Document:** [`docs/plans/2025-12-19-slot-recovery-heartbeat-aware-design.md`](docs/plans/2025-12-19-slot-recovery-heartbeat-aware-design.md)
 
 **Implementation Details:**
 | Component | Description |

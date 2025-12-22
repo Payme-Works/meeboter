@@ -1,624 +1,223 @@
-<a id="readme-top"></a>
-
-<br />
 <div align="center">
-  <a href="https://github.com/Payme-Works/meeboter">
-    <img src="https://raw.githubusercontent.com/Payme-Works/meeboter/refs/heads/bare-metal/apps/milo/public/logo.svg" alt="Meeboter Logo" width="80" height="80">
-  </a>
+  <img src="https://raw.githubusercontent.com/Payme-Works/meeboter/refs/heads/bare-metal/apps/milo/public/logo.svg" alt="Meeboter" width="64" height="64">
+  <h1>Meeboter</h1>
+  <p>Deploy bots to Google Meet, Teams, and Zoom. Your servers, your data.</p>
 
-  <h3 align="center">Meeboter</h3>
+  <br />
 
-  <p align="center">
-    <strong>Open-source Meeting Engagement API</strong>
-    <br />
-    Deploy bots to Google Meet, Microsoft Teams, and Zoom to interact with meetings in real-time while keeping your data private and costs low.
-    <br />
-    <br />
-    <a href="https://meeboter.tech">Website</a>
-    &middot;
-    <a href="https://github.com/Payme-Works/meeboter/issues/new?labels=bug&template=bug_report.md">Report Bug</a>
-    &middot;
-    <a href="https://github.com/Payme-Works/meeboter/issues/new?labels=enhancement&template=feature_request.md">Request Feature</a>
-  </p>
-
-  [![Contributors][contributors-shield]][contributors-url]
-  [![Forks][forks-shield]][forks-url]
-  [![Stargazers][stars-shield]][stars-url]
-  [![Issues][issues-shield]][issues-url]
-  [![MIT License][license-shield]][license-url]
+  [![MIT License](https://img.shields.io/github/license/Payme-Works/meeboter?style=flat-square)](LICENSE)
+  [![Contributors](https://img.shields.io/github/contributors/Payme-Works/meeboter?style=flat-square)](https://github.com/Payme-Works/meeboter/graphs/contributors)
+  [![Stars](https://img.shields.io/github/stars/Payme-Works/meeboter?style=flat-square)](https://github.com/Payme-Works/meeboter/stargazers)
 
 </div>
 
-## Why Meeboter?
+<br />
 
-| Need | Meeboter | Hosted APIs (e.g., Recall.ai) |
-|------|----------|------------------------------|
-| **Data Privacy** | Your servers, your data | Their servers process your meetings |
-| **Cost** | Infrastructure only (~$20-50/month) | ~$0.70/hr per meeting |
-| **Focus** | Meeting engagement and interaction | Recording and transcription |
-| **Control** | Full source code, customize anything | Limited to their API |
-| **Compliance** | You manage your own | Depend on their certifications |
+## What it does
 
-> Looking for a fully managed solution? Check out [Recall.ai](https://www.recall.ai/?utm_source=github&utm_medium=sponsorship&utm_campaign=meeboter), great for teams prioritizing speed over privacy and cost.
+Meeboter joins video meetings as a bot participant, enabling:
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
+- **Chat** — Send messages programmatically
+- **Recording** — Capture audio/video to S3
+- **Events** — Real-time participant tracking via webhooks
+- **Fast deployment** — Bot pool system: ~30s vs 7+ min cold start
 
-## Features
+**Two ways to use it:**
 
-### Privacy-First Architecture
+| | Dashboard | API |
+|--|-----------|-----|
+| **For** | Manual operations, testing, monitoring | Programmatic automation |
+| **Deploy bots** | Click-to-deploy UI | REST/tRPC endpoints |
+| **Monitor** | Real-time status, logs, events | Webhooks, polling |
+| **Best for** | Ops teams, debugging, demos | Product integrations |
 
-Deploy on your own infrastructure (AWS or Coolify). Meeting data never leaves your servers. Full control over data residency and compliance requirements.
+<br />
 
-### Real-Time Meeting Engagement
+## Platform Support
 
-- **Chat Integration** - Send messages to meetings programmatically
-- **Message Templates** - Create reusable templates with randomized variations
-- **Participant Tracking** - Real-time join/leave events with speaker detection
-- **Webhook Callbacks** - Get notified when events occur
+| Platform | Chat | Recording | Participants |
+|----------|:----:|:---------:|:------------:|
+| Google Meet | ✓ | ✓ | ✓ |
+| Microsoft Teams | ✓ | ✓ | ✓ |
+| Zoom | ✓ | ✓ | ✓ |
 
-### Lightning-Fast Bot Deployment
-
-Innovative **Bot Pool System** reduces deployment time from 7+ minutes to ~30 seconds through pre-provisioned, reusable container slots.
-
-### Multi-Platform Support
-
-| Platform | Status | Features |
-|----------|--------|----------|
-| Google Meet | Stable | Chat, Recording, Participants |
-| Microsoft Teams | Stable | Chat, Recording, Participants |
-| Zoom | Stable | Chat, Recording, Participants |
-
-### Developer Experience
-
-- **Type-Safe API** - End-to-end TypeScript with tRPC
-- **OpenAPI/Scalar** - Auto-generated REST documentation
-- **Event Batching** - High-performance event processing (50 events/100ms)
-- **Flexible Storage** - S3-compatible (AWS S3, MinIO, etc.)
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-## Architecture
-
-### System Overview
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Your Application                          │
-└──────────────────────────────┬──────────────────────────────────┘
-                               │ tRPC / REST API
-                               ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                      Meeboter Server (Next.js)                   │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐  │
-│  │  Bot Pool   │  │   Event     │  │   Chat & Templates      │  │
-│  │  Manager    │  │   System    │  │   Engine                │  │
-│  └──────┬──────┘  └──────┬──────┘  └───────────┬─────────────┘  │
-└─────────┼────────────────┼─────────────────────┼────────────────┘
-          │                │                     │
-          ▼                ▼                     ▼
-┌─────────────────┐  ┌───────────┐  ┌─────────────────────────────┐
-│   Bot Pool      │  │ PostgreSQL│  │  S3 / MinIO                 │
-│   (Coolify)     │  │           │  │  (Recordings)               │
-│  ┌───┐ ┌───┐    │  └───────────┘  └─────────────────────────────┘
-│  │Bot│ │Bot│... │
-│  └─┬─┘ └─┬─┘    │
-└────┼─────┼──────┘
-     │     │
-     ▼     ▼
-┌─────────────────────────────────────────────────────────────────┐
-│          Video Conferencing Platforms                            │
-│    Google Meet    │    Microsoft Teams    │    Zoom              │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### Bot Deployment Flow
-
-```
-1. Create Bot          2. Acquire Slot        3. Deploy & Join
-   via API         →      from Pool       →      Meeting
-                              │
-                              ▼
-4. Send Events     ←   5. Engage in Call   →   6. Webhook
-   (Participants,          (Chat, Track)         Callback
-    Status)
-                              │
-                              ▼
-                    7. Recording to S3
-                       Slot Released
-```
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
+<br />
 
 ## Quick Start
 
-### Prerequisites
+```bash
+git clone https://github.com/Payme-Works/meeboter.git
+cd meeboter
+bun install
+docker compose up -d
+cp apps/milo/.env.example apps/milo/.env
+bun turbo db:migrate --filter=@meeboter/milo
+bun turbo dev --filter=@meeboter/milo
+```
 
-- [Node.js](https://nodejs.org/) >= 18.0.0
-- [Bun](https://bun.sh/) >= 1.0.0
-- [Docker](https://www.docker.com/) (for local development)
-- PostgreSQL database
+Open [localhost:3000](http://localhost:3000)
 
-### Local Development
+<br />
 
-1. **Clone the repository**
+## Usage
 
-   ```bash
-   git clone https://github.com/Payme-Works/meeboter.git
-   cd meeboter
-   ```
+<table>
+<tr>
+<td width="50%">
 
-2. **Install dependencies**
+### Dashboard
 
-   ```bash
-   bun install
-   ```
+1. Open the web UI at `localhost:3000`
+2. Navigate to **Bots** → **New Bot**
+3. Paste meeting URL, configure options
+4. Click **Deploy**
+5. Monitor status, logs, and events in real-time
 
-3. **Start the database**
+</td>
+<td width="50%">
 
-   ```bash
-   docker compose up -d
-   ```
-
-4. **Configure environment**
-
-   ```bash
-   cp apps/milo/.env.example apps/milo/.env
-   # Edit .env with your configuration
-   ```
-
-5. **Run database migrations**
-
-   ```bash
-   bun turbo db:migrate --filter=@meeboter/milo
-   ```
-
-6. **Start the development server**
-
-   ```bash
-   bun turbo dev --filter=@meeboter/milo
-   ```
-
-7. **Access the dashboard**
-
-   - Web UI: http://localhost:3000
-   - API Docs: http://localhost:3000/docs
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-## Deployment
-
-### Option 1: Coolify (Recommended)
-
-Coolify is a self-hosted PaaS that simplifies deployment. Best for most users.
-
-**Estimated Cost**: ~$20-50/month for small-medium workloads
-
-**Services to Deploy**:
-
-- PostgreSQL database
-- MinIO (S3-compatible storage)
-- Meeboter Server
-- Bot Pool (pre-provisioned bot containers)
-
-**Setup Steps**:
-
-1. Install Coolify on your server ([coolify.io](https://coolify.io))
-2. Create a new project in Coolify
-3. Deploy PostgreSQL and MinIO services
-4. Deploy Meeboter Server with environment variables
-5. Configure Bot Pool applications (up to 100 slots)
-
-See [Coolify Deployment Guide](docs/deployment/coolify.md) for detailed instructions.
-
----
-
-### Option 2: AWS with Terraform (Enterprise)
-
-Full Infrastructure-as-Code deployment for production scale.
-
-**Estimated Cost**: ~$100-500/month depending on scale
-
-**Resources Provisioned**:
-
-- VPC with public/private subnets
-- ECS Fargate for containers
-- RDS PostgreSQL
-- S3 for recordings
-- ALB for load balancing
-- Route 53 for DNS
-- ECR for container images
-
-**Prerequisites**:
-
-- AWS Account with CLI configured
-- Terraform installed
-- Domain name in Route 53
-- S3 bucket for Terraform state
-
-**Setup Steps**:
+### API
 
 ```bash
-cd terraform
-cp terraform.tfvars.example terraform.tfvars
-# Edit terraform.tfvars with your configuration
+# Create a bot
+POST /bots
+{"meetingUrl": "https://meet.google.com/xxx"}
 
-terraform init
-terraform workspace new production
-terraform apply
+# Deploy it
+POST /bots/{id}/deploy
+
+# Send chat message
+POST /chat/messages
+{"botId": 123, "message": "Hello!"}
+
+# Get events
+GET /events/bot/{botId}
 ```
 
-See [Terraform README](terraform/README.md) for detailed instructions.
+[OpenAPI docs →](/docs)
 
----
+</td>
+</tr>
+</table>
 
-### Deployment Comparison
+<br />
 
-| Aspect | Coolify | AWS Terraform |
-|--------|---------|---------------|
-| Setup Complexity | Low | High |
-| Monthly Cost | $20-50 | $100-500+ |
-| Scalability | Good | Excellent |
-| Maintenance | Minimal | More involved |
-| Best For | Startups, small teams | Enterprise, high scale |
+## Deployment Options
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
+| Platform | Model | Cost | Best for |
+|----------|-------|------|----------|
+| [Coolify](DEPLOYMENT.md#coolify-deployment-pool-based) | Pool-based | ~$20-50/mo | Self-hosted, simple setup |
+| [Kubernetes](DEPLOYMENT.md#kubernetes-deployment-pod-based) | Pod-based | ~$50-200/mo | Existing K8s infrastructure |
+| [AWS ECS](DEPLOYMENT.md#aws-ecs-deployment-task-based) | Task-based | ~$100-500/mo | Enterprise, auto-scaling |
 
-## API Usage
+See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed setup guides.
 
-### Authentication
+<br />
 
-Create an API key from the dashboard or via API:
+## Architecture
 
-```bash
-curl -X POST https://your-meeboter-instance/api/v1/api-keys \
-  -H "Authorization: Bearer YOUR_SESSION_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"name": "My App Key"}'
+```
+Your App → Meeboter API → Bot Pool → Meeting Platforms
+                ↓              ↓
+           PostgreSQL    S3 (recordings)
 ```
 
-Use the API key in subsequent requests:
+| Layer | Tech |
+|-------|------|
+| API | Next.js 15, tRPC, Drizzle ORM |
+| Bots | Playwright (Meet), Puppeteer (Teams/Zoom), FFmpeg |
+| Database | PostgreSQL |
+| Storage | S3-compatible (MinIO, AWS S3) |
 
-```bash
--H "x-api-key: YOUR_API_KEY"
+**Platform Abstraction** — Deploy bots to any backend:
+
+| Platform | Model | How it works |
+|----------|-------|--------------|
+| Coolify | Pool-based | Pre-provisioned Docker containers, reused across meetings |
+| Kubernetes | Job-based | Ephemeral pods created per meeting, auto-cleanup |
+| AWS ECS | Task-based | Fargate tasks on-demand, pay-per-use |
+
+<details>
+<summary><strong>Example: Our Proxmox + Coolify + K3s Setup</strong></summary>
+
+<br />
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                         PROXMOX HOST (bare-metal)                             │
+│                                                                               │
+│  ┌─────────────────────────┐     ┌─────────────────────────────────────────┐ │
+│  │ CT 100: Coolify         │     │ VM 102: K3s Cluster                     │ │
+│  │                         │     │                                         │ │
+│  │  ┌───────────────────┐  │     │  ┌─────────────────────────────────┐   │ │
+│  │  │ Milo API Server   │◄─┼─────┼──│ namespace: meeboter              │   │ │
+│  │  │ (Next.js + tRPC)  │  │     │  │                                 │   │ │
+│  │  └────────┬──────────┘  │     │  │  ┌─────┐ ┌─────┐ ┌─────┐       │   │ │
+│  │           │             │     │  │  │ Bot │ │ Bot │ │ Bot │ ...   │   │ │
+│  │  ┌────────┴──────────┐  │     │  │  └─────┘ └─────┘ └─────┘       │   │ │
+│  │  │ PostgreSQL        │  │     │  └─────────────────────────────────┘   │ │
+│  │  │ MinIO (S3)        │  │     │                                         │ │
+│  │  │ Bot Pool (Docker) │  │     │  Ephemeral Jobs per meeting             │ │
+│  │  └───────────────────┘  │     │  40-80 concurrent bots                  │ │
+│  └─────────────────────────┘     └─────────────────────────────────────────┘ │
+└──────────────────────────────────────────────────────────────────────────────┘
 ```
 
----
+- **Proxmox** — Bare-metal hypervisor running containers and VMs
+- **Coolify (CT 100)** — Hosts Milo API, PostgreSQL, MinIO, and Docker bot pool
+- **K3s (VM 102)** — Lightweight Kubernetes for ephemeral bot jobs (40-80 concurrent)
 
-### Deploy a Bot to a Meeting
+</details>
 
-```bash
-curl -X POST https://your-meeboter-instance/api/v1/bots \
-  -H "x-api-key: YOUR_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "meetingUrl": "https://meet.google.com/abc-defg-hij",
-    "botDisplayName": "Meeting Assistant",
-    "callbackUrl": "https://your-app.com/webhook",
-    "chatEnabled": true,
-    "automaticLeave": {
-      "waitingRoomTimeout": 300,
-      "noOneJoinedTimeout": 300,
-      "everyoneLeftTimeout": 60
-    }
-  }'
-```
+<br />
 
-**Response**:
-
-```json
-{
-  "id": 123,
-  "status": "DEPLOYING",
-  "meetingUrl": "https://meet.google.com/abc-defg-hij",
-  "botDisplayName": "Meeting Assistant"
-}
-```
-
----
-
-### Send a Chat Message
-
-```bash
-curl -X POST https://your-meeboter-instance/api/v1/bots/123/chat \
-  -H "x-api-key: YOUR_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"message": "Hello from Meeboter!"}'
-```
-
----
-
-### Get Bot Events
-
-```bash
-curl https://your-meeboter-instance/api/v1/bots/123/events \
-  -H "x-api-key: YOUR_API_KEY"
-```
-
-**Response**:
-
-```json
-{
-  "events": [
-    {"eventCode": "JOINING_CALL", "createdAt": "2025-01-15T10:00:00Z"},
-    {"eventCode": "IN_CALL", "createdAt": "2025-01-15T10:00:15Z"},
-    {"eventCode": "PARTICIPANT_JOIN", "data": {"participantId": "user1"}, "createdAt": "2025-01-15T10:01:00Z"}
-  ]
-}
-```
-
----
-
-### Webhook Events
-
-When you provide a `callbackUrl`, Meeboter sends POST requests for bot events:
-
-```json
-{
-  "botId": 123,
-  "status": "DONE",
-  "recordingUrl": "https://your-s3/recordings/123.mp4"
-}
-```
-
----
-
-### TypeScript SDK (tRPC)
-
-For TypeScript projects, use the type-safe tRPC client:
-
-```typescript
-import { createTRPCClient } from '@trpc/client';
-import type { AppRouter } from '@meeboter/milo';
-
-const client = createTRPCClient<AppRouter>({
-  url: 'https://your-meeboter-instance/api/trpc',
-});
-
-// Deploy a bot
-const bot = await client.bots.create.mutate({
-  meetingUrl: 'https://meet.google.com/abc-defg-hij',
-  botDisplayName: 'Meeting Assistant',
-});
-
-// Send a message
-await client.chat.sendMessageToBot.mutate({
-  botId: bot.id,
-  message: 'Hello everyone!',
-});
-
-// Get events
-const events = await client.events.getEventsForBot.query({ botId: bot.id });
-```
-
----
-
-For complete API documentation, visit `/docs` on your Meeboter instance (Scalar/OpenAPI).
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-## Configuration
-
-### Environment Variables
-
-#### Server Configuration
-
-| Variable | Description | Required | Default |
-|----------|-------------|----------|---------|
-| `DATABASE_URL` | PostgreSQL connection string | Yes | - |
-| `AUTH_SECRET` | Session signing secret (32+ chars) | Yes | - |
-| `NEXT_PUBLIC_APP_ORIGIN_URL` | Public URL of your instance | Yes | - |
-
-#### Authentication (GitHub OAuth)
-
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `AUTH_GITHUB_ID` | GitHub OAuth App Client ID | No |
-| `AUTH_GITHUB_SECRET` | GitHub OAuth App Client Secret | No |
-
-#### Storage (S3-Compatible)
-
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `S3_BUCKET` | Bucket name for recordings | Yes |
-| `S3_REGION` | AWS region or 'auto' for MinIO | Yes |
-| `S3_ACCESS_KEY_ID` | Access key | Yes |
-| `S3_SECRET_ACCESS_KEY` | Secret key | Yes |
-| `S3_ENDPOINT` | Custom endpoint for MinIO | No |
-
-#### Platform Selection
-
-| Variable | Description | Required | Default |
-|----------|-------------|----------|---------|
-| `DEPLOYMENT_PLATFORM` | Deployment backend: `coolify`, `aws`, or `auto` | No | `auto` |
-
-When set to `auto`, the platform is auto-detected based on available credentials:
-- If `COOLIFY_API_URL` and `COOLIFY_API_TOKEN` are set, Coolify is used
-- If `AWS_REGION` and `ECS_CLUSTER` are set, AWS ECS is used
-
-#### Coolify Integration
-
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `COOLIFY_API_URL` | Coolify API endpoint | Yes* |
-| `COOLIFY_API_TOKEN` | Coolify API token | Yes* |
-| `COOLIFY_PROJECT_UUID` | Project UUID for bot pool | Yes* |
-| `COOLIFY_SERVER_UUID` | Server UUID | Yes* |
-| `COOLIFY_DESTINATION_UUID` | Destination UUID | Yes* |
-
-*Required when `DEPLOYMENT_PLATFORM=coolify`
-
-#### AWS ECS Integration
-
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `AWS_REGION` | AWS region for ECS | Yes* |
-| `ECS_CLUSTER` | ECS cluster name or ARN | Yes* |
-| `ECS_SUBNETS` | Comma-separated subnet IDs | Yes* |
-| `ECS_SECURITY_GROUPS` | Comma-separated security group IDs | Yes* |
-| `ECS_TASK_DEF_ZOOM` | Task definition for Zoom bot | Yes* |
-| `ECS_TASK_DEF_MICROSOFT_TEAMS` | Task definition for Microsoft Teams bot | Yes* |
-| `ECS_TASK_DEF_GOOGLE_MEET` | Task definition for Google Meet bot | Yes* |
-| `ECS_ASSIGN_PUBLIC_IP` | Assign public IP to tasks | No | `true` |
-
-*Required when `DEPLOYMENT_PLATFORM=aws`
-
----
-
-### Bot Configuration Options
-
-| Option | Type | Description | Default |
-|--------|------|-------------|---------|
-| `botDisplayName` | string | Name shown in meeting | "Meeboter" |
-| `chatEnabled` | boolean | Allow chat interactions | true |
-| `heartbeatInterval` | number | Health check interval (seconds) | 10 |
-| `callbackUrl` | string | Webhook URL for events | null |
-
-#### Automatic Leave Settings
-
-| Option | Type | Description | Default |
-|--------|------|-------------|---------|
-| `waitingRoomTimeout` | number | Leave if stuck in waiting room (seconds) | 300 |
-| `noOneJoinedTimeout` | number | Leave if meeting stays empty (seconds) | 300 |
-| `everyoneLeftTimeout` | number | Leave after all participants leave (seconds) | 60 |
-| `inactivityTimeout` | number | Leave after no activity (seconds) | null |
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-## Contributing
-
-### Project Structure
+## Project Structure
 
 ```
 meeboter/
 ├── apps/
-│   ├── milo/                # Next.js 15 full-stack application (Milo)
-│   │   ├── src/
-│   │   │   ├── app/         # Next.js pages and API routes
-│   │   │   ├── server/
-│   │   │   │   ├── api/     # tRPC routers
-│   │   │   │   └── database/# Drizzle schema and queries
-│   │   │   └── components/  # React components
-│   │   └── ...
-│   ├── bots/                # Bot orchestration engine
-│   │   ├── src/             # Core bot logic
-│   │   └── providers/       # Platform-specific implementations
-│   │       ├── meet/        # Google Meet bot
-│   │       ├── teams/       # Microsoft Teams bot
-│   │       └── zoom/        # Zoom bot
-│   └── lab/                 # Experimental environment
-├── packages/
-│   └── config-typescript/   # Shared TypeScript config
-├── terraform/               # AWS Infrastructure as Code
-└── docs/                    # Documentation
+│   ├── milo/           # API server (Next.js)
+│   └── bots/           # Bot engine
+│       └── providers/
+│           ├── google-meet/
+│           ├── microsoft-teams/
+│           └── zoom/
+├── terraform/          # AWS IaC
+└── docs/
 ```
 
-### Tech Stack
+<br />
 
-| Layer | Technology |
-|-------|------------|
-| Frontend | React 19, Next.js 15, Tailwind CSS, shadcn/ui |
-| Backend | Next.js API Routes, tRPC 11 |
-| Database | PostgreSQL, Drizzle ORM |
-| Authentication | better-auth |
-| Browser Automation | Playwright, Puppeteer |
-| Video/Audio | FFmpeg, playwright-video |
-| Infrastructure | Coolify, AWS, Terraform |
-| Package Manager | Bun, Turborepo |
+## Documentation
 
-### Development Workflow
+- [DEPLOYMENT.md](DEPLOYMENT.md) — Deployment guides
+- [ARCHITECTURE.md](ARCHITECTURE.md) — System design
+- [apps/milo/README.md](apps/milo/README.md) — API server docs
+- [apps/bots/README.md](apps/bots/README.md) — Bot engine docs
+- [API Docs](http://localhost:3000/docs) — OpenAPI/Scalar (when running)
+
+<br />
+
+## Contributing
 
 ```bash
-# Install dependencies
 bun install
-
-# Start database
-docker compose up -d
-
-# Run migrations
-bun turbo db:migrate --filter=@meeboter/milo
-
-# Start development server
 bun turbo dev --filter=@meeboter/milo
-
-# Run linting
 bun run lint
-
-# Run type checking
 bun run typecheck
-
-# Run tests
 bun run test
-
-# Build for production
-bun run build
 ```
 
-### Adding a New Meeting Platform
-
-1. Create a new provider in `apps/bots/providers/<platform>/`
-2. Implement the `Bot` interface from `apps/bots/src/bot.ts`
-3. Add platform detection in the bot orchestrator
-4. Add selectors and navigation logic for the platform UI
-5. Test with the lab environment
-
-### Database Migrations
-
-```bash
-# Generate a new migration
-bun turbo db:generate --filter=@meeboter/milo -- --name <migration_name>
-
-# Apply migrations
-bun turbo db:migrate --filter=@meeboter/milo
-
-# Open Drizzle Studio (database UI)
-bun turbo db:studio --filter=@meeboter/milo
-```
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-## Community
-
-- **GitHub Issues**: [Report bugs or request features](https://github.com/Payme-Works/meeboter/issues)
-- **GitHub Discussions**: [Questions and ideas](https://github.com/Payme-Works/meeboter/discussions)
-
-## Contributors
-
-<a href="https://github.com/Payme-Works/meeboter/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=Payme-Works/meeboter&max=10" alt="Contributors" width="200" />
-</a>
+<br />
 
 ## License
 
-This project is licensed under the **MIT License**.
+MIT — use it however you want.
 
-You are free to use, modify, and distribute this software for any purpose, commercial or non-commercial.
-
-See [LICENSE](LICENSE) for details.
-
-## Acknowledgments
-
-- Built with [Next.js](https://nextjs.org/), [tRPC](https://trpc.io/), [Drizzle ORM](https://orm.drizzle.team/)
-- Browser automation powered by [Playwright](https://playwright.dev/)
-- UI components from [shadcn/ui](https://ui.shadcn.com/)
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
+<br />
 
 ---
 
-<p align="center">
-  <a href="https://meeboter.tech">Website</a> •
-  <a href="https://github.com/Payme-Works/meeboter/issues">Issues</a> •
-  <a href="https://github.com/Payme-Works/meeboter/discussions">Discussions</a>
-</p>
-
-<!-- MARKDOWN LINKS & IMAGES -->
-[contributors-shield]: https://img.shields.io/github/contributors/Payme-Works/meeboter.svg?style=for-the-badge
-[contributors-url]: https://github.com/Payme-Works/meeboter/graphs/contributors
-[forks-shield]: https://img.shields.io/github/forks/Payme-Works/meeboter.svg?style=for-the-badge
-[forks-url]: https://github.com/Payme-Works/meeboter/network/members
-[stars-shield]: https://img.shields.io/github/stars/Payme-Works/meeboter.svg?style=for-the-badge
-[stars-url]: https://github.com/Payme-Works/meeboter/stargazers
-[issues-shield]: https://img.shields.io/github/issues/Payme-Works/meeboter.svg?style=for-the-badge
-[issues-url]: https://github.com/Payme-Works/meeboter/issues
-[license-shield]: https://img.shields.io/github/license/Payme-Works/meeboter.svg?style=for-the-badge
-[license-url]: https://github.com/Payme-Works/meeboter/blob/master/LICENSE
+<div align="center">
+  <sub>Built with Next.js, tRPC, Playwright, and shadcn/ui</sub>
+</div>

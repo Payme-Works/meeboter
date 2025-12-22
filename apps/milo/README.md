@@ -67,6 +67,7 @@ Meeboter supports multiple deployment platforms through a unified interface:
 | `platform-factory.ts` | Creates platform service based on config |
 | `coolify-platform-service.ts` | Coolify pool-based deployment |
 | `aws-platform-service.ts` | AWS ECS task-based deployment |
+| `kubernetes-platform-service.ts` | Kubernetes pod-based deployment |
 | `local-platform-service.ts` | Local development mode |
 
 ### Bot Pool Service (`bot-pool-service.ts`)
@@ -118,6 +119,35 @@ High-level orchestration of bot deployments:
 - Coordinates between platform service and database
 - Handles deployment lifecycle events
 - Manages bot status transitions
+
+### Log Services
+
+**Log Buffer Service (`log-buffer-service.ts`)**
+- Buffers bot logs before persistence
+- Batches log writes for performance
+
+**Log Archival Service (`log-archival-service.ts`)**
+- Archives logs to S3-compatible storage
+- Manages log retention policies
+
+### Deployment Queue Service (`deployment-queue-service.ts`)
+
+Manages queued bot deployments when pool is exhausted:
+
+- FIFO queue with priority support
+- Estimated wait time calculation
+- Timeout handling for stale requests
+
+---
+
+## Background Workers (`workers/`)
+
+| Worker | Purpose |
+|--------|---------|
+| `base-worker.ts` | Abstract base class for workers |
+| `bot-health-worker.ts` | Monitors bot heartbeats and marks failed bots |
+| `slot-recovery-worker.ts` | Recovers error/stuck slots |
+| `pool-slot-sync-worker.ts` | Syncs slot status with deployment platform |
 
 ---
 
