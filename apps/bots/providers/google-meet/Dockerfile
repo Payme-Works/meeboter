@@ -33,9 +33,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxtst6 \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy workspace files (excluding apps/milo - not needed for bot)
+# Copy workspace files (milo needed for type resolution during install)
 COPY package.json turbo.json bun.lock ./
 COPY apps/bots/ ./apps/bots/
+COPY apps/milo/package.json ./apps/milo/package.json
+COPY apps/milo/src/ ./apps/milo/src/
 COPY packages/ ./packages/
 
 # Install deps + Chromium only (not all browsers)

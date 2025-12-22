@@ -17,9 +17,11 @@ RUN apk add --no-cache \
     bash \
     && rm -rf /var/cache/apk/*
 
-# Copy workspace files (excluding apps/milo - not needed for bot)
+# Copy workspace files (milo needed for type resolution during install)
 COPY package.json turbo.json bun.lock ./
 COPY apps/bots/ ./apps/bots/
+COPY apps/milo/package.json ./apps/milo/package.json
+COPY apps/milo/src/ ./apps/milo/src/
 COPY packages/ ./packages/
 
 # Install bun + dependencies
