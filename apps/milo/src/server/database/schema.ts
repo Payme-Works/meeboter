@@ -416,6 +416,7 @@ const allEventCodes = [
 	"MEETING_ENDED",
 	"PERMISSION_DENIED",
 	"JOIN_BLOCKED",
+	"RESTARTING",
 ] as const;
 
 /**
@@ -455,6 +456,8 @@ export const EVENT_DESCRIPTIONS = {
 		"The bot was denied permission to join the meeting by the host or meeting settings.",
 	JOIN_BLOCKED:
 		"The bot was unable to join the meeting due to an unspecified blocking screen.",
+	RESTARTING:
+		"The bot encountered an error and is automatically restarting. The data.description contains the attempt number and error message.",
 } as const;
 
 /**

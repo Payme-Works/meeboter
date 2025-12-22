@@ -6,7 +6,7 @@ const sleep = (ms: number): Promise<void> =>
 /**
  * Configuration for auto-restart behavior
  */
-export interface AutoRestartConfig {
+interface AutoRestartConfig {
 	/** Maximum number of restart attempts (default: 3) */
 	maxRestarts?: number;
 	/** Delay between restart attempts in ms (default: 5000) */
@@ -16,7 +16,7 @@ export interface AutoRestartConfig {
 /**
  * Callbacks for auto-restart lifecycle events
  */
-export interface AutoRestartCallbacks {
+interface AutoRestartCallbacks {
 	/** Called before each restart attempt */
 	onRestart?: (attempt: number, error: Error) => Promise<void>;
 	/** Called when all retries are exhausted */
@@ -26,7 +26,7 @@ export interface AutoRestartCallbacks {
 /**
  * Result of the auto-restart execution
  */
-export interface AutoRestartResult {
+interface AutoRestartResult {
 	/** Whether the bot completed successfully */
 	success: boolean;
 	/** Number of attempts made (1 = no restarts needed) */
