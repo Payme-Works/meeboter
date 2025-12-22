@@ -1,8 +1,8 @@
 "use client";
 
 import {
-	ArrowRight,
 	ChevronDown,
+	ChevronRight,
 	Cloud,
 	Container,
 	Hexagon,
@@ -385,21 +385,16 @@ function InfrastructureCard({
 	const activeTotal = deploying + joiningCall + inWaitingRoom + inCall;
 
 	return (
-		<div className="group/card border bg-card p-5 flex flex-col h-full min-h-[220px] relative overflow-hidden transition-all duration-300 hover:border-accent/20">
-			{/* Ambient glow on hover */}
-			<div className="absolute -top-20 -right-20 w-40 h-40 bg-accent/5 rounded-full blur-3xl opacity-0 group-hover/card:opacity-100 transition-opacity duration-500 pointer-events-none" />
-
+		<div className="border bg-card p-4 flex flex-col h-full min-h-[180px] relative overflow-hidden">
 			{/* Live indicator */}
 			<LiveIndicator className="absolute top-4 right-4" />
 
 			{/* Header */}
-			<div className="flex items-center gap-2.5 mb-4 relative">
-				<div className="h-8 w-8 bg-amber-500/10 rounded-md flex items-center justify-center text-amber-500">
-					<Zap className="h-4 w-4" strokeWidth={2.5} />
+			<div className="flex items-center justify-start gap-3 mb-4 relative">
+				<div className="h-10 w-10 bg-muted flex items-center justify-center text-muted-foreground">
+					<Zap className="h-5 w-5" />
 				</div>
-				<h3 className="text-sm font-semibold tracking-tight text-foreground/90">
-					Infrastructure
-				</h3>
+				<h3 className="font-semibold">Infrastructure</h3>
 			</div>
 
 			{/* Stacked Bar Visualization */}
@@ -482,7 +477,7 @@ function InfrastructureCard({
 				<span>failed</span>
 			</div>
 
-				{/* Platform Section (Collapsible) */}
+			{/* Platform Section (Collapsible) */}
 			<PlatformSection
 				platform={platform}
 				isExpanded={isPlatformExpanded}
@@ -490,13 +485,13 @@ function InfrastructureCard({
 			/>
 
 			{/* Footer */}
-			<div className="mt-auto pt-4 relative">
+			<div className="mt-auto pt-4 border-t-0 relative">
 				<Link
 					href="/infrastructure"
-					className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-accent transition-colors duration-200 group/link"
+					className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
 				>
-					<span>View Infrastructure</span>
-					<ArrowRight className="h-3 w-3 transition-transform duration-200 group-hover/link:translate-x-0.5" />
+					View Infrastructure
+					<ChevronRight className="h-4 w-4" />
 				</Link>
 			</div>
 		</div>
@@ -505,11 +500,11 @@ function InfrastructureCard({
 
 export function InfrastructureCardSkeleton() {
 	return (
-		<div className="border bg-card p-5 flex flex-col h-full min-h-[220px]">
+		<div className="border bg-card p-4 flex flex-col h-full min-h-[180px]">
 			{/* Header */}
-			<div className="flex items-center gap-2.5 mb-4">
-				<div className="h-8 w-8 bg-muted rounded-md animate-pulse" />
-				<div className="h-4 w-24 bg-muted rounded animate-pulse" />
+			<div className="flex items-center justify-start gap-3 mb-3">
+				<div className="h-10 w-10 bg-muted animate-pulse" />
+				<div className="h-5 w-24 bg-muted rounded animate-pulse" />
 			</div>
 
 			{/* Stacked bar skeleton */}
@@ -527,7 +522,7 @@ export function InfrastructureCardSkeleton() {
 
 			{/* Footer */}
 			<div className="mt-auto pt-4">
-				<div className="h-3 w-28 bg-muted rounded animate-pulse" />
+				<div className="h-4 w-32 bg-muted rounded animate-pulse" />
 			</div>
 		</div>
 	);
@@ -535,13 +530,13 @@ export function InfrastructureCardSkeleton() {
 
 function InfrastructureCardUnavailable() {
 	return (
-		<div className="border bg-card p-5 flex flex-col h-full min-h-[220px]">
+		<div className="border bg-card p-4 flex flex-col h-full min-h-[180px]">
 			{/* Header */}
-			<div className="flex items-center gap-2.5 mb-4">
-				<div className="h-8 w-8 bg-muted/50 rounded-md flex items-center justify-center text-muted-foreground/50">
-					<Zap className="h-4 w-4" strokeWidth={2.5} />
+			<div className="flex items-center justify-start gap-3 mb-3">
+				<div className="h-10 w-10 bg-muted/50 flex items-center justify-center text-muted-foreground/50">
+					<Zap className="h-5 w-5" />
 				</div>
-				<h3 className="text-sm font-semibold tracking-tight text-muted-foreground/70">
+				<h3 className="font-semibold text-muted-foreground/70">
 					Infrastructure
 				</h3>
 			</div>
@@ -549,7 +544,7 @@ function InfrastructureCardUnavailable() {
 			{/* Content */}
 			<div className="flex-1 flex flex-col items-center justify-center text-center">
 				<div className="h-3 bg-muted/30 rounded-sm w-full mb-3" />
-				<p className="text-xs text-muted-foreground/60">
+				<p className="text-sm text-muted-foreground/60">
 					Infrastructure statistics unavailable
 				</p>
 			</div>
@@ -558,10 +553,10 @@ function InfrastructureCardUnavailable() {
 			<div className="mt-auto pt-4">
 				<Link
 					href="/infrastructure"
-					className="inline-flex items-center gap-1.5 text-xs text-muted-foreground/60 hover:text-accent transition-colors duration-200 group/link"
+					className="text-sm text-muted-foreground/60 hover:text-foreground flex items-center gap-1 transition-colors"
 				>
-					<span>View Infrastructure</span>
-					<ArrowRight className="h-3 w-3 transition-transform duration-200 group-hover/link:translate-x-0.5" />
+					View Infrastructure
+					<ChevronRight className="h-4 w-4" />
 				</Link>
 			</div>
 		</div>
