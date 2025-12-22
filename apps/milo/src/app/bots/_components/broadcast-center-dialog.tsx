@@ -264,12 +264,12 @@ export function BroadcastCenterDialog({
 
 					{/* Message Type Toggle */}
 					<div className="px-6 py-5 space-y-4 border-b">
-						<div className="flex items-center gap-1 p-1 bg-muted rounded-lg w-fit">
+						<div className="flex items-center gap-1 p-1 bg-muted rounded-lg">
 							<button
 								type="button"
 								onClick={() => setMessageType("template")}
 								className={cn(
-									"flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-all duration-150",
+									"flex flex-1 items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-all duration-150",
 									messageType === "template"
 										? "bg-background text-foreground"
 										: "text-muted-foreground hover:text-foreground",
@@ -282,7 +282,7 @@ export function BroadcastCenterDialog({
 								type="button"
 								onClick={() => setMessageType("custom")}
 								className={cn(
-									"flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-all duration-150",
+									"flex flex-1 items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-all duration-150",
 									messageType === "custom"
 										? "bg-background text-foreground"
 										: "text-muted-foreground hover:text-foreground",

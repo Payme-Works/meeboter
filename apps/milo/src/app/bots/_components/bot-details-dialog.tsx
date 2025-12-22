@@ -262,14 +262,14 @@ export function BotDetailsDialog({ botId, onClose }: BotDetailsDialogProps) {
 					</DialogHeader>
 
 					{/* Tab Navigation */}
-					<div className="flex items-stretch mt-4 bg-zinc-800/50 rounded-lg w-fit">
+					<div className="flex items-stretch mt-4 bg-zinc-800/50 rounded-lg">
 						{tabs.map((tab) => (
 							<button
 								key={tab.id}
 								type="button"
 								onClick={() => setActiveTab(tab.id)}
 								className={cn(
-									"flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-all duration-150 first:rounded-l-lg last:rounded-r-lg",
+									"flex flex-1 items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium transition-all duration-150 first:rounded-l-lg last:rounded-r-lg",
 									activeTab === tab.id
 										? "bg-white !text-zinc-900"
 										: "text-zinc-400 hover:text-white hover:bg-zinc-700/50",

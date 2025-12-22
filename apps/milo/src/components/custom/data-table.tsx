@@ -72,6 +72,9 @@ type DataTableProps<TData, TValue> = {
 
 	/** Has previous page (server-side pagination) */
 	hasPreviousPage?: boolean;
+
+	/** Callback when a row is clicked (ignored for interactive elements) */
+	onRowClick?: (row: TData) => void;
 };
 
 export function DataTable<TData, TValue>({
@@ -92,6 +95,7 @@ export function DataTable<TData, TValue>({
 	totalCount,
 	hasNextPage,
 	hasPreviousPage,
+	onRowClick,
 }: DataTableProps<TData, TValue>) {
 	// Server-side pagination is enabled when totalCount is provided
 	const isServerSidePagination = totalCount !== undefined;
@@ -242,6 +246,19 @@ export function DataTable<TData, TValue>({
 										<TableRow
 											key={row.id}
 											data-state={row.getIsSelected() && "selected"}
+											className={onRowClick ? "cursor-pointer" : undefined}
+											onClick={(e) => {
+												if (!onRowClick) return;
+
+												const target = e.target as HTMLElement;
+
+												const interactiveElements =
+													"button, a, input, [role=checkbox], [role=button], [data-no-row-click]";
+
+												if (target.closest(interactiveElements)) return;
+
+												onRowClick(row.original);
+											}}
 										>
 											{row.getVisibleCells().map((cell) => (
 												<TableCell key={cell.id}>

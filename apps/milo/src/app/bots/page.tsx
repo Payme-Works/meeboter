@@ -584,6 +584,7 @@ export default function BotsPage() {
 				pageCount={botsResponse?.pageCount}
 				hasNextPage={botsResponse?.hasNextPage}
 				hasPreviousPage={botsResponse?.hasPreviousPage}
+				onRowClick={(row) => setSelectedBot(row.id)}
 			/>
 
 			<BotDetailsDialog
