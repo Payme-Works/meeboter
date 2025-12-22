@@ -7,31 +7,33 @@ This document describes the architecture of the `@meeboter/bots` package, which 
 The bots package implements a **strategy pattern** for platform-specific meeting bots, with shared infrastructure for logging, monitoring, and recording. Each bot runs as an isolated Docker container that joins meetings, records audio/video, and reports status to the backend.
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                           Entry Point                                │
-│                          (src/index.ts)                              │
-└─────────────────────────────────────────────────────────────────────┘
-                                   │
-                                   ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                          Bot Factory                                 │
-│                       (src/bot-factory.ts)                           │
-│  Creates platform-specific bot based on config.meetingInfo.platform  │
-└─────────────────────────────────────────────────────────────────────┘
-                                   │
-          ┌────────────────────────┼────────────────────────┐
-          ▼                        ▼                        ▼
-┌──────────────────┐    ┌──────────────────┐    ┌──────────────────┐
-│  GoogleMeetBot   │    │ MicrosoftTeamsBot│    │     ZoomBot      │
-│  (Playwright)    │    │   (Puppeteer)    │    │   (Puppeteer)    │
-└──────────────────┘    └──────────────────┘    └──────────────────┘
-          │                        │                        │
-          └────────────────────────┼────────────────────────┘
-                                   ▼
-                        ┌──────────────────┐
-                        │   Abstract Bot   │
-                        │   (src/bot.ts)   │
-                        └──────────────────┘
++---------------------------------------------------------------------+
+|                           Entry Point                               |
+|                          (src/index.ts)                             |
++-----------------------------------+---------------------------------+
+                                    |
+                                    v
++---------------------------------------------------------------------+
+|                          Bot Factory                                |
+|                       (src/bot-factory.ts)                          |
+|  Creates platform-specific bot based on config.meetingInfo.platform |
++-----------------------------------+---------------------------------+
+                                    |
+          +-------------------------+-------------------------+
+          |                         |                         |
+          v                         v                         v
++------------------+    +--------------------+    +------------------+
+|  GoogleMeetBot   |    | MicrosoftTeamsBot  |    |     ZoomBot      |
+|  (Playwright)    |    |    (Puppeteer)     |    |   (Puppeteer)    |
++------------------+    +--------------------+    +------------------+
+          |                         |                         |
+          +-------------------------+-------------------------+
+                                    |
+                                    v
+                        +------------------------+
+                        |     Abstract Bot       |
+                        |     (src/bot.ts)       |
+                        +------------------------+
 ```
 
 ## Directory Structure

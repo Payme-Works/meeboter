@@ -41,13 +41,13 @@ Coolify deployment uses a pre-provisioned pool of bot containers. When a meeting
 ### Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    Coolify Server                           │
-│  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐          │
-│  │ Slot 1  │ │ Slot 2  │ │ Slot 3  │ │ Slot N  │          │
-│  │ (idle)  │ │ (busy)  │ │ (idle)  │ │ (idle)  │          │
-│  └─────────┘ └─────────┘ └─────────┘ └─────────┘          │
-└─────────────────────────────────────────────────────────────┘
++-------------------------------------------------------------+
+|                    Coolify Server                           |
+|  +--------+ +--------+ +--------+ +--------+                |
+|  | Slot 1 | | Slot 2 | | Slot 3 | | Slot N |                |
+|  | (idle) | | (busy) | | (idle) | | (idle) |                |
+|  +--------+ +--------+ +--------+ +--------+                |
++-------------------------------------------------------------+
 ```
 
 ### Prerequisites
@@ -118,14 +118,14 @@ AWS ECS deployment creates ephemeral Fargate tasks for each meeting. Tasks are c
 ### Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                       AWS ECS Cluster                        │
-│                                                              │
-│   Meeting 1 → [Task A] ──────────────────────→ Terminated   │
-│   Meeting 2 → [Task B] ────────────────→ Terminated         │
-│   Meeting 3 → [Task C] ──→ Running...                       │
-│                                                              │
-└─────────────────────────────────────────────────────────────┘
++-------------------------------------------------------------+
+|                       AWS ECS Cluster                       |
+|                                                             |
+|   Meeting 1 --> [Task A] ----------------------> Terminated |
+|   Meeting 2 --> [Task B] -----------------> Terminated      |
+|   Meeting 3 --> [Task C] --> Running...                     |
+|                                                             |
++-------------------------------------------------------------+
 ```
 
 ### Prerequisites
@@ -245,14 +245,14 @@ Kubernetes deployment uses Kubernetes Jobs to create ephemeral pods for each mee
 ### Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    Kubernetes Cluster                        │
-│                                                              │
-│   Meeting 1 → [Job/Pod A] ────────────────────→ Completed   │
-│   Meeting 2 → [Job/Pod B] ──────────────→ Completed         │
-│   Meeting 3 → [Job/Pod C] ──→ Running...                    │
-│                                                              │
-└─────────────────────────────────────────────────────────────┘
++-------------------------------------------------------------+
+|                    Kubernetes Cluster                       |
+|                                                             |
+|   Meeting 1 --> [Job/Pod A] --------------------> Completed |
+|   Meeting 2 --> [Job/Pod B] ---------------> Completed      |
+|   Meeting 3 --> [Job/Pod C] --> Running...                  |
+|                                                             |
++-------------------------------------------------------------+
 ```
 
 ### Prerequisites
@@ -378,9 +378,10 @@ S3_REGION="us-east-1"
 ### Bot Status Lifecycle
 
 ```
-DEPLOYING → JOINING_CALL → IN_WAITING_ROOM → IN_CALL → ENDED
-                  ↓                                        ↓
-                FATAL ←────────────────────────────────────┘
+DEPLOYING --> JOINING_CALL --> IN_WAITING_ROOM --> IN_CALL --> ENDED
+                   |                                    |
+                   v                                    v
+                 FATAL <--------------------------------+
 ```
 
 ### Heartbeat Monitoring
