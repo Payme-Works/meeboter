@@ -9,7 +9,6 @@ import {
 	Clock,
 	ExternalLink,
 	Heart,
-	MessageSquare,
 	Radio,
 	Server,
 	Terminal,
@@ -31,7 +30,6 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { api } from "@/trpc/react";
-import { ChatHistoryPanel } from "./chat-history-panel";
 import { LogsTab } from "./logs-tab";
 import { PlatformTab } from "./platform-tab";
 import { ScreenshotViewer } from "./screenshot-viewer";
@@ -219,9 +217,6 @@ export function BotDetailsDialog({ botId, onClose }: BotDetailsDialogProps) {
 					},
 				]
 			: []),
-		...(bot?.chatEnabled
-			? [{ id: "chat" as const, label: "Chat", icon: MessageSquare }]
-			: []),
 	];
 
 	return (
@@ -236,11 +231,11 @@ export function BotDetailsDialog({ botId, onClose }: BotDetailsDialogProps) {
 								{botLoading ? (
 									<Skeleton className="h-12 w-12 rounded-xl bg-zinc-700" />
 								) : null}
-								{!botLoading && bot?.meetingInfo.platform ? (
+								{!botLoading && bot?.meeting.platform ? (
 									<div className="h-12 w-12 rounded-xl bg-white/10 backdrop-blur flex items-center justify-center">
 										<Image
-											src={`/platform-logos/${bot.meetingInfo.platform}.svg`}
-											alt={bot.meetingInfo.platform as string}
+											src={`/platform-logos/${bot.meeting.platform}.svg`}
+											alt={bot.meeting.platform as string}
 											width={28}
 											height={28}
 										/>
@@ -252,14 +247,14 @@ export function BotDetailsDialog({ botId, onClose }: BotDetailsDialogProps) {
 										{botLoading ? (
 											<Skeleton className="h-5 w-48 bg-zinc-700" />
 										) : (
-											bot?.botDisplayName || "Bot Details"
+											bot?.displayName || "Bot Details"
 										)}
 									</DialogTitle>
 									<DialogDescription className="text-zinc-400 text-sm">
 										{botLoading ? (
 											<Skeleton className="h-4 w-64 bg-zinc-700" />
 										) : (
-											bot?.meetingTitle || "Meeting details"
+											"Meeting details"
 										)}
 									</DialogDescription>
 								</div>
@@ -327,24 +322,6 @@ export function BotDetailsDialog({ botId, onClose }: BotDetailsDialogProps) {
 													recording={bot?.recording}
 													recordingEnabled={bot?.recordingEnabled}
 												/>
-											</InfoRow>
-
-											<InfoRow
-												icon={MessageSquare}
-												label="Chat"
-												loading={botLoading}
-											>
-												<Badge
-													variant="outline"
-													className={cn(
-														"text-xs",
-														bot?.chatEnabled
-															? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-800"
-															: "bg-muted text-muted-foreground",
-													)}
-												>
-													{bot?.chatEnabled ? "Enabled" : "Disabled"}
-												</Badge>
 											</InfoRow>
 										</div>
 									</div>
@@ -458,12 +435,6 @@ export function BotDetailsDialog({ botId, onClose }: BotDetailsDialogProps) {
 								isRefetching={botRefetching}
 								onRefresh={() => refetchBot()}
 							/>
-						</div>
-					)}
-
-					{activeTab === "chat" && botId && bot?.chatEnabled && (
-						<div className="p-6">
-							<ChatHistoryPanel botId={botId} />
 						</div>
 					)}
 				</div>

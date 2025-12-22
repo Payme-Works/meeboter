@@ -145,7 +145,7 @@ export class CoolifyService {
 					docker_registry_image_name: image.name,
 					docker_registry_image_tag: image.tag,
 					name: applicationName,
-					description: `Bot ${botId} for ${botConfig.meetingInfo.platform} meeting`,
+					description: `Bot ${botId} for ${botConfig.meeting.platform} meeting`,
 					ports_exposes: "3000",
 					instant_deploy: false,
 					// Resource limits for bot containers (headless browser needs decent resources)

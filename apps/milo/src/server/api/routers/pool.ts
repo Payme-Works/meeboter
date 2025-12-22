@@ -382,8 +382,7 @@ const queueRouter = createTRPCRouter({
 				queueEntryViewSchema.extend({
 					bot: z
 						.object({
-							botDisplayName: z.string(),
-							meetingTitle: z.string(),
+							displayName: z.string(),
 							status: z.string(),
 						})
 						.nullable(),
@@ -407,8 +406,7 @@ const queueRouter = createTRPCRouter({
 				queueEntries.map(async (entry) => {
 					const botResult = await ctx.db
 						.select({
-							botDisplayName: botsTable.botDisplayName,
-							meetingTitle: botsTable.meetingTitle,
+							displayName: botsTable.displayName,
 							status: botsTable.status,
 						})
 						.from(botsTable)

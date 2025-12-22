@@ -107,9 +107,7 @@ export function BroadcastCenterDialog({
 	};
 
 	const selectAllActiveBots = () => {
-		const activeBots = bots.filter(
-			(bot) => bot.chatEnabled && bot.status === "IN_CALL",
-		);
+		const activeBots = bots.filter((bot) => bot.status === "IN_CALL");
 
 		setSelectedBotIds(activeBots.map((bot) => bot.id));
 	};
@@ -156,9 +154,7 @@ export function BroadcastCenterDialog({
 		}
 	};
 
-	const activeBots = bots.filter(
-		(bot) => bot.chatEnabled && bot.status === "IN_CALL",
-	);
+	const activeBots = bots.filter((bot) => bot.status === "IN_CALL");
 
 	const isPending = sendTemplate.isPending || sendMessage.isPending;
 
@@ -253,7 +249,7 @@ export function BroadcastCenterDialog({
 										>
 											{isSelected && <Check className="h-3 w-3" />}
 											<span className="truncate max-w-[150px]">
-												{bot.botDisplayName}
+												{bot.displayName}
 											</span>
 										</button>
 									);

@@ -136,7 +136,7 @@ export function RecentBots() {
 				) : (
 					<div className="divide-y">
 						{recentBots.map((bot) => {
-							const platform = bot.meetingInfo.platform;
+							const platform = bot.meeting.platform;
 
 							const statusColor =
 								STATUS_COLORS[bot.status] || "text-muted-foreground";
@@ -167,7 +167,7 @@ export function RecentBots() {
 										<div className="flex-1 min-w-0">
 											<div className="flex items-center gap-2">
 												<span className="font-medium text-sm truncate">
-													{bot.botDisplayName}
+													{bot.displayName}
 												</span>
 												<span
 													className={`flex items-center gap-1 ${statusColor}`}
@@ -202,7 +202,7 @@ export function RecentBots() {
 
 													setBotToRemove({
 														id: bot.id,
-														name: bot.botDisplayName,
+														name: bot.displayName,
 													});
 												}}
 												title="Remove from Call"
@@ -220,7 +220,7 @@ export function RecentBots() {
 
 													setBotToCancel({
 														id: bot.id,
-														name: bot.botDisplayName,
+														name: bot.displayName,
 													});
 												}}
 												title="Cancel Deployment"

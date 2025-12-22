@@ -84,9 +84,7 @@ async function processBatchedEvents(db: Db, botId: number) {
 	}
 }
 
-// ============================================================================
-// Sub-routers
-// ============================================================================
+// ─── Sub-routers ────────────────────────────────────────────────
 
 /**
  * Pool sub-router for pool slot operations
@@ -157,17 +155,14 @@ const poolSubRouter = createTRPCRouter({
 				return {
 					id: bot.id,
 					userId: bot.userId,
-					meetingInfo: bot.meetingInfo,
-					meetingTitle: bot.meetingTitle,
+					meeting: bot.meeting,
 					startTime: bot.startTime,
 					endTime: bot.endTime,
-					botDisplayName: bot.botDisplayName,
-					botImage: bot.botImage ?? undefined,
+					displayName: bot.displayName,
+					imageUrl: bot.imageUrl ?? undefined,
 					recordingEnabled: bot.recordingEnabled,
-					heartbeatInterval: bot.heartbeatInterval,
 					automaticLeave: bot.automaticLeave,
 					callbackUrl: bot.callbackUrl ?? undefined,
-					chatEnabled: bot.chatEnabled,
 				};
 			}
 
@@ -620,9 +615,7 @@ const logsSubRouter = createTRPCRouter({
 		}),
 });
 
-// ============================================================================
-// Main bots router
-// ============================================================================
+// ─── Main bots router ───────────────────────────────────────────
 
 /**
  * TRPC router implementation for bot management operations.
@@ -684,17 +677,14 @@ export const botsRouter = createTRPCRouter({
 			return {
 				id: bot[0].id,
 				userId: bot[0].userId,
-				meetingInfo: bot[0].meetingInfo,
-				meetingTitle: bot[0].meetingTitle,
+				meeting: bot[0].meeting,
 				startTime: bot[0].startTime,
 				endTime: bot[0].endTime,
-				botDisplayName: bot[0].botDisplayName,
-				botImage: bot[0].botImage ?? undefined,
+				displayName: bot[0].displayName,
+				imageUrl: bot[0].imageUrl ?? undefined,
 				recordingEnabled: bot[0].recordingEnabled,
-				heartbeatInterval: bot[0].heartbeatInterval,
 				automaticLeave: bot[0].automaticLeave,
 				callbackUrl: bot[0].callbackUrl ?? undefined,
-				chatEnabled: bot[0].chatEnabled,
 			};
 		}),
 
@@ -781,14 +771,12 @@ export const botsRouter = createTRPCRouter({
 	 * Creates a new bot with the specified configuration.
 	 * Validates subscription limits and deploys the bot immediately if scheduled for immediate start.
 	 * @param input - Bot configuration data
-	 * @param input.botDisplayName - Display name for the bot
-	 * @param input.botImage - Optional bot image URL
-	 * @param input.meetingTitle - Title of the meeting the bot will join
-	 * @param input.meetingInfo - Meeting connection information
+	 * @param input.displayName - Display name for the bot
+	 * @param input.imageUrl - Optional bot image URL
+	 * @param input.meeting - Meeting connection information
 	 * @param input.startTime - Scheduled start time for the bot
 	 * @param input.endTime - Scheduled end time for the bot
 	 * @param input.recordingEnabled - Whether recording should be enabled
-	 * @param input.heartbeatInterval - Heartbeat interval in milliseconds
 	 * @param input.automaticLeave - Configuration for automatic leave behavior
 	 * @param input.callbackUrl - Optional URL to call when bot completes
 	 * @returns Promise<Bot> The created bot object
@@ -855,15 +843,13 @@ export const botsRouter = createTRPCRouter({
 
 				// Extract database fields from input
 				const dbInput = {
-					botDisplayName: input.botDisplayName ?? "Meeboter",
-					botImage: input.botImage,
+					displayName: input.displayName ?? "Meeboter",
+					imageUrl: input.imageUrl,
 					userId: ctx.session.user.id,
-					meetingTitle: input.meetingTitle ?? "Meeting",
-					meetingInfo: input.meetingInfo,
+					meeting: input.meeting,
 					startTime: input.startTime,
 					endTime: input.endTime,
 					recordingEnabled: input.recordingEnabled ?? false,
-					heartbeatInterval: input.heartbeatInterval ?? 10000,
 					automaticLeave: input.automaticLeave
 						? {
 								waitingRoomTimeout: Math.max(
@@ -889,8 +875,7 @@ export const botsRouter = createTRPCRouter({
 								everyoneLeftTimeout: 60 * 1000, // 60 seconds (default)
 								inactivityTimeout: 5 * 60 * 1000, // 5 minutes (default)
 							},
-					callbackUrl: input.callbackUrl, // Credit to @martinezpl for this line -- cannot merge at time of writing due to capstone requirements
-					chatEnabled: input.chatEnabled ?? true,
+					callbackUrl: input.callbackUrl,
 				};
 
 				const result = await ctx.db

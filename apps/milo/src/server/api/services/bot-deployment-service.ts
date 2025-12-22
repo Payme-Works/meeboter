@@ -3,7 +3,6 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 
 import type * as schema from "@/server/database/schema";
 import { type BotConfig, botsTable } from "@/server/database/schema";
-import { CoolifyDeploymentError } from "./coolify-service";
 import type { PlatformService } from "./platform";
 
 /**
@@ -64,15 +63,12 @@ export class BotDeploymentService {
 		const config: BotConfig = {
 			id: botId,
 			userId: bot.userId,
-			meetingTitle: bot.meetingTitle,
-			meetingInfo: bot.meetingInfo,
+			meeting: bot.meeting,
 			startTime: bot.startTime,
 			endTime: bot.endTime,
-			botDisplayName: bot.botDisplayName,
-			botImage: bot.botImage ?? undefined,
+			displayName: bot.displayName,
+			imageUrl: bot.imageUrl ?? undefined,
 			recordingEnabled: bot.recordingEnabled,
-			heartbeatInterval: bot.heartbeatInterval,
-			chatEnabled: bot.chatEnabled,
 			automaticLeave: bot.automaticLeave,
 			callbackUrl: bot.callbackUrl ?? undefined,
 		};
@@ -160,7 +156,6 @@ export class BotDeploymentService {
 			const result = await this.db
 				.update(botsTable)
 				.set({
-					deploymentError: null,
 					deploymentPlatform: this.platform.platformName,
 					platformIdentifier: deployResult.identifier ?? null,
 				})
@@ -185,28 +180,14 @@ export class BotDeploymentService {
 
 			return { bot: deployedBot, queued: false };
 		} catch (error) {
-			const errorMessage = this.getErrorMessage(error);
-
 			await this.db
 				.update(botsTable)
 				.set({
 					status: "FATAL",
-					deploymentError: errorMessage,
 				})
 				.where(eq(botsTable.id, botId));
 
 			throw error;
 		}
-	}
-
-	/**
-	 * Extracts error message from various error types
-	 */
-	private getErrorMessage(error: unknown): string {
-		if (error instanceof CoolifyDeploymentError) return error.message;
-
-		if (error instanceof Error) return error.message;
-
-		return "Unknown error";
 	}
 }

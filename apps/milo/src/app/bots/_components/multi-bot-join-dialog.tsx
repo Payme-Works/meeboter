@@ -146,9 +146,8 @@ export function MultiBotJoinDialog({ open, onClose }: MultiBotJoinDialogProps) {
 				{ length: data.botCount },
 				(_, index) =>
 					createBotMutation.mutateAsync({
-						botDisplayName: botNames[index] || `Bot ${index + 1}`,
-						meetingTitle: `${data.botCount}-bots-session`,
-						meetingInfo: {
+						displayName: botNames[index] || `Bot ${index + 1}`,
+						meeting: {
 							platform,
 							meetingUrl: data.meetingUrl,
 						},

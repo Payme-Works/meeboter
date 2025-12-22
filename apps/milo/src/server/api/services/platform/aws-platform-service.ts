@@ -68,11 +68,9 @@ export class AWSPlatformService implements PlatformService {
 	async deployBot(
 		botConfig: BotConfig,
 	): Promise<PlatformDeployWithQueueResult> {
-		const taskDefinition = this.getTaskDefinition(
-			botConfig.meetingInfo.platform,
-		);
+		const taskDefinition = this.getTaskDefinition(botConfig.meeting.platform);
 
-		const containerName = this.getContainerName(botConfig.meetingInfo.platform);
+		const containerName = this.getContainerName(botConfig.meeting.platform);
 
 		try {
 			const result = await this.ecsClient.send(

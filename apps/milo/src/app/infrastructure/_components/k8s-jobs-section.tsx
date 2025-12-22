@@ -81,8 +81,7 @@ function K8sBotCard({
 	bot: {
 		id: number;
 		status: string;
-		botDisplayName: string;
-		meetingTitle: string;
+		displayName: string;
 		createdAt: Date | null;
 		platformIdentifier: string | null;
 	};
@@ -107,7 +106,7 @@ function K8sBotCard({
 						<StatusBadge status={bot.status} />
 					</div>
 					<p className="text-xs text-muted-foreground truncate">
-						{bot.botDisplayName} - {bot.meetingTitle}
+						{bot.displayName}
 					</p>
 				</div>
 

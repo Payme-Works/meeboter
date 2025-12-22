@@ -338,17 +338,17 @@ export default function BotsPage() {
 				enableHiding: false,
 			},
 			{
-				accessorKey: "botDisplayName",
+				accessorKey: "displayName",
 				header: "Bot Name",
 				cell: ({ row }) => (
-					<span className="font-medium">{row.original.botDisplayName}</span>
+					<span className="font-medium">{row.original.displayName}</span>
 				),
 			},
 			{
-				accessorKey: "meetingInfo.platform",
+				accessorKey: "meeting.platform",
 				header: "Platform",
 				cell: ({ row }) => {
-					const platform = row.original.meetingInfo.platform;
+					const platform = row.original.meeting.platform;
 
 					return (
 						<div className="flex items-center gap-2">
@@ -453,20 +453,20 @@ export default function BotsPage() {
 						<div className="flex items-center justify-end">
 							<BotActionsDropdown
 								botId={row.original.id}
-								botName={row.original.botDisplayName}
+								botName={row.original.displayName}
 								status={row.original.status}
 								recording={row.original.recording}
 								onViewDetails={() => setSelectedBot(row.original.id)}
 								onRemoveFromCall={() =>
 									setBotToRemove({
 										id: row.original.id,
-										name: row.original.botDisplayName,
+										name: row.original.displayName,
 									})
 								}
 								onCancelDeployment={() =>
 									setBotToCancel({
 										id: row.original.id,
-										name: row.original.botDisplayName,
+										name: row.original.displayName,
 									})
 								}
 							/>

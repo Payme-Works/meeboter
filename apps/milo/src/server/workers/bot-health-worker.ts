@@ -144,9 +144,6 @@ export class BotHealthWorker extends BaseWorker<BotHealthResult> {
 					? bot.lastHeartbeat.toISOString()
 					: "never";
 
-				const errorMessage =
-					"Bot crashed or stopped responding (no heartbeat for 10+ minutes)";
-
 				console.log(
 					`[${this.name}] Marking bot ${bot.id} as FATAL (status: ${bot.status}, lastHeartbeat: ${lastHeartbeatStr})`,
 				);
@@ -156,7 +153,6 @@ export class BotHealthWorker extends BaseWorker<BotHealthResult> {
 					.update(botsTable)
 					.set({
 						status: "FATAL",
-						deploymentError: errorMessage,
 					})
 					.where(eq(botsTable.id, bot.id));
 
@@ -239,9 +235,6 @@ export class BotHealthWorker extends BaseWorker<BotHealthResult> {
 					}
 				}
 
-				const errorMessage =
-					"Deployment timed out (stuck in DEPLOYING for 15+ minutes without heartbeat)";
-
 				console.log(
 					`[${this.name}] Marking stuck DEPLOYING bot ${bot.id} as FATAL (created: ${bot.createdAt?.toISOString()})`,
 				);
@@ -250,7 +243,6 @@ export class BotHealthWorker extends BaseWorker<BotHealthResult> {
 					.update(botsTable)
 					.set({
 						status: "FATAL",
-						deploymentError: errorMessage,
 					})
 					.where(eq(botsTable.id, bot.id));
 

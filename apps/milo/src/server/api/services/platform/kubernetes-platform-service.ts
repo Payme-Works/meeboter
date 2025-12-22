@@ -359,7 +359,7 @@ export class KubernetesPlatformService implements PlatformService {
 	 * Builds the Kubernetes Job specification
 	 */
 	private buildJobSpec(botConfig: BotConfig, jobName: string): V1Job {
-		const image = this.getImageForPlatform(botConfig.meetingInfo.platform);
+		const image = this.getImageForPlatform(botConfig.meeting.platform);
 
 		return {
 			apiVersion: "batch/v1",
@@ -369,7 +369,7 @@ export class KubernetesPlatformService implements PlatformService {
 				namespace: this.config.namespace,
 				labels: {
 					app: "meeboter-bot",
-					platform: botConfig.meetingInfo.platform ?? "unknown",
+					platform: botConfig.meeting.platform ?? "unknown",
 					botId: botConfig.id.toString(),
 				},
 			},
@@ -382,7 +382,7 @@ export class KubernetesPlatformService implements PlatformService {
 					metadata: {
 						labels: {
 							app: "meeboter-bot",
-							platform: botConfig.meetingInfo.platform ?? "unknown",
+							platform: botConfig.meeting.platform ?? "unknown",
 							botId: botConfig.id.toString(),
 						},
 					},

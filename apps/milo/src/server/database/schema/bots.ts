@@ -234,33 +234,36 @@ export const botsTable = pgTable(
 	{
 		/** Unique identifier for the bot */
 		id: serial("id").primaryKey(),
+
 		/** Display name shown for the bot in meetings */
-		botDisplayName: varchar("bot_display_name", { length: 255 }).notNull(),
+		displayName: varchar("display_name", { length: 255 }).notNull(),
+
 		/** URL to bot's avatar image */
-		botImage: varchar("bot_image", { length: 255 }),
+		imageUrl: varchar("image_url", { length: 255 }),
 
 		/** Reference to the user who owns this bot */
 		userId: text("user_id")
 			.references(() => usersTable.id)
 			.notNull(),
 
-		/** Title of the meeting this bot will join */
-		meetingTitle: varchar("meeting_title", { length: 255 }).notNull(),
 		/** Platform-specific meeting connection details */
-		meetingInfo: json("meeting_info").$type<MeetingInfo>().notNull(),
+		meeting: json("meeting").$type<MeetingInfo>().notNull(),
 
 		/** Configuration for automatic leave conditions */
 		automaticLeave: json("automatic_leave").$type<AutomaticLeave>().notNull(),
 
 		/** Scheduled start time for the meeting */
 		startTime: timestamp("start_time").notNull(),
+
 		/** Scheduled end time for the meeting */
 		endTime: timestamp("end_time").notNull(),
 
 		/** Path to the recorded audio file */
 		recording: varchar("recording", { length: 255 }),
+
 		/** Whether recording is enabled for this bot */
 		recordingEnabled: boolean("recording_enabled").notNull().default(false),
+
 		/** Timeline of when each speaker was active */
 		speakerTimeframes: json("speaker_timeframes")
 			.$type<SpeakerTimeframe[]>()
@@ -272,18 +275,12 @@ export const botsTable = pgTable(
 			.$type<Status>()
 			.notNull()
 			.default("DEPLOYING"),
+
 		/** Last time the bot sent a heartbeat signal */
 		lastHeartbeat: timestamp("last_heartbeat"),
 
-		/** Error message if bot deployment failed */
-		deploymentError: varchar("deployment_error", { length: 1024 }),
-
-		/** How often the bot sends heartbeat signals (milliseconds) */
-		heartbeatInterval: integer("heartbeat_interval").notNull(),
 		/** URL to send bot event notifications to */
 		callbackUrl: varchar("callback_url", { length: 1024 }),
-		/** Whether chat messaging is enabled for this bot */
-		chatEnabled: boolean("chat_enabled").notNull().default(false),
 
 		/** Screenshots captured during bot lifecycle for debugging */
 		screenshots: json("screenshots")
@@ -324,21 +321,17 @@ export const botsTable = pgTable(
  * Defines required and optional fields for bot creation
  */
 export const insertBotSchema = z.object({
-	botDisplayName: z.string().optional(),
-	botImage: z.url().optional(),
-	meetingTitle: z.string().optional(),
-	meetingInfo: meetingInfoSchema,
+	displayName: z.string().optional(),
+	imageUrl: z.url().optional(),
+	meeting: meetingInfoSchema,
 	startTime: z.date().optional(),
 	endTime: z.date().optional(),
 	recordingEnabled: z.boolean().optional().default(false),
-	heartbeatInterval: z.number().optional(),
 	automaticLeave: automaticLeaveSchema.optional(),
 	callbackUrl: z
-		.string()
 		.url()
 		.optional()
 		.describe("URL to receive bot event notifications"),
-	chatEnabled: z.boolean().optional().default(true),
 });
 export type InsertBotType = z.infer<typeof insertBotSchema>;
 
@@ -347,7 +340,7 @@ export type InsertBotType = z.infer<typeof insertBotSchema>;
  * Includes custom validation for complex JSON fields
  */
 export const selectBotSchema = createSelectSchema(botsTable, {
-	meetingInfo: meetingInfoSchema,
+	meeting: meetingInfoSchema,
 	automaticLeave: automaticLeaveSchema,
 	speakerTimeframes: z.array(speakerTimeframeSchema),
 	screenshots: z.array(screenshotDataSchema),
@@ -361,21 +354,17 @@ export type SelectBotType = z.infer<typeof selectBotSchema>;
 export const botConfigSchema = z.object({
 	id: z.number(),
 	userId: z.string(),
-	meetingInfo: meetingInfoSchema,
-	meetingTitle: z.string(),
+	meeting: meetingInfoSchema,
 	startTime: z.date(),
 	endTime: z.date(),
-	botDisplayName: z.string(),
-	botImage: z.url().optional(),
+	displayName: z.string(),
+	imageUrl: z.url().optional(),
 	recordingEnabled: z.boolean(),
-	heartbeatInterval: z.number(),
 	automaticLeave: automaticLeaveSchema,
 	callbackUrl: z
-		.string()
 		.url()
 		.optional()
 		.describe("URL to receive bot event notifications"),
-	chatEnabled: z.boolean(),
 });
 export type BotConfig = z.infer<typeof botConfigSchema>;
 

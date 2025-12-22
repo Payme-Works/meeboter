@@ -431,11 +431,9 @@ export class BotPoolService {
 		);
 
 		// Get platform info for lock coordination
-		const image = this.coolify.selectBotImage(botConfig.meetingInfo);
+		const image = this.coolify.selectBotImage(botConfig.meeting);
 
-		const platformName = this.getPlatformSlotName(
-			botConfig.meetingInfo.platform,
-		);
+		const platformName = this.getPlatformSlotName(botConfig.meeting.platform);
 
 		// Acquire deployment queue slot to limit concurrent deployments
 		await this.deploymentQueue.acquireSlot(String(botConfig.id));
@@ -735,7 +733,6 @@ export class BotPoolService {
 				.update(botsTable)
 				.set({
 					status: "FATAL",
-					deploymentError: "Queue timeout - no pool slot became available",
 				})
 				.where(eq(botsTable.id, entry.botId));
 		}
@@ -810,7 +807,6 @@ export class BotPoolService {
 			.update(botsTable)
 			.set({
 				status: "FATAL",
-				deploymentError: "Queue timeout - no pool slot became available",
 			})
 			.where(eq(botsTable.id, botId));
 
@@ -857,15 +853,12 @@ export class BotPoolService {
 		const botConfig: BotConfig = {
 			id: bot.id,
 			userId: bot.userId,
-			meetingTitle: bot.meetingTitle,
-			meetingInfo: bot.meetingInfo,
+			meeting: bot.meeting,
 			startTime: bot.startTime,
 			endTime: bot.endTime,
-			botDisplayName: bot.botDisplayName,
-			botImage: bot.botImage ?? undefined,
+			displayName: bot.displayName,
+			imageUrl: bot.imageUrl ?? undefined,
 			recordingEnabled: bot.recordingEnabled,
-			heartbeatInterval: bot.heartbeatInterval,
-			chatEnabled: bot.chatEnabled,
 			automaticLeave: bot.automaticLeave,
 			callbackUrl: bot.callbackUrl ?? undefined,
 		};
@@ -1029,8 +1022,8 @@ export class BotPoolService {
 		}
 
 		const bot = botResult[0];
-		const image = this.coolify.selectBotImage(bot.meetingInfo);
-		const platformName = this.getPlatformSlotName(bot.meetingInfo.platform);
+		const image = this.coolify.selectBotImage(bot.meeting);
+		const platformName = this.getPlatformSlotName(bot.meeting.platform);
 
 		// Reserve slot number atomically using transaction with advisory lock
 		// Advisory lock works even when table is empty (unlike FOR UPDATE)
@@ -1097,15 +1090,12 @@ export class BotPoolService {
 		const placeholderConfig: BotConfig = {
 			id: botId,
 			userId: bot.userId,
-			meetingTitle: bot.meetingTitle,
-			meetingInfo: bot.meetingInfo,
+			meeting: bot.meeting,
 			startTime: bot.startTime,
 			endTime: bot.endTime,
-			botDisplayName: bot.botDisplayName,
-			botImage: bot.botImage ?? undefined,
+			displayName: bot.displayName,
+			imageUrl: bot.imageUrl ?? undefined,
 			recordingEnabled: bot.recordingEnabled,
-			heartbeatInterval: bot.heartbeatInterval,
-			chatEnabled: bot.chatEnabled,
 			automaticLeave: bot.automaticLeave,
 			callbackUrl: bot.callbackUrl ?? undefined,
 		};
@@ -1169,7 +1159,7 @@ export class BotPoolService {
 		slot: PoolSlot,
 		botConfig: BotConfig,
 	): Promise<PoolSlot> {
-		const image = this.coolify.selectBotImage(botConfig.meetingInfo);
+		const image = this.coolify.selectBotImage(botConfig.meeting);
 
 		console.log(
 			`[BotPoolService] Creating new Coolify app for slot ${slot.slotName} (old UUID: ${slot.applicationUuid}, slot ID: ${slot.id})`,

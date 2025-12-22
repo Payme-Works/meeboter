@@ -65,7 +65,7 @@ export class LocalPlatformService implements PlatformService {
 		botConfig: BotConfig,
 	): Promise<PlatformDeployWithQueueResult> {
 		const identifier = `local-bot-${botConfig.id}-${Date.now()}`;
-		const platform = botConfig.meetingInfo.platform ?? "unknown";
+		const platform = botConfig.meeting.platform ?? "unknown";
 
 		console.log(
 			`[LocalPlatform] Deploying bot ${botConfig.id} for ${platform} platform`,

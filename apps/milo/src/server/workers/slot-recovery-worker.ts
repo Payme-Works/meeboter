@@ -273,7 +273,6 @@ export class SlotRecoveryWorker extends BaseWorker<SlotRecoveryResult> {
 					.update(botsTable)
 					.set({
 						status: "FATAL",
-						deploymentError: `Slot ${slot.slotName} recovered due to ${slot.status} status`,
 					})
 					.where(eq(botsTable.id, slot.assignedBotId));
 
@@ -348,7 +347,6 @@ export class SlotRecoveryWorker extends BaseWorker<SlotRecoveryResult> {
 				.update(botsTable)
 				.set({
 					status: "FATAL",
-					deploymentError: `Slot ${slot.slotName} permanently deleted after ${slot.recoveryAttempts} failed recovery attempts`,
 				})
 				.where(eq(botsTable.id, slot.assignedBotId));
 

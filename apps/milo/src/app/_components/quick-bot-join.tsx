@@ -194,9 +194,8 @@ export function QuickBotJoin() {
 				{ length: data.botCount },
 				(_, index) =>
 					createBotMutation.mutateAsync({
-						botDisplayName: botNames[index] || `Bot ${index + 1}`,
-						meetingTitle: "Quick join session",
-						meetingInfo: {
+						displayName: botNames[index] || `Bot ${index + 1}`,
+						meeting: {
 							platform,
 							meetingUrl: data.meetingUrl,
 						},
