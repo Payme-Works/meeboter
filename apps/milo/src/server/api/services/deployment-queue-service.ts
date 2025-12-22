@@ -55,10 +55,33 @@ export class DeploymentQueueService {
 	 * If under the concurrency limit, returns immediately.
 	 * Otherwise, waits in a FIFO queue until a slot becomes available.
 	 *
+	 * Idempotent: if botId is already active, returns immediately without
+	 * consuming an additional slot (prevents duplicate slot consumption).
+	 *
 	 * @param botId - The bot ID requesting deployment
 	 * @throws DeploymentQueueTimeoutError if the wait times out
 	 */
 	async acquireSlot(botId: string): Promise<void> {
+		// Idempotent: if already active, return immediately (duplicate protection)
+		if (this.activeDeployments.has(botId)) {
+			console.warn(
+				`[DeploymentQueue] Bot ${botId} already has an active deployment slot (duplicate acquire ignored)`,
+			);
+
+			return;
+		}
+
+		// Also check if already queued (prevents duplicate queue entries)
+		const alreadyQueued = this.queue.some((entry) => entry.botId === botId);
+
+		if (alreadyQueued) {
+			console.warn(
+				`[DeploymentQueue] Bot ${botId} is already queued (duplicate acquire ignored)`,
+			);
+
+			return;
+		}
+
 		// If under limit, acquire immediately
 		if (this.activeDeployments.size < this.maxConcurrent) {
 			this.activeDeployments.add(botId);

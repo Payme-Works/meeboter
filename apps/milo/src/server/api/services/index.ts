@@ -24,6 +24,12 @@ export interface Services {
 	 */
 	coolify?: CoolifyService;
 	pool?: BotPoolService;
+
+	/**
+	 * Deployment queue for limiting concurrent Coolify deployments
+	 * Only available when platform is 'coolify'
+	 */
+	deploymentQueue?: DeploymentQueueService;
 }
 
 /**
@@ -72,6 +78,7 @@ function createServices(): Services {
 
 		services.coolify = coolify;
 		services.pool = pool;
+		services.deploymentQueue = deploymentQueue;
 	}
 
 	return services;

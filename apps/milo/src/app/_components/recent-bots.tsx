@@ -199,6 +199,7 @@ export function RecentBots() {
 												className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-white hover:bg-destructive"
 												onClick={(e) => {
 													e.stopPropagation();
+
 													setBotToRemove({
 														id: bot.id,
 														name: bot.botDisplayName,
@@ -216,6 +217,7 @@ export function RecentBots() {
 												className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-white hover:bg-destructive"
 												onClick={(e) => {
 													e.stopPropagation();
+
 													setBotToCancel({
 														id: bot.id,
 														name: bot.botDisplayName,

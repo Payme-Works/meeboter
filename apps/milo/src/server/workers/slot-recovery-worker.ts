@@ -72,6 +72,7 @@ interface SlotRecoveryResult extends WorkerResult {
 	failed: number;
 	deleted: number;
 	skipped: number;
+	deploymentQueueReleased: number;
 }
 
 /**
@@ -92,7 +93,11 @@ export class SlotRecoveryWorker extends BaseWorker<SlotRecoveryResult> {
 			failed: 0,
 			deleted: 0,
 			skipped: 0,
+			deploymentQueueReleased: 0,
 		};
+
+		// Log deployment queue stats for observability
+		this.logDeploymentQueueStats();
 
 		const staleDeployingCutoff = new Date(Date.now() - DEPLOYING_TIMEOUT_MS);
 
@@ -145,18 +150,26 @@ export class SlotRecoveryWorker extends BaseWorker<SlotRecoveryResult> {
 			}
 
 			if (slot.recoveryAttempts >= MAX_RECOVERY_ATTEMPTS) {
-				await this.deleteSlotPermanently(slot);
+				const released = await this.deleteSlotPermanently(slot);
 				result.deleted++;
+
+				if (released) {
+					result.deploymentQueueReleased++;
+				}
 
 				continue;
 			}
 
-			const success = await this.attemptSlotRecovery(slot);
+			const recoveryResult = await this.attemptSlotRecovery(slot);
 
-			if (success) {
+			if (recoveryResult.success) {
 				result.recovered++;
 			} else {
 				result.failed++;
+			}
+
+			if (recoveryResult.deploymentQueueReleased) {
+				result.deploymentQueueReleased++;
 			}
 		}
 
@@ -232,11 +245,14 @@ export class SlotRecoveryWorker extends BaseWorker<SlotRecoveryResult> {
 
 	/**
 	 * Attempts to recover a single slot by stopping container and resetting to idle.
+	 *
+	 * @returns Object with success status and whether deployment queue was released
 	 */
 	private async attemptSlotRecovery(
 		slot: SelectBotPoolSlotType,
-	): Promise<boolean> {
+	): Promise<{ success: boolean; deploymentQueueReleased: boolean }> {
 		const attemptNumber = slot.recoveryAttempts + 1;
+		let deploymentQueueReleased = false;
 
 		console.log(
 			`[${this.name}] Attempting recovery for ${slot.slotName} (attempt ${attemptNumber}/${MAX_RECOVERY_ATTEMPTS})`,
@@ -248,7 +264,7 @@ export class SlotRecoveryWorker extends BaseWorker<SlotRecoveryResult> {
 					`[${this.name}] Coolify service not available, skipping recovery`,
 				);
 
-				return false;
+				return { success: false, deploymentQueueReleased: false };
 			}
 
 			// Update assigned bot status to FATAL before clearing the slot
@@ -263,6 +279,11 @@ export class SlotRecoveryWorker extends BaseWorker<SlotRecoveryResult> {
 
 				console.log(
 					`[${this.name}] Updated bot ${slot.assignedBotId} status to FATAL (slot ${slot.slotName} recovered)`,
+				);
+
+				// Release from in-memory deployment queue to prevent stuck slots
+				deploymentQueueReleased = this.releaseFromDeploymentQueue(
+					slot.assignedBotId,
 				);
 			}
 
@@ -291,7 +312,7 @@ export class SlotRecoveryWorker extends BaseWorker<SlotRecoveryResult> {
 
 			console.log(`[${this.name}] Successfully recovered ${slot.slotName}`);
 
-			return true;
+			return { success: true, deploymentQueueReleased };
 		} catch (error) {
 			await this.db
 				.update(botPoolSlotsTable)
@@ -303,16 +324,20 @@ export class SlotRecoveryWorker extends BaseWorker<SlotRecoveryResult> {
 				error,
 			);
 
-			return false;
+			return { success: false, deploymentQueueReleased };
 		}
 	}
 
 	/**
 	 * Permanently deletes a slot that has exceeded max recovery attempts.
+	 *
+	 * @returns Whether the deployment queue slot was released
 	 */
 	private async deleteSlotPermanently(
 		slot: SelectBotPoolSlotType,
-	): Promise<void> {
+	): Promise<boolean> {
+		let deploymentQueueReleased = false;
+
 		console.log(
 			`[${this.name}] Deleting permanently failed slot ${slot.slotName} (attempts: ${slot.recoveryAttempts})`,
 		);
@@ -329,6 +354,11 @@ export class SlotRecoveryWorker extends BaseWorker<SlotRecoveryResult> {
 
 			console.log(
 				`[${this.name}] Updated bot ${slot.assignedBotId} status to FATAL (slot ${slot.slotName} deleted)`,
+			);
+
+			// Release from in-memory deployment queue to prevent stuck slots
+			deploymentQueueReleased = this.releaseFromDeploymentQueue(
+				slot.assignedBotId,
 			);
 		}
 
@@ -350,5 +380,65 @@ export class SlotRecoveryWorker extends BaseWorker<SlotRecoveryResult> {
 			.where(eq(botPoolSlotsTable.id, slot.id));
 
 		console.log(`[${this.name}] Deleted slot ${slot.slotName}`);
+
+		return deploymentQueueReleased;
+	}
+
+	/**
+	 * Releases a bot from the in-memory deployment queue.
+	 *
+	 * This ensures the deployment queue stays in sync with recovered/deleted slots,
+	 * preventing the queue from getting stuck with stale bot entries.
+	 *
+	 * @returns true if the bot was in the queue and released, false otherwise
+	 */
+	private releaseFromDeploymentQueue(botId: number): boolean {
+		if (!this.services.deploymentQueue) {
+			return false;
+		}
+
+		const botIdStr = String(botId);
+
+		// The release method is idempotent, it will log if not found
+		this.services.deploymentQueue.release(botIdStr);
+
+		console.log(
+			`[${this.name}] Released bot ${botId} from deployment queue (sync recovery)`,
+		);
+
+		return true;
+	}
+
+	/**
+	 * Logs deployment queue statistics for observability.
+	 *
+	 * Runs every 5 minutes (same as worker interval) to track:
+	 * - Active deployments vs max concurrent limit
+	 * - Queue depth for waiting deployments
+	 */
+	private logDeploymentQueueStats(): void {
+		if (!this.services.deploymentQueue) {
+			return;
+		}
+
+		const stats = this.services.deploymentQueue.getStats();
+
+		console.log(
+			`[${this.name}] DeploymentQueue stats: active=${stats.active}/${stats.maxConcurrent}, queued=${stats.queued}`,
+		);
+
+		// Warn if queue is building up (potential stuck condition)
+		if (stats.queued > 10) {
+			console.warn(
+				`[${this.name}] DeploymentQueue has ${stats.queued} waiting deployments (possible stuck condition)`,
+			);
+		}
+
+		// Warn if at capacity for extended period
+		if (stats.active >= stats.maxConcurrent && stats.queued > 0) {
+			console.warn(
+				`[${this.name}] DeploymentQueue at capacity (${stats.active}/${stats.maxConcurrent}) with ${stats.queued} waiting`,
+			);
+		}
 	}
 }

@@ -116,7 +116,8 @@ function PoolCard({ slotStatuses, maxSize, botStats }: PoolCardProps) {
 				{/* Pool Stats line */}
 				<div className="flex items-center gap-1.5 text-xs text-muted-foreground">
 					<span className="flex items-center gap-1">
-						<span className="w-1.5 h-1.5 rounded-full bg-accent" />
+						<span className="w-1.5 h-1.5 rounded-full border border-accent" />
+
 						<span className="tabular-nums font-medium text-foreground/80">
 							{idle}
 						</span>
@@ -149,7 +150,7 @@ function PoolCard({ slotStatuses, maxSize, botStats }: PoolCardProps) {
 
 				{/* Bot Stats line */}
 				<div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-2 pt-2 border-t border-border/50">
-					<Bot className="h-2 w-2 text-muted-foreground/50" />
+					<Bot className="h-4 w-4 text-green-500" />
 					<span className="flex items-center gap-1">
 						<span className="tabular-nums font-medium text-foreground/80">
 							{botStats.inCall}
