@@ -119,10 +119,10 @@ const automaticLeaveSchema = z.object({
 export type AutomaticLeave = z.infer<typeof automaticLeaveSchema>;
 
 /**
- * Schema for meeting information
+ * Schema for meeting configuration
  * Contains platform-specific details needed to join meetings
  */
-export const meetingInfoSchema = z.object({
+export const meetingSchema = z.object({
 	meetingId: z.string().optional().describe("Meeting ID"),
 	meetingPassword: z.string().optional().describe("Meeting password"),
 	meetingUrl: z.string().optional().describe("Meeting URL"),
@@ -135,7 +135,7 @@ export const meetingInfoSchema = z.object({
 		.optional()
 		.describe("Platform"),
 });
-export type MeetingInfo = z.infer<typeof meetingInfoSchema>;
+export type Meeting = z.infer<typeof meetingSchema>;
 
 /**
  * Bot status codes representing the current state of a bot
@@ -247,7 +247,7 @@ export const botsTable = pgTable(
 			.notNull(),
 
 		/** Platform-specific meeting connection details */
-		meeting: json("meeting").$type<MeetingInfo>().notNull(),
+		meeting: json("meeting").$type<Meeting>().notNull(),
 
 		/** Configuration for automatic leave conditions */
 		automaticLeave: json("automatic_leave").$type<AutomaticLeave>().notNull(),
@@ -323,7 +323,7 @@ export const botsTable = pgTable(
 export const insertBotSchema = z.object({
 	displayName: z.string().optional(),
 	imageUrl: z.url().optional(),
-	meeting: meetingInfoSchema,
+	meeting: meetingSchema,
 	startTime: z.date().optional(),
 	endTime: z.date().optional(),
 	recordingEnabled: z.boolean().optional().default(false),
@@ -340,7 +340,7 @@ export type InsertBotType = z.infer<typeof insertBotSchema>;
  * Includes custom validation for complex JSON fields
  */
 export const selectBotSchema = createSelectSchema(botsTable, {
-	meeting: meetingInfoSchema,
+	meeting: meetingSchema,
 	automaticLeave: automaticLeaveSchema,
 	speakerTimeframes: z.array(speakerTimeframeSchema),
 	screenshots: z.array(screenshotDataSchema),
@@ -354,7 +354,7 @@ export type SelectBotType = z.infer<typeof selectBotSchema>;
 export const botConfigSchema = z.object({
 	id: z.number(),
 	userId: z.string(),
-	meeting: meetingInfoSchema,
+	meeting: meetingSchema,
 	startTime: z.date(),
 	endTime: z.date(),
 	displayName: z.string(),

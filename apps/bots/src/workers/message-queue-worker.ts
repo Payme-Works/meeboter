@@ -20,20 +20,11 @@ export class MessageQueueWorker {
 	) {}
 
 	/**
-	 * Starts the message queue worker
+	 * Starts the message queue worker (chat is always enabled)
 	 */
 	start(botId: number): void {
 		if (this.running) {
 			this.logger.warn("Message queue worker already running");
-
-			return;
-		}
-
-		// Check if chat is enabled on the bot
-		const bot = this.getBot();
-
-		if (!bot?.settings.chatEnabled) {
-			this.logger.debug("Chat functionality is disabled for this bot");
 
 			return;
 		}

@@ -142,11 +142,10 @@ export const main = async () => {
 
 	console.log("[INIT] Bot config received:", {
 		id: botConfig.id,
-		platform: botConfig.meetingInfo.platform,
-		meetingUrl: `${botConfig.meetingInfo.meetingUrl?.slice(0, 50)}...`,
-		botDisplayName: botConfig.botDisplayName,
+		platform: botConfig.meeting.platform,
+		meetingUrl: `${botConfig.meeting.meetingUrl?.slice(0, 50)}...`,
+		displayName: botConfig.displayName,
 		recordingEnabled: botConfig.recordingEnabled,
-		chatEnabled: botConfig.chatEnabled,
 	});
 
 	const botId = botConfig.id;
@@ -192,7 +191,7 @@ export const main = async () => {
 	const result = await withAutoRestart(
 		async () => {
 			logger.info("Creating platform-specific bot instance...", {
-				platform: botConfig.meetingInfo.platform,
+				platform: botConfig.meeting.platform,
 			});
 
 			// Create fresh bot instance for this attempt
@@ -240,10 +239,8 @@ export const main = async () => {
 				});
 			}
 
-			// Start message queue worker if chat is enabled
-			if (botConfig.chatEnabled) {
-				workers.messageQueue.start(botId);
-			}
+			// Start message queue worker (chat is always enabled)
+			workers.messageQueue.start(botId);
 
 			return {
 				bot,
@@ -257,7 +254,7 @@ export const main = async () => {
 					// Upload recording if enabled and successful
 					if (bot.settings.recordingEnabled && uploadRecording) {
 						logger.info("Starting upload to storage...");
-						const platform = bot.settings.meetingInfo.platform ?? "unknown";
+						const platform = bot.settings.meeting.platform ?? "unknown";
 						const recordingPath = bot.getRecordingPath();
 						const contentType = bot.getContentType();
 

@@ -7,9 +7,9 @@ import {
 import superjson from "superjson";
 
 /**
- * Meeting information containing platform-specific identifiers and connection details
+ * Meeting configuration containing platform-specific identifiers and connection details
  */
-type MeetingInfo = {
+type Meeting = {
 	meetingId?: string;
 	meetingPassword?: string;
 	meetingUrl?: string;
@@ -32,22 +32,23 @@ type AutomaticLeave = {
 
 /**
  * Complete configuration settings for a bot instance in a meeting
+ * Must match the server's botConfigSchema from apps/milo/src/server/database/schema/bots.ts
  */
 export type BotConfig = {
 	id: number;
 	userId: string;
-	meetingInfo: MeetingInfo;
-	meetingTitle: string;
+	meeting: Meeting;
 	startTime: Date;
 	endTime: Date;
-	botDisplayName: string;
-	botImage?: string;
+	displayName: string;
+	imageUrl?: string;
 	recordingEnabled: boolean;
-	heartbeatInterval: number;
 	automaticLeave: AutomaticLeave;
 	callbackUrl?: string;
-	chatEnabled: boolean;
 };
+
+/** Heartbeat interval in milliseconds (static value, no longer configurable) */
+export const HEARTBEAT_INTERVAL = 10_000;
 
 /**
  * Enumeration of possible bot status states throughout the meeting lifecycle

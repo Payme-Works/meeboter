@@ -40,7 +40,7 @@ export async function createBot(
 	options: CreateBotOptions,
 ): Promise<Bot> {
 	const botId = config.id;
-	const platform = config.meetingInfo.platform;
+	const platform = config.meeting.platform;
 	const { emitter, logger, trpc } = options;
 
 	logger.debug("createBot called", {
@@ -79,11 +79,11 @@ export async function createBot(
 	let bot: Bot;
 
 	logger.debug("Loading platform module...", {
-		platform: config.meetingInfo.platform,
+		platform: config.meeting.platform,
 	});
 
 	// 3. Create platform-specific bot with emitter and logger
-	switch (config.meetingInfo.platform) {
+	switch (config.meeting.platform) {
 		case "google-meet": {
 			logger.debug("Importing GoogleMeetBot module...");
 
@@ -126,9 +126,9 @@ export async function createBot(
 		}
 
 		default:
-			logger.error(`Unsupported platform: ${config.meetingInfo.platform}`);
+			logger.error(`Unsupported platform: ${config.meeting.platform}`);
 
-			throw new Error(`Unsupported platform: ${config.meetingInfo.platform}`);
+			throw new Error(`Unsupported platform: ${config.meeting.platform}`);
 	}
 
 	return bot;

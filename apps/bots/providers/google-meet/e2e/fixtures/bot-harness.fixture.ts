@@ -114,28 +114,25 @@ export function createMockLogger(emitter: BotEventEmitter): BotLogger {
  */
 export function createTestConfig(
 	meetUrl: string,
-	botDisplayName: string,
+	displayName: string,
 ): BotConfig {
 	return {
 		id: 999,
 		userId: "e2e-test-user",
-		meetingInfo: {
+		meeting: {
 			meetingUrl: meetUrl,
 			platform: "google-meet",
 		},
-		meetingTitle: "E2E Test Meeting",
 		startTime: new Date(),
 		endTime: new Date(Date.now() + 3600000),
-		botDisplayName,
+		displayName,
 		recordingEnabled: false,
-		heartbeatInterval: 30000,
 		automaticLeave: {
 			waitingRoomTimeout: 60000,
 			noOneJoinedTimeout: 300000,
 			everyoneLeftTimeout: 60000,
 			inactivityTimeout: 600000,
 		},
-		chatEnabled: false,
 	};
 }
 
@@ -149,11 +146,11 @@ export class BotTestHarness {
 	readonly trpc: TrpcClient;
 	readonly config: BotConfig;
 
-	constructor(meetUrl: string, botDisplayName: string) {
+	constructor(meetUrl: string, displayName: string) {
 		this.emitter = createMockEmitter();
 		this.logger = createMockLogger(this.emitter);
 		this.trpc = createMockTrpc();
-		this.config = createTestConfig(meetUrl, botDisplayName);
+		this.config = createTestConfig(meetUrl, displayName);
 
 		this.bot = new GoogleMeetBot(
 			this.config,

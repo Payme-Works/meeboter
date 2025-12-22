@@ -54,7 +54,7 @@ export class ZoomBot extends Bot {
 
 		this.recordingPath = path.resolve(__dirname, "recording.mp4");
 		this.contentType = "video/mp4";
-		this.meetingUrl = `https://app.zoom.us/wc/${this.settings.meetingInfo.meetingId}/join?fromPWA=1&pwd=${this.settings.meetingInfo.meetingPassword}`;
+		this.meetingUrl = `https://app.zoom.us/wc/${this.settings.meeting.meetingId}/join?fromPWA=1&pwd=${this.settings.meeting.meetingPassword}`;
 
 		// Initialize S3 storage lazily via dynamic import (Bun-specific API)
 		this.initializeS3Storage();
@@ -504,7 +504,7 @@ export class ZoomBot extends Bot {
 
 		await frame.type(
 			SELECTORS.nameInput,
-			this.settings.botDisplayName ?? "Meeboter",
+			this.settings.displayName ?? "Meeboter",
 		);
 
 		await frame.waitForSelector(SELECTORS.joinButton);

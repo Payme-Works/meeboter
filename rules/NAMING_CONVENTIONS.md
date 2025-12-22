@@ -60,11 +60,13 @@ The following uses of "Data", "Info", or "Details" are acceptable:
 // ❌ WRONG: Unnecessary suffixes
 interface PlatformDetails { ... }     // → Platform
 interface PlatformInfo { ... }        // → Platform
+interface MeetingInfo { ... }         // → Meeting
 interface UserSubscriptionInfo { ... } // → UserSubscription
 interface KubernetesJobDetails { ... } // → KubernetesJob
 
 // ✅ CORRECT: Simple, descriptive names
 interface Platform { ... }
+interface Meeting { ... }
 interface UserSubscription { ... }
 interface KubernetesJob { ... }
 
@@ -122,6 +124,8 @@ function PlatformMetrics({ metrics }) { ... }
 | `userInfo` | `user` or `profile` |
 | `subscriptionInfo` | `subscription` |
 | `botsData` | `botsResponse` or `bots` |
+| `MeetingInfo` | `Meeting` |
+| `meetingInfo` | `meeting` |
 | `getJobDetails()` | `getJob()` |
 | `getUserSubscriptionInfo()` | `getUserSubscription()` |
 | `useInfrastructureData()` | `useInfrastructure()` |

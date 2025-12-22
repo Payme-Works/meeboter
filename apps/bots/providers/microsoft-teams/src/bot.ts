@@ -13,6 +13,7 @@ import type { BotEventEmitter } from "../../../src/events";
 import { withTimeout } from "../../../src/helpers/with-timeout";
 import type { BotLogger } from "../../../src/logger";
 import type { StorageService } from "../../../src/services/storage/storage-service";
+import { HEARTBEAT_INTERVAL } from "../../../src/trpc";
 import {
 	type BotConfig,
 	type SpeakerTimeframe,
@@ -57,7 +58,7 @@ export class MicrosoftTeamsBot extends Bot {
 
 		this.recordingPath = path.resolve(__dirname, "recording.webm");
 		this.contentType = "video/webm";
-		this.meetingUrl = `https://teams.microsoft.com/v2/?meetingjoin=true#/l/meetup-join/19:meeting_${this.settings.meetingInfo.meetingId}@thread.v2/0?context=%7b%22Tid%22%3a%22${this.settings.meetingInfo.tenantId}%22%2c%22Oid%22%3a%22${this.settings.meetingInfo.organizerId}%22%7d&anon=true`;
+		this.meetingUrl = `https://teams.microsoft.com/v2/?meetingjoin=true#/l/meetup-join/19:meeting_${this.settings.meeting.meetingId}@thread.v2/0?context=%7b%22Tid%22%3a%22${this.settings.meeting.tenantId}%22%2c%22Oid%22%3a%22${this.settings.meeting.organizerId}%22%7d&anon=true`;
 
 		// Initialize S3 storage lazily via dynamic import (Bun-specific API)
 		this.initializeS3Storage();
@@ -415,7 +416,7 @@ export class MicrosoftTeamsBot extends Bot {
 		// Periodic updates
 		this.participantsIntervalId = setInterval(
 			updateParticipants,
-			this.settings.heartbeatInterval,
+			HEARTBEAT_INTERVAL,
 		);
 	}
 
@@ -525,7 +526,7 @@ export class MicrosoftTeamsBot extends Bot {
 	private async fillNameAndMute(): Promise<void> {
 		await this.page
 			.locator(SELECTORS.displayNameInput)
-			.fill(this.settings.botDisplayName ?? "Meeboter");
+			.fill(this.settings.displayName ?? "Meeboter");
 
 		this.logger.debug("Entered display name");
 

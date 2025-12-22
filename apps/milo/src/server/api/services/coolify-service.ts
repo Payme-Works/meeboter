@@ -101,10 +101,10 @@ export class CoolifyService {
 	/**
 	 * Selects the appropriate bot Docker image based on meeting platform
 	 */
-	selectBotImage(meetingInfo: schema.MeetingInfo): BotImage {
+	selectBotImage(meeting: schema.Meeting): BotImage {
 		const baseImage = `ghcr.io/${this.imageConfig.ghcrOrg}/meeboter`;
 
-		switch (meetingInfo.platform?.toLowerCase()) {
+		switch (meeting.platform?.toLowerCase()) {
 			case "google-meet":
 				return { name: `${baseImage}-google-meet-bot`, tag: "latest" };
 			case "microsoft-teams":
@@ -113,7 +113,7 @@ export class CoolifyService {
 				return { name: `${baseImage}-zoom-bot`, tag: "latest" };
 			default:
 				throw new CoolifyDeploymentError(
-					`Unsupported platform: ${meetingInfo.platform}`,
+					`Unsupported platform: ${meeting.platform}`,
 				);
 		}
 	}

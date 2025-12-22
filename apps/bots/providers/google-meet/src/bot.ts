@@ -114,8 +114,8 @@ export class GoogleMeetBot extends Bot {
 		super(config, emitter, logger, trpc);
 
 		this.recordingPath = path.resolve(__dirname, "recording.mp4");
-		this.meetingUrl = config.meetingInfo.meetingUrl ?? "";
-		this.chatEnabled = config.chatEnabled ?? false;
+		this.meetingUrl = config.meeting.meetingUrl ?? "";
+		this.chatEnabled = true; // Chat is always enabled
 
 		// Initialize S3 storage lazily via dynamic import (Bun-specific API)
 		this.initializeS3Storage();
@@ -190,7 +190,7 @@ export class GoogleMeetBot extends Bot {
 
 		this.logger.info("[joinCall] Starting join process", {
 			meetingUrl: this.meetingUrl,
-			botName: this.settings.botDisplayName,
+			botName: this.settings.displayName,
 			botId: this.settings.id,
 		});
 
@@ -261,7 +261,7 @@ export class GoogleMeetBot extends Bot {
 		});
 
 		// Fill bot name with full page reload on retry
-		const botName = this.settings.botDisplayName || "Meeboter";
+		const botName = this.settings.displayName || "Meeboter";
 		let nameFillAttempt = 0;
 
 		await withRetry(

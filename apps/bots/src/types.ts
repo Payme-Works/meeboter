@@ -1,6 +1,6 @@
 /**
- * Meeting information containing platform-specific identifiers and connection details
- * @typedef {Object} MeetingInfo
+ * Meeting configuration containing platform-specific identifiers and connection details
+ * @typedef {Object} Meeting
  * @property {string} [meetingId] - Unique identifier for the meeting
  * @property {string} [meetingPassword] - Password required to join the meeting
  * @property {string} [meetingUrl] - Direct URL to join the meeting
@@ -10,7 +10,7 @@
  * @property {string} [threadId] - Associated thread identifier
  * @property {"zoom" | "microsoft-teams" | "google-meet"} [platform] - Meeting platform type
  */
-type MeetingInfo = {
+type Meeting = {
 	meetingId?: string;
 	meetingPassword?: string;
 	meetingUrl?: string;
@@ -37,36 +37,31 @@ type AutomaticLeave = {
 };
 
 /**
- * Complete configuration settings for a bot instance in a meeting
+ * Complete configuration settings for a bot instance in a meeting.
+ * Must match the server's botConfigSchema from apps/milo/src/server/database/schema/bots.ts
  * @typedef {Object} BotConfig
  * @property {number} id - Unique bot identifier
  * @property {string} userId - Associated user identifier
- * @property {MeetingInfo} meetingInfo - Meeting connection and platform details
- * @property {string} meetingTitle - Display title of the meeting
+ * @property {Meeting} meeting - Meeting connection and platform details
  * @property {Date} startTime - Scheduled start time of the meeting
  * @property {Date} endTime - Scheduled end time of the meeting
- * @property {string} botDisplayName - Name displayed for the bot in the meeting
- * @property {string} [botImage] - Optional avatar image URL for the bot
+ * @property {string} displayName - Name displayed for the bot in the meeting
+ * @property {string} [imageUrl] - Optional avatar image URL for the bot
  * @property {boolean} recordingEnabled - Whether recording functionality is enabled
- * @property {number} heartbeatInterval - Interval in milliseconds for bot status updates
  * @property {AutomaticLeave} automaticLeave - Timeout configuration for automatic leaving
  * @property {string} [callbackUrl] - Optional webhook URL for bot events
- * @property {boolean} chatEnabled - Whether chat messaging functionality is enabled
  */
 export type BotConfig = {
 	id: number;
 	userId: string;
-	meetingInfo: MeetingInfo;
-	meetingTitle: string;
+	meeting: Meeting;
 	startTime: Date;
 	endTime: Date;
-	botDisplayName: string;
-	botImage?: string;
+	displayName: string;
+	imageUrl?: string;
 	recordingEnabled: boolean;
-	heartbeatInterval: number;
 	automaticLeave: AutomaticLeave;
 	callbackUrl?: string;
-	chatEnabled: boolean;
 };
 
 /**
