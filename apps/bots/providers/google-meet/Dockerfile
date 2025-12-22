@@ -84,7 +84,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy from build stage
 COPY --from=base --chown=meetbot:meetbot /app/node_modules ./node_modules
-COPY --from=base --chown=meetbot:meetbot /root/.cache/ms-playwright/chromium* /home/meetbot/.cache/ms-playwright/
+COPY --from=base --chown=meetbot:meetbot /root/.cache/ms-playwright /home/meetbot/.cache/ms-playwright
 COPY --from=base --chown=meetbot:meetbot /app/apps/bots ./apps/bots
 COPY --from=base --chown=meetbot:meetbot /app/packages ./packages
 
