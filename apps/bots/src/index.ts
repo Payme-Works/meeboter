@@ -94,6 +94,7 @@ async function reportEventWithStatus(
  * Includes automatic restart on failure with configurable retry attempts.
  */
 export const main = async () => {
+	const botIdEnv = env.BOT_ID;
 	const poolSlotUuid = env.POOL_SLOT_UUID;
 
 	// Early initialization logging (before logger is available)
@@ -101,12 +102,16 @@ export const main = async () => {
 
 	console.log("[INIT] Environment:", {
 		NODE_ENV: env.NODE_ENV,
-		POOL_SLOT_UUID: poolSlotUuid,
+		BOT_ID: botIdEnv || "(not set)",
+		POOL_SLOT_UUID: poolSlotUuid || "(not set)",
 		MILO_URL: env.MILO_URL,
 		DOCKER_MEETING_PLATFORM: env.DOCKER_MEETING_PLATFORM || "(not set)",
 	});
 
-	console.log(`[INIT] Fetching bot config for pool slot: ${poolSlotUuid}`);
+	// Validate that at least one identifier is set
+	if (!botIdEnv && !poolSlotUuid) {
+		throw new Error("Either BOT_ID or POOL_SLOT_UUID must be set");
+	}
 
 	// Create a temporary tRPC client to fetch initial config
 	const bootstrapTrpc = createTrpcClient({
@@ -114,12 +119,26 @@ export const main = async () => {
 		authToken: env.MILO_AUTH_TOKEN,
 	});
 
-	console.log("[INIT] tRPC client created, calling bots.pool.getSlot...");
+	// Platform-aware config retrieval:
+	// - BOT_ID: K8s/ECS ephemeral platforms → use bots.getConfig
+	// - POOL_SLOT_UUID: Coolify pool-based → use bots.pool.getSlot
+	let botConfig;
 
-	// Fetch bot configuration (done once, outside retry loop)
-	const botConfig = await bootstrapTrpc.bots.pool.getSlot.query({
-		poolSlotUuid,
-	});
+	if (botIdEnv) {
+		console.log(`[INIT] Fetching bot config by ID: ${botIdEnv}`);
+		console.log("[INIT] tRPC client created, calling bots.getConfig...");
+
+		botConfig = await bootstrapTrpc.bots.getConfig.query({
+			botId: Number(botIdEnv),
+		});
+	} else {
+		console.log(`[INIT] Fetching bot config for pool slot: ${poolSlotUuid}`);
+		console.log("[INIT] tRPC client created, calling bots.pool.getSlot...");
+
+		botConfig = await bootstrapTrpc.bots.pool.getSlot.query({
+			poolSlotUuid: poolSlotUuid!,
+		});
+	}
 
 	console.log("[INIT] Bot config received:", {
 		id: botConfig.id,

@@ -93,7 +93,7 @@ export class AWSPlatformService implements PlatformService {
 						containerOverrides: [
 							{
 								name: containerName,
-								environment: this.buildEnvironmentVariables(),
+								environment: this.buildEnvironmentVariables(botConfig),
 							},
 						],
 					},
@@ -220,12 +220,15 @@ export class AWSPlatformService implements PlatformService {
 
 	/**
 	 * Builds environment variables for the bot container.
-	 * Note: Bot config is NOT passed as env vars anymore.
-	 * Bot fetches config via API using POOL_SLOT_UUID (set in task definition).
-	 * MILO_URL is set in ECS task definition for bootstrap.
+	 * ECS uses BOT_ID for direct bot config lookup via bots.getConfig endpoint.
 	 */
-	private buildEnvironmentVariables(): Array<{ name: string; value: string }> {
+	private buildEnvironmentVariables(
+		botConfig: BotConfig,
+	): Array<{ name: string; value: string }> {
 		return [
+			// Bot identifier for fetching config from Milo API (ECS uses direct bot ID)
+			{ name: "BOT_ID", value: botConfig.id.toString() },
+
 			// Milo API URL for tRPC calls
 			{ name: "MILO_URL", value: this.botEnvConfig.miloUrl },
 

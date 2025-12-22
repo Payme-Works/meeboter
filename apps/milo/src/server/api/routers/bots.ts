@@ -323,7 +323,8 @@ const k8sSubRouter = createTRPCRouter({
 			if (!services.k8s) {
 				throw new TRPCError({
 					code: "NOT_IMPLEMENTED",
-					message: "K8s operations are only available when using Kubernetes platform",
+					message:
+						"K8s operations are only available when using Kubernetes platform",
 				});
 			}
 
@@ -358,7 +359,8 @@ const k8sSubRouter = createTRPCRouter({
 			if (!services.k8s) {
 				throw new TRPCError({
 					code: "NOT_IMPLEMENTED",
-					message: "K8s operations are only available when using Kubernetes platform",
+					message:
+						"K8s operations are only available when using Kubernetes platform",
 				});
 			}
 
@@ -382,7 +384,8 @@ const k8sSubRouter = createTRPCRouter({
 			if (!services.k8s) {
 				throw new TRPCError({
 					code: "NOT_IMPLEMENTED",
-					message: "K8s operations are only available when using Kubernetes platform",
+					message:
+						"K8s operations are only available when using Kubernetes platform",
 				});
 			}
 
@@ -412,7 +415,8 @@ const k8sSubRouter = createTRPCRouter({
 			if (!services.k8s) {
 				throw new TRPCError({
 					code: "NOT_IMPLEMENTED",
-					message: "K8s operations are only available when using Kubernetes platform",
+					message:
+						"K8s operations are only available when using Kubernetes platform",
 				});
 			}
 
@@ -631,6 +635,68 @@ export const botsRouter = createTRPCRouter({
 	chat: chatSubRouter,
 	logs: logsSubRouter,
 	k8s: k8sSubRouter,
+
+	/**
+	 * Retrieves bot configuration directly by bot ID.
+	 * Used by K8s and AWS ECS deployments (ephemeral platforms).
+	 * Coolify uses pool.getSlot instead.
+	 * @param input.botId - The bot ID
+	 * @returns BotConfig for the bot container
+	 */
+	getConfig: publicProcedure
+		.meta({
+			openapi: {
+				method: "GET",
+				path: "/bots/{botId}/config",
+				description: "Get bot configuration by ID (for K8s/ECS deployments)",
+			},
+		})
+		.input(z.object({ botId: z.number() }))
+		.output(botConfigSchema)
+		.query(async ({ input, ctx }): Promise<typeof botConfigSchema._output> => {
+			const terminalStatuses = ["DONE", "FATAL"] as const;
+
+			const bot = await ctx.db
+				.select()
+				.from(botsTable)
+				.where(eq(botsTable.id, input.botId))
+				.limit(1);
+
+			if (!bot[0]) {
+				throw new TRPCError({
+					code: "NOT_FOUND",
+					message: `Bot not found: ${input.botId}`,
+				});
+			}
+
+			// Prevent restarting bots that have already finished
+			if (
+				terminalStatuses.includes(
+					bot[0].status as (typeof terminalStatuses)[number],
+				)
+			) {
+				throw new TRPCError({
+					code: "PRECONDITION_FAILED",
+					message: `Bot ${input.botId} has already finished (status: ${bot[0].status}). Container should exit.`,
+				});
+			}
+
+			return {
+				id: bot[0].id,
+				userId: bot[0].userId,
+				meetingInfo: bot[0].meetingInfo,
+				meetingTitle: bot[0].meetingTitle,
+				startTime: bot[0].startTime,
+				endTime: bot[0].endTime,
+				botDisplayName: bot[0].botDisplayName,
+				botImage: bot[0].botImage ?? undefined,
+				recordingEnabled: bot[0].recordingEnabled,
+				heartbeatInterval: bot[0].heartbeatInterval,
+				automaticLeave: bot[0].automaticLeave,
+				callbackUrl: bot[0].callbackUrl ?? undefined,
+				chatEnabled: bot[0].chatEnabled,
+			};
+		}),
 
 	/**
 	 * Retrieves paginated bots belonging to the authenticated user.

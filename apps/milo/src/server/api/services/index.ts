@@ -5,15 +5,12 @@ import { BotPoolService } from "./bot-pool-service";
 import { CoolifyService } from "./coolify-service";
 import { DeploymentQueueService } from "./deployment-queue-service";
 import { ImagePullLockService } from "./image-pull-lock-service";
-import {
-	createPlatformService,
-	getPlatformType,
-} from "./platform";
-import type { PlatformService } from "./platform/platform-service";
+import { createPlatformService, getPlatformType } from "./platform";
 import {
 	createKubernetesPlatformService,
 	type KubernetesPlatformService,
 } from "./platform/kubernetes-platform-service";
+import type { PlatformService } from "./platform/platform-service";
 
 /**
  * Service container for dependency injection

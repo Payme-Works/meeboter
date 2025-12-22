@@ -61,8 +61,7 @@ function detectPlatform(): "coolify" | "aws" | "k8s" | "local" {
 
 	// Check for Kubernetes configuration
 	// Either running in-cluster or K8S_KUBECONFIG is set
-	const hasK8s =
-		process.env.KUBERNETES_SERVICE_HOST || env.K8S_KUBECONFIG;
+	const hasK8s = process.env.KUBERNETES_SERVICE_HOST || env.K8S_KUBECONFIG;
 
 	if (hasK8s) {
 		return "k8s";

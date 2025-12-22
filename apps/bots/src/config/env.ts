@@ -7,9 +7,12 @@ import { z } from "zod";
  *
  * Required variables:
  * - NODE_ENV: The runtime environment (development, production, test)
- * - POOL_SLOT_UUID: Identifies which pool slot this bot instance represents
  * - MILO_URL: Backend API URL
  * - MILO_AUTH_TOKEN: Authentication token for API calls
+ *
+ * Bot identification (one required):
+ * - BOT_ID: Direct bot ID for K8s/ECS ephemeral deployments
+ * - POOL_SLOT_UUID: Pool slot UUID for Coolify pool-based deployments
  *
  * Optional variables:
  * - DOCKER_MEETING_PLATFORM: Platform name when running in Docker
@@ -26,8 +29,12 @@ export const env = createEnv({
 	server: {
 		// Required
 		NODE_ENV: z.enum(["development", "production", "test"]),
-		// Coolify uses its own ID format (e.g., "wcw0o088ogsk0c8cgsg0ko0w"), not standard UUIDs
-		POOL_SLOT_UUID: z.string().min(1),
+
+		// Bot identification (one of these is required)
+		// BOT_ID: Direct bot ID for K8s/ECS ephemeral deployments
+		BOT_ID: z.string().min(1).optional(),
+		// POOL_SLOT_UUID: Pool slot UUID for Coolify pool-based deployments
+		POOL_SLOT_UUID: z.string().min(1).optional(),
 
 		// Backend API
 		MILO_URL: z.url(),

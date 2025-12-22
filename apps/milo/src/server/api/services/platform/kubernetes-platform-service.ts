@@ -436,8 +436,8 @@ export class KubernetesPlatformService implements PlatformService {
 	 */
 	private buildEnvironmentVariables(botConfig: BotConfig): V1EnvVar[] {
 		return [
-			// Bot identifier for fetching config from Milo API
-			{ name: "POOL_SLOT_UUID", value: botConfig.id.toString() },
+			// Bot identifier for fetching config from Milo API (K8s uses direct bot ID)
+			{ name: "BOT_ID", value: botConfig.id.toString() },
 
 			// Milo API URL for tRPC calls
 			{ name: "MILO_URL", value: this.botEnvConfig.miloUrl },

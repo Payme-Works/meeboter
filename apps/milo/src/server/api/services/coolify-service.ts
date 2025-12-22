@@ -690,13 +690,12 @@ export class CoolifyService {
 
 				// Detect rate limiting (429) and back off more aggressively
 				const isRateLimited =
-					error instanceof Error &&
-					error.message.includes("Too Many Requests");
+					error instanceof Error && error.message.includes("Too Many Requests");
 
 				if (isRateLimited) {
 					// Exponential backoff: 10s, 20s, 30s (capped)
 					currentInterval = Math.min(
-						10 * 1000 * Math.pow(2, consecutiveErrors - 1),
+						10 * 1000 * 2 ** (consecutiveErrors - 1),
 						maxBackoffMs,
 					);
 
