@@ -22,7 +22,66 @@ Meeboter joins video meetings as a bot participant, enabling:
 - **Events** — Real-time participant tracking via webhooks
 - **Fast deployment** — Bot pool system: ~30s vs 7+ min cold start
 
-**Supports:** Google Meet, Microsoft Teams, and Zoom (chat, recording, participant tracking)
+**Two ways to use it:**
+
+<table width="100%">
+  <tr>
+    <th></th>
+    <th>Dashboard</th>
+    <th>API</th>
+  </tr>
+  <tr>
+    <td><strong>For</strong></td>
+    <td>Manual operations, testing, monitoring</td>
+    <td>Programmatic automation</td>
+  </tr>
+  <tr>
+    <td><strong>Deploy bots</strong></td>
+    <td>Click-to-deploy UI</td>
+    <td>REST/tRPC endpoints</td>
+  </tr>
+  <tr>
+    <td><strong>Monitor</strong></td>
+    <td>Real-time status, logs, events</td>
+    <td>Webhooks, polling</td>
+  </tr>
+  <tr>
+    <td><strong>Best for</strong></td>
+    <td>Ops teams, debugging, demos</td>
+    <td>Product integrations</td>
+  </tr>
+</table>
+
+<br />
+
+## Platform Support
+
+<table width="100%">
+  <tr>
+    <th>Platform</th>
+    <th>Chat</th>
+    <th>Recording</th>
+    <th>Participants</th>
+  </tr>
+  <tr>
+    <td>Google Meet</td>
+    <td align="center">✓</td>
+    <td align="center">✓</td>
+    <td align="center">✓</td>
+  </tr>
+  <tr>
+    <td>Microsoft Teams</td>
+    <td align="center">✓</td>
+    <td align="center">✓</td>
+    <td align="center">✓</td>
+  </tr>
+  <tr>
+    <td>Zoom</td>
+    <td align="center">✓</td>
+    <td align="center">✓</td>
+    <td align="center">✓</td>
+  </tr>
+</table>
 
 <br />
 
@@ -44,9 +103,11 @@ Open [localhost:3000](http://localhost:3000)
 
 ## Usage
 
-### Dashboard
+<table width="100%">
+<tr>
+<td width="50%" valign="top">
 
-For manual operations, testing, and monitoring:
+### Dashboard
 
 1. Open the web UI at `localhost:3000`
 2. Navigate to **Bots** → **New Bot**
@@ -54,9 +115,10 @@ For manual operations, testing, and monitoring:
 4. Click **Deploy**
 5. Monitor status, logs, and events in real-time
 
-### API
+</td>
+<td width="50%" valign="top">
 
-For programmatic automation and product integrations:
+### API
 
 ```bash
 # Create a bot
@@ -76,13 +138,40 @@ GET /events/bot/{botId}
 
 [OpenAPI docs →](/docs)
 
+</td>
+</tr>
+</table>
+
 <br />
 
-## Deployment
+## Deployment Options
 
-- **[Coolify](DEPLOYMENT.md#coolify-deployment-pool-based)** — Pool-based, ~$20-50/mo, self-hosted
-- **[Kubernetes](DEPLOYMENT.md#kubernetes-deployment-pod-based)** — Pod-based, ~$50-200/mo, existing K8s
-- **[AWS ECS](DEPLOYMENT.md#aws-ecs-deployment-task-based)** — Task-based, ~$100-500/mo, enterprise
+<table width="100%">
+  <tr>
+    <th>Platform</th>
+    <th>Model</th>
+    <th>Cost</th>
+    <th>Best for</th>
+  </tr>
+  <tr>
+    <td><a href="DEPLOYMENT.md#coolify-deployment-pool-based">Coolify</a></td>
+    <td>Pool-based</td>
+    <td>~$20-50/mo</td>
+    <td>Self-hosted, simple setup</td>
+  </tr>
+  <tr>
+    <td><a href="DEPLOYMENT.md#kubernetes-deployment-pod-based">Kubernetes</a></td>
+    <td>Pod-based</td>
+    <td>~$50-200/mo</td>
+    <td>Existing K8s infrastructure</td>
+  </tr>
+  <tr>
+    <td><a href="DEPLOYMENT.md#aws-ecs-deployment-task-based">AWS ECS</a></td>
+    <td>Task-based</td>
+    <td>~$100-500/mo</td>
+    <td>Enterprise, auto-scaling</td>
+  </tr>
+</table>
 
 See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed setup guides.
 
@@ -96,16 +185,55 @@ Your App → Meeboter API → Bot Pool → Meeting Platforms
            PostgreSQL    S3 (recordings)
 ```
 
-**Tech Stack:**
-- **API** — Next.js 15, tRPC, Drizzle ORM
-- **Bots** — Playwright (Meet), Puppeteer (Teams/Zoom), FFmpeg
-- **Database** — PostgreSQL
-- **Storage** — S3-compatible (MinIO, AWS S3)
+<table width="100%">
+  <tr>
+    <th>Layer</th>
+    <th>Tech</th>
+  </tr>
+  <tr>
+    <td>API</td>
+    <td>Next.js 15, tRPC, Drizzle ORM</td>
+  </tr>
+  <tr>
+    <td>Bots</td>
+    <td>Playwright (Meet), Puppeteer (Teams/Zoom), FFmpeg</td>
+  </tr>
+  <tr>
+    <td>Database</td>
+    <td>PostgreSQL</td>
+  </tr>
+  <tr>
+    <td>Storage</td>
+    <td>S3-compatible (MinIO, AWS S3)</td>
+  </tr>
+</table>
+
+<br />
 
 **Platform Abstraction** — Deploy bots to any backend:
-- **Coolify** — Pre-provisioned Docker containers, reused across meetings
-- **Kubernetes** — Ephemeral pods created per meeting, auto-cleanup
-- **AWS ECS** — Fargate tasks on-demand, pay-per-use
+
+<table width="100%">
+  <tr>
+    <th>Platform</th>
+    <th>Model</th>
+    <th>How it works</th>
+  </tr>
+  <tr>
+    <td>Coolify</td>
+    <td>Pool-based</td>
+    <td>Pre-provisioned Docker containers, reused across meetings</td>
+  </tr>
+  <tr>
+    <td>Kubernetes</td>
+    <td>Job-based</td>
+    <td>Ephemeral pods created per meeting, auto-cleanup</td>
+  </tr>
+  <tr>
+    <td>AWS ECS</td>
+    <td>Task-based</td>
+    <td>Fargate tasks on-demand, pay-per-use</td>
+  </tr>
+</table>
 
 <details>
 <summary><strong>Example: Our Proxmox + Coolify + K3s Setup</strong></summary>
