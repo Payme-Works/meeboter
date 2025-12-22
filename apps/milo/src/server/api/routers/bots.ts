@@ -763,32 +763,18 @@ export const botsRouter = createTRPCRouter({
 				id: z.string().transform((val) => Number(val)),
 			}),
 		)
-		.output(
-			selectBotSchema.extend({
-				poolSlotName: z.string().nullable(),
-			}),
-		)
+		.output(selectBotSchema)
 		.query(async ({ input, ctx }) => {
 			const result = await ctx.db
-				.select({
-					bot: botsTable,
-					poolSlotName: botPoolSlotsTable.slotName,
-				})
+				.select()
 				.from(botsTable)
-				.leftJoin(
-					botPoolSlotsTable,
-					eq(botPoolSlotsTable.assignedBotId, botsTable.id),
-				)
 				.where(eq(botsTable.id, input.id));
 
-			if (!result[0] || result[0].bot.userId !== ctx.session.user.id) {
+			if (!result[0] || result[0].userId !== ctx.session.user.id) {
 				throw new Error("Bot not found");
 			}
 
-			return {
-				...result[0].bot,
-				poolSlotName: result[0].poolSlotName,
-			};
+			return result[0];
 		}),
 
 	/**

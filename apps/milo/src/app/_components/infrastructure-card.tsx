@@ -427,11 +427,7 @@ function InfrastructureCard({
 								label="In Call"
 							/>
 						</>
-					) : (
-						<div className="w-full h-full flex items-center justify-center text-[10px] text-muted-foreground/50">
-							No active bots
-						</div>
-					)}
+					) : null}
 				</div>
 			</div>
 

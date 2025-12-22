@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, Pause, Play, Search } from "lucide-react";
+import { Check, Copy, Download, Pause, Play, Search } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -221,9 +221,9 @@ export function LogsTab({ botId, botStatus }: LogsTabProps) {
 		}
 	}, [logCount, autoScroll]);
 
-	// Download logs as file
-	const handleDownload = () => {
-		const content = filteredLogs
+	// Format logs as text content
+	const formatLogsAsText = () => {
+		return filteredLogs
 			.map((log) => {
 				const ts = new Date(log.timestamp).toISOString();
 				const ctx = log.context ? ` ${JSON.stringify(log.context)}` : "";
@@ -231,7 +231,11 @@ export function LogsTab({ botId, botStatus }: LogsTabProps) {
 				return `[${ts}] ${log.level.padEnd(5)} [${log.state ?? ""}] ${log.message}${ctx}`;
 			})
 			.join("\n");
+	};
 
+	// Download logs as file
+	const handleDownload = () => {
+		const content = formatLogsAsText();
 		const blob = new Blob([content], { type: "text/plain" });
 		const url = URL.createObjectURL(blob);
 		const a = document.createElement("a");
@@ -240,6 +244,17 @@ export function LogsTab({ botId, botStatus }: LogsTabProps) {
 		a.download = `bot-${botId}-logs-${Date.now()}.log`;
 		a.click();
 		URL.revokeObjectURL(url);
+	};
+
+	// Copy logs to clipboard
+	const [isCopied, setIsCopied] = useState(false);
+
+	const handleCopy = async () => {
+		const content = formatLogsAsText();
+
+		await navigator.clipboard.writeText(content);
+		setIsCopied(true);
+		setTimeout(() => setIsCopied(false), 2000);
 	};
 
 	// Format timestamp for display
@@ -313,6 +328,20 @@ export function LogsTab({ botId, botStatus }: LogsTabProps) {
 						)}
 					>
 						Timestamps
+					</Button>
+
+					<Button
+						variant="ghost"
+						size="sm"
+						onClick={handleCopy}
+						className="h-8 px-2"
+						disabled={filteredLogs.length === 0}
+					>
+						{isCopied ? (
+							<Check className="h-4 w-4 text-green-500" />
+						) : (
+							<Copy className="h-4 w-4" />
+						)}
 					</Button>
 
 					<Button

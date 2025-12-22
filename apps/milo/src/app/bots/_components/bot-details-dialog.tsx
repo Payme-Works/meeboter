@@ -33,6 +33,7 @@ import { cn } from "@/lib/utils";
 import { api } from "@/trpc/react";
 import { ChatHistoryPanel } from "./chat-history-panel";
 import { LogsTab } from "./logs-tab";
+import { PlatformTab } from "./platform-tab";
 import { ScreenshotViewer } from "./screenshot-viewer";
 
 interface BotDetailsDialogProps {
@@ -113,7 +114,7 @@ const SCREENSHOT_REFRESH_INTERVAL_MS = 5_000; // Refresh every 5 seconds when vi
 
 export function BotDetailsDialog({ botId, onClose }: BotDetailsDialogProps) {
 	const [activeTab, setActiveTab] = useState<
-		"details" | "events" | "logs" | "screenshots" | "chat"
+		"details" | "events" | "logs" | "screenshots" | "chat" | "platform"
 	>("details");
 
 	// Auto-refresh when viewing screenshots tab
@@ -200,10 +201,15 @@ export function BotDetailsDialog({ botId, onClose }: BotDetailsDialogProps) {
 
 	const hasScreenshots = (bot?.screenshots?.length ?? 0) > 0;
 
+	const hasPlatformInfo = Boolean(bot?.deploymentPlatform);
+
 	const tabs = [
 		{ id: "details" as const, label: "Overview", icon: Radio },
 		{ id: "events" as const, label: "Events", icon: Activity },
 		{ id: "logs" as const, label: "Logs", icon: Terminal },
+		...(hasPlatformInfo
+			? [{ id: "platform" as const, label: "Platform", icon: Server }]
+			: []),
 		...(hasScreenshots
 			? [
 					{
@@ -367,20 +373,6 @@ export function BotDetailsDialog({ botId, onClose }: BotDetailsDialogProps) {
 											</InfoRow>
 
 											<InfoRow
-												icon={Server}
-												label="Pool Slot"
-												loading={botLoading}
-											>
-												{bot?.poolSlotName ? (
-													<span className="font-mono text-xs">
-														{bot.poolSlotName}
-													</span>
-												) : (
-													<span className="text-muted-foreground">—</span>
-												)}
-											</InfoRow>
-
-											<InfoRow
 												icon={Heart}
 												label="Last Heartbeat"
 												loading={botLoading}
@@ -441,6 +433,21 @@ export function BotDetailsDialog({ botId, onClose }: BotDetailsDialogProps) {
 
 					{activeTab === "logs" && botId ? (
 						<LogsTab botId={botId} botStatus={bot?.status} />
+					) : null}
+
+					{activeTab === "platform" ? (
+						<PlatformTab
+							deploymentPlatform={
+								bot?.deploymentPlatform as
+									| "k8s"
+									| "coolify"
+									| "aws"
+									| "local"
+									| null
+							}
+							platformIdentifier={bot?.platformIdentifier ?? null}
+							botStatus={bot?.status}
+						/>
 					) : null}
 
 					{activeTab === "screenshots" && (

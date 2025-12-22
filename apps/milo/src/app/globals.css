@@ -11,6 +11,12 @@
 
 :root {
 	--radius: 0rem;
+	--radius-sm: calc(var(--radius) * 0.75);
+	--radius-md: calc(var(--radius) * 0.5);
+	--radius-lg: calc(var(--radius) * 1.25);
+	--radius-xl: calc(var(--radius) * 1.5);
+
+	--radius-default: var(--radius-md);
 
 	--background: oklch(100% 0 0);
 	--foreground: oklch(7.5% 0.015 285);
@@ -152,6 +158,7 @@
 	* {
 		@apply border-border outline-ring/50;
 	}
+
 	body {
 		@apply bg-background text-foreground antialiased;
 	}
