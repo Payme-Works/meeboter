@@ -17,10 +17,10 @@
 
 Meeboter joins video meetings as a bot participant, enabling:
 
-- **Chat** — Send messages programmatically
-- **Recording** — Capture audio/video to S3
-- **Events** — Real-time participant tracking via webhooks
-- **Fast deployment** — Bot pool system: ~30s vs 7+ min cold start
+**Chat** — Send messages programmatically<br>
+**Recording** — Capture audio/video to S3<br>
+**Events** — Real-time participant tracking via webhooks<br>
+**Fast deployment** — Bot pool system: ~30s vs 7+ min cold start
 
 **Supports:** Google Meet, Microsoft Teams, and Zoom (chat, recording, participant tracking)
 
@@ -80,9 +80,9 @@ GET /events/bot/{botId}
 
 ## Deployment
 
-- **[Coolify](DEPLOYMENT.md#coolify-deployment-pool-based)** — Pool-based, ~$20-50/mo, self-hosted
-- **[Kubernetes](DEPLOYMENT.md#kubernetes-deployment-pod-based)** — Pod-based, ~$50-200/mo, existing K8s
-- **[AWS ECS](DEPLOYMENT.md#aws-ecs-deployment-task-based)** — Task-based, ~$100-500/mo, enterprise
+**[Coolify](DEPLOYMENT.md#coolify-deployment-pool-based)** — Pool-based, ~$20-50/mo, self-hosted<br>
+**[Kubernetes](DEPLOYMENT.md#kubernetes-deployment-pod-based)** — Pod-based, ~$50-200/mo, existing K8s<br>
+**[AWS ECS](DEPLOYMENT.md#aws-ecs-deployment-task-based)** — Task-based, ~$100-500/mo, enterprise
 
 See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed setup guides.
 
@@ -97,15 +97,17 @@ Your App → Meeboter API → Bot Pool → Meeting Platforms
 ```
 
 **Tech Stack:**
-- **API** — Next.js 15, tRPC, Drizzle ORM
-- **Bots** — Playwright (Meet), Puppeteer (Teams/Zoom), FFmpeg
-- **Database** — PostgreSQL
-- **Storage** — S3-compatible (MinIO, AWS S3)
+
+**API** — Next.js 15, tRPC, Drizzle ORM<br>
+**Bots** — Playwright (Meet), Puppeteer (Teams/Zoom), FFmpeg<br>
+**Database** — PostgreSQL<br>
+**Storage** — S3-compatible (MinIO, AWS S3)
 
 **Platform Abstraction** — Deploy bots to any backend:
-- **Coolify** — Pre-provisioned Docker containers, reused across meetings
-- **Kubernetes** — Ephemeral pods created per meeting, auto-cleanup
-- **AWS ECS** — Fargate tasks on-demand, pay-per-use
+
+**Coolify** — Pre-provisioned Docker containers, reused across meetings<br>
+**Kubernetes** — Ephemeral pods created per meeting, auto-cleanup<br>
+**AWS ECS** — Fargate tasks on-demand, pay-per-use
 
 <details>
 <summary><strong>Example: Our Proxmox + Coolify + K3s Setup</strong></summary>
@@ -133,9 +135,9 @@ Your App → Meeboter API → Bot Pool → Meeting Platforms
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-- **Proxmox** — Bare-metal hypervisor running containers and VMs
-- **Coolify (CT 100)** — Hosts Milo API, PostgreSQL, MinIO, and Docker bot pool
-- **K3s (VM 102)** — Lightweight Kubernetes for ephemeral bot jobs (40-80 concurrent)
+**Proxmox** — Bare-metal hypervisor running containers and VMs<br>
+**Coolify (CT 100)** — Hosts Milo API, PostgreSQL, MinIO, and Docker bot pool<br>
+**K3s (VM 102)** — Lightweight Kubernetes for ephemeral bot jobs (40-80 concurrent)
 
 </details>
 
@@ -160,11 +162,11 @@ meeboter/
 
 ## Documentation
 
-- [DEPLOYMENT.md](DEPLOYMENT.md) — Deployment guides
-- [ARCHITECTURE.md](ARCHITECTURE.md) — System design
-- [apps/milo/README.md](apps/milo/README.md) — API server docs
-- [apps/bots/README.md](apps/bots/README.md) — Bot engine docs
-- [API Docs](http://localhost:3000/docs) — OpenAPI/Scalar (when running)
+[DEPLOYMENT.md](DEPLOYMENT.md) — Deployment guides<br>
+[ARCHITECTURE.md](ARCHITECTURE.md) — System design<br>
+[apps/milo/README.md](apps/milo/README.md) — API server docs<br>
+[apps/bots/README.md](apps/bots/README.md) — Bot engine docs<br>
+[API Docs](http://localhost:3000/docs) — OpenAPI/Scalar (when running)
 
 <br />
 
