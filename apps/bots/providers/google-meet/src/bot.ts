@@ -141,7 +141,7 @@ export class GoogleMeetBot extends Bot {
 			"--metrics-recording-only", // Reduce metrics overhead
 			"--no-first-run", // Skip first run tasks
 			"--safebrowsing-disable-auto-update", // No Safe Browsing updates
-			"--single-process", // Run in single process mode (reduces memory)
+			// NOTE: --single-process removed - causes "Cannot use V8 Proxy resolver in single process mode"
 			"--js-flags=--max-old-space-size=512", // Limit V8 heap to 512MB
 		];
 	}
