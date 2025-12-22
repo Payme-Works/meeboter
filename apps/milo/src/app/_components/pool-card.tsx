@@ -32,7 +32,7 @@ function SlotDot({
 		"w-2.5 h-2.5 rounded-full transition-all duration-300 ease-out";
 
 	const statusClasses: Record<SlotDisplayStatus, string> = {
-		idle: "bg-accent shadow-[0_0_6px_rgba(var(--accent),0.4)]",
+		idle: "bg-transparent border border-accent",
 		deploying:
 			"bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.4)] animate-pulse",
 		busy: "bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.4)]",
@@ -150,7 +150,7 @@ function PoolCard({ slotStatuses, maxSize, botStats }: PoolCardProps) {
 
 				{/* Bot Stats line */}
 				<div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-2 pt-2 border-t border-border/50">
-					<Bot className="h-4 w-4 text-green-500" />
+					<Bot className="h-3 w-3 text-green-500" />
 					<span className="flex items-center gap-1">
 						<span className="tabular-nums font-medium text-foreground/80">
 							{botStats.inCall}
