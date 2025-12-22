@@ -61,7 +61,7 @@ export interface KubernetesBotEnvConfig {
 /**
  * Extended Job information including pods and events
  */
-export interface KubernetesJobDetails {
+export interface KubernetesJob {
 	job: V1Job;
 	pods: V1Pod[];
 	events: CoreV1Event[];
@@ -213,7 +213,7 @@ export class KubernetesPlatformService implements PlatformService {
 	 * Gets detailed information about a Job including pods and events
 	 * Used for observability in the frontend
 	 */
-	async getJobDetails(jobName: string): Promise<KubernetesJobDetails | null> {
+	async getJob(jobName: string): Promise<KubernetesJob | null> {
 		try {
 			const job = await this.batchApi.readNamespacedJob({
 				name: jobName,

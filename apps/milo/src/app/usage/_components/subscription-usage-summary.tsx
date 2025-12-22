@@ -141,7 +141,7 @@ function LoadingSkeleton() {
 export function SubscriptionUsageSummary() {
 	const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-	const { data: subscriptionInfo, isLoading: subLoading } =
+	const { data: subscription, isLoading: subLoading } =
 		api.bots.getUserSubscription.useQuery();
 
 	const { data: dailyUsage, isLoading: usageLoading } =
@@ -182,9 +182,9 @@ export function SubscriptionUsageSummary() {
 	};
 
 	const usagePercentage =
-		subscriptionInfo?.effectiveDailyLimit && dailyUsage?.usage
+		subscription?.effectiveDailyLimit && dailyUsage?.usage
 			? Math.min(
-					(dailyUsage.usage / subscriptionInfo.effectiveDailyLimit) * 100,
+					(dailyUsage.usage / subscription.effectiveDailyLimit) * 100,
 					100,
 				)
 			: 0;
@@ -212,17 +212,17 @@ export function SubscriptionUsageSummary() {
 			<StatCard
 				label="Current Plan"
 				value={
-					subscriptionInfo ? formatPlanName(subscriptionInfo.currentPlan) : "—"
+					subscription ? formatPlanName(subscription.currentPlan) : "—"
 				}
-				icon={getPlanIcon(subscriptionInfo?.currentPlan || "FREE")}
+				icon={getPlanIcon(subscription?.currentPlan || "FREE")}
 				variant="highlight"
 				badge={
-					subscriptionInfo
+					subscription
 						? {
-								text: subscriptionInfo.subscriptionActive
+								text: subscription.subscriptionActive
 									? "Active"
 									: "Inactive",
-								variant: subscriptionInfo.subscriptionActive
+								variant: subscription.subscriptionActive
 									? "default"
 									: "secondary",
 							}
@@ -234,12 +234,12 @@ export function SubscriptionUsageSummary() {
 			<StatCard
 				label="Daily Bot Limit"
 				value={
-					subscriptionInfo
-						? formatLimit(subscriptionInfo.effectiveDailyLimit)
+					subscription
+						? formatLimit(subscription.effectiveDailyLimit)
 						: "—"
 				}
 				subtext={
-					subscriptionInfo?.customDailyBotLimit ? "Custom override" : "Per day"
+					subscription?.customDailyBotLimit ? "Custom override" : "Per day"
 				}
 				icon={Bot}
 			/>
@@ -251,7 +251,7 @@ export function SubscriptionUsageSummary() {
 				subtext={`of ${dailyUsage ? formatLimit(dailyUsage.limit) : "0"} bots`}
 				icon={Zap}
 				progress={
-					subscriptionInfo?.effectiveDailyLimit
+					subscription?.effectiveDailyLimit
 						? {
 								value: usagePercentage,
 								label: `${Math.round(usagePercentage)}% of daily quota`,

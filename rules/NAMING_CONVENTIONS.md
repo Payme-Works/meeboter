@@ -37,49 +37,102 @@ timeoutMs?: number;
 - **NEVER use "Details", "Info", or "Data" suffixes** for variables, types, props, interfaces, or function names
 - **These suffixes add noise without clarity** - They don't convey meaningful information about what the variable contains
 - **Use simple, descriptive names** - The name itself should indicate what it represents
-- **Exception**: Acceptable for temporary/serialized data (e.g., `rawData`, `formData`) or when it represents a different form of the same entity
+
+### Acceptable Exceptions
+
+The following uses of "Data", "Info", or "Details" are acceptable:
+
+| Pattern | Example | Reason |
+|---------|---------|--------|
+| Form data types | `QuickBotFormData` | Represents form data shape with Zod inference |
+| Browser FormData | `new FormData()` | Web API class |
+| Database payload schemas | `EventData`, `ScreenshotData` | Zod schemas for JSON column payloads |
+| Third-party APIs | `keepPreviousData`, `serializeData` | Library method names |
+| TypeScript generics | `TData`, `TValue` | Standard generic naming convention |
+| Raw response parsing | `const errorData = JSON.parse(...)` | Temporary variable for raw parsed data |
+| Component compound names | `DataTable` | Generic reusable component (but prefer domain-specific names) |
+
+### Violations and Fixes
 
 ```typescript
-// ✅ CORRECT: Simple, descriptive names
-interface Platform {
-  type: "k8s" | "aws" | "coolify";
-  activeJobs: number;
-}
-
-const platformQuery = api.getPlatform.useQuery();
-const platform = platformQuery.data;
-
-function PlatformSection({ platform }: { platform: Platform }) { ... }
-function PlatformMetrics({ metrics }: { metrics: PlatformMetrics }) { ... }
+// ─── Interfaces/Types ─────────────────────────────────────────────────────────
 
 // ❌ WRONG: Unnecessary suffixes
-interface PlatformDetails { ... }  // Use: Platform
-interface PlatformInfo { ... }     // Use: Platform
-interface PlatformData { ... }     // Use: Platform
+interface PlatformDetails { ... }     // → Platform
+interface PlatformInfo { ... }        // → Platform
+interface UserSubscriptionInfo { ... } // → UserSubscription
+interface KubernetesJobDetails { ... } // → KubernetesJob
 
-const platformDetails = ...;       // Use: platform
-const platformInfo = ...;          // Use: platform or platformQuery
-const platformData = ...;          // Use: platform
+// ✅ CORRECT: Simple, descriptive names
+interface Platform { ... }
+interface UserSubscription { ... }
+interface KubernetesJob { ... }
 
-function PlatformDetailsSection({ details }) { ... }  // Use: PlatformSection({ platform })
-function PlatformInfoCard({ info }) { ... }           // Use: PlatformCard({ platform })
+// ─── Variables ────────────────────────────────────────────────────────────────
 
-// ✅ ACCEPTABLE: Represents different form (serialized/raw)
-const formData = new FormData();
-const rawData = await response.json();
+// ❌ WRONG: Unnecessary suffixes
+const platformDetails = ...;    // → platform
+const platformInfo = ...;       // → platform
+const subscriptionInfo = ...;   // → subscription
+const botsData = ...;           // → botsResponse (for query results)
+
+// ✅ CORRECT: Simple names
+const platform = platformQuery.data;
+const subscription = await getUserSubscription(db, userId);
+const { data: botsResponse } = api.bots.getBots.useQuery();
+
+// ─── Functions/Methods ────────────────────────────────────────────────────────
+
+// ❌ WRONG: "Details" or "Info" in function names
+function getJobDetails(jobName: string) { ... }     // → getJob
+function getUserSubscriptionInfo(userId: string) { ... } // → getUserSubscription
+
+// ✅ CORRECT: Simple verb + noun
+async function getJob(jobName: string) { ... }
+async function getUserSubscription(userId: string) { ... }
+
+// ─── React Hooks ──────────────────────────────────────────────────────────────
+
+// ❌ WRONG: "Data" suffix in custom hooks
+function useInfrastructureData() { ... }  // → useInfrastructure
+function useBotData() { ... }             // → useBot
+
+// ✅ CORRECT: Simple hook names
+function useInfrastructure() { ... }
+function useBot() { ... }
+
+// ─── Components ───────────────────────────────────────────────────────────────
+
+// ❌ WRONG: Unnecessary suffixes in component names
+function PlatformDetailsSection({ details }) { ... }  // → PlatformSection
+function PlatformInfoCard({ info }) { ... }           // → PlatformCard
+
+// ✅ CORRECT: Simple component names
+function PlatformSection({ platform }) { ... }
+function PlatformMetrics({ metrics }) { ... }
 ```
 
-**Common patterns to use instead:**
-- `platformDetails` → `platform` or `platformQuery.data`
-- `userInfo` → `user` or `profile`
-- `K8sDetails` → `K8sMetrics` or `K8sSection`
-- `PlatformDetailsSection` → `PlatformSection`
-- `activityData` → `activity` or `activityStats`
+### Quick Reference: Common Renames
+
+| Before | After |
+|--------|-------|
+| `platformDetails` | `platform` |
+| `platformInfo` | `platform` |
+| `platformData` | `platform` (or `platformOutput` for tRPC types) |
+| `userInfo` | `user` or `profile` |
+| `subscriptionInfo` | `subscription` |
+| `botsData` | `botsResponse` or `bots` |
+| `getJobDetails()` | `getJob()` |
+| `getUserSubscriptionInfo()` | `getUserSubscription()` |
+| `useInfrastructureData()` | `useInfrastructure()` |
+| `KubernetesJobDetails` | `KubernetesJob` |
+| `UserSubscriptionInfo` | `UserSubscription` |
 
 ## Interface Naming: Request/Response vs Input/Output
 
 - **Use cases use Request/Response suffixes** - Domain use case interfaces must use `Request` and `Response` suffixes (e.g., `GetLogsRequest`, `GetLogsResponse`)
 - **tRPC schemas use Input/Output suffixes** - tRPC Zod schemas and their inferred types must use `Input` and `Output` suffixes (e.g., `listLogsInputSchema`, `listLogsOutputSchema`)
+- **tRPC RouterOutputs type aliases use Output suffix** - When creating type aliases from `RouterOutputs`, use the `Output` suffix (e.g., `PlatformOutput`, `ActivityStatsOutput`)
 - **Clear separation of concerns** - This distinction makes it immediately clear whether you're working with domain layer (use cases) or infrastructure layer (tRPC/API)
 
 ```typescript
@@ -100,11 +153,43 @@ export const listLogsOutputSchema = z.object({ ... });
 export type ListLogsInput = z.infer<typeof listLogsInputSchema>;
 export type ListLogsOutput = z.infer<typeof listLogsOutputSchema>;
 
+// ✅ CORRECT: tRPC RouterOutputs type aliases
+type RouterOutputs = inferRouterOutputs<AppRouter>;
+type PlatformOutput = RouterOutputs["infrastructure"]["getPlatform"];
+type ActivityStatsOutput = RouterOutputs["infrastructure"]["getActivityStats"];
+
 // ❌ WRONG: Using Request/Response for tRPC schemas
 export const listLogsRequestSchema = z.object({ ... }); // Should be Input
 
 // ❌ WRONG: Using Input/Output for use case interfaces
 export interface GetLogsInput { ... } // Should be Request
+
+// ❌ WRONG: Using Data/Response suffix for tRPC RouterOutputs
+type PlatformData = RouterOutputs["infrastructure"]["getPlatform"]; // Should be Output
+type PlatformResponse = RouterOutputs["infrastructure"]["getPlatform"]; // Should be Output
+```
+
+### tRPC Query Result Variable Naming
+
+When destructuring tRPC query results, use meaningful names that avoid "Data" suffix:
+
+```typescript
+// ✅ CORRECT: Descriptive names for query results
+const { data: botsResponse, isLoading } = api.bots.getBots.useQuery();
+const { data: subscription, isLoading: subLoading } = api.bots.getUserSubscription.useQuery();
+const { data: platform } = api.infrastructure.getPlatform.useQuery();
+
+// Then use the response
+const bots = (botsResponse?.data ?? []).filter((bot) => isActive(bot));
+
+// ❌ WRONG: Using "Data" suffix
+const { data: botsData } = api.bots.getBots.useQuery();      // → botsResponse or bots
+const { data: subscriptionData } = api.bots.getUserSubscription.useQuery(); // → subscription
+
+// ✅ ALSO CORRECT: Using the query object directly when you need refetch
+const platformQuery = api.infrastructure.getPlatform.useQuery();
+const platform = platformQuery.data;
+await platformQuery.refetch();
 ```
 
 **Parameter naming must match interface suffix:**
@@ -270,19 +355,22 @@ Components that display results or state use state-suffix naming with past tense
 - ✅ `payin-created-dialog.tsx`, `api-key-deleted-dialog.tsx`
 - ❌ `payin-success-dialog.tsx`, `api-key-success-dialog.tsx`
 
-### Details/View Components
-Components for viewing detailed information use the Details suffix:
+### View/Inspect Components
 
-**Pattern**: `{Entity}Details{Type}`
+Components for viewing entity information use simple `{Entity}{Type}` naming without "Details" suffix:
+
+**Pattern**: `{Entity}{Type}`
 
 **Examples:**
-- ✅ CORRECT: `TransactionDetailsSheet`, `WalletDetailsDialog`, `UserDetailsSheet`
-- ❌ WRONG: `DetailsTransactionSheet`, `TransactionViewSheet`
+- ✅ CORRECT: `BotDialog`, `TransactionSheet`, `UserSheet`, `WalletDialog`
+- ❌ WRONG: `BotDetailsDialog`, `TransactionDetailsSheet`, `UserDetailsSheet`
+
+The "Details" suffix adds no value - if you're opening a dialog for a bot, it's obviously to view the bot's information.
 
 ### Summary
 - **Action dialogs/sheets**: Action comes FIRST (Create, Edit, Delete)
 - **State dialogs**: Use past tense suffix (Created, Deleted, Updated)
-- **Details components**: Entity + Details + Type
+- **View components**: Simple `{Entity}{Type}` (no "Details" suffix)
 - **File names**: Match component name in kebab-case
 - **Props interfaces**: Match component name + Props
 - **Translation keys**: Match component naming pattern

@@ -168,7 +168,7 @@ const ACTIVE_STATUSES = new Set([
 
 export function K8sJobsSection() {
 	// Fetch all bots and filter client-side for active ones
-	const { data: botsData, isLoading } = api.bots.getBots.useQuery(
+	const { data: botsResponse, isLoading } = api.bots.getBots.useQuery(
 		{ page: 1, pageSize: 50 },
 		{
 			refetchInterval: REFRESH_INTERVAL,
@@ -189,7 +189,7 @@ export function K8sJobsSection() {
 		);
 	}
 
-	const bots = (botsData?.data ?? []).filter((bot) =>
+	const bots = (botsResponse?.data ?? []).filter((bot) =>
 		ACTIVE_STATUSES.has(bot.status),
 	);
 

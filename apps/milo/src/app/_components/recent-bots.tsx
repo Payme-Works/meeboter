@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/trpc/react";
-import { BotDetailsDialog } from "../bots/_components/bot-details-dialog";
+import { BotDialog } from "../bots/_components/bot-dialog";
 import { CancelDeploymentDialog } from "../bots/_components/cancel-deployment-dialog";
 import { RemoveFromCallDialog } from "../bots/_components/remove-from-call-dialog";
 
@@ -254,7 +254,7 @@ export function RecentBots() {
 				}}
 			/>
 
-			<BotDetailsDialog
+			<BotDialog
 				botId={selectedBot}
 				onClose={() => setSelectedBot(null)}
 			/>

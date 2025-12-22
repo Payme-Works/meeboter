@@ -18,7 +18,7 @@ type Database = typeof db;
 /**
  * User subscription information interface containing plan details and limits
  */
-interface UserSubscriptionInfo {
+interface UserSubscription {
 	userId: string;
 	currentPlan: Subscription | "FREE";
 	dailyBotLimit: number | null;
@@ -36,10 +36,10 @@ interface UserSubscriptionInfo {
  * @returns User subscription information including current plan and limits
  * @throws Error if the user is not found
  */
-export async function getUserSubscriptionInfo(
+export async function getUserSubscription(
 	db: Database,
 	userId: string,
-): Promise<UserSubscriptionInfo> {
+): Promise<UserSubscription> {
 	// Get user info with custom limit
 	const userResult = await db
 		.select({
@@ -157,12 +157,12 @@ export async function validateBotCreation(
 	limit?: number | null;
 }> {
 	try {
-		const subscriptionInfo = await getUserSubscriptionInfo(db, userId);
+		const subscription = await getUserSubscription(db, userId);
 
 		const todayUsage = await getDailyBotUsage(db, userId, new Date(), timeZone);
 
 		// Check if subscription is active
-		if (!subscriptionInfo.subscriptionActive) {
+		if (!subscription.subscriptionActive) {
 			return {
 				allowed: false,
 				reason: "Your subscription is not active",
@@ -171,8 +171,8 @@ export async function validateBotCreation(
 
 		// Check if subscription has expired
 		if (
-			subscriptionInfo.subscriptionEndDate &&
-			new Date() > subscriptionInfo.subscriptionEndDate
+			subscription.subscriptionEndDate &&
+			new Date() > subscription.subscriptionEndDate
 		) {
 			return {
 				allowed: false,
@@ -181,7 +181,7 @@ export async function validateBotCreation(
 		}
 
 		// Handle unlimited plans (null limit)
-		if (subscriptionInfo.effectiveDailyLimit === null) {
+		if (subscription.effectiveDailyLimit === null) {
 			return {
 				allowed: true,
 				usage: todayUsage,
@@ -190,17 +190,17 @@ export async function validateBotCreation(
 		}
 
 		// Check daily limit
-		if (todayUsage >= subscriptionInfo.effectiveDailyLimit) {
+		if (todayUsage >= subscription.effectiveDailyLimit) {
 			return {
 				allowed: false,
-				reason: `Daily bot limit of ${subscriptionInfo.effectiveDailyLimit} bots exceeded. Current usage: ${todayUsage}`,
+				reason: `Daily bot limit of ${subscription.effectiveDailyLimit} bots exceeded. Current usage: ${todayUsage}`,
 				usage: todayUsage,
-				limit: subscriptionInfo.effectiveDailyLimit,
+				limit: subscription.effectiveDailyLimit,
 			};
 		}
 
 		// Handle pay-as-you-go (coming soon)
-		if (subscriptionInfo.currentPlan === "PAY_AS_YOU_GO") {
+		if (subscription.currentPlan === "PAY_AS_YOU_GO") {
 			return {
 				allowed: false,
 				reason: "Pay-as-you-go plan is coming soon!",
@@ -210,7 +210,7 @@ export async function validateBotCreation(
 		return {
 			allowed: true,
 			usage: todayUsage,
-			limit: subscriptionInfo.effectiveDailyLimit,
+			limit: subscription.effectiveDailyLimit,
 		};
 	} catch (error) {
 		console.error("Error validating bot creation:", error);

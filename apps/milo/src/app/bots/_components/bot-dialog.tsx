@@ -34,7 +34,7 @@ import { LogsTab } from "./logs-tab";
 import { PlatformTab } from "./platform-tab";
 import { ScreenshotViewer } from "./screenshot-viewer";
 
-interface BotDetailsDialogProps {
+interface BotDialogProps {
 	botId: number | null;
 	onClose: () => void;
 }
@@ -110,7 +110,7 @@ function formatStatus(status: string): string {
 
 const SCREENSHOT_REFRESH_INTERVAL_MS = 5_000; // Refresh every 5 seconds when viewing screenshots
 
-export function BotDetailsDialog({ botId, onClose }: BotDetailsDialogProps) {
+export function BotDialog({ botId, onClose }: BotDialogProps) {
 	const [activeTab, setActiveTab] = useState<
 		"details" | "events" | "logs" | "screenshots" | "chat" | "platform"
 	>("details");

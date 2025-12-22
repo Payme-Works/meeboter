@@ -33,7 +33,7 @@ import { extractCount } from "@/server/utils/database";
 import { generateSignedUrl } from "@/server/utils/s3";
 import {
 	getDailyBotUsage,
-	getUserSubscriptionInfo,
+	getUserSubscription,
 	validateBotCreation,
 } from "@/server/utils/subscription";
 import { services } from "../services";
@@ -323,7 +323,7 @@ const k8sSubRouter = createTRPCRouter({
 				});
 			}
 
-			const result = await services.k8s.getJobDetails(input.jobName);
+			const result = await services.k8s.getJob(input.jobName);
 
 			if (!result) {
 				return null;
@@ -1608,18 +1608,18 @@ export const botsRouter = createTRPCRouter({
 				subscriptionActive: boolean;
 				subscriptionEndDate: Date | null;
 			}> => {
-				const subscriptionInfo = await getUserSubscriptionInfo(
+				const subscription = await getUserSubscription(
 					ctx.db,
 					ctx.session.user.id,
 				);
 
 				return {
-					currentPlan: subscriptionInfo.currentPlan,
-					dailyBotLimit: subscriptionInfo.dailyBotLimit,
-					customDailyBotLimit: subscriptionInfo.customDailyBotLimit,
-					effectiveDailyLimit: subscriptionInfo.effectiveDailyLimit,
-					subscriptionActive: subscriptionInfo.subscriptionActive,
-					subscriptionEndDate: subscriptionInfo.subscriptionEndDate,
+					currentPlan: subscription.currentPlan,
+					dailyBotLimit: subscription.dailyBotLimit,
+					customDailyBotLimit: subscription.customDailyBotLimit,
+					effectiveDailyLimit: subscription.effectiveDailyLimit,
+					subscriptionActive: subscription.subscriptionActive,
+					subscriptionEndDate: subscription.subscriptionEndDate,
 				};
 			},
 		),
@@ -1668,7 +1668,7 @@ export const botsRouter = createTRPCRouter({
 				const date = input?.date ? new Date(input.date) : new Date();
 				const timeZone = input?.timeZone ?? "UTC";
 
-				const subscriptionInfo = await getUserSubscriptionInfo(
+				const subscription = await getUserSubscription(
 					ctx.db,
 					ctx.session.user.id,
 				);
@@ -1680,7 +1680,7 @@ export const botsRouter = createTRPCRouter({
 					timeZone,
 				);
 
-				const limit = subscriptionInfo.effectiveDailyLimit;
+				const limit = subscription.effectiveDailyLimit;
 				const remaining = limit !== null ? Math.max(0, limit - usage) : null;
 
 				return {

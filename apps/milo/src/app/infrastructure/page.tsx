@@ -25,7 +25,7 @@ type RouterOutputs = inferRouterOutputs<AppRouter>;
 
 type ActivityStats = RouterOutputs["infrastructure"]["getActivityStats"];
 
-type PlatformData = RouterOutputs["infrastructure"]["getPlatform"];
+type PlatformOutput = RouterOutputs["infrastructure"]["getPlatform"];
 
 /** Refresh interval in milliseconds (5 seconds) */
 const REFRESH_INTERVAL = 5000;
@@ -75,7 +75,7 @@ const PLATFORM_DESCRIPTIONS = {
 /**
  * Shared hook for infrastructure data fetching
  */
-function useInfrastructureData() {
+function useInfrastructure() {
 	const [lastUpdated, setLastUpdated] = useState<Date | undefined>(undefined);
 	const [isManualRefreshing, setIsManualRefreshing] = useState(false);
 
@@ -191,7 +191,7 @@ function K8sContent({
 	isLoading,
 }: {
 	activityStats: ActivityStats | undefined;
-	platformMetrics: PlatformData | undefined;
+	platformMetrics: PlatformOutput | undefined;
 	isLoading: boolean;
 }) {
 	return (
@@ -218,7 +218,7 @@ function AWSContent({
 	isLoading,
 }: {
 	activityStats: ActivityStats | undefined;
-	platformMetrics: PlatformData | undefined;
+	platformMetrics: PlatformOutput | undefined;
 	isLoading: boolean;
 }) {
 	return (
@@ -300,7 +300,7 @@ function PlatformContent({
 }: {
 	platform: "k8s" | "aws" | "coolify" | "local";
 	activityStats: ActivityStats | undefined;
-	platformMetrics: PlatformData | undefined;
+	platformMetrics: PlatformOutput | undefined;
 	isLoading: boolean;
 }) {
 	switch (platform) {
@@ -336,7 +336,7 @@ export default function InfrastructurePage() {
 		lastUpdated,
 		isManualRefreshing,
 		handleManualRefresh,
-	} = useInfrastructureData();
+	} = useInfrastructure();
 
 	if (platformQuery.isLoading || !platformQuery.data) {
 		return <InfrastructurePageSkeleton />;

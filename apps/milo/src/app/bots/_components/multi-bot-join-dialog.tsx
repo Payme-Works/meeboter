@@ -83,7 +83,7 @@ export function MultiBotJoinDialog({ open, onClose }: MultiBotJoinDialogProps) {
 	const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 	// Fetch subscription and usage data
-	const { data: subscriptionInfo, isLoading: subLoading } =
+	const { data: subscription, isLoading: subLoading } =
 		api.bots.getUserSubscription.useQuery();
 
 	const { data: dailyUsage, isLoading: usageLoading } =
@@ -209,13 +209,13 @@ export function MultiBotJoinDialog({ open, onClose }: MultiBotJoinDialogProps) {
 							<Badge
 								className="border border-zinc-500"
 								variant={
-									subscriptionInfo?.currentPlan === "FREE"
+									subscription?.currentPlan === "FREE"
 										? "secondary"
 										: "default"
 								}
 							>
-								{subscriptionInfo
-									? formatPlanName(subscriptionInfo.currentPlan)
+								{subscription
+									? formatPlanName(subscription.currentPlan)
 									: "Free"}
 							</Badge>
 						</div>
@@ -305,7 +305,7 @@ export function MultiBotJoinDialog({ open, onClose }: MultiBotJoinDialogProps) {
 								<AlertDescription className="text-amber-800">
 									You're trying to create {botCount} bots, but only have{" "}
 									{remaining} bots remaining today.
-									{subscriptionInfo?.currentPlan === "FREE" &&
+									{subscription?.currentPlan === "FREE" &&
 										"Consider upgrading to Pro for 200 bots/day."}
 								</AlertDescription>
 							</Alert>
@@ -317,7 +317,7 @@ export function MultiBotJoinDialog({ open, onClose }: MultiBotJoinDialogProps) {
 								<Ban className="h-4 w-4" />
 								<AlertDescription className="text-red-800">
 									You've reached your daily bot limit.
-									{subscriptionInfo?.currentPlan === "FREE" && (
+									{subscription?.currentPlan === "FREE" && (
 										<>
 											{" "}
 											Upgrade to Pro for 200 bots/day or wait until tomorrow for

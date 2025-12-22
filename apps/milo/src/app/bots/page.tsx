@@ -46,7 +46,7 @@ import { useSession } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 import { api } from "@/trpc/react";
 import { BotActionsDropdown } from "./_components/bot-actions-dropdown";
-import { BotDetailsDialog } from "./_components/bot-details-dialog";
+import { BotDialog } from "./_components/bot-dialog";
 import { BroadcastCenterDialog } from "./_components/broadcast-center-dialog";
 import { CancelDeploymentDialog } from "./_components/cancel-deployment-dialog";
 import { MultiBotJoinDialog } from "./_components/multi-bot-join-dialog";
@@ -587,7 +587,7 @@ export default function BotsPage() {
 				onRowClick={(row) => setSelectedBot(row.id)}
 			/>
 
-			<BotDetailsDialog
+			<BotDialog
 				botId={selectedBot}
 				onClose={() => setSelectedBot(null)}
 			/>
