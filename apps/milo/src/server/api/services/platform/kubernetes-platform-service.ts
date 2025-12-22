@@ -91,10 +91,29 @@ export class KubernetesPlatformService implements PlatformService {
 		// Load kubeconfig: in-cluster, from file, or default
 		if (process.env.KUBERNETES_SERVICE_HOST) {
 			// Running inside a Kubernetes cluster
+			console.log("[KubernetesPlatform] Loading kubeconfig from cluster");
 			kc.loadFromCluster();
 		} else if (config.kubeconfigPath) {
+			console.log(
+				`[KubernetesPlatform] Loading kubeconfig from file: ${config.kubeconfigPath}`,
+			);
 			kc.loadFromFile(config.kubeconfigPath);
+			console.log(
+				`[KubernetesPlatform] Kubeconfig loaded. Clusters: ${kc.clusters.length}, Users: ${kc.users.length}, Contexts: ${kc.contexts.length}`,
+			);
+			console.log(
+				`[KubernetesPlatform] Current context: ${kc.currentContext}`,
+			);
+			const cluster = kc.getCurrentCluster();
+			console.log(
+				`[KubernetesPlatform] Cluster server: ${cluster?.server}`,
+			);
+			const user = kc.getCurrentUser();
+			console.log(
+				`[KubernetesPlatform] User name: ${user?.name}, has cert: ${!!user?.certData}, has key: ${!!user?.keyData}`,
+			);
 		} else {
+			console.log("[KubernetesPlatform] Loading kubeconfig from default");
 			kc.loadFromDefault();
 		}
 
