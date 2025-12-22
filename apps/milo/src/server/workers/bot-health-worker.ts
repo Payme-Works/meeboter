@@ -265,7 +265,7 @@ export class BotHealthWorker extends BaseWorker<BotHealthResult> {
 					console.log(
 						`[${this.name}] Released platform resources for stuck bot ${bot.id}`,
 					);
-				} catch (releaseError) {
+				} catch {
 					// Ignore release errors, bot might not have platform resources
 					console.log(
 						`[${this.name}] No platform resources to release for bot ${bot.id}`,
