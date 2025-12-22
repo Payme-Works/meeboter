@@ -1,7 +1,6 @@
 "use client";
 
 import { CheckCircle, Container, Loader, Phone, Server } from "lucide-react";
-import { motion } from "motion/react";
 import type { ReactNode } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -37,33 +36,19 @@ interface InfrastructureStatsCardsProps {
 	isLoading: boolean;
 }
 
-/**
- * Animated number component for smooth value transitions
- */
-function AnimatedValue({ children }: { children: ReactNode }) {
+function StatValue({ children }: { children: ReactNode }) {
 	return (
-		<motion.span
-			key={String(children)}
-			initial={{ opacity: 0, y: 10 }}
-			animate={{ opacity: 1, y: 0 }}
-			transition={{ duration: 0.3, ease: "easeOut" }}
-			className="text-3xl font-medium font-mono tabular-nums tracking-tight"
-		>
+		<span className="text-3xl font-medium font-mono tabular-nums tracking-tight">
 			{children}
-		</motion.span>
+		</span>
 	);
 }
 
 function StatCard({ children }: { children: ReactNode }) {
 	return (
-		<motion.div
-			initial={{ opacity: 0, y: 20 }}
-			animate={{ opacity: 1, y: 0 }}
-			transition={{ duration: 0.4, ease: "easeOut" }}
-			className="relative overflow-hidden bg-card border border-border p-5 min-h-[120px]"
-		>
+		<div className="relative overflow-hidden bg-card border border-border p-5 min-h-[120px]">
 			{children}
-		</motion.div>
+		</div>
 	);
 }
 
@@ -100,7 +85,7 @@ function StatCardLabel({ children }: { children: ReactNode }) {
 }
 
 function StatCardValue({ children }: { children: ReactNode }) {
-	return <AnimatedValue>{children}</AnimatedValue>;
+	return <StatValue>{children}</StatValue>;
 }
 
 function StatCardSubtext({ children }: { children: ReactNode }) {
@@ -224,12 +209,7 @@ export function InfrastructureStatsCards({
 		activityStats.inCall;
 
 	return (
-		<motion.div
-			initial={{ opacity: 0 }}
-			animate={{ opacity: 1 }}
-			transition={{ duration: 0.3 }}
-			className="grid gap-4 md:grid-cols-2 lg:grid-cols-4"
-		>
+		<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
 			{/* Active Bots */}
 			<StatCard>
 				<StatCardContent>
@@ -271,6 +251,6 @@ export function InfrastructureStatsCards({
 			</StatCard>
 
 			<PlatformSpecificCard platform={platform} activityStats={activityStats} />
-		</motion.div>
+		</div>
 	);
 }

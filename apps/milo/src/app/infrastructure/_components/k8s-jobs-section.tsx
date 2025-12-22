@@ -3,7 +3,6 @@
 import { keepPreviousData } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import { Bot, Container, ExternalLink } from "lucide-react";
-import { motion } from "motion/react";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/trpc/react";
@@ -76,7 +75,6 @@ function StatusBadge({ status }: { status: string }) {
  */
 function K8sBotCard({
 	bot,
-	index,
 }: {
 	bot: {
 		id: number;
@@ -85,17 +83,11 @@ function K8sBotCard({
 		createdAt: Date | null;
 		platformIdentifier: string | null;
 	};
-	index: number;
 }) {
 	const jobName = bot.platformIdentifier ?? `bot-${bot.id}`;
 
 	return (
-		<motion.div
-			initial={{ opacity: 0, y: 10 }}
-			animate={{ opacity: 1, y: 0 }}
-			transition={{ duration: 0.3, delay: index * 0.05 }}
-			className="bg-card border border-border p-4 hover:border-accent/20 transition-colors"
-		>
+		<div className="bg-card border border-border p-4 hover:border-accent/20 transition-colors">
 			<div className="flex items-start justify-between gap-4">
 				<div className="flex-1 min-w-0">
 					<div className="flex items-center gap-2 mb-1">
@@ -132,7 +124,7 @@ function K8sBotCard({
 					</span>
 				) : null}
 			</div>
-		</motion.div>
+		</div>
 	);
 }
 
@@ -195,12 +187,7 @@ export function K8sJobsSection() {
 
 	if (bots.length === 0) {
 		return (
-			<motion.div
-				initial={{ opacity: 0, y: 20 }}
-				animate={{ opacity: 1, y: 0 }}
-				transition={{ duration: 0.4 }}
-				className="space-y-4"
-			>
+			<div className="space-y-4">
 				<h2 className="text-lg font-semibold">Active Jobs</h2>
 				<div className="bg-card border border-border p-8 text-center">
 					<Container className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
@@ -211,17 +198,12 @@ export function K8sJobsSection() {
 						Jobs will appear here when bots are deployed
 					</p>
 				</div>
-			</motion.div>
+			</div>
 		);
 	}
 
 	return (
-		<motion.div
-			initial={{ opacity: 0, y: 20 }}
-			animate={{ opacity: 1, y: 0 }}
-			transition={{ duration: 0.4 }}
-			className="space-y-4"
-		>
+		<div className="space-y-4">
 			<div className="flex items-center gap-2">
 				<h2 className="text-lg font-semibold">Active Jobs</h2>
 				<span className="font-mono text-xs px-2 py-0.5 bg-green-500/10 text-green-500 tabular-nums">
@@ -230,10 +212,10 @@ export function K8sJobsSection() {
 			</div>
 
 			<div className="grid gap-3 md:grid-cols-2">
-				{bots.map((bot, index) => (
-					<K8sBotCard key={bot.id} bot={bot} index={index} />
+				{bots.map((bot) => (
+					<K8sBotCard key={bot.id} bot={bot} />
 				))}
 			</div>
-		</motion.div>
+		</div>
 	);
 }

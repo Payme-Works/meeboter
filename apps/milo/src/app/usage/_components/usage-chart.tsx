@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 import {
 	Area,
@@ -82,11 +81,7 @@ function ChartContent({
 				<Skeleton className="w-full h-[320px]" />
 				<div className="absolute inset-0 flex items-center justify-center">
 					<div className="flex items-center gap-2 text-muted-foreground">
-						<motion.div
-							animate={{ rotate: 360 }}
-							transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-							className="h-4 w-4 border-2 border-current border-t-transparent rounded-full"
-						/>
+						<div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
 						<span className="text-sm">Loading chart data...</span>
 					</div>
 				</div>
@@ -112,13 +107,7 @@ function ChartContent({
 	}
 
 	return (
-		<motion.div
-			initial={{ opacity: 0 }}
-			animate={{ opacity: 1 }}
-			transition={{ duration: 0.4 }}
-			data-testid="chart-container"
-			className="h-[320px] w-full"
-		>
+		<div data-testid="chart-container" className="h-[320px] w-full">
 			<ResponsiveContainer width="100%" height="100%">
 				<AreaChart
 					data={data}
@@ -196,7 +185,7 @@ function ChartContent({
 					/>
 				</AreaChart>
 			</ResponsiveContainer>
-		</motion.div>
+		</div>
 	);
 }
 
@@ -294,12 +283,7 @@ export function UsageChart() {
 	];
 
 	return (
-		<motion.div
-			initial={{ opacity: 0, y: 20 }}
-			animate={{ opacity: 1, y: 0 }}
-			transition={{ duration: 0.4, delay: 0.1 }}
-			className="bg-card border border-border"
-		>
+		<div className="bg-card border border-border">
 			{/* Header */}
 			<div className="flex flex-col gap-4 p-5 border-b border-border sm:flex-row sm:items-center sm:justify-between">
 				<div className="space-y-1">
@@ -337,6 +321,6 @@ export function UsageChart() {
 					dateTickFormatter={dateTickFormatter}
 				/>
 			</div>
-		</motion.div>
+		</div>
 	);
 }

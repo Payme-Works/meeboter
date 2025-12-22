@@ -1,23 +1,9 @@
 "use client";
 
 import { Bot, Crown, Sparkles, Zap } from "lucide-react";
-import { motion } from "motion/react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/trpc/react";
-
-function AnimatedNumber({ value }: { value: number | string }) {
-	return (
-		<motion.span
-			key={value}
-			initial={{ opacity: 0, y: 10 }}
-			animate={{ opacity: 1, y: 0 }}
-			transition={{ duration: 0.3, ease: "easeOut" }}
-		>
-			{value}
-		</motion.span>
-	);
-}
 
 function StatCard({
 	label,
@@ -50,10 +36,7 @@ function StatCard({
 	};
 
 	return (
-		<motion.div
-			initial={{ opacity: 0, y: 20 }}
-			animate={{ opacity: 1, y: 0 }}
-			transition={{ duration: 0.4, ease: "easeOut" }}
+		<div
 			className={`relative overflow-hidden p-5 min-h-[130px] ${variants[variant]}`}
 		>
 			{/* Decorative corner accent */}
@@ -68,7 +51,7 @@ function StatCard({
 					</p>
 					<div className="flex items-end gap-3">
 						<span className="text-3xl font-bold tabular-nums tracking-tight">
-							<AnimatedNumber value={value} />
+							{value}
 						</span>
 						{badge ? (
 							<Badge variant={badge.variant} className="text-[10px] mb-1">
@@ -90,10 +73,8 @@ function StatCard({
 			{progress ? (
 				<div className="mt-4 space-y-1.5">
 					<div className="h-1.5 w-full bg-muted overflow-hidden">
-						<motion.div
-							initial={{ width: 0 }}
-							animate={{ width: `${progress.value}%` }}
-							transition={{ duration: 0.6, ease: "easeOut", delay: 0.2 }}
+						<div
+							style={{ width: `${progress.value}%` }}
 							className="h-full bg-accent"
 						/>
 					</div>
@@ -102,7 +83,7 @@ function StatCard({
 					</p>
 				</div>
 			) : null}
-		</motion.div>
+		</div>
 	);
 }
 
@@ -202,26 +183,17 @@ export function SubscriptionUsageSummary() {
 	};
 
 	return (
-		<motion.div
-			initial={{ opacity: 0 }}
-			animate={{ opacity: 1 }}
-			transition={{ duration: 0.3 }}
-			className="grid gap-4 md:grid-cols-2 lg:grid-cols-4"
-		>
+		<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
 			{/* Current Plan - Highlight card */}
 			<StatCard
 				label="Current Plan"
-				value={
-					subscription ? formatPlanName(subscription.currentPlan) : "—"
-				}
+				value={subscription ? formatPlanName(subscription.currentPlan) : "—"}
 				icon={getPlanIcon(subscription?.currentPlan || "FREE")}
 				variant="highlight"
 				badge={
 					subscription
 						? {
-								text: subscription.subscriptionActive
-									? "Active"
-									: "Inactive",
+								text: subscription.subscriptionActive ? "Active" : "Inactive",
 								variant: subscription.subscriptionActive
 									? "default"
 									: "secondary",
@@ -234,9 +206,7 @@ export function SubscriptionUsageSummary() {
 			<StatCard
 				label="Daily Bot Limit"
 				value={
-					subscription
-						? formatLimit(subscription.effectiveDailyLimit)
-						: "—"
+					subscription ? formatLimit(subscription.effectiveDailyLimit) : "—"
 				}
 				subtext={
 					subscription?.customDailyBotLimit ? "Custom override" : "Per day"
@@ -276,6 +246,6 @@ export function SubscriptionUsageSummary() {
 						: "default"
 				}
 			/>
-		</motion.div>
+		</div>
 	);
 }
