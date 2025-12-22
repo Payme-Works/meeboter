@@ -1,3 +1,48 @@
+/**
+ * BotHealthWorker - Monitors bot health via heartbeats
+ *
+ * ## Bot Status Flow
+ *
+ * Normal lifecycle:
+ *   DEPLOYING → JOINING_CALL → IN_WAITING_ROOM → IN_CALL → LEAVING → DONE
+ *
+ * Error scenarios handled by this worker:
+ *   IN_CALL → [heartbeat stops >10min] → FATAL (marked + resources released)
+ *   JOINING_CALL → [heartbeat stops >10min] → FATAL
+ *
+ * ## Monitored Statuses
+ *
+ * Only monitors bots in ACTIVE statuses (container should be running):
+ *   - JOINING_CALL: Bot is connecting to the meeting
+ *   - IN_WAITING_ROOM: Bot is waiting to be admitted
+ *   - IN_CALL: Bot is in the meeting (recording/participating)
+ *   - LEAVING: Bot is gracefully exiting
+ *
+ * NOT monitored (handled elsewhere):
+ *   - DEPLOYING: Handled by SlotRecoveryWorker (owns slot lifecycle)
+ *   - DONE/FATAL: Terminal states, no monitoring needed
+ *
+ * ## Detection Criteria
+ *
+ * A bot is considered crashed when:
+ *   - Status is in ACTIVE_STATUSES (container should be running)
+ *   - AND (lastHeartbeat > 10 minutes ago OR lastHeartbeat is NULL)
+ *
+ * ## Recovery Process
+ *
+ * For each stale bot:
+ *   1. Mark bot status as FATAL with error message
+ *   2. Release platform resources (stop container via BotPoolService)
+ *
+ * ## Relationship with Other Workers
+ *
+ * - SlotRecoveryWorker: Handles DEPLOYING failures and slot state recovery
+ * - PoolSlotSyncWorker: Handles Coolify ↔ Database consistency
+ * - BotHealthWorker: Handles running bot health monitoring
+ *
+ * @see SlotRecoveryWorker for deployment failure handling
+ */
+
 import { and, eq, inArray, isNull, lt, or } from "drizzle-orm";
 
 import {
@@ -33,14 +78,6 @@ interface BotHealthResult extends WorkerResult {
 
 /**
  * Worker that monitors bot health via heartbeats.
- *
- * Handles:
- * - Active bots (JOINING_CALL, IN_WAITING_ROOM, IN_CALL, LEAVING) with stale/missing heartbeats
- * - Marks crashed bots as FATAL
- * - Releases platform resources for crashed bots
- *
- * NOTE: Does NOT monitor DEPLOYING bots. Deployment failures are handled by
- * SlotRecoveryWorker which owns the full slot lifecycle including deployment.
  */
 export class BotHealthWorker extends BaseWorker<BotHealthResult> {
 	readonly name = "BotHealthWorker";

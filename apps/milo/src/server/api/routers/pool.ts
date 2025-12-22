@@ -17,7 +17,7 @@ import {
 import {
 	type PoolSlotSyncResult,
 	PoolSlotSyncWorker,
-} from "@/server/workers/pool-slot-sync.worker";
+} from "@/server/workers/pool-slot-sync-worker";
 import { services } from "../services";
 
 /**

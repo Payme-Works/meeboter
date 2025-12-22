@@ -1,4 +1,51 @@
-import { and, eq, lt, or } from "drizzle-orm";
+/**
+ * SlotRecoveryWorker - Monitors and recovers stuck pool slots
+ *
+ * ## Slot Status Flow
+ *
+ * Normal lifecycle:
+ *   idle → deploying → busy → idle (released)
+ *
+ * Error scenarios handled by this worker:
+ *   deploying → error (deployment failed) → idle (recovered)
+ *   deploying → [stuck >15min] → idle (recovered)
+ *   busy → [bot deleted, FK sets assignedBotId=NULL] → idle (recovered)
+ *
+ * ## Recovery Scenarios
+ *
+ * 1. ERROR slots:
+ *    - Slot status = "error"
+ *    - Action: Stop container, reset to idle
+ *    - Example: Coolify deployment failed, container crashed
+ *
+ * 2. STALE DEPLOYING slots:
+ *    - Slot status = "deploying" AND lastUsedAt > 15 minutes ago
+ *    - BUT if bot has recent heartbeat, skip recovery (bot is alive)
+ *    - After 3 skipped recoveries, fix status to "busy"
+ *    - Example: Container started but status wasn't updated
+ *
+ * 3. ORPHANED BUSY slots (added to fix stuck slots issue):
+ *    - Slot status = "busy" AND assignedBotId IS NULL
+ *    - Action: Stop container, reset to idle
+ *    - Example: Bot was deleted (via API or user cascade), FK set
+ *      assignedBotId to NULL but status remained "busy"
+ *
+ * ## Recovery Process
+ *
+ * For each stuck slot:
+ *   1. If deploying with assigned bot → check bot heartbeat
+ *      - Recent heartbeat? Skip recovery (bot is alive)
+ *      - After 3 skips → fix status to "busy"
+ *   2. If max attempts (3) reached → delete slot permanently
+ *   3. Otherwise → attempt recovery:
+ *      - Mark assigned bot as FATAL (if any)
+ *      - Stop Coolify container
+ *      - Reset slot to idle
+ *
+ * @see BotPoolService for slot acquisition and release logic
+ */
+
+import { and, eq, isNull, lt, or } from "drizzle-orm";
 
 import {
 	botPoolSlotsTable,
@@ -49,7 +96,10 @@ export class SlotRecoveryWorker extends BaseWorker<SlotRecoveryResult> {
 
 		const staleDeployingCutoff = new Date(Date.now() - DEPLOYING_TIMEOUT_MS);
 
-		// Find slots that are either in error state or stuck in deploying state
+		// Find slots that are:
+		// 1. In error state
+		// 2. Stuck in deploying state (>15 min)
+		// 3. Busy but with no assigned bot (orphaned due to bot deletion)
 		const stuckSlots = await this.db
 			.select()
 			.from(botPoolSlotsTable)
@@ -59,6 +109,10 @@ export class SlotRecoveryWorker extends BaseWorker<SlotRecoveryResult> {
 					and(
 						eq(botPoolSlotsTable.status, "deploying"),
 						lt(botPoolSlotsTable.lastUsedAt, staleDeployingCutoff),
+					),
+					and(
+						eq(botPoolSlotsTable.status, "busy"),
+						isNull(botPoolSlotsTable.assignedBotId),
 					),
 				),
 			);
@@ -72,7 +126,8 @@ export class SlotRecoveryWorker extends BaseWorker<SlotRecoveryResult> {
 		);
 
 		for (const slot of stuckSlots) {
-			// Check if bot is actually alive before recovery (only for deploying slots)
+			// Check if bot is actually alive before recovery (only for deploying slots with assigned bots)
+			// Orphaned busy slots (no assignedBotId) skip this check and go straight to recovery
 			if (slot.assignedBotId && slot.status === "deploying") {
 				const skipResult = await this.checkBotHeartbeatBeforeRecovery(slot);
 

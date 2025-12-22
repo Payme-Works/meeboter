@@ -1,3 +1,50 @@
+/**
+ * PoolSlotSyncWorker - Synchronizes Coolify applications with database pool slots
+ *
+ * ## Purpose
+ *
+ * Ensures consistency between Coolify (infrastructure) and Database (state).
+ * Drift can occur due to:
+ *   - Failed slot creation (Coolify created, DB insert failed)
+ *   - Manual Coolify deletions
+ *   - Database migrations or manual cleanup
+ *   - Crash during slot lifecycle operations
+ *
+ * ## Sync Scenarios
+ *
+ * 1. COOLIFY ORPHANS (exist in Coolify, not in Database):
+ *    - Example: Slot creation crashed after Coolify app created
+ *    - Action: Delete from Coolify (clean up orphaned infrastructure)
+ *
+ * 2. DATABASE ORPHANS (exist in Database, not in Coolify):
+ *    - Example: Coolify app manually deleted via UI
+ *    - Action: Delete from Database (clean up stale records)
+ *
+ * ## Sync Process
+ *
+ *   1. Fetch all pool applications from Coolify
+ *   2. Fetch all pool slots from Database
+ *   3. Compare UUIDs to find orphans in each direction
+ *   4. Delete Coolify orphans (infrastructure cleanup)
+ *   5. Delete Database orphans (state cleanup)
+ *
+ * ## Detection Method
+ *
+ * Uses applicationUuid as the source of truth:
+ *   - Coolify apps have unique UUIDs
+ *   - Database slots store applicationUuid
+ *   - Missing UUID in either direction = orphan
+ *
+ * ## Relationship with Other Workers
+ *
+ * - SlotRecoveryWorker: Recovers stuck slots (error, deploying, orphaned busy)
+ * - BotHealthWorker: Monitors running bot health
+ * - PoolSlotSyncWorker: Infrastructure ↔ Database consistency
+ *
+ * @see SlotRecoveryWorker for slot state recovery
+ * @see BotHealthWorker for bot health monitoring
+ */
+
 import { eq } from "drizzle-orm";
 
 import { botPoolSlotsTable } from "@/server/database/schema";
@@ -13,13 +60,6 @@ export interface PoolSlotSyncResult extends WorkerResult {
 
 /**
  * Worker that synchronizes Coolify applications with database pool slots.
- *
- * Handles:
- * - Coolify orphans: Apps that exist in Coolify but not in database (deleted from Coolify)
- * - Database orphans: Records that exist in database but not in Coolify (deleted from database)
- *
- * This ensures consistency between the two systems after failures, manual deletions,
- * or other edge cases that could cause drift.
  */
 export class PoolSlotSyncWorker extends BaseWorker<PoolSlotSyncResult> {
 	readonly name = "PoolSlotSyncWorker";

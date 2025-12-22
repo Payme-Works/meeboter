@@ -2,9 +2,9 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import type { Services } from "@/server/api/services";
 import type * as schema from "@/server/database/schema";
 
-import { BotHealthWorker } from "./bot-health.worker";
-import { PoolSlotSyncWorker } from "./pool-slot-sync.worker";
-import { SlotRecoveryWorker } from "./slot-recovery.worker";
+import { BotHealthWorker } from "./bot-health-worker";
+import { PoolSlotSyncWorker } from "./pool-slot-sync-worker";
+import { SlotRecoveryWorker } from "./slot-recovery-worker";
 
 /** Default interval for all workers (5 minutes) */
 const DEFAULT_INTERVAL_MS = 5 * 60 * 1000;
