@@ -335,6 +335,57 @@ Always separate comment-annotated blocks in object literals with blank lines. Wh
 }
 ```
 
+## Section Comment Headings (MANDATORY)
+
+When adding section separators/headings in code to organize logical sections, use the box-drawing line character (`─`) format. Never use equals signs (`=`) or other characters for section headings.
+
+```typescript
+// ✅ CORRECT: Box-drawing line format with blank lines above and below
+// ─── Sub-routers ────────────────────────────────────────────────
+
+const poolSubRouter = createTRPCRouter({ ... });
+
+// ─── Main Router ────────────────────────────────────────────────
+
+export const botsRouter = createTRPCRouter({ ... });
+
+// ─── Helper Functions ───────────────────────────────────────────
+
+function processData() { ... }
+
+// ❌ WRONG: No blank lines around heading
+// ─── Sub-routers ────────────────────────────────────────────────
+const poolSubRouter = createTRPCRouter({ ... });
+
+// ❌ WRONG: Equals signs (single or multi-line)
+// ============================================================================
+// Sub-routers
+// ============================================================================
+
+// ❌ WRONG: Other separator characters
+// ====================================
+// Sub-routers
+// ====================================
+
+// ❌ WRONG: Dashes
+// ---------------------------------
+// Sub-routers
+// ---------------------------------
+```
+
+**Format requirements:**
+- Start with `// ─── ` (two slashes, space, three box-drawing lines, space)
+- Section title in sentence case
+- End with space followed by box-drawing lines to fill ~70 characters total
+- **Always add a blank line above AND below the heading**
+- Single line only, never multi-line section headers
+- The box-drawing character is `─` (U+2500), NOT a regular hyphen `-`
+
+**When to use section headings:**
+- Separating logical groups in large files (routers, services)
+- Organizing different categories of functions/components
+- Marking major sections in complex files
+
 ## Comment Guidelines
 
 Keep comments concise and helpful, focusing on the "why" rather than the "what". Avoid excessive comments that state the obvious, but include comments that explain non-obvious logic, business rules, or important context.

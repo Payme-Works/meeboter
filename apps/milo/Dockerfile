@@ -4,18 +4,16 @@
 FROM oven/bun:1-alpine AS base
 RUN apk update && apk add --no-cache libc6-compat
 
-# =============================================================================
-# PRUNER: Generate a partial monorepo with pruned dependencies
-# =============================================================================
+# ─── Pruner: Generate a partial monorepo with pruned dependencies ───
+
 FROM base AS pruner
 WORKDIR /app
 RUN bun add -g turbo
 COPY . .
 RUN turbo prune @meeboter/milo --docker
 
-# =============================================================================
-# INSTALLER: Install dependencies for build
-# =============================================================================
+# ─── Installer: Install dependencies for build ──────────────────────
+
 FROM base AS installer
 WORKDIR /app
 
@@ -31,9 +29,8 @@ COPY --from=pruner /app/out/full/ .
 RUN bun turbo build --filter=@meeboter/milo && \
     bun build apps/milo/drizzle-migrate.ts --outfile apps/milo/drizzle-migrate.js --target bun
 
-# =============================================================================
-# RUNNER: Final production image
-# =============================================================================
+# ─── Runner: Final production image ─────────────────────────────────
+
 FROM base AS runner
 WORKDIR /app
 

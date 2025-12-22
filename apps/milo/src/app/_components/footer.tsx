@@ -32,6 +32,12 @@ export default function Footer() {
 							API Keys
 						</Link>
 						<Link
+							href="/infrastructure"
+							className="hover:text-foreground transition-colors"
+						>
+							Infrastructure
+						</Link>
+						<Link
 							href="/usage"
 							className="hover:text-foreground transition-colors"
 						>

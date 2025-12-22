@@ -1,6 +1,7 @@
 "use client";
 
 import { keepPreviousData } from "@tanstack/react-query";
+import type { inferRouterOutputs } from "@trpc/server";
 import { Cloud, Container, Hexagon, RefreshCw, Server } from "lucide-react";
 import { useEffect, useState } from "react";
 import { LiveIndicator } from "@/components/live-indicator";
@@ -13,9 +14,18 @@ import {
 } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { AppRouter } from "@/server/api/root";
 import { api } from "@/trpc/react";
 import { InfrastructureStatsCards } from "./_components/infrastructure-stats-cards";
 import { K8sJobsSection } from "./_components/k8s-jobs-section";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type RouterOutputs = inferRouterOutputs<AppRouter>;
+
+type ActivityStats = RouterOutputs["infrastructure"]["getActivityStats"];
+
+type PlatformData = RouterOutputs["infrastructure"]["getPlatform"];
 
 /** Refresh interval in milliseconds (5 seconds) */
 const REFRESH_INTERVAL = 5000;
@@ -63,11 +73,9 @@ const PLATFORM_DESCRIPTIONS = {
 } as const;
 
 /**
- * Coolify-specific page content
- *
- * Uses the same stats card pattern as K8s/AWS but shows Coolify-specific metrics.
+ * Shared hook for infrastructure data fetching
  */
-function CoolifyContent() {
+function useInfrastructureData() {
 	const [lastUpdated, setLastUpdated] = useState<Date | undefined>(undefined);
 	const [isManualRefreshing, setIsManualRefreshing] = useState(false);
 
@@ -103,198 +111,136 @@ function CoolifyContent() {
 		}
 	};
 
+	return {
+		activityStats,
+		platformQuery,
+		lastUpdated,
+		isManualRefreshing,
+		handleManualRefresh,
+	};
+}
+
+/**
+ * Header actions with live indicator and refresh button
+ */
+function InfrastructureHeaderActions({
+	lastUpdated,
+	isManualRefreshing,
+	onRefresh,
+}: {
+	lastUpdated: Date | undefined;
+	isManualRefreshing: boolean;
+	onRefresh: () => void;
+}) {
 	return (
-		<>
-			<PageHeaderActions>
-				<LiveIndicator lastUpdated={lastUpdated} />
+		<PageHeaderActions>
+			<LiveIndicator lastUpdated={lastUpdated} />
 
-				<Button
-					variant="outline"
-					size="sm"
-					onClick={handleManualRefresh}
-					disabled={isManualRefreshing}
-				>
-					<RefreshCw
-						className={`size-3! ${isManualRefreshing ? "animate-spin" : ""}`}
-					/>
-					Refresh
-				</Button>
-			</PageHeaderActions>
-
-			<div className="space-y-6 mt-6">
-				<InfrastructureStatsCards
-					activityStats={activityStats.data}
-					platform={undefined}
-					isLoading={activityStats.isLoading || platformQuery.isLoading}
+			<Button
+				variant="outline"
+				size="sm"
+				onClick={onRefresh}
+				disabled={isManualRefreshing}
+			>
+				<RefreshCw
+					className={`size-3! ${isManualRefreshing ? "animate-spin" : ""}`}
 				/>
+				Refresh
+			</Button>
+		</PageHeaderActions>
+	);
+}
 
-				<div className="bg-card border border-border p-8 text-center">
-					<Hexagon className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
-					<p className="text-muted-foreground font-mono text-sm">
-						Coolify pool is managed automatically
-					</p>
-					<p className="text-muted-foreground/70 text-xs mt-1">
-						View individual bots in the Bots section
-					</p>
-				</div>
+/**
+ * Coolify-specific page content
+ */
+function CoolifyContent({
+	activityStats,
+	isLoading,
+}: {
+	activityStats: ActivityStats | undefined;
+	isLoading: boolean;
+}) {
+	return (
+		<div className="space-y-6">
+			<InfrastructureStatsCards
+				activityStats={activityStats}
+				platform={undefined}
+				isLoading={isLoading}
+			/>
+
+			<div className="bg-card border border-border p-8 text-center">
+				<Hexagon className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
+				<p className="text-muted-foreground font-mono text-sm">
+					Coolify pool is managed automatically
+				</p>
+				<p className="text-muted-foreground/70 text-xs mt-1">
+					View individual bots in the Bots section
+				</p>
 			</div>
-		</>
+		</div>
 	);
 }
 
 /**
  * Kubernetes-specific page content
  */
-function K8sContent() {
-	const [lastUpdated, setLastUpdated] = useState<Date | undefined>(undefined);
-	const [isManualRefreshing, setIsManualRefreshing] = useState(false);
-
-	const activityStats = api.infrastructure.getActivityStats.useQuery(
-		undefined,
-		{
-			refetchInterval: REFRESH_INTERVAL,
-			refetchOnWindowFocus: true,
-			placeholderData: keepPreviousData,
-		},
-	);
-
-	const platformQuery = api.infrastructure.getPlatform.useQuery(undefined, {
-		refetchInterval: REFRESH_INTERVAL,
-		refetchOnWindowFocus: true,
-		placeholderData: keepPreviousData,
-	});
-
-	useEffect(() => {
-		if (activityStats.data || platformQuery.data) {
-			setLastUpdated(new Date());
-		}
-	}, [activityStats.data, platformQuery.data]);
-
-	const handleManualRefresh = async () => {
-		setIsManualRefreshing(true);
-
-		try {
-			await Promise.all([activityStats.refetch(), platformQuery.refetch()]);
-			setLastUpdated(new Date());
-		} finally {
-			setIsManualRefreshing(false);
-		}
-	};
-
+function K8sContent({
+	activityStats,
+	platformMetrics,
+	isLoading,
+}: {
+	activityStats: ActivityStats | undefined;
+	platformMetrics: PlatformData | undefined;
+	isLoading: boolean;
+}) {
 	return (
-		<>
-			<PageHeaderActions>
-				<LiveIndicator lastUpdated={lastUpdated} />
+		<div className="space-y-6">
+			<InfrastructureStatsCards
+				activityStats={activityStats}
+				platform={
+					platformMetrics?.platform === "k8s" ? platformMetrics : undefined
+				}
+				isLoading={isLoading}
+			/>
 
-				<Button
-					variant="outline"
-					size="sm"
-					onClick={handleManualRefresh}
-					disabled={isManualRefreshing}
-				>
-					<RefreshCw
-						className={`size-3! ${isManualRefreshing ? "animate-spin" : ""}`}
-					/>
-					Refresh
-				</Button>
-			</PageHeaderActions>
-
-			<div className="space-y-6 mt-6">
-				<InfrastructureStatsCards
-					activityStats={activityStats.data}
-					platform={
-						platformQuery.data?.platform === "k8s"
-							? platformQuery.data
-							: undefined
-					}
-					isLoading={activityStats.isLoading || platformQuery.isLoading}
-				/>
-
-				<K8sJobsSection />
-			</div>
-		</>
+			<K8sJobsSection />
+		</div>
 	);
 }
 
 /**
  * AWS ECS-specific page content
  */
-function AWSContent() {
-	const [lastUpdated, setLastUpdated] = useState<Date | undefined>(undefined);
-	const [isManualRefreshing, setIsManualRefreshing] = useState(false);
-
-	const activityStats = api.infrastructure.getActivityStats.useQuery(
-		undefined,
-		{
-			refetchInterval: REFRESH_INTERVAL,
-			refetchOnWindowFocus: true,
-			placeholderData: keepPreviousData,
-		},
-	);
-
-	const platformQuery = api.infrastructure.getPlatform.useQuery(undefined, {
-		refetchInterval: REFRESH_INTERVAL,
-		refetchOnWindowFocus: true,
-		placeholderData: keepPreviousData,
-	});
-
-	useEffect(() => {
-		if (activityStats.data || platformQuery.data) {
-			setLastUpdated(new Date());
-		}
-	}, [activityStats.data, platformQuery.data]);
-
-	const handleManualRefresh = async () => {
-		setIsManualRefreshing(true);
-
-		try {
-			await Promise.all([activityStats.refetch(), platformQuery.refetch()]);
-			setLastUpdated(new Date());
-		} finally {
-			setIsManualRefreshing(false);
-		}
-	};
-
+function AWSContent({
+	activityStats,
+	platformMetrics,
+	isLoading,
+}: {
+	activityStats: ActivityStats | undefined;
+	platformMetrics: PlatformData | undefined;
+	isLoading: boolean;
+}) {
 	return (
-		<>
-			<PageHeaderActions>
-				<LiveIndicator lastUpdated={lastUpdated} />
+		<div className="space-y-6">
+			<InfrastructureStatsCards
+				activityStats={activityStats}
+				platform={
+					platformMetrics?.platform === "aws" ? platformMetrics : undefined
+				}
+				isLoading={isLoading}
+			/>
 
-				<Button
-					variant="outline"
-					size="sm"
-					onClick={handleManualRefresh}
-					disabled={isManualRefreshing}
-				>
-					<RefreshCw
-						className={`size-3! ${isManualRefreshing ? "animate-spin" : ""}`}
-					/>
-					Refresh
-				</Button>
-			</PageHeaderActions>
-
-			<div className="space-y-6 mt-6">
-				<InfrastructureStatsCards
-					activityStats={activityStats.data}
-					platform={
-						platformQuery.data?.platform === "aws"
-							? platformQuery.data
-							: undefined
-					}
-					isLoading={activityStats.isLoading || platformQuery.isLoading}
-				/>
-
-				<div className="bg-card border border-border p-8 text-center">
-					<Cloud className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
-					<p className="text-muted-foreground font-mono text-sm">
-						AWS ECS tasks are ephemeral and auto-managed
-					</p>
-					<p className="text-muted-foreground/70 text-xs mt-1">
-						View individual bots in the Bots section
-					</p>
-				</div>
+			<div className="bg-card border border-border p-8 text-center">
+				<Cloud className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
+				<p className="text-muted-foreground font-mono text-sm">
+					AWS ECS tasks are ephemeral and auto-managed
+				</p>
+				<p className="text-muted-foreground/70 text-xs mt-1">
+					View individual bots in the Bots section
+				</p>
 			</div>
-		</>
+		</div>
 	);
 }
 
@@ -303,23 +249,17 @@ function AWSContent() {
  */
 function LocalContent() {
 	return (
-		<>
-			<PageHeaderActions>
-				<LiveIndicator />
-			</PageHeaderActions>
-
-			<div className="space-y-6 mt-6">
-				<div className="bg-card border border-border p-8 text-center">
-					<Server className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
-					<p className="text-muted-foreground font-mono text-sm">
-						Running in local development mode
-					</p>
-					<p className="text-muted-foreground/70 text-xs mt-1">
-						Infrastructure monitoring is available in production deployments
-					</p>
-				</div>
+		<div className="space-y-6">
+			<div className="bg-card border border-border p-8 text-center">
+				<Server className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
+				<p className="text-muted-foreground font-mono text-sm">
+					Running in local development mode
+				</p>
+				<p className="text-muted-foreground/70 text-xs mt-1">
+					Infrastructure monitoring is available in production deployments
+				</p>
 			</div>
-		</>
+		</div>
 	);
 }
 
@@ -354,31 +294,56 @@ function InfrastructurePageSkeleton() {
  */
 function PlatformContent({
 	platform,
+	activityStats,
+	platformMetrics,
+	isLoading,
 }: {
 	platform: "k8s" | "aws" | "coolify" | "local";
+	activityStats: ActivityStats | undefined;
+	platformMetrics: PlatformData | undefined;
+	isLoading: boolean;
 }) {
 	switch (platform) {
 		case "coolify":
-			return <CoolifyContent />;
+			return (
+				<CoolifyContent activityStats={activityStats} isLoading={isLoading} />
+			);
 		case "k8s":
-			return <K8sContent />;
+			return (
+				<K8sContent
+					activityStats={activityStats}
+					platformMetrics={platformMetrics}
+					isLoading={isLoading}
+				/>
+			);
 		case "aws":
-			return <AWSContent />;
+			return (
+				<AWSContent
+					activityStats={activityStats}
+					platformMetrics={platformMetrics}
+					isLoading={isLoading}
+				/>
+			);
 		case "local":
 			return <LocalContent />;
 	}
 }
 
 export default function InfrastructurePage() {
-	const platformQuery = api.infrastructure.getPlatform.useQuery(undefined, {
-		staleTime: 60000, // Platform type doesn't change often
-	});
+	const {
+		activityStats,
+		platformQuery,
+		lastUpdated,
+		isManualRefreshing,
+		handleManualRefresh,
+	} = useInfrastructureData();
 
 	if (platformQuery.isLoading || !platformQuery.data) {
 		return <InfrastructurePageSkeleton />;
 	}
 
 	const platform = platformQuery.data.platform;
+	const isLoading = activityStats.isLoading || platformQuery.isLoading;
 
 	return (
 		<div className="mx-auto container space-y-6 px-4">
@@ -396,8 +361,19 @@ export default function InfrastructurePage() {
 					</PageHeaderDescription>
 				</PageHeaderContent>
 
-				<PlatformContent platform={platform} />
+				<InfrastructureHeaderActions
+					lastUpdated={lastUpdated}
+					isManualRefreshing={isManualRefreshing}
+					onRefresh={handleManualRefresh}
+				/>
 			</PageHeader>
+
+			<PlatformContent
+				platform={platform}
+				activityStats={activityStats.data}
+				platformMetrics={platformQuery.data}
+				isLoading={isLoading}
+			/>
 		</div>
 	);
 }

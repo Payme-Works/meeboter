@@ -164,9 +164,8 @@ Each helper is one file with a single function, reusable by Zoom and Teams bots.
 Group methods by responsibility:
 
 ```typescript
-// ============================================
-// SECTION 1: SELECTORS (constants at top)
-// ============================================
+// ─── Selectors (constants at top) ───────────────────────────────
+
 const SELECTORS = {
   nameInput: 'input[type="text"][aria-label="Your name"]',
   joinNowButton: '//button[.//span[text()="Join now"]]',
@@ -179,35 +178,31 @@ const SELECTORS = {
   chatButton: '//button[@aria-label="Chat with everyone"]',
 } as const;
 
-// ============================================
-// SECTION 2: LIFECYCLE (public entry points)
-// ============================================
+// ─── Lifecycle (public entry points) ────────────────────────────
+
 // - start()
 // - joinCall()
 // - leaveCall()
 // - cleanup()
 
-// ============================================
-// SECTION 3: MEETING ACTIONS (in-call behavior)
-// ============================================
+// ─── Meeting actions (in-call behavior) ─────────────────────────
+
 // - monitorCall()
 // - hasBeenRemovedFromCall()
 // - processChatQueue()
 // - sendChatMessage()
 // - ensureChatPanelOpen()
 
-// ============================================
-// SECTION 4: RECORDING (FFmpeg management)
-// ============================================
+// ─── Recording (FFmpeg management) ──────────────────────────────
+
 // - startRecording()
 // - stopRecording()
 // - getRecordingPath()
 // - buildFFmpegArgs()
 // - getSpeakerTimeframes()
 
-// ============================================
-// SECTION 5: BROWSER UTILITIES (private helpers)
-// ============================================
+// ─── Browser utilities (private helpers) ────────────────────────
+
 // - initializeBrowser()
 // - captureScreenshot()
 // - disableMediaDevices()

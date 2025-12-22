@@ -1,19 +1,21 @@
 "use client";
 
-import {
-	ChevronDown,
-	ChevronRight,
-	Cloud,
-	Container,
-	Hexagon,
-	Server,
-	Zap,
-} from "lucide-react";
-import Link from "next/link";
+import { ChevronDown, Cloud, Container, Hexagon, Server } from "lucide-react";
 import { useState } from "react";
 import { LiveIndicator } from "@/components/live-indicator";
 import { cn } from "@/lib/utils";
 import { api } from "@/trpc/react";
+import {
+	StatCard,
+	StatCardContent,
+	StatCardFooter,
+	StatCardHeader,
+	StatCardIcon,
+	StatCardIconSkeleton,
+	StatCardLink,
+	StatCardLinkSkeleton,
+	StatCardTitle,
+} from "./stat-card";
 
 /**
  * Platform icon mapping
@@ -385,177 +387,180 @@ function InfrastructureCard({
 	const activeTotal = deploying + joiningCall + inWaitingRoom + inCall;
 
 	return (
-		<div className="border bg-card p-4 flex flex-col h-full min-h-[180px] relative overflow-hidden">
+		<StatCard className="min-h-[180px] relative overflow-hidden">
 			{/* Live indicator */}
 			<LiveIndicator className="absolute top-4 right-4" />
 
 			{/* Header */}
-			<div className="flex items-center justify-start gap-3 mb-4 relative">
-				<div className="h-10 w-10 bg-muted flex items-center justify-center text-muted-foreground">
-					<Zap className="h-5 w-5" />
+			<StatCardHeader className="justify-start gap-3 mb-4">
+				<StatCardIcon>
+					<PlatformIcon platform={platform.platform} className="h-5 w-5" />
+				</StatCardIcon>
+				<StatCardTitle>Infrastructure</StatCardTitle>
+			</StatCardHeader>
+
+			{/* Content */}
+			<StatCardContent className="mb-0">
+				{/* Stacked Bar Visualization */}
+				<div className="mb-3">
+					<div
+						className="h-3 bg-muted/50 rounded-sm flex overflow-hidden"
+						role="img"
+						aria-label={`Bot activity: ${deploying} deploying, ${joiningCall + inWaitingRoom} joining, ${inCall} in call`}
+					>
+						{activeTotal > 0 ? (
+							<>
+								<StackedBarSegment
+									value={deploying}
+									total={activeTotal}
+									color="bg-blue-500"
+									pulseAnimation
+									label="Deploying"
+								/>
+								<StackedBarSegment
+									value={joiningCall + inWaitingRoom}
+									total={activeTotal}
+									color="bg-amber-500"
+									pulseAnimation
+									label="Joining"
+								/>
+								<StackedBarSegment
+									value={inCall}
+									total={activeTotal}
+									color="bg-green-500"
+									label="In Call"
+								/>
+							</>
+						) : null}
+					</div>
 				</div>
-				<h3 className="font-semibold">Infrastructure</h3>
-			</div>
 
-			{/* Stacked Bar Visualization */}
-			<div className="mb-3 relative">
-				<div
-					className="h-3 bg-muted/50 rounded-sm flex overflow-hidden"
-					role="img"
-					aria-label={`Bot activity: ${deploying} deploying, ${joiningCall + inWaitingRoom} joining, ${inCall} in call`}
-				>
-					{activeTotal > 0 ? (
-						<>
-							<StackedBarSegment
-								value={deploying}
-								total={activeTotal}
-								color="bg-blue-500"
-								pulseAnimation
-								label="Deploying"
-							/>
-							<StackedBarSegment
-								value={joiningCall + inWaitingRoom}
-								total={activeTotal}
-								color="bg-amber-500"
-								pulseAnimation
-								label="Joining"
-							/>
-							<StackedBarSegment
-								value={inCall}
-								total={activeTotal}
-								color="bg-green-500"
-								label="In Call"
-							/>
-						</>
-					) : null}
+				{/* Active Status Line */}
+				<div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs mb-3">
+					<StatusIndicator
+						color="bg-blue-500"
+						count={deploying}
+						label="deploying"
+						pulseAnimation
+					/>
+					<span className="text-muted-foreground/40">·</span>
+					<StatusIndicator
+						color="bg-amber-500"
+						count={joiningCall + inWaitingRoom}
+						label="joining"
+						pulseAnimation
+					/>
+					<span className="text-muted-foreground/40">·</span>
+					<StatusIndicator
+						color="bg-green-500"
+						count={inCall}
+						label="in call"
+					/>
 				</div>
-			</div>
 
-			{/* Active Status Line */}
-			<div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs mb-3">
-				<StatusIndicator
-					color="bg-blue-500"
-					count={deploying}
-					label="deploying"
-					pulseAnimation
+				{/* Daily Summary */}
+				<div className="flex items-center gap-2 text-xs text-muted-foreground border-t border-border/30 pt-3 mb-1">
+					<span className="tabular-nums font-medium text-foreground/80">
+						{todayTotal}
+					</span>
+					<span>today</span>
+					<span className="text-muted-foreground/40">·</span>
+					<span className="tabular-nums font-medium text-green-500/80">
+						{todayCompleted}
+					</span>
+					<span>completed</span>
+					<span className="text-muted-foreground/40">·</span>
+					<span
+						className={cn(
+							"tabular-nums font-medium",
+							todayFailed > 0 ? "text-red-500" : "text-foreground/80",
+						)}
+					>
+						{todayFailed}
+					</span>
+					<span>failed</span>
+				</div>
+
+				{/* Platform Section (Collapsible) */}
+				<PlatformSection
+					platform={platform}
+					isExpanded={isPlatformExpanded}
+					onToggle={() => setIsPlatformExpanded(!isPlatformExpanded)}
 				/>
-				<span className="text-muted-foreground/40">·</span>
-				<StatusIndicator
-					color="bg-amber-500"
-					count={joiningCall + inWaitingRoom}
-					label="joining"
-					pulseAnimation
-				/>
-				<span className="text-muted-foreground/40">·</span>
-				<StatusIndicator color="bg-green-500" count={inCall} label="in call" />
-			</div>
-
-			{/* Daily Summary */}
-			<div className="flex items-center gap-2 text-xs text-muted-foreground border-t border-border/30 pt-3 mb-1">
-				<span className="tabular-nums font-medium text-foreground/80">
-					{todayTotal}
-				</span>
-				<span>today</span>
-				<span className="text-muted-foreground/40">·</span>
-				<span className="tabular-nums font-medium text-green-500/80">
-					{todayCompleted}
-				</span>
-				<span>completed</span>
-				<span className="text-muted-foreground/40">·</span>
-				<span
-					className={cn(
-						"tabular-nums font-medium",
-						todayFailed > 0 ? "text-red-500" : "text-foreground/80",
-					)}
-				>
-					{todayFailed}
-				</span>
-				<span>failed</span>
-			</div>
-
-			{/* Platform Section (Collapsible) */}
-			<PlatformSection
-				platform={platform}
-				isExpanded={isPlatformExpanded}
-				onToggle={() => setIsPlatformExpanded(!isPlatformExpanded)}
-			/>
+			</StatCardContent>
 
 			{/* Footer */}
-			<div className="mt-auto pt-4 border-t-0 relative">
-				<Link
-					href="/infrastructure"
-					className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
-				>
-					View Infrastructure
-					<ChevronRight className="h-4 w-4" />
-				</Link>
-			</div>
-		</div>
+			<StatCardFooter className="border-t-0 pt-4">
+				<StatCardLink href="/infrastructure">View Infrastructure</StatCardLink>
+			</StatCardFooter>
+		</StatCard>
 	);
 }
 
 export function InfrastructureCardSkeleton() {
 	return (
-		<div className="border bg-card p-4 flex flex-col h-full min-h-[180px]">
+		<StatCard className="min-h-[180px]">
 			{/* Header */}
-			<div className="flex items-center justify-start gap-3 mb-3">
-				<div className="h-10 w-10 bg-muted animate-pulse" />
+			<StatCardHeader className="justify-start gap-3 mb-4">
+				<StatCardIconSkeleton />
 				<div className="h-5 w-24 bg-muted rounded animate-pulse" />
-			</div>
+			</StatCardHeader>
 
-			{/* Stacked bar skeleton */}
-			<div className="h-3 bg-muted rounded-sm animate-pulse mb-3" />
+			{/* Content */}
+			<StatCardContent className="mb-0">
+				{/* Stacked bar skeleton */}
+				<div className="h-3 bg-muted rounded-sm animate-pulse mb-3" />
 
-			{/* Stats skeleton */}
-			<div className="flex gap-4 mb-3">
-				<div className="h-3 w-20 bg-muted rounded animate-pulse" />
-				<div className="h-3 w-16 bg-muted rounded animate-pulse" />
-				<div className="h-3 w-16 bg-muted rounded animate-pulse" />
-			</div>
+				{/* Stats skeleton */}
+				<div className="flex gap-4 mb-3">
+					<div className="h-3 w-20 bg-muted rounded animate-pulse" />
+					<div className="h-3 w-16 bg-muted rounded animate-pulse" />
+					<div className="h-3 w-16 bg-muted rounded animate-pulse" />
+				</div>
 
-			{/* Daily summary skeleton */}
-			<div className="h-3 w-32 bg-muted rounded animate-pulse border-t border-border/30 pt-3" />
+				{/* Daily summary skeleton */}
+				<div className="h-3 w-32 bg-muted rounded animate-pulse border-t border-border/30 pt-3" />
+			</StatCardContent>
 
 			{/* Footer */}
-			<div className="mt-auto pt-4">
-				<div className="h-4 w-32 bg-muted rounded animate-pulse" />
-			</div>
-		</div>
+			<StatCardFooter className="border-t-0 pt-4">
+				<StatCardLinkSkeleton className="w-32" />
+			</StatCardFooter>
+		</StatCard>
 	);
 }
 
 function InfrastructureCardUnavailable() {
 	return (
-		<div className="border bg-card p-4 flex flex-col h-full min-h-[180px]">
+		<StatCard className="min-h-[180px]">
 			{/* Header */}
-			<div className="flex items-center justify-start gap-3 mb-3">
-				<div className="h-10 w-10 bg-muted/50 flex items-center justify-center text-muted-foreground/50">
-					<Zap className="h-5 w-5" />
-				</div>
-				<h3 className="font-semibold text-muted-foreground/70">
+			<StatCardHeader className="justify-start gap-3 mb-4">
+				<StatCardIcon className="bg-muted/50 text-muted-foreground/50">
+					<Server className="h-5 w-5" />
+				</StatCardIcon>
+				<StatCardTitle className="text-muted-foreground/70">
 					Infrastructure
-				</h3>
-			</div>
+				</StatCardTitle>
+			</StatCardHeader>
 
 			{/* Content */}
-			<div className="flex-1 flex flex-col items-center justify-center text-center">
+			<StatCardContent className="flex-1 flex flex-col items-center justify-center text-center mb-0">
 				<div className="h-3 bg-muted/30 rounded-sm w-full mb-3" />
 				<p className="text-sm text-muted-foreground/60">
 					Infrastructure statistics unavailable
 				</p>
-			</div>
+			</StatCardContent>
 
 			{/* Footer */}
-			<div className="mt-auto pt-4">
-				<Link
+			<StatCardFooter className="border-t-0 pt-4">
+				<StatCardLink
 					href="/infrastructure"
-					className="text-sm text-muted-foreground/60 hover:text-foreground flex items-center gap-1 transition-colors"
+					className="text-muted-foreground/60"
 				>
 					View Infrastructure
-					<ChevronRight className="h-4 w-4" />
-				</Link>
-			</div>
-		</div>
+				</StatCardLink>
+			</StatCardFooter>
+		</StatCard>
 	);
 }
 

@@ -370,6 +370,7 @@ z.url()    // NOT z.string().url()
   - ✅ Prefer: `Meet ready, it will be reused for all tests`
   - ❌ Avoid: `Screenshot saved - no admit button found`
   - ❌ Avoid: `Meet ready - it will be reused for all tests`
+- **CRITICAL: Use box-drawing lines for section headings** - Use `// ─── Section Name ────────────────────` format with blank lines above AND below, NEVER equals signs (`=`) or other characters. See [rules/CODE_STYLE.md](rules/CODE_STYLE.md#section-comment-headings-mandatory)
 - **ALWAYS use i18n for user-facing text** - Use `useTranslations()` hook and proper translation keys
 - **Use sentence case for translations** - Only capitalize first word and proper nouns
 - **Use contextual error toast titles** - NEVER use generic "Error" as toast titles
