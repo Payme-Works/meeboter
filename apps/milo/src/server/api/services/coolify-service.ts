@@ -593,6 +593,7 @@ export class CoolifyService {
 	 * - in_progress: deployment is running, continue polling
 	 * - finished: deployment completed successfully
 	 * - failed: deployment failed (image pull error, config issue, etc.)
+	 * - cancelled-by-user: deployment was cancelled via Coolify UI
 	 *
 	 * This approach uses Coolify's deployment status as the source of truth,
 	 * rather than checking container status which can be unreliable during
@@ -663,6 +664,15 @@ export class CoolifyService {
 						success: false,
 						status: deployment.status,
 						error: `Coolify deployment failed (deployment UUID: ${deployment.uuid})`,
+					};
+				}
+
+				// Deployment was cancelled by user via Coolify UI
+				if (deploymentStatus === "cancelled-by-user") {
+					return {
+						success: false,
+						status: deployment.status,
+						error: `Coolify deployment cancelled by user (deployment UUID: ${deployment.uuid})`,
 					};
 				}
 

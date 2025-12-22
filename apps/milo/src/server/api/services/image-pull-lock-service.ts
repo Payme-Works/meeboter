@@ -9,6 +9,7 @@
 interface PendingLock {
 	promise: Promise<void>;
 	resolve: () => void;
+	acquiredAt: Date;
 }
 
 /**
@@ -29,6 +30,7 @@ interface LockResult {
 
 export class ImagePullLockService {
 	private locks = new Map<string, PendingLock>();
+	private readonly waitTimeoutMs = 10 * 60 * 1000; // 10 minutes
 
 	private getImageKey(platform: string, imageTag: string): string {
 		return `${platform}:${imageTag}`;
@@ -38,7 +40,8 @@ export class ImagePullLockService {
 	 * Acquires a lock for a specific platform's image.
 	 *
 	 * If another operation for the same image is in progress, waits for it to complete
-	 * before acquiring the lock.
+	 * before acquiring the lock. Times out after 10 minutes to prevent indefinite blocking.
+	 * On timeout, force-releases the stale lock and proceeds with acquiring a new one.
 	 *
 	 * @returns LockResult with release function and whether we had to wait
 	 */
@@ -50,16 +53,26 @@ export class ImagePullLockService {
 		let didWait = false;
 
 		if (existingLock) {
+			const waitStartedAt = Date.now();
+			const lockAge = waitStartedAt - existingLock.acquiredAt.getTime();
+
 			console.log(
-				`[ImagePullLockService] Waiting for existing operation: ${key}`,
+				`[ImagePullLockService] Waiting for existing operation: ${key} (lock held for ${Math.round(lockAge / 1000)}s)`,
 			);
 
 			didWait = true;
-			await existingLock.promise;
 
-			console.log(
-				`[ImagePullLockService] Previous operation completed: ${key}`,
-			);
+			// Wait with timeout to prevent indefinite blocking
+			const timedOut = await this.waitWithTimeout(existingLock.promise, key);
+
+			if (timedOut) {
+				// Force-release the stale lock and continue to acquire our own
+				this.forceReleaseStaleLock(key, existingLock);
+			} else {
+				console.log(
+					`[ImagePullLockService] Previous operation completed: ${key}`,
+				);
+			}
 		}
 
 		// Now acquire the lock for ourselves
@@ -72,6 +85,7 @@ export class ImagePullLockService {
 		const lock: PendingLock = {
 			promise,
 			resolve: resolveFunc,
+			acquiredAt: new Date(),
 		};
 
 		this.locks.set(key, lock);
@@ -104,5 +118,46 @@ export class ImagePullLockService {
 
 	getActiveLockCount(): number {
 		return this.locks.size;
+	}
+
+	/**
+	 * Waits for a promise with timeout.
+	 * @returns true if timed out, false if promise resolved
+	 */
+	private waitWithTimeout(
+		promise: Promise<void>,
+		key: string,
+	): Promise<boolean> {
+		return new Promise((resolve) => {
+			const timeoutId = setTimeout(() => {
+				console.error(
+					`[ImagePullLockService] Timeout waiting for lock: ${key} (waited ${this.waitTimeoutMs / 1000 / 60} minutes)`,
+				);
+
+				resolve(true);
+			}, this.waitTimeoutMs);
+
+			promise.then(() => {
+				clearTimeout(timeoutId);
+				resolve(false);
+			});
+		});
+	}
+
+	/**
+	 * Force-releases a stale lock after timeout.
+	 * This allows other waiters to proceed after the original holder appears stuck.
+	 */
+	private forceReleaseStaleLock(key: string, staleLock: PendingLock): void {
+		const currentLock = this.locks.get(key);
+
+		if (currentLock === staleLock) {
+			console.warn(
+				`[ImagePullLockService] Force-releasing stale lock: ${key} (held since ${staleLock.acquiredAt.toISOString()})`,
+			);
+
+			staleLock.resolve();
+			this.locks.delete(key);
+		}
 	}
 }
