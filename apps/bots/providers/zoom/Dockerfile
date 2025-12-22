@@ -29,8 +29,9 @@ ENV PUPPETEER_SKIP_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 ENV LANG=en_US.UTF-8
 
+# --ignore-scripts: skip milo's postinstall (tsup build not needed, only types)
 RUN curl -fsSL https://bun.sh/install | BUN_INSTALL=/usr/local bash \
-    && bun install --production
+    && bun install --production --ignore-scripts
 
 # Runtime stage
 FROM node:20-alpine AS runtime

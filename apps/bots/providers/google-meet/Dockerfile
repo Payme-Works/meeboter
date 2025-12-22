@@ -41,8 +41,9 @@ COPY apps/milo/src/ ./apps/milo/src/
 COPY packages/ ./packages/
 
 # Install deps + Chromium only (not all browsers)
+# --ignore-scripts: skip milo's postinstall (tsup build not needed, only types)
 ENV PUPPETEER_SKIP_DOWNLOAD=true
-RUN bun install --production \
+RUN bun install --production --ignore-scripts \
     && bunx playwright install chromium --with-deps
 
 # Runtime stage - Bun slim
