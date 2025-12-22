@@ -246,7 +246,11 @@ export function DataTable<TData, TValue>({
 										<TableRow
 											key={row.id}
 											data-state={row.getIsSelected() && "selected"}
-											className={onRowClick ? "cursor-pointer" : undefined}
+											className={
+												onRowClick
+													? "cursor-pointer hover:bg-muted/50 transition-colors"
+													: undefined
+											}
 											onClick={(e) => {
 												if (!onRowClick) return;
 

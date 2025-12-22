@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/trpc/react";
+import { BotDetailsDialog } from "../bots/_components/bot-details-dialog";
 import { CancelDeploymentDialog } from "../bots/_components/cancel-deployment-dialog";
 import { RemoveFromCallDialog } from "../bots/_components/remove-from-call-dialog";
 
@@ -54,6 +55,8 @@ export function RecentBots() {
 	});
 
 	const bots = botsResponse?.data ?? [];
+
+	const [selectedBot, setSelectedBot] = useState<number | null>(null);
 
 	const [botToRemove, setBotToRemove] = useState<{
 		id: number;
@@ -144,7 +147,8 @@ export function RecentBots() {
 							return (
 								<div
 									key={bot.id}
-									className="group p-4 hover:bg-muted/50 transition-colors"
+									className="group p-4 hover:bg-muted/50 transition-colors cursor-pointer"
+									onClick={() => setSelectedBot(bot.id)}
 								>
 									<div className="flex items-center gap-3">
 										<div className="h-10 w-10 bg-muted flex items-center justify-center shrink-0">
@@ -193,12 +197,13 @@ export function RecentBots() {
 												variant="ghost"
 												size="icon"
 												className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-white hover:bg-destructive"
-												onClick={() =>
+												onClick={(e) => {
+													e.stopPropagation();
 													setBotToRemove({
 														id: bot.id,
 														name: bot.botDisplayName,
-													})
-												}
+													});
+												}}
 												title="Remove from Call"
 											>
 												<X className="h-4 w-4" />
@@ -209,12 +214,13 @@ export function RecentBots() {
 												variant="ghost"
 												size="icon"
 												className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-white hover:bg-destructive"
-												onClick={() =>
+												onClick={(e) => {
+													e.stopPropagation();
 													setBotToCancel({
 														id: bot.id,
 														name: bot.botDisplayName,
-													})
-												}
+													});
+												}}
 												title="Cancel Deployment"
 											>
 												<X className="h-4 w-4" />
@@ -244,6 +250,11 @@ export function RecentBots() {
 				onOpenChange={(open) => {
 					if (!open) setBotToCancel(null);
 				}}
+			/>
+
+			<BotDetailsDialog
+				botId={selectedBot}
+				onClose={() => setSelectedBot(null)}
 			/>
 		</div>
 	);
