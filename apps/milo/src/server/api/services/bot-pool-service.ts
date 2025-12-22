@@ -938,7 +938,7 @@ export class BotPoolService {
 	 *
 	 * Note: Drizzle ORM transforms raw SQL result columns back to TypeScript
 	 * property names based on schema mapping, so we access results using
-	 * camelCase (applicationUuid) not snake_case (coolify_service_uuid).
+	 * camelCase (applicationUuid) not snake_case (application_uuid).
 	 */
 	private async acquireIdleSlot(botId: number): Promise<PoolSlot | null> {
 		const result = await this.db.execute<{
@@ -960,7 +960,7 @@ export class BotPoolService {
 				LIMIT 1
 				FOR UPDATE SKIP LOCKED
 			)
-			RETURNING id, "coolify_service_uuid", "slot_name", status, "assigned_bot_id"
+			RETURNING id, "application_uuid", "slot_name", status, "assigned_bot_id"
 		`);
 
 		if (result.length === 0) {
