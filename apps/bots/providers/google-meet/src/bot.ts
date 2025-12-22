@@ -30,6 +30,10 @@ const NAVIGATION_RETRYABLE_ERRORS = [
 	"ERR_NAME_NOT_RESOLVED",
 	"net::ERR_",
 	"Navigation timeout",
+	// Playwright timeout error patterns (Timeout 30000ms exceeded, page.goto: Timeout)
+	"Timeout",
+	"timeout",
+	"exceeded",
 ];
 
 /** DOM/timing errors that are safe to retry for fill operations */
@@ -127,6 +131,18 @@ export class GoogleMeetBot extends Bot {
 			"--use-file-for-fake-video-capture=/dev/null",
 			"--use-file-for-fake-audio-capture=/dev/null",
 			'--auto-select-desktop-capture-source="Chrome"',
+			// Memory optimization flags for resource-constrained environments (10-20+ concurrent bots)
+			"--disable-dev-shm-usage", // Use /tmp instead of /dev/shm (avoids shared memory issues)
+			"--disable-background-networking", // Reduce background network activity
+			"--disable-default-apps", // Don't load default apps
+			"--disable-extensions", // No extensions needed
+			"--disable-sync", // No Chrome sync
+			"--disable-translate", // No translation service
+			"--metrics-recording-only", // Reduce metrics overhead
+			"--no-first-run", // Skip first run tasks
+			"--safebrowsing-disable-auto-update", // No Safe Browsing updates
+			"--single-process", // Run in single process mode (reduces memory)
+			"--js-flags=--max-old-space-size=512", // Limit V8 heap to 512MB
 		];
 	}
 
@@ -198,10 +214,17 @@ export class GoogleMeetBot extends Bot {
 
 		await withRetry(
 			() =>
-				page.goto(normalizedUrl, { waitUntil: "networkidle", timeout: 30000 }),
+				// Use domcontentloaded instead of networkidle: Google Meet continuously
+				// makes network requests, and networkidle waits for 500ms of no activity.
+				// Under load with 10-20+ concurrent bots, this causes timeouts.
+				// 60s timeout provides buffer for resource-constrained environments.
+				page.goto(normalizedUrl, {
+					waitUntil: "domcontentloaded",
+					timeout: 60000,
+				}),
 			{
-				maxRetries: 10,
-				minDelayMs: 2000,
+				maxRetries: 5,
+				minDelayMs: 3000,
 				logger: this.logger,
 				operationName: "Navigate to meeting",
 				isRetryable: (e) =>

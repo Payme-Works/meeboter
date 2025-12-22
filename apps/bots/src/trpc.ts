@@ -82,6 +82,8 @@ export enum EventCode {
 	MEETING_ENDED = "MEETING_ENDED",
 	PERMISSION_DENIED = "PERMISSION_DENIED",
 	JOIN_BLOCKED = "JOIN_BLOCKED",
+	/** Bot is restarting after a recoverable error (not a status change) */
+	RESTARTING = "RESTARTING",
 }
 
 /**

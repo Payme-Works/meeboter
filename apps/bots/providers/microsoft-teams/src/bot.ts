@@ -491,7 +491,21 @@ export class MicrosoftTeamsBot extends Bot {
 		this.browser = (await launch({
 			executablePath: puppeteer.executablePath(),
 			headless: "new",
-			args: ["--no-sandbox", "--disable-setuid-sandbox"],
+			args: [
+				"--no-sandbox",
+				"--disable-setuid-sandbox",
+				// Memory optimization flags for resource-constrained environments
+				"--disable-dev-shm-usage",
+				"--disable-background-networking",
+				"--disable-default-apps",
+				"--disable-extensions",
+				"--disable-sync",
+				"--disable-translate",
+				"--metrics-recording-only",
+				"--no-first-run",
+				"--safebrowsing-disable-auto-update",
+				"--js-flags=--max-old-space-size=512",
+			],
 			protocolTimeout: 0,
 		})) as unknown as Browser;
 

@@ -424,6 +424,17 @@ export class ZoomBot extends Bot {
 				"--no-sandbox",
 				"--disable-setuid-sandbox",
 				"--use-fake-device-for-media-stream",
+				// Memory optimization flags for resource-constrained environments
+				"--disable-dev-shm-usage",
+				"--disable-background-networking",
+				"--disable-default-apps",
+				"--disable-extensions",
+				"--disable-sync",
+				"--disable-translate",
+				"--metrics-recording-only",
+				"--no-first-run",
+				"--safebrowsing-disable-auto-update",
+				"--js-flags=--max-old-space-size=512",
 			],
 		})) as unknown as Browser;
 
