@@ -1,5 +1,5 @@
 # Optimized Microsoft Teams Bot Dockerfile - Bun + Alpine + Chromium
-FROM node:20-alpine AS base
+FROM oven/bun:alpine AS base
 
 WORKDIR /app
 
@@ -12,8 +12,6 @@ RUN apk add --no-cache \
     harfbuzz \
     ca-certificates \
     ttf-freefont \
-    curl \
-    unzip \
     bash \
     && rm -rf /var/cache/apk/*
 
@@ -24,17 +22,16 @@ COPY apps/milo/package.json ./apps/milo/package.json
 COPY apps/milo/src/ ./apps/milo/src/
 COPY packages/ ./packages/
 
-# Install bun + dependencies
+# Install dependencies
 ENV PUPPETEER_SKIP_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 ENV LANG=en_US.UTF-8
 
 # --ignore-scripts: skip milo's postinstall (tsup build not needed, only types)
-RUN curl -fsSL https://bun.sh/install | BUN_INSTALL=/usr/local bash \
-    && bun install --production --ignore-scripts
+RUN bun install --production --ignore-scripts
 
 # Runtime stage
-FROM node:20-alpine AS runtime
+FROM oven/bun:alpine AS runtime
 
 ENV DOCKER_MEETING_PLATFORM=microsoft-teams
 ENV PUPPETEER_SKIP_DOWNLOAD=true
@@ -54,8 +51,7 @@ RUN apk add --no-cache \
     bash \
     && rm -rf /var/cache/apk/* \
     && addgroup -g 1001 -S pptruser \
-    && adduser -S pptruser -u 1001 \
-    && curl -fsSL https://bun.sh/install | BUN_INSTALL=/usr/local bash
+    && adduser -S pptruser -u 1001
 
 # Copy from build stage
 COPY --from=base --chown=pptruser:pptruser /app/node_modules ./node_modules
