@@ -78,6 +78,109 @@ const statisticsRouter = createTRPCRouter({
 		}),
 
 	/**
+	 * Get individual slot statuses for visualization.
+	 * Returns an array of statuses ordered by slot name for consistent display.
+	 */
+	getSlotStatuses: protectedProcedure
+		.input(z.void())
+		.output(
+			z.object({
+				statuses: z.array(poolSlotStatus),
+				maxSize: z.number(),
+			}),
+		)
+		.query(async ({ ctx }) => {
+			if (!services.pool) {
+				throw new TRPCError({
+					code: "NOT_IMPLEMENTED",
+					message:
+						"Pool statistics are only available when using Coolify platform",
+				});
+			}
+
+			const slots = await ctx.db
+				.select({ status: botPoolSlotsTable.status })
+				.from(botPoolSlotsTable)
+				.orderBy(botPoolSlotsTable.slotName);
+
+			return {
+				statuses: slots.map((s) => s.status),
+				maxSize: 100, // Pool max size
+			};
+		}),
+
+	/**
+	 * Get bot status counts for dashboard visualization.
+	 * Returns counts of bots by their current status.
+	 */
+	getBotStatusCounts: protectedProcedure
+		.input(z.void())
+		.output(
+			z.object({
+				deploying: z.number(),
+				joiningCall: z.number(),
+				inWaitingRoom: z.number(),
+				inCall: z.number(),
+				leaving: z.number(),
+				total: z.number(),
+			}),
+		)
+		.query(async ({ ctx }) => {
+			const result = await ctx.db
+				.select({
+					status: botsTable.status,
+					count: sql<number>`count(*)`,
+				})
+				.from(botsTable)
+				.groupBy(botsTable.status);
+
+			const counts = {
+				deploying: 0,
+				joiningCall: 0,
+				inWaitingRoom: 0,
+				inCall: 0,
+				leaving: 0,
+				total: 0,
+			};
+
+			for (const row of result) {
+				const count = Number(row.count);
+
+				switch (row.status) {
+					case "DEPLOYING":
+						counts.deploying = count;
+
+						break;
+					case "JOINING_CALL":
+						counts.joiningCall = count;
+
+						break;
+					case "IN_WAITING_ROOM":
+						counts.inWaitingRoom = count;
+
+						break;
+					case "IN_CALL":
+						counts.inCall = count;
+
+						break;
+					case "LEAVING":
+						counts.leaving = count;
+
+						break;
+				}
+			}
+
+			counts.total =
+				counts.deploying +
+				counts.joiningCall +
+				counts.inWaitingRoom +
+				counts.inCall +
+				counts.leaving;
+
+			return counts;
+		}),
+
+	/**
 	 * Get queue statistics (length, wait times)
 	 */
 	getQueue: protectedProcedure

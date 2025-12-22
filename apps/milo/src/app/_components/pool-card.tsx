@@ -1,37 +1,59 @@
 "use client";
 
-import { ArrowRight, Hexagon } from "lucide-react";
+import { ArrowRight, Bot, Hexagon } from "lucide-react";
 import Link from "next/link";
 import { LiveIndicator } from "@/components/live-indicator";
+import type { PoolSlotStatus } from "@/server/database/schema";
 import { api } from "@/trpc/react";
 
 interface PoolCardProps {
-	idle: number;
-	deploying: number;
-	busy: number;
-	total: number;
+	slotStatuses: PoolSlotStatus[];
 	maxSize: number;
+	botStats: {
+		deploying: number;
+		joiningCall: number;
+		inWaitingRoom: number;
+		inCall: number;
+		leaving: number;
+		total: number;
+	};
 }
 
-type SlotStatus = "idle" | "deploying" | "busy" | "empty";
+type SlotDisplayStatus = PoolSlotStatus | "empty";
 
-function SlotDot({ status, index }: { status: SlotStatus; index: number }) {
+function SlotDot({
+	status,
+	index,
+}: {
+	status: SlotDisplayStatus;
+	index: number;
+}) {
 	const baseClasses =
 		"w-2.5 h-2.5 rounded-full transition-all duration-300 ease-out";
 
-	const statusClasses: Record<SlotStatus, string> = {
+	const statusClasses: Record<SlotDisplayStatus, string> = {
 		idle: "bg-accent shadow-[0_0_6px_rgba(var(--accent),0.4)]",
 		deploying:
 			"bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.4)] animate-pulse",
 		busy: "bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.4)]",
+		error: "bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.4)]",
 		empty: "bg-transparent border border-muted-foreground/20",
 	};
 
-	const hoverClasses: Record<SlotStatus, string> = {
+	const hoverClasses: Record<SlotDisplayStatus, string> = {
 		idle: "group-hover/card:shadow-[0_0_8px_rgba(var(--accent),0.5)]",
 		deploying: "group-hover/card:shadow-[0_0_8px_rgba(59,130,246,0.5)]",
 		busy: "group-hover/card:shadow-[0_0_8px_rgba(245,158,11,0.5)]",
+		error: "group-hover/card:shadow-[0_0_8px_rgba(239,68,68,0.5)]",
 		empty: "group-hover/card:border-muted-foreground/30",
+	};
+
+	const statusLabels: Record<SlotDisplayStatus, string> = {
+		idle: "Idle",
+		deploying: "Deploying",
+		busy: "Busy",
+		error: "Error",
+		empty: "N/A",
 	};
 
 	return (
@@ -40,34 +62,24 @@ function SlotDot({ status, index }: { status: SlotStatus; index: number }) {
 			style={{
 				animationDelay: `${index * 20}ms`,
 			}}
-			title={status.charAt(0).toUpperCase() + status.slice(1)}
+			title={statusLabels[status]}
 		/>
 	);
 }
 
-function PoolCard({ idle, deploying, busy, total, maxSize }: PoolCardProps) {
-	// Build array of slot statuses
-	const slots: SlotStatus[] = [];
+function PoolCard({ slotStatuses, maxSize, botStats }: PoolCardProps) {
+	// Build array of slot display statuses
+	const slots: SlotDisplayStatus[] = [...slotStatuses];
 
-	// Add idle slots first
-	for (let i = 0; i < idle; i++) {
-		slots.push("idle");
-	}
+	// Calculate counts from actual statuses
+	const idle = slotStatuses.filter((s) => s === "idle").length;
+	const deploying = slotStatuses.filter((s) => s === "deploying").length;
+	const busy = slotStatuses.filter((s) => s === "busy").length;
+	const total = slotStatuses.length;
 
-	// Add deploying slots
-	for (let i = 0; i < deploying; i++) {
-		slots.push("deploying");
-	}
-
-	// Add busy slots
-	for (let i = 0; i < busy; i++) {
-		slots.push("busy");
-	}
-
-	// Add empty slots (unprovisioned)
-	const empty = maxSize - total;
-
-	for (let i = 0; i < empty; i++) {
+	// Add empty slots (unprovisioned capacity)
+	const emptyCount = maxSize - total;
+	for (let i = 0; i < emptyCount; i++) {
 		slots.push("empty");
 	}
 
@@ -94,14 +106,14 @@ function PoolCard({ idle, deploying, busy, total, maxSize }: PoolCardProps) {
 				<div
 					className="flex flex-wrap gap-1.5 mb-4"
 					role="img"
-					aria-label={`Pool status: ${idle} idle, ${deploying} deploying, ${busy} busy, ${empty} empty slots`}
+					aria-label={`Pool status: ${idle} idle, ${deploying} deploying, ${busy} busy, ${emptyCount} empty slots`}
 				>
 					{slots.map((status, index) => (
 						<SlotDot key={index} status={status} index={index} />
 					))}
 				</div>
 
-				{/* Stats line */}
+				{/* Pool Stats line */}
 				<div className="flex items-center gap-1.5 text-xs text-muted-foreground">
 					<span className="flex items-center gap-1">
 						<span className="w-1.5 h-1.5 rounded-full bg-accent" />
@@ -132,6 +144,38 @@ function PoolCard({ idle, deploying, busy, total, maxSize }: PoolCardProps) {
 					<span className="tabular-nums">
 						<span className="font-medium text-foreground/80">{total}</span>
 						<span className="text-muted-foreground/60">/{maxSize}</span>
+					</span>
+				</div>
+
+				{/* Bot Stats line */}
+				<div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-2 pt-2 border-t border-border/50">
+					<Bot className="h-2 w-2 text-muted-foreground/50" />
+					<span className="flex items-center gap-1">
+						<span className="tabular-nums font-medium text-foreground/80">
+							{botStats.inCall}
+						</span>
+						<span>in call</span>
+					</span>
+					<span className="text-muted-foreground/40">·</span>
+					<span className="flex items-center gap-1">
+						<span className="tabular-nums font-medium text-foreground/80">
+							{botStats.inWaitingRoom}
+						</span>
+						<span>waiting</span>
+					</span>
+					<span className="text-muted-foreground/40">·</span>
+					<span className="flex items-center gap-1">
+						<span className="tabular-nums font-medium text-foreground/80">
+							{botStats.joiningCall}
+						</span>
+						<span>joining</span>
+					</span>
+					<span className="text-muted-foreground/40">·</span>
+					<span className="tabular-nums">
+						<span className="font-medium text-foreground/80">
+							{botStats.total}
+						</span>
+						<span className="text-muted-foreground/60"> active</span>
 					</span>
 				</div>
 			</div>
@@ -228,28 +272,29 @@ function PoolCardUnavailable() {
  * This enables React Query cache invalidation after bot deployment.
  */
 export function PoolCardLoader() {
-	const { data: poolStats, isLoading } = api.pool.statistics.getPool.useQuery(
-		undefined,
-		{
+	const { data: slotData, isLoading: slotsLoading } =
+		api.pool.statistics.getSlotStatuses.useQuery(undefined, {
 			refetchInterval: 5000,
-		},
-	);
+		});
 
-	if (isLoading) {
+	const { data: botStats, isLoading: botsLoading } =
+		api.pool.statistics.getBotStatusCounts.useQuery(undefined, {
+			refetchInterval: 5000,
+		});
+
+	if (slotsLoading || botsLoading) {
 		return <PoolCardSkeleton />;
 	}
 
-	if (!poolStats) {
+	if (!slotData || !botStats) {
 		return <PoolCardUnavailable />;
 	}
 
 	return (
 		<PoolCard
-			idle={poolStats.idle}
-			deploying={poolStats.deploying}
-			busy={poolStats.busy}
-			total={poolStats.total}
-			maxSize={poolStats.maxSize}
+			slotStatuses={slotData.statuses}
+			maxSize={slotData.maxSize}
+			botStats={botStats}
 		/>
 	);
 }
