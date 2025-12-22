@@ -22,24 +22,7 @@ Meeboter joins video meetings as a bot participant, enabling:
 - **Events** — Real-time participant tracking via webhooks
 - **Fast deployment** — Bot pool system: ~30s vs 7+ min cold start
 
-**Two ways to use it:**
-
-| | Dashboard | API |
-|--|-----------|-----|
-| **For** | Manual operations, testing, monitoring | Programmatic automation |
-| **Deploy bots** | Click-to-deploy UI | REST/tRPC endpoints |
-| **Monitor** | Real-time status, logs, events | Webhooks, polling |
-| **Best for** | Ops teams, debugging, demos | Product integrations |
-
-<br />
-
-## Platform Support
-
-| Platform | Chat | Recording | Participants |
-|----------|:----:|:---------:|:------------:|
-| Google Meet | ✓ | ✓ | ✓ |
-| Microsoft Teams | ✓ | ✓ | ✓ |
-| Zoom | ✓ | ✓ | ✓ |
+**Supports:** Google Meet, Microsoft Teams, and Zoom (chat, recording, participant tracking)
 
 <br />
 
@@ -61,11 +44,9 @@ Open [localhost:3000](http://localhost:3000)
 
 ## Usage
 
-<table>
-<tr>
-<td width="50%">
-
 ### Dashboard
+
+For manual operations, testing, and monitoring:
 
 1. Open the web UI at `localhost:3000`
 2. Navigate to **Bots** → **New Bot**
@@ -73,10 +54,9 @@ Open [localhost:3000](http://localhost:3000)
 4. Click **Deploy**
 5. Monitor status, logs, and events in real-time
 
-</td>
-<td width="50%">
-
 ### API
+
+For programmatic automation and product integrations:
 
 ```bash
 # Create a bot
@@ -96,19 +76,13 @@ GET /events/bot/{botId}
 
 [OpenAPI docs →](/docs)
 
-</td>
-</tr>
-</table>
-
 <br />
 
-## Deployment Options
+## Deployment
 
-| Platform | Model | Cost | Best for |
-|----------|-------|------|----------|
-| [Coolify](DEPLOYMENT.md#coolify-deployment-pool-based) | Pool-based | ~$20-50/mo | Self-hosted, simple setup |
-| [Kubernetes](DEPLOYMENT.md#kubernetes-deployment-pod-based) | Pod-based | ~$50-200/mo | Existing K8s infrastructure |
-| [AWS ECS](DEPLOYMENT.md#aws-ecs-deployment-task-based) | Task-based | ~$100-500/mo | Enterprise, auto-scaling |
+- **[Coolify](DEPLOYMENT.md#coolify-deployment-pool-based)** — Pool-based, ~$20-50/mo, self-hosted
+- **[Kubernetes](DEPLOYMENT.md#kubernetes-deployment-pod-based)** — Pod-based, ~$50-200/mo, existing K8s
+- **[AWS ECS](DEPLOYMENT.md#aws-ecs-deployment-task-based)** — Task-based, ~$100-500/mo, enterprise
 
 See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed setup guides.
 
@@ -122,20 +96,16 @@ Your App → Meeboter API → Bot Pool → Meeting Platforms
            PostgreSQL    S3 (recordings)
 ```
 
-| Layer | Tech |
-|-------|------|
-| API | Next.js 15, tRPC, Drizzle ORM |
-| Bots | Playwright (Meet), Puppeteer (Teams/Zoom), FFmpeg |
-| Database | PostgreSQL |
-| Storage | S3-compatible (MinIO, AWS S3) |
+**Tech Stack:**
+- **API** — Next.js 15, tRPC, Drizzle ORM
+- **Bots** — Playwright (Meet), Puppeteer (Teams/Zoom), FFmpeg
+- **Database** — PostgreSQL
+- **Storage** — S3-compatible (MinIO, AWS S3)
 
 **Platform Abstraction** — Deploy bots to any backend:
-
-| Platform | Model | How it works |
-|----------|-------|--------------|
-| Coolify | Pool-based | Pre-provisioned Docker containers, reused across meetings |
-| Kubernetes | Job-based | Ephemeral pods created per meeting, auto-cleanup |
-| AWS ECS | Task-based | Fargate tasks on-demand, pay-per-use |
+- **Coolify** — Pre-provisioned Docker containers, reused across meetings
+- **Kubernetes** — Ephemeral pods created per meeting, auto-cleanup
+- **AWS ECS** — Fargate tasks on-demand, pay-per-use
 
 <details>
 <summary><strong>Example: Our Proxmox + Coolify + K3s Setup</strong></summary>
