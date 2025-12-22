@@ -1,12 +1,10 @@
-# Base
+# Build stage - Bun + Chromium only (optimized from 6GB to ~2GB)
+FROM oven/bun:1.1-debian AS base
 
-FROM mcr.microsoft.com/playwright:v1.57.0-jammy AS base
+WORKDIR /app
 
-RUN echo "Use the official Playwright Docker image as the base stage"
-
-RUN echo "Install system dependencies"
-
-RUN apt-get update && apt-get install -y \
+# Install Chromium dependencies + utilities in single layer
+RUN apt-get update && apt-get install -y --no-install-recommends \
     xvfb \
     ffmpeg \
     x11-utils \
@@ -15,112 +13,84 @@ RUN apt-get update && apt-get install -y \
     fluxbox \
     curl \
     unzip \
+    # Playwright Chromium dependencies
+    libnss3 \
+    libatk1.0-0 \
+    libatk-bridge2.0-0 \
+    libcups2 \
+    libdrm2 \
+    libxkbcommon0 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxfixes3 \
+    libxrandr2 \
+    libgbm1 \
+    libasound2 \
+    libpango-1.0-0 \
+    libcairo2 \
+    libgtk-3-0 \
+    libdbus-1-3 \
+    libxtst6 \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /app/
+# Copy workspace files (excluding apps/milo - not needed for bot)
+COPY package.json turbo.json bun.lock ./
+COPY apps/bots/ ./apps/bots/
+COPY packages/ ./packages/
 
-RUN echo "Copy workspace configuration and files"
-
-COPY ./package.json ./
-COPY ./turbo.json ./
-COPY ./bun.lock ./
-
-RUN echo "Ensure we're building from monorepo root"
-
-RUN test -f package.json || (echo "ERROR: Must build from monorepo root directory" && exit 1)
-
-RUN echo "Copy node_modules if they exist"
-
-COPY ./node_modules* /app/node_modules
-
-RUN echo "Copy workspace configuration and files"
-
-COPY ./apps/bots/ /app/apps/bots/
-COPY ./apps/milo/ /app/apps/milo/
-COPY ./packages/ /app/packages/
-
-RUN echo "Convert entrypoint.sh to use Unix line endings"
-
-RUN sed -i 's/\r$//' /app/apps/bots/providers/google-meet/entrypoint.sh
-
-RUN echo "Install bun"
-
-RUN curl -fsSL https://bun.sh/install | bash
-ENV PATH="/root/.bun/bin:${PATH}"
-
-RUN echo "Skip Puppeteer browser download - using Playwright browsers instead"
-
+# Install deps + Chromium only (not all browsers)
 ENV PUPPETEER_SKIP_DOWNLOAD=true
+RUN bun install --production \
+    && bunx playwright install chromium --with-deps
 
-RUN echo "Install dependencies"
-
-RUN bun install
-
-RUN echo "Install Playwright dependencies"
-
-RUN bunx playwright@1.57 install-deps
-RUN bunx playwright@1.57 install --with-deps
-
-RUN echo "Create Playwright directory"
-
-RUN mkdir -p /root/ms-playwright && chmod -R 777 /root/ms-playwright
-
-# Runtime
-
-FROM mcr.microsoft.com/playwright:v1.57.0-jammy AS runtime
-
-RUN echo "Use the official Playwright Docker image as the runtime stage"
+# Runtime stage - Bun slim
+FROM oven/bun:1.1-debian AS runtime
 
 ENV DOCKER_MEETING_PLATFORM=google-meet
+ENV DISPLAY=:99
+ENV PLAYWRIGHT_BROWSERS_PATH=/home/meetbot/.cache/ms-playwright
 
 WORKDIR /app
 
-RUN echo "Create user"
-
-RUN useradd -ms /bin/bash meetbot && chown -R meetbot:meetbot /app
-
-RUN echo "Install system dependencies"
-
+# Runtime deps only (no build tools)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     xvfb \
     pulseaudio \
     pulseaudio-utils \
-    xserver-xephyr \
-    x11-xserver-utils \
     fluxbox \
-    curl \
-    unzip \
-    && rm -rf /var/lib/apt/lists/*
+    # Chromium runtime deps
+    libnss3 \
+    libatk1.0-0 \
+    libatk-bridge2.0-0 \
+    libcups2 \
+    libdrm2 \
+    libxkbcommon0 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxfixes3 \
+    libxrandr2 \
+    libgbm1 \
+    libasound2 \
+    libpango-1.0-0 \
+    libcairo2 \
+    libgtk-3-0 \
+    libdbus-1-3 \
+    libxtst6 \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd -ms /bin/bash meetbot
 
-RUN echo "Install bun globally"
+# Copy from build stage
+COPY --from=base --chown=meetbot:meetbot /app/node_modules ./node_modules
+COPY --from=base --chown=meetbot:meetbot /root/.cache/ms-playwright/chromium* /home/meetbot/.cache/ms-playwright/
+COPY --from=base --chown=meetbot:meetbot /app/apps/bots ./apps/bots
+COPY --from=base --chown=meetbot:meetbot /app/packages ./packages
 
-RUN curl -fsSL https://bun.sh/install | BUN_INSTALL=/usr/local bash
-ENV PATH="/usr/local/bin:${PATH}"
-
-RUN echo "Copy node_modules and Playwright directory"
-
-COPY --from=base /app/node_modules /app/node_modules
-COPY --from=base /root/ms-playwright /root/ms-playwright
-
-COPY --from=base /app/apps/bots/ /app/apps/bots
-
-RUN echo "Change ownership of files"
-
-RUN chown -R meetbot:meetbot /app
-RUN chown -R meetbot:meetbot /root/ms-playwright
-
-RUN chown -R meetbot:meetbot /app/apps/bots
-
-RUN echo "Set display"
-
-ENV DISPLAY=:99
+# Convert entrypoint to Unix line endings and make executable
+RUN sed -i 's/\r$//' /app/apps/bots/providers/google-meet/entrypoint.sh \
+    && chown -R meetbot:meetbot /home/meetbot/.cache
 
 USER meetbot
 
-RUN echo "Make entrypoint executable"
-
 RUN chmod +x /app/apps/bots/providers/google-meet/entrypoint.sh
-
-RUN echo "Command to run the application"
 
 CMD ["/app/apps/bots/providers/google-meet/entrypoint.sh"]
