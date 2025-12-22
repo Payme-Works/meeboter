@@ -154,13 +154,13 @@ export class BotDeploymentService {
 				};
 			}
 
-			// Deployed successfully, update with platform identifier
+			// Deployed successfully, clear any previous deployment error
 			// Status stays as DEPLOYING, the bot itself will update to JOINING_CALL
 			// when it actually starts attempting to join the meeting
+			// Note: applicationUuid is stored on the pool slot, not on the bot
 			const result = await this.db
 				.update(botsTable)
 				.set({
-					coolifyServiceUuid: deployResult.identifier,
 					deploymentError: null,
 				})
 				.where(eq(botsTable.id, botId))

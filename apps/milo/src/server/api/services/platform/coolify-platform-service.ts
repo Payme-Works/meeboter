@@ -49,7 +49,7 @@ export class CoolifyPlatformService implements PlatformService {
 
 			return {
 				success: true,
-				identifier: slot.coolifyServiceUuid,
+				identifier: slot.applicationUuid,
 				slotName: slot.slotName,
 			};
 		}

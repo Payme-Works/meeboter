@@ -1,6 +1,10 @@
 import { and, eq, inArray, isNull, lt, or } from "drizzle-orm";
 
-import { botsTable, type Status } from "@/server/database/schema";
+import {
+	botPoolSlotsTable,
+	botsTable,
+	type Status,
+} from "@/server/database/schema";
 
 import { BaseWorker, type WorkerResult } from "./base-worker";
 
@@ -51,14 +55,19 @@ export class BotHealthWorker extends BaseWorker<BotHealthResult> {
 		const heartbeatCutoff = new Date(Date.now() - HEARTBEAT_TIMEOUT_MS);
 
 		// Find bots in active status with stale or missing heartbeat
+		// Join with pool slots to get the applicationUuid
 		const staleBots = await this.db
 			.select({
 				id: botsTable.id,
 				status: botsTable.status,
 				lastHeartbeat: botsTable.lastHeartbeat,
-				coolifyServiceUuid: botsTable.coolifyServiceUuid,
+				applicationUuid: botPoolSlotsTable.applicationUuid,
 			})
 			.from(botsTable)
+			.leftJoin(
+				botPoolSlotsTable,
+				eq(botPoolSlotsTable.assignedBotId, botsTable.id),
+			)
 			.where(
 				and(
 					inArray(botsTable.status, ACTIVE_STATUSES),
@@ -104,7 +113,7 @@ export class BotHealthWorker extends BaseWorker<BotHealthResult> {
 				result.markedFatal++;
 
 				// Release platform resources if assigned
-				if (bot.coolifyServiceUuid) {
+				if (bot.applicationUuid) {
 					try {
 						await this.services.platform.releaseBot(bot.id);
 						result.resourcesReleased++;

@@ -37,7 +37,7 @@ interface PoolSlot {
 	slotName: string;
 	status: PoolSlotStatus;
 	assignedBotId: number | null;
-	coolifyServiceUuid: string;
+	applicationUuid: string;
 	lastUsedAt: Date | null;
 	errorMessage: string | null;
 	recoveryAttempts: number;
@@ -296,14 +296,14 @@ export function PoolSlotsTable({
 				),
 			},
 			{
-				accessorKey: "coolifyServiceUuid",
+				accessorKey: "applicationUuid",
 				header: "UUID",
 				cell: ({ row }) => (
 					<span
 						className="font-mono text-xs text-muted-foreground"
-						title={row.original.coolifyServiceUuid}
+						title={row.original.applicationUuid}
 					>
-						{truncateUuid(row.original.coolifyServiceUuid)}
+						{truncateUuid(row.original.applicationUuid)}
 					</span>
 				),
 			},

@@ -28,7 +28,7 @@ const poolSlotViewSchema = z.object({
 	slotName: z.string(),
 	status: poolSlotStatus,
 	assignedBotId: z.number().nullable(),
-	coolifyServiceUuid: z.string(),
+	applicationUuid: z.string(),
 	lastUsedAt: z.date().nullable(),
 	errorMessage: z.string().nullable(),
 	recoveryAttempts: z.number(),
@@ -150,7 +150,7 @@ const slotsRouter = createTRPCRouter({
 							slotName: botPoolSlotsTable.slotName,
 							status: botPoolSlotsTable.status,
 							assignedBotId: botPoolSlotsTable.assignedBotId,
-							coolifyServiceUuid: botPoolSlotsTable.coolifyServiceUuid,
+							applicationUuid: botPoolSlotsTable.applicationUuid,
 							lastUsedAt: botPoolSlotsTable.lastUsedAt,
 							errorMessage: botPoolSlotsTable.errorMessage,
 							recoveryAttempts: botPoolSlotsTable.recoveryAttempts,
@@ -201,7 +201,7 @@ const slotsRouter = createTRPCRouter({
 				.select({
 					id: botPoolSlotsTable.id,
 					slotName: botPoolSlotsTable.slotName,
-					coolifyServiceUuid: botPoolSlotsTable.coolifyServiceUuid,
+					applicationUuid: botPoolSlotsTable.applicationUuid,
 					status: botPoolSlotsTable.status,
 					assignedBotId: botPoolSlotsTable.assignedBotId,
 				})
@@ -212,13 +212,13 @@ const slotsRouter = createTRPCRouter({
 			for (const slot of slotsToDelete) {
 				try {
 					console.log(
-						`[Pool] Deleting slot ${slot.slotName} (id=${slot.id}, uuid=${slot.coolifyServiceUuid})`,
+						`[Pool] Deleting slot ${slot.slotName} (id=${slot.id}, uuid=${slot.applicationUuid})`,
 					);
 
 					// Stop the container first if it's running
 					if (slot.status === "busy" || slot.status === "deploying") {
 						console.log(`[Pool] Stopping container for slot ${slot.slotName}`);
-						await services.coolify.stopApplication(slot.coolifyServiceUuid);
+						await services.coolify.stopApplication(slot.applicationUuid);
 					}
 
 					// Mark assigned bot as DONE if there is one
@@ -234,7 +234,7 @@ const slotsRouter = createTRPCRouter({
 					}
 
 					// Delete from Coolify (idempotent: 404 = success)
-					await services.coolify.deleteApplication(slot.coolifyServiceUuid);
+					await services.coolify.deleteApplication(slot.applicationUuid);
 
 					// Delete from database
 					await ctx.db

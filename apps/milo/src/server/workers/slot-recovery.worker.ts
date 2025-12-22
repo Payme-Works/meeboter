@@ -203,7 +203,6 @@ export class SlotRecoveryWorker extends BaseWorker<SlotRecoveryResult> {
 					.set({
 						status: "FATAL",
 						deploymentError: `Slot ${slot.slotName} recovered due to ${slot.status} status`,
-						coolifyServiceUuid: null,
 					})
 					.where(eq(botsTable.id, slot.assignedBotId));
 
@@ -213,7 +212,7 @@ export class SlotRecoveryWorker extends BaseWorker<SlotRecoveryResult> {
 			}
 
 			// Force stop the Coolify container
-			await this.services.coolify.stopApplication(slot.coolifyServiceUuid);
+			await this.services.coolify.stopApplication(slot.applicationUuid);
 
 			// Reset slot to idle state
 			await this.db
@@ -231,7 +230,7 @@ export class SlotRecoveryWorker extends BaseWorker<SlotRecoveryResult> {
 			const description = `[IDLE] Available - Last used: ${new Date().toISOString()}`;
 
 			await this.services.coolify.updateDescription(
-				slot.coolifyServiceUuid,
+				slot.applicationUuid,
 				description,
 			);
 
@@ -270,7 +269,6 @@ export class SlotRecoveryWorker extends BaseWorker<SlotRecoveryResult> {
 				.set({
 					status: "FATAL",
 					deploymentError: `Slot ${slot.slotName} permanently deleted after ${slot.recoveryAttempts} failed recovery attempts`,
-					coolifyServiceUuid: null,
 				})
 				.where(eq(botsTable.id, slot.assignedBotId));
 
@@ -282,10 +280,10 @@ export class SlotRecoveryWorker extends BaseWorker<SlotRecoveryResult> {
 		// Try to delete from Coolify (only if service is available)
 		if (this.services.coolify) {
 			try {
-				await this.services.coolify.deleteApplication(slot.coolifyServiceUuid);
+				await this.services.coolify.deleteApplication(slot.applicationUuid);
 			} catch (error) {
 				console.error(
-					`[${this.name}] Failed to delete Coolify app ${slot.coolifyServiceUuid}:`,
+					`[${this.name}] Failed to delete Coolify app ${slot.applicationUuid}:`,
 					error,
 				);
 			}

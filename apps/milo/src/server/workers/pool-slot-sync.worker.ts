@@ -53,7 +53,7 @@ export class PoolSlotSyncWorker extends BaseWorker<PoolSlotSyncResult> {
 		const coolifyUuids = new Set(coolifyApps.map((app) => app.uuid));
 
 		const databaseUuids = new Set(
-			databaseSlots.map((slot) => slot.coolifyServiceUuid),
+			databaseSlots.map((slot) => slot.applicationUuid),
 		);
 
 		// Find and delete Coolify orphans (exist in Coolify but not in database)
@@ -81,9 +81,9 @@ export class PoolSlotSyncWorker extends BaseWorker<PoolSlotSyncResult> {
 
 		// Find and delete database orphans (exist in database but not in Coolify)
 		for (const slot of databaseSlots) {
-			if (!coolifyUuids.has(slot.coolifyServiceUuid)) {
+			if (!coolifyUuids.has(slot.applicationUuid)) {
 				console.log(
-					`[${this.name}] Found database orphan: ${slot.slotName} (${slot.coolifyServiceUuid})`,
+					`[${this.name}] Found database orphan: ${slot.slotName} (${slot.applicationUuid})`,
 				);
 
 				try {

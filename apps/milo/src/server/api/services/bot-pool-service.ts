@@ -72,7 +72,7 @@ const PLATFORM_LOCK_IDS: Record<string, number> = {
  */
 interface PoolSlot {
 	id: number;
-	coolifyServiceUuid: string;
+	applicationUuid: string;
 	slotName: string;
 	status: "idle" | "deploying" | "busy" | "error";
 	assignedBotId: number | null;
@@ -139,11 +139,10 @@ export class BotPoolService {
 	// ─────────────────────────────────────────────────────────────────────────
 
 	/**
-	 * Atomically assigns a bot to a slot, updating both tables in a transaction.
+	 * Assigns a bot to a slot by updating the slot's assignedBotId.
 	 *
 	 * This is the SINGLE entry point for all bot-to-slot assignments.
-	 * It ensures both `botPoolSlotsTable.assignedBotId` and `botsTable.coolifyServiceUuid`
-	 * are updated atomically, preventing sync issues.
+	 * The slot's applicationUuid is the source of truth for the container UUID.
 	 *
 	 * @param slotId - The slot ID to assign the bot to
 	 * @param botId - The bot ID to assign
@@ -169,12 +168,6 @@ export class BotPoolService {
 					errorMessage: null,
 				})
 				.where(eq(botPoolSlotsTable.id, slotId));
-
-			// Update bot: record which container it's running in
-			await tx
-				.update(botsTable)
-				.set({ coolifyServiceUuid: coolifyUuid })
-				.where(eq(botsTable.id, botId));
 		});
 
 		logSlotTransition({
@@ -189,11 +182,9 @@ export class BotPoolService {
 	}
 
 	/**
-	 * Atomically releases a slot, clearing the assignment.
+	 * Releases a slot, clearing the assignment.
 	 *
 	 * This is the SINGLE entry point for releasing slots.
-	 * The bot's `coolifyServiceUuid` is preserved as a historical reference
-	 * for post-release lookups and debugging.
 	 *
 	 * @param slotId - The slot ID to release
 	 * @returns The released slot info, or null if slot not found
@@ -206,7 +197,7 @@ export class BotPoolService {
 		const slotResult = await this.db
 			.select({
 				slotName: botPoolSlotsTable.slotName,
-				coolifyServiceUuid: botPoolSlotsTable.coolifyServiceUuid,
+				applicationUuid: botPoolSlotsTable.applicationUuid,
 				assignedBotId: botPoolSlotsTable.assignedBotId,
 				status: botPoolSlotsTable.status,
 			})
@@ -223,7 +214,7 @@ export class BotPoolService {
 		const slot = slotResult[0];
 		const previousBotId = slot.assignedBotId;
 
-		// Release the slot (bot keeps its coolifyServiceUuid for history)
+		// Release the slot (bot keeps its applicationUuid for history)
 		await this.db
 			.update(botPoolSlotsTable)
 			.set({
@@ -238,7 +229,7 @@ export class BotPoolService {
 		logSlotTransition({
 			slotId,
 			slotName: slot.slotName,
-			coolifyUuid: slot.coolifyServiceUuid,
+			coolifyUuid: slot.applicationUuid,
 			previousState: slot.status as SlotStatus,
 			newState: "idle",
 			botId: previousBotId,
@@ -247,7 +238,7 @@ export class BotPoolService {
 
 		return {
 			slotName: slot.slotName,
-			coolifyUuid: slot.coolifyServiceUuid,
+			coolifyUuid: slot.applicationUuid,
 			previousBotId,
 		};
 	}
@@ -266,38 +257,31 @@ export class BotPoolService {
 		const idleSlot = await this.acquireIdleSlot(botId);
 
 		if (idleSlot) {
-			// Validate that coolifyServiceUuid was returned from the query
-			if (!idleSlot.coolifyServiceUuid) {
+			// Validate that applicationUuid was returned from the query
+			if (!idleSlot.applicationUuid) {
 				console.error(
-					`[BotPoolService] CRITICAL: acquireIdleSlot returned slot with missing coolifyServiceUuid`,
+					`[BotPoolService] CRITICAL: acquireIdleSlot returned slot with missing applicationUuid`,
 					{
 						slotId: idleSlot.id,
 						slotName: idleSlot.slotName,
-						coolifyServiceUuid: idleSlot.coolifyServiceUuid,
+						applicationUuid: idleSlot.applicationUuid,
 						assignedBotId: idleSlot.assignedBotId,
 					},
 				);
 
 				throw new Error(
-					`Slot ${idleSlot.id} has no coolifyServiceUuid - database may need migration`,
+					`Slot ${idleSlot.id} has no applicationUuid - database may need migration`,
 				);
 			}
 
 			// Update resource limits for existing slot to ensure consistency
 			// This ensures slots have the current resource configuration when reused
-			await this.coolify.updateResourceLimits(idleSlot.coolifyServiceUuid);
-
-			// Update bot's coolifyServiceUuid immediately after slot acquisition
-			// This ensures both tables are in sync (slot.assignedBotId and bot.coolifyServiceUuid)
-			await this.db
-				.update(botsTable)
-				.set({ coolifyServiceUuid: idleSlot.coolifyServiceUuid })
-				.where(eq(botsTable.id, botId));
+			await this.coolify.updateResourceLimits(idleSlot.applicationUuid);
 
 			logSlotTransition({
 				slotId: idleSlot.id,
 				slotName: idleSlot.slotName,
-				coolifyUuid: idleSlot.coolifyServiceUuid,
+				coolifyUuid: idleSlot.applicationUuid,
 				previousState: "idle",
 				newState: "deploying",
 				botId,
@@ -332,7 +316,7 @@ export class BotPoolService {
 			.select({
 				id: botPoolSlotsTable.id,
 				slotName: botPoolSlotsTable.slotName,
-				coolifyServiceUuid: botPoolSlotsTable.coolifyServiceUuid,
+				applicationUuid: botPoolSlotsTable.applicationUuid,
 				status: botPoolSlotsTable.status,
 			})
 			.from(botPoolSlotsTable)
@@ -354,12 +338,12 @@ export class BotPoolService {
 				`[BotPoolService] Stopping container for slot ${slot.slotName}`,
 			);
 
-			await this.coolify.stopApplication(slot.coolifyServiceUuid);
+			await this.coolify.stopApplication(slot.applicationUuid);
 
 			// Use centralized release function
 			await this.releaseBotFromSlot(slot.id);
 
-			await this.updateSlotDescription(slot.coolifyServiceUuid, "idle");
+			await this.updateSlotDescription(slot.applicationUuid, "idle");
 		} catch (error) {
 			const errorMessage =
 				error instanceof Error ? error.message : "Unknown error";
@@ -380,7 +364,7 @@ export class BotPoolService {
 			logSlotTransition({
 				slotId: slot.id,
 				slotName: slot.slotName,
-				coolifyUuid: slot.coolifyServiceUuid,
+				coolifyUuid: slot.applicationUuid,
 				previousState: slot.status as SlotStatus,
 				newState: "error",
 				botId,
@@ -388,7 +372,7 @@ export class BotPoolService {
 			});
 
 			await this.updateSlotDescription(
-				slot.coolifyServiceUuid,
+				slot.applicationUuid,
 				"error",
 				undefined,
 				errorMessage,
@@ -419,20 +403,20 @@ export class BotPoolService {
 		);
 
 		const appExists = await this.coolify.applicationExists(
-			slot.coolifyServiceUuid,
+			slot.applicationUuid,
 		);
 
 		let activeSlot = slot;
 
 		if (!appExists) {
 			console.warn(
-				`[BotPoolService] Coolify application ${slot.coolifyServiceUuid} not found for slot ${slot.slotName}. Recreating...`,
+				`[BotPoolService] Coolify application ${slot.applicationUuid} not found for slot ${slot.slotName}. Recreating...`,
 			);
 
 			activeSlot = await this.recreateSlotApplication(slot, botConfig);
 
 			console.log(
-				`[BotPoolService] Recreated slot ${activeSlot.slotName} with new UUID ${activeSlot.coolifyServiceUuid}`,
+				`[BotPoolService] Recreated slot ${activeSlot.slotName} with new UUID ${activeSlot.applicationUuid}`,
 			);
 		}
 
@@ -441,7 +425,7 @@ export class BotPoolService {
 
 		// Update Coolify description to show deploying status
 		await this.updateSlotDescription(
-			activeSlot.coolifyServiceUuid,
+			activeSlot.applicationUuid,
 			"deploying",
 			botConfig.id,
 		);
@@ -503,7 +487,7 @@ export class BotPoolService {
 		);
 
 		const result = await this.coolify.startWithLockAndRetry(
-			slot.coolifyServiceUuid,
+			slot.applicationUuid,
 			platform,
 			imageTag,
 		);
@@ -522,7 +506,7 @@ export class BotPoolService {
 			logSlotTransition({
 				slotId: slot.id,
 				slotName: slot.slotName,
-				coolifyUuid: slot.coolifyServiceUuid,
+				coolifyUuid: slot.applicationUuid,
 				previousState: "deploying",
 				newState: "error",
 				botId,
@@ -530,7 +514,7 @@ export class BotPoolService {
 			});
 
 			await this.updateSlotDescription(
-				slot.coolifyServiceUuid,
+				slot.applicationUuid,
 				"error",
 				undefined,
 				errorMessage,
@@ -548,14 +532,14 @@ export class BotPoolService {
 		logSlotTransition({
 			slotId: slot.id,
 			slotName: slot.slotName,
-			coolifyUuid: slot.coolifyServiceUuid,
+			coolifyUuid: slot.applicationUuid,
 			previousState: "deploying",
 			newState: "busy",
 			botId,
 			reason: "Container running",
 		});
 
-		await this.updateSlotDescription(slot.coolifyServiceUuid, "busy", botId);
+		await this.updateSlotDescription(slot.applicationUuid, "busy", botId);
 	}
 
 	/**
@@ -565,7 +549,7 @@ export class BotPoolService {
 		const slotResult = await this.db
 			.select({
 				slotName: botPoolSlotsTable.slotName,
-				coolifyServiceUuid: botPoolSlotsTable.coolifyServiceUuid,
+				applicationUuid: botPoolSlotsTable.applicationUuid,
 				assignedBotId: botPoolSlotsTable.assignedBotId,
 				status: botPoolSlotsTable.status,
 			})
@@ -588,7 +572,7 @@ export class BotPoolService {
 		logSlotTransition({
 			slotId,
 			slotName: slot.slotName,
-			coolifyUuid: slot.coolifyServiceUuid,
+			coolifyUuid: slot.applicationUuid,
 			previousState: slot.status as SlotStatus,
 			newState: "error",
 			botId: slot.assignedBotId,
@@ -596,7 +580,7 @@ export class BotPoolService {
 		});
 
 		await this.updateSlotDescription(
-			slot.coolifyServiceUuid,
+			slot.applicationUuid,
 			"error",
 			undefined,
 			errorMessage,
@@ -898,11 +882,11 @@ export class BotPoolService {
 
 		// Set status to DEPLOYING, the bot itself will update to JOINING_CALL
 		// when it actually starts attempting to join the meeting
+		// Note: applicationUuid is stored on the pool slot, not on the bot
 		await this.db
 			.update(botsTable)
 			.set({
 				status: "DEPLOYING",
-				coolifyServiceUuid: slot.coolifyServiceUuid,
 			})
 			.where(eq(botsTable.id, nextEntry.botId));
 
@@ -954,12 +938,12 @@ export class BotPoolService {
 	 *
 	 * Note: Drizzle ORM transforms raw SQL result columns back to TypeScript
 	 * property names based on schema mapping, so we access results using
-	 * camelCase (coolifyServiceUuid) not snake_case (coolify_service_uuid).
+	 * camelCase (applicationUuid) not snake_case (coolify_service_uuid).
 	 */
 	private async acquireIdleSlot(botId: number): Promise<PoolSlot | null> {
 		const result = await this.db.execute<{
 			id: number;
-			coolifyServiceUuid: string;
+			applicationUuid: string;
 			slotName: string;
 			status: "idle" | "deploying" | "busy" | "error";
 			assignedBotId: number | null;
@@ -993,7 +977,7 @@ export class BotPoolService {
 
 		return {
 			id: row.id,
-			coolifyServiceUuid: row.coolifyServiceUuid,
+			applicationUuid: row.applicationUuid,
 			slotName: row.slotName,
 			status: row.status,
 			assignedBotId: row.assignedBotId,
@@ -1092,7 +1076,7 @@ export class BotPoolService {
 			const insertResult = await tx
 				.insert(botPoolSlotsTable)
 				.values({
-					coolifyServiceUuid: tempUuid,
+					applicationUuid: tempUuid,
 					slotName: reservedSlotName,
 					status: "deploying",
 					assignedBotId: botId,
@@ -1126,35 +1110,28 @@ export class BotPoolService {
 			callbackUrl: bot.callbackUrl ?? undefined,
 		};
 
-		let coolifyServiceUuid: string;
+		let applicationUuid: string;
 
 		try {
-			coolifyServiceUuid = await this.coolify.createApplication(
+			applicationUuid = await this.coolify.createApplication(
 				botId,
 				image,
 				placeholderConfig,
 				slotName,
 			);
 
-			// Update slot with real Coolify UUID and bot's reference atomically
-			await this.db.transaction(async (tx) => {
-				await tx
-					.update(botPoolSlotsTable)
-					.set({ coolifyServiceUuid })
-					.where(eq(botPoolSlotsTable.id, slotId));
+			// Update slot with real Coolify UUID
+			await this.db
+				.update(botPoolSlotsTable)
+				.set({ applicationUuid })
+				.where(eq(botPoolSlotsTable.id, slotId));
 
-				await tx
-					.update(botsTable)
-					.set({ coolifyServiceUuid })
-					.where(eq(botsTable.id, botId));
-			});
-
-			await this.updateSlotDescription(coolifyServiceUuid, "deploying", botId);
+			await this.updateSlotDescription(applicationUuid, "deploying", botId);
 
 			logSlotTransition({
 				slotId,
 				slotName,
-				coolifyUuid: coolifyServiceUuid,
+				coolifyUuid: applicationUuid,
 				newState: "deploying",
 				botId,
 				reason: "Created new slot",
@@ -1162,7 +1139,7 @@ export class BotPoolService {
 
 			return {
 				id: slotId,
-				coolifyServiceUuid,
+				applicationUuid,
 				slotName,
 				status: "deploying",
 				assignedBotId: botId,
@@ -1195,7 +1172,7 @@ export class BotPoolService {
 		const image = this.coolify.selectBotImage(botConfig.meetingInfo);
 
 		console.log(
-			`[BotPoolService] Creating new Coolify app for slot ${slot.slotName} (old UUID: ${slot.coolifyServiceUuid}, slot ID: ${slot.id})`,
+			`[BotPoolService] Creating new Coolify app for slot ${slot.slotName} (old UUID: ${slot.applicationUuid}, slot ID: ${slot.id})`,
 		);
 
 		const newCoolifyUuid = await this.coolify.createApplication(
@@ -1209,26 +1186,19 @@ export class BotPoolService {
 		await this.db
 			.update(botPoolSlotsTable)
 			.set({
-				coolifyServiceUuid: newCoolifyUuid,
+				applicationUuid: newCoolifyUuid,
 				errorMessage: null,
 				recoveryAttempts: sql`${botPoolSlotsTable.recoveryAttempts} + 1`,
 			})
 			.where(eq(botPoolSlotsTable.id, slot.id));
 
-		// Also update the bot's reference to the new UUID immediately
-		// This ensures any code reading from botsTable gets the correct UUID
-		await this.db
-			.update(botsTable)
-			.set({ coolifyServiceUuid: newCoolifyUuid })
-			.where(eq(botsTable.id, botConfig.id));
-
 		console.log(
-			`[BotPoolService] Updated slot ${slot.slotName} and bot ${botConfig.id} with new UUID ${newCoolifyUuid}`,
+			`[BotPoolService] Updated slot ${slot.slotName} with new UUID ${newCoolifyUuid}`,
 		);
 
 		return {
 			...slot,
-			coolifyServiceUuid: newCoolifyUuid,
+			applicationUuid: newCoolifyUuid,
 		};
 	}
 

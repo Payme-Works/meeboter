@@ -467,6 +467,11 @@ export type EventCode = z.infer<typeof eventCode>;
 /**
  * Database implementation for meeting bots
  * Stores bot configuration, status, and recording information
+ *
+ * NOTE: The Coolify application UUID is NOT stored here.
+ * It is stored in bot_pool_slots.applicationUuid and accessed via
+ * the assignedBotId relationship. This allows pool slots to be
+ * reused across multiple bot lifecycles.
  */
 export const botsTable = pgTable(
 	"bots",
@@ -513,9 +518,6 @@ export const botsTable = pgTable(
 
 		/** Error message if bot deployment failed */
 		deploymentError: varchar("deployment_error", { length: 1024 }),
-
-		/** Coolify service UUID for cleanup when bot finishes */
-		coolifyServiceUuid: varchar("coolify_service_uuid", { length: 255 }),
 
 		/** How often the bot sends heartbeat signals (milliseconds) */
 		heartbeatInterval: integer("heartbeat_interval").notNull(),
@@ -885,7 +887,7 @@ export const botPoolSlotsTable = pgTable(
 		/** Unique identifier for the pool slot */
 		id: serial("id").primaryKey(),
 		/** Coolify application UUID */
-		coolifyServiceUuid: varchar("coolify_service_uuid", { length: 255 })
+		applicationUuid: varchar("application_uuid", { length: 255 })
 			.notNull()
 			.unique(),
 		/** Slot name for identification (e.g., "pool-google-meet-001") */

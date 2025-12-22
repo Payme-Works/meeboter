@@ -125,7 +125,7 @@ const poolSubRouter = createTRPCRouter({
 					assignedBotId: botPoolSlotsTable.assignedBotId,
 				})
 				.from(botPoolSlotsTable)
-				.where(eq(botPoolSlotsTable.coolifyServiceUuid, input.poolSlotUuid))
+				.where(eq(botPoolSlotsTable.applicationUuid, input.poolSlotUuid))
 				.limit(1);
 
 			if (slotResult[0]?.assignedBotId) {
@@ -171,52 +171,12 @@ const poolSubRouter = createTRPCRouter({
 				};
 			}
 
-			// Fallback: look up bot by coolifyServiceUuid (for backwards compatibility)
-			const botResult = await ctx.db
-				.select()
-				.from(botsTable)
-				.where(eq(botsTable.coolifyServiceUuid, input.poolSlotUuid))
-				.limit(1);
-
-			if (!botResult[0]) {
-				// No bot found by either method
-				if (!slotResult[0]) {
-					throw new Error(`Pool slot not found: ${input.poolSlotUuid}`);
-				}
-
-				throw new Error(`No bot assigned to pool slot: ${input.poolSlotUuid}`);
+			// No bot assigned to this slot
+			if (!slotResult[0]) {
+				throw new Error(`Pool slot not found: ${input.poolSlotUuid}`);
 			}
 
-			const bot = botResult[0];
-
-			// Prevent restarting bots that have already finished
-			if (
-				terminalStatuses.includes(
-					bot.status as (typeof terminalStatuses)[number],
-				)
-			) {
-				throw new TRPCError({
-					code: "PRECONDITION_FAILED",
-					message: `Bot ${bot.id} has already finished (status: ${bot.status}). Container should exit.`,
-				});
-			}
-
-			// Return the bot config in the expected format
-			return {
-				id: bot.id,
-				userId: bot.userId,
-				meetingInfo: bot.meetingInfo,
-				meetingTitle: bot.meetingTitle,
-				startTime: bot.startTime,
-				endTime: bot.endTime,
-				botDisplayName: bot.botDisplayName,
-				botImage: bot.botImage ?? undefined,
-				recordingEnabled: bot.recordingEnabled,
-				heartbeatInterval: bot.heartbeatInterval,
-				automaticLeave: bot.automaticLeave,
-				callbackUrl: bot.callbackUrl ?? undefined,
-				chatEnabled: bot.chatEnabled,
-			};
+			throw new Error(`No bot assigned to pool slot: ${input.poolSlotUuid}`);
 		}),
 });
 
@@ -621,10 +581,7 @@ export const botsRouter = createTRPCRouter({
 				.from(botsTable)
 				.leftJoin(
 					botPoolSlotsTable,
-					eq(
-						botsTable.coolifyServiceUuid,
-						botPoolSlotsTable.coolifyServiceUuid,
-					),
+					eq(botPoolSlotsTable.assignedBotId, botsTable.id),
 				)
 				.where(eq(botsTable.id, input.id));
 
@@ -879,12 +836,11 @@ export const botsRouter = createTRPCRouter({
 						status: input.status,
 					});
 
-					// Get bot info in one query (recording enabled + callback URL + coolify UUID)
+					// Get bot info in one query (recording enabled + callback URL)
 					const botRecord = await tx
 						.select({
 							recordingEnabled: botsTable.recordingEnabled,
 							callbackUrl: botsTable.callbackUrl,
-							coolifyServiceUuid: botsTable.coolifyServiceUuid,
 						})
 						.from(botsTable)
 						.where(eq(botsTable.id, input.id))
@@ -910,7 +866,6 @@ export const botsRouter = createTRPCRouter({
 						status: typeof input.status;
 						recording?: string;
 						speakerTimeframes?: typeof input.speakerTimeframes;
-						coolifyServiceUuid?: null;
 					} = {
 						status: input.status,
 					};
@@ -920,12 +875,6 @@ export const botsRouter = createTRPCRouter({
 						updateData.recording = input.recording;
 						updateData.speakerTimeframes = input.speakerTimeframes;
 					}
-
-					// Note: We intentionally do NOT clear coolifyServiceUuid when bot reaches terminal state.
-					// Keeping it allows getPoolSlot to find finished bots and return a proper "container should exit"
-					// error when the container makes a final call during shutdown. The slot's assignedBotId being
-					// cleared is sufficient for pool management, and new bots get their own coolifyServiceUuid set
-					// when assigned to a slot (overwriting any previous value).
 
 					const result = await tx
 						.update(botsTable)
@@ -955,10 +904,8 @@ export const botsRouter = createTRPCRouter({
 					}
 
 					// Release pool slot when bot completes or fails (returns slot to pool for reuse)
-					if (
-						(input.status === "DONE" || input.status === "FATAL") &&
-						botRecord[0].coolifyServiceUuid
-					) {
+					// The release function will check if the bot has an assigned slot
+					if (input.status === "DONE" || input.status === "FATAL") {
 						// Fire and forget, don't block the response
 						services.deployment.release(input.id).catch((error) => {
 							console.error(
@@ -1108,7 +1055,6 @@ export const botsRouter = createTRPCRouter({
 					.select({
 						id: botsTable.id,
 						status: botsTable.status,
-						coolifyServiceUuid: botsTable.coolifyServiceUuid,
 					})
 					.from(botsTable)
 					.where(
@@ -1148,15 +1094,13 @@ export const botsRouter = createTRPCRouter({
 							.set({ status: "DONE" })
 							.where(eq(botsTable.id, bot.id));
 
-						// Release pool slot if applicable
-						if (bot.coolifyServiceUuid) {
-							void services.deployment.release(bot.id).catch((error) => {
-								console.error(
-									`Failed to release pool slot for bot ${bot.id}:`,
-									error,
-								);
-							});
-						}
+						// Release pool slot (function will check if bot has an assigned slot)
+						void services.deployment.release(bot.id).catch((error) => {
+							console.error(
+								`Failed to release pool slot for bot ${bot.id}:`,
+								error,
+							);
+						});
 
 						cancelledCount++;
 					} catch (error) {
@@ -1610,32 +1554,39 @@ export const botsRouter = createTRPCRouter({
 		.mutation(async ({ input, ctx }): Promise<{ success: boolean }> => {
 			const eligibleStatuses = ["IN_WAITING_ROOM", "IN_CALL", "RECORDING"];
 
-			const bot = await ctx.db
+			// Get bot with pool slot info
+			const botResult = await ctx.db
 				.select({
 					id: botsTable.id,
 					userId: botsTable.userId,
 					status: botsTable.status,
-					coolifyServiceUuid: botsTable.coolifyServiceUuid,
+					applicationUuid: botPoolSlotsTable.applicationUuid,
 				})
 				.from(botsTable)
+				.leftJoin(
+					botPoolSlotsTable,
+					eq(botPoolSlotsTable.assignedBotId, botsTable.id),
+				)
 				.where(eq(botsTable.id, input.id))
 				.limit(1);
 
-			if (!bot[0]) {
+			const bot = botResult[0];
+
+			if (!bot) {
 				throw new TRPCError({
 					code: "NOT_FOUND",
 					message: "Bot not found",
 				});
 			}
 
-			if (bot[0].userId !== ctx.session.user.id) {
+			if (bot.userId !== ctx.session.user.id) {
 				throw new TRPCError({
 					code: "FORBIDDEN",
 					message: "Bot not found",
 				});
 			}
 
-			if (!eligibleStatuses.includes(bot[0].status)) {
+			if (!eligibleStatuses.includes(bot.status)) {
 				throw new TRPCError({
 					code: "BAD_REQUEST",
 					message: "Bot is not in an active call",
@@ -1659,9 +1610,9 @@ export const botsRouter = createTRPCRouter({
 				.where(eq(botsTable.id, input.id));
 
 			// Safety net: if container is still alive after 15s, forcefully stop it
-			const coolifyServiceUuid = bot[0].coolifyServiceUuid;
+			const applicationUuid = bot.applicationUuid;
 
-			if (coolifyServiceUuid && services.coolify) {
+			if (applicationUuid && services.coolify) {
 				const botId = input.id;
 
 				setTimeout(async () => {
@@ -1680,18 +1631,18 @@ export const botsRouter = createTRPCRouter({
 							!terminalStatuses.includes(currentBot[0].status)
 						) {
 							console.log(
-								`[Bots] Bot ${botId} still alive after 15s timeout, forcefully stopping container ${coolifyServiceUuid}`,
+								`[Bots] Bot ${botId} still alive after 15s timeout, forcefully stopping container ${applicationUuid}`,
 							);
 
-							await services.coolify?.stopApplication(coolifyServiceUuid);
+							await services.coolify?.stopApplication(applicationUuid);
 
 							console.log(
-								`[Bots] Container ${coolifyServiceUuid} stopped for bot ${botId}`,
+								`[Bots] Container ${applicationUuid} stopped for bot ${botId}`,
 							);
 						}
 					} catch (error) {
 						console.error(
-							`[Bots] Failed to stop container ${coolifyServiceUuid} for bot ${botId}:`,
+							`[Bots] Failed to stop container ${applicationUuid} for bot ${botId}:`,
 							error,
 						);
 					}
@@ -1733,7 +1684,6 @@ export const botsRouter = createTRPCRouter({
 					id: botsTable.id,
 					userId: botsTable.userId,
 					status: botsTable.status,
-					coolifyServiceUuid: botsTable.coolifyServiceUuid,
 				})
 				.from(botsTable)
 				.where(eq(botsTable.id, input.id))
@@ -1774,14 +1724,13 @@ export const botsRouter = createTRPCRouter({
 				.set({ status: "DONE" })
 				.where(eq(botsTable.id, input.id));
 
-			if (bot[0].coolifyServiceUuid) {
-				void services.deployment.release(input.id).catch((error) => {
-					console.error(
-						`Failed to release pool slot for bot ${input.id}:`,
-						error,
-					);
-				});
-			}
+			// Release pool slot (function will check if bot has an assigned slot)
+			void services.deployment.release(input.id).catch((error) => {
+				console.error(
+					`Failed to release pool slot for bot ${input.id}:`,
+					error,
+				);
+			});
 
 			return { success: true };
 		}),
