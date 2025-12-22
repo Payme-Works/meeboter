@@ -209,9 +209,7 @@ export function MultiBotJoinDialog({ open, onClose }: MultiBotJoinDialogProps) {
 							<Badge
 								className="border border-zinc-500"
 								variant={
-									subscription?.currentPlan === "FREE"
-										? "secondary"
-										: "default"
+									subscription?.currentPlan === "FREE" ? "secondary" : "default"
 								}
 							>
 								{subscription

@@ -587,10 +587,7 @@ export default function BotsPage() {
 				onRowClick={(row) => setSelectedBot(row.id)}
 			/>
 
-			<BotDialog
-				botId={selectedBot}
-				onClose={() => setSelectedBot(null)}
-			/>
+			<BotDialog botId={selectedBot} onClose={() => setSelectedBot(null)} />
 
 			<MultiBotJoinDialog
 				open={multiBotDialogOpen}

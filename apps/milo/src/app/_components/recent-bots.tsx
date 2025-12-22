@@ -254,10 +254,7 @@ export function RecentBots() {
 				}}
 			/>
 
-			<BotDialog
-				botId={selectedBot}
-				onClose={() => setSelectedBot(null)}
-			/>
+			<BotDialog botId={selectedBot} onClose={() => setSelectedBot(null)} />
 		</div>
 	);
 }

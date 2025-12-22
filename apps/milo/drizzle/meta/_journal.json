@@ -1,132 +1,132 @@
 {
-  "version": "7",
-  "dialect": "postgresql",
-  "entries": [
-    {
-      "idx": 0,
-      "version": "7",
-      "when": 1756513756328,
-      "tag": "0000_motionless_skreet",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1756528561709,
-      "tag": "0001_lowly_captain_midlands",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1756534874698,
-      "tag": "0002_boring_bulldozer",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1756907576895,
-      "tag": "0003_overconfident_sebastian_shaw",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1757084020885,
-      "tag": "0004_grey_blonde_phantom",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1758657557807,
-      "tag": "0005_conscious_mad_thinker",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1765909004040,
-      "tag": "0006_rich_white_queen",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "7",
-      "when": 1765931912345,
-      "tag": "0007_living_frog_thor",
-      "breakpoints": true
-    },
-    {
-      "idx": 8,
-      "version": "7",
-      "when": 1765934934220,
-      "tag": "0008_minor_ravenous",
-      "breakpoints": true
-    },
-    {
-      "idx": 9,
-      "version": "7",
-      "when": 1766115958639,
-      "tag": "0009_snake_case_columns",
-      "breakpoints": true
-    },
-    {
-      "idx": 10,
-      "version": "7",
-      "when": 1766149537702,
-      "tag": "0010_silly_otto_octavius",
-      "breakpoints": true
-    },
-    {
-      "idx": 11,
-      "version": "7",
-      "when": 1766235937702,
-      "tag": "0011_rename_google_to_google_meet",
-      "breakpoints": true
-    },
-    {
-      "idx": 12,
-      "version": "7",
-      "when": 1766239537702,
-      "tag": "0012_fix_google_platform_rename",
-      "breakpoints": true
-    },
-    {
-      "idx": 13,
-      "version": "7",
-      "when": 1766243137702,
-      "tag": "0013_fix_google_platform_final",
-      "breakpoints": true
-    },
-    {
-      "idx": 14,
-      "version": "7",
-      "when": 1766329537702,
-      "tag": "0014_rename_application_uuid",
-      "breakpoints": true
-    },
-    {
-      "idx": 15,
-      "version": "7",
-      "when": 1766415937702,
-      "tag": "0015_add_platform_columns",
-      "breakpoints": true
-    },
-    {
-      "idx": 16,
-      "version": "7",
-      "when": 1766502337702,
-      "tag": "0016_rename_and_cleanup_bot_columns",
-      "breakpoints": true
-    },
-    {
-      "idx": 17,
-      "version": "7",
-      "when": 1766441271560,
-      "tag": "0017_violet_fixer",
-      "breakpoints": true
-    }
-  ]
+	"version": "7",
+	"dialect": "postgresql",
+	"entries": [
+		{
+			"idx": 0,
+			"version": "7",
+			"when": 1756513756328,
+			"tag": "0000_motionless_skreet",
+			"breakpoints": true
+		},
+		{
+			"idx": 1,
+			"version": "7",
+			"when": 1756528561709,
+			"tag": "0001_lowly_captain_midlands",
+			"breakpoints": true
+		},
+		{
+			"idx": 2,
+			"version": "7",
+			"when": 1756534874698,
+			"tag": "0002_boring_bulldozer",
+			"breakpoints": true
+		},
+		{
+			"idx": 3,
+			"version": "7",
+			"when": 1756907576895,
+			"tag": "0003_overconfident_sebastian_shaw",
+			"breakpoints": true
+		},
+		{
+			"idx": 4,
+			"version": "7",
+			"when": 1757084020885,
+			"tag": "0004_grey_blonde_phantom",
+			"breakpoints": true
+		},
+		{
+			"idx": 5,
+			"version": "7",
+			"when": 1758657557807,
+			"tag": "0005_conscious_mad_thinker",
+			"breakpoints": true
+		},
+		{
+			"idx": 6,
+			"version": "7",
+			"when": 1765909004040,
+			"tag": "0006_rich_white_queen",
+			"breakpoints": true
+		},
+		{
+			"idx": 7,
+			"version": "7",
+			"when": 1765931912345,
+			"tag": "0007_living_frog_thor",
+			"breakpoints": true
+		},
+		{
+			"idx": 8,
+			"version": "7",
+			"when": 1765934934220,
+			"tag": "0008_minor_ravenous",
+			"breakpoints": true
+		},
+		{
+			"idx": 9,
+			"version": "7",
+			"when": 1766115958639,
+			"tag": "0009_snake_case_columns",
+			"breakpoints": true
+		},
+		{
+			"idx": 10,
+			"version": "7",
+			"when": 1766149537702,
+			"tag": "0010_silly_otto_octavius",
+			"breakpoints": true
+		},
+		{
+			"idx": 11,
+			"version": "7",
+			"when": 1766235937702,
+			"tag": "0011_rename_google_to_google_meet",
+			"breakpoints": true
+		},
+		{
+			"idx": 12,
+			"version": "7",
+			"when": 1766239537702,
+			"tag": "0012_fix_google_platform_rename",
+			"breakpoints": true
+		},
+		{
+			"idx": 13,
+			"version": "7",
+			"when": 1766243137702,
+			"tag": "0013_fix_google_platform_final",
+			"breakpoints": true
+		},
+		{
+			"idx": 14,
+			"version": "7",
+			"when": 1766329537702,
+			"tag": "0014_rename_application_uuid",
+			"breakpoints": true
+		},
+		{
+			"idx": 15,
+			"version": "7",
+			"when": 1766415937702,
+			"tag": "0015_add_platform_columns",
+			"breakpoints": true
+		},
+		{
+			"idx": 16,
+			"version": "7",
+			"when": 1766502337702,
+			"tag": "0016_rename_and_cleanup_bot_columns",
+			"breakpoints": true
+		},
+		{
+			"idx": 17,
+			"version": "7",
+			"when": 1766441271560,
+			"tag": "0017_violet_fixer",
+			"breakpoints": true
+		}
+	]
 }
