@@ -1,11 +1,11 @@
 import {
 	BatchV1Api,
 	CoreV1Api,
-	KubeConfig,
-	type V1Job,
-	type V1EnvVar,
-	type V1Pod,
 	type CoreV1Event,
+	KubeConfig,
+	type V1EnvVar,
+	type V1Job,
+	type V1Pod,
 } from "@kubernetes/client-node";
 
 import { env } from "@/env";
@@ -90,30 +90,10 @@ export class KubernetesPlatformService implements PlatformService {
 
 		// Load kubeconfig: in-cluster, from file, or default
 		if (process.env.KUBERNETES_SERVICE_HOST) {
-			// Running inside a Kubernetes cluster
-			console.log("[KubernetesPlatform] Loading kubeconfig from cluster");
 			kc.loadFromCluster();
 		} else if (config.kubeconfigPath) {
-			console.log(
-				`[KubernetesPlatform] Loading kubeconfig from file: ${config.kubeconfigPath}`,
-			);
 			kc.loadFromFile(config.kubeconfigPath);
-			console.log(
-				`[KubernetesPlatform] Kubeconfig loaded. Clusters: ${kc.clusters.length}, Users: ${kc.users.length}, Contexts: ${kc.contexts.length}`,
-			);
-			console.log(
-				`[KubernetesPlatform] Current context: ${kc.currentContext}`,
-			);
-			const cluster = kc.getCurrentCluster();
-			console.log(
-				`[KubernetesPlatform] Cluster server: ${cluster?.server}`,
-			);
-			const user = kc.getCurrentUser();
-			console.log(
-				`[KubernetesPlatform] User name: ${user?.name}, has cert: ${!!user?.certData}, has key: ${!!user?.keyData}`,
-			);
 		} else {
-			console.log("[KubernetesPlatform] Loading kubeconfig from default");
 			kc.loadFromDefault();
 		}
 
@@ -169,9 +149,8 @@ export class KubernetesPlatformService implements PlatformService {
 		} catch (error) {
 			// Ignore 404 errors (job already deleted)
 			if (this.isNotFoundError(error)) {
-				console.log(
-					`[KubernetesPlatform] Job ${identifier} already deleted`,
-				);
+				console.log(`[KubernetesPlatform] Job ${identifier} already deleted`);
+
 				return;
 			}
 
@@ -260,6 +239,7 @@ export class KubernetesPlatformService implements PlatformService {
 			if (this.isNotFoundError(error)) {
 				return null;
 			}
+
 			throw error;
 		}
 	}
@@ -279,6 +259,7 @@ export class KubernetesPlatformService implements PlatformService {
 			}
 
 			const podName = podList.items[0].metadata?.name;
+
 			if (!podName) {
 				return "Pod name not found";
 			}
@@ -292,6 +273,7 @@ export class KubernetesPlatformService implements PlatformService {
 		} catch (error) {
 			const errorMessage =
 				error instanceof Error ? error.message : "Unknown error";
+
 			return `Failed to get logs: ${errorMessage}`;
 		}
 	}
@@ -356,6 +338,7 @@ export class KubernetesPlatformService implements PlatformService {
 				"[KubernetesPlatform] Failed to get cluster metrics:",
 				error,
 			);
+
 			return {
 				namespace: this.config.namespace,
 				activeJobs: 0,
@@ -481,10 +464,14 @@ export class KubernetesPlatformService implements PlatformService {
 		if (error && typeof error === "object" && "statusCode" in error) {
 			return (error as { statusCode: number }).statusCode === 404;
 		}
+
 		if (error && typeof error === "object" && "response" in error) {
-			const response = (error as { response: { statusCode?: number } }).response;
+			const response = (error as { response: { statusCode?: number } })
+				.response;
+
 			return response?.statusCode === 404;
 		}
+
 		return false;
 	}
 }
