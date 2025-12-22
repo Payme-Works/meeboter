@@ -37,7 +37,7 @@ const authenticatedLinks = [
 	{ title: "Bots", href: "/bots", icon: Bot },
 	{ title: "Templates", href: "/templates", icon: FileCode },
 	{ title: "API Keys", href: "/api-keys", icon: Key },
-	{ title: "Pool", href: "/pool", icon: Server },
+	{ title: "Infrastructure", href: "/infrastructure", icon: Server },
 	{ title: "Docs", href: "/docs", icon: FileText },
 ];
 

@@ -32,31 +32,49 @@ timeout?: number;
 timeoutMs?: number;
 ```
 
-## Avoid "Info" and "Data" Suffixes
+## Avoid "Details", "Info", and "Data" Suffixes
 
-- **NEVER use "Data" or "Info" suffixes for domain entities, props, or state variables**, these suffixes add unnecessary noise without adding clarity
+- **NEVER use "Details", "Info", or "Data" suffixes** for variables, types, props, interfaces, or function names
+- **These suffixes add noise without clarity** - They don't convey meaningful information about what the variable contains
 - **Use simple, descriptive names** - The name itself should indicate what it represents
-- **Exception**: Acceptable for temporary/serialized data (e.g., `rawData`, `formData`, `baseData`) when it represents a different form of the same entity
+- **Exception**: Acceptable for temporary/serialized data (e.g., `rawData`, `formData`) or when it represents a different form of the same entity
 
 ```typescript
 // ✅ CORRECT: Simple, descriptive names
-interface Payin {
-  id: string;
-  amount: string;
-  status: string;
+interface Platform {
+  type: "k8s" | "aws" | "coolify";
+  activeJobs: number;
 }
 
-const [payin, setPayin] = useState<Payin | null>(null);
-const handleSuccess = (payin: Payin) => { ... };
+const platformQuery = api.getPlatform.useQuery();
+const platform = platformQuery.data;
 
-// ❌ WRONG: Unnecessary "Data" suffix
-interface PayinData { ... }
-const [payinData, setPayinData] = useState<PayinData | null>(null);
+function PlatformSection({ platform }: { platform: Platform }) { ... }
+function PlatformMetrics({ metrics }: { metrics: PlatformMetrics }) { ... }
+
+// ❌ WRONG: Unnecessary suffixes
+interface PlatformDetails { ... }  // Use: Platform
+interface PlatformInfo { ... }     // Use: Platform
+interface PlatformData { ... }     // Use: Platform
+
+const platformDetails = ...;       // Use: platform
+const platformInfo = ...;          // Use: platform or platformQuery
+const platformData = ...;          // Use: platform
+
+function PlatformDetailsSection({ details }) { ... }  // Use: PlatformSection({ platform })
+function PlatformInfoCard({ info }) { ... }           // Use: PlatformCard({ platform })
 
 // ✅ ACCEPTABLE: Represents different form (serialized/raw)
 const formData = new FormData();
 const rawData = await response.json();
 ```
+
+**Common patterns to use instead:**
+- `platformDetails` → `platform` or `platformQuery.data`
+- `userInfo` → `user` or `profile`
+- `K8sDetails` → `K8sMetrics` or `K8sSection`
+- `PlatformDetailsSection` → `PlatformSection`
+- `activityData` → `activity` or `activityStats`
 
 ## Interface Naming: Request/Response vs Input/Output
 

@@ -1,21 +1,39 @@
 "use client";
 
-import { AlertTriangle, Box, CheckCircle, Loader, Server } from "lucide-react";
+import { CheckCircle, Container, Loader, Phone, Server } from "lucide-react";
 import { motion } from "motion/react";
 import type { ReactNode } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 
-interface PoolStats {
-	total: number;
-	idle: number;
+interface ActivityStats {
 	deploying: number;
-	busy: number;
-	error: number;
-	maxSize: number;
+	joiningCall: number;
+	inWaitingRoom: number;
+	inCall: number;
+	callEnded: number;
+	todayTotal: number;
+	todayCompleted: number;
+	todayFailed: number;
 }
 
-interface PoolStatsCardsProps {
-	stats: PoolStats | undefined;
+interface K8sPlatform {
+	platform: "k8s";
+	activeJobs: number;
+	pendingJobs: number;
+	completedJobs: number;
+	namespace: string;
+}
+
+interface AWSPlatform {
+	platform: "aws";
+	runningTasks: number;
+	cluster: string;
+	region: string;
+}
+
+interface InfrastructureStatsCardsProps {
+	activityStats: ActivityStats | undefined;
+	platform: K8sPlatform | AWSPlatform | undefined;
 	isLoading: boolean;
 }
 
@@ -97,25 +115,68 @@ function StatCardIcon({ children }: { children: ReactNode }) {
 	);
 }
 
-function StatCardCapacityBar({ percent }: { percent: number }) {
+function PlatformSpecificCard({
+	platform,
+	activityStats,
+}: {
+	platform: K8sPlatform | AWSPlatform | undefined;
+	activityStats: ActivityStats;
+}) {
+	if (platform?.platform === "k8s") {
+		return (
+			<StatCard>
+				<StatCardContent>
+					<StatCardLabel>Kubernetes</StatCardLabel>
+					<StatCardValue>{platform.activeJobs}</StatCardValue>
+					<StatCardSubtext>active jobs in {platform.namespace}</StatCardSubtext>
+					<StatCardIcon>
+						<Container className="h-4 w-4" />
+					</StatCardIcon>
+				</StatCardContent>
+			</StatCard>
+		);
+	}
+
+	if (platform?.platform === "aws") {
+		return (
+			<StatCard>
+				<StatCardContent>
+					<StatCardLabel>AWS ECS</StatCardLabel>
+					<StatCardValue>{platform.runningTasks}</StatCardValue>
+					<StatCardSubtext>tasks in {platform.region}</StatCardSubtext>
+					<StatCardIcon>
+						<Container className="h-4 w-4" />
+					</StatCardIcon>
+				</StatCardContent>
+			</StatCard>
+		);
+	}
+
 	return (
-		<div className="mt-4 space-y-1.5">
-			<div className="h-1.5 w-full bg-muted overflow-hidden">
-				<motion.div
-					initial={{ width: 0 }}
-					animate={{ width: `${percent}%` }}
-					transition={{ duration: 0.6, ease: "easeOut", delay: 0.2 }}
-					className="h-full bg-accent"
-				/>
-			</div>
-			<p className="text-[10px] text-muted-foreground font-mono tabular-nums">
-				{percent.toFixed(0)}% capacity used
-			</p>
-		</div>
+		<StatCard>
+			<StatCardContent>
+				<StatCardLabel>Today</StatCardLabel>
+				<StatCardValue>
+					{activityStats.todayCompleted}/{activityStats.todayTotal}
+				</StatCardValue>
+				<StatCardSubtext>
+					{activityStats.todayFailed > 0 ? (
+						<span className="text-destructive">
+							{activityStats.todayFailed} failed
+						</span>
+					) : (
+						"completed today"
+					)}
+				</StatCardSubtext>
+				<StatCardIcon>
+					<CheckCircle className="h-4 w-4" />
+				</StatCardIcon>
+			</StatCardContent>
+		</StatCard>
 	);
 }
 
-function SkeletonCard({ hasProgress = false }: { hasProgress?: boolean }) {
+function SkeletonCard() {
 	return (
 		<div className="bg-card border border-border p-5 min-h-[120px]">
 			<div className="flex items-start justify-between gap-4">
@@ -126,21 +187,18 @@ function SkeletonCard({ hasProgress = false }: { hasProgress?: boolean }) {
 				</div>
 				<Skeleton className="h-9 w-9" />
 			</div>
-			{hasProgress ? (
-				<div className="mt-4 space-y-1.5">
-					<Skeleton className="h-1.5 w-full" />
-					<Skeleton className="h-3 w-20" />
-				</div>
-			) : null}
 		</div>
 	);
 }
 
-export function PoolStatsCards({ stats, isLoading }: PoolStatsCardsProps) {
+export function InfrastructureStatsCards({
+	activityStats,
+	platform,
+	isLoading,
+}: InfrastructureStatsCardsProps) {
 	if (isLoading) {
 		return (
-			<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-				<SkeletonCard hasProgress />
+			<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
 				<SkeletonCard />
 				<SkeletonCard />
 				<SkeletonCard />
@@ -149,50 +207,51 @@ export function PoolStatsCards({ stats, isLoading }: PoolStatsCardsProps) {
 		);
 	}
 
-	if (!stats) {
+	if (!activityStats) {
 		return (
 			<div className="bg-card border border-border p-8 text-center">
 				<p className="text-muted-foreground font-mono text-sm">
-					Pool statistics unavailable
+					Statistics unavailable
 				</p>
 			</div>
 		);
 	}
 
-	const capacityPercent = (stats.total / stats.maxSize) * 100;
+	const totalActive =
+		activityStats.deploying +
+		activityStats.joiningCall +
+		activityStats.inWaitingRoom +
+		activityStats.inCall;
 
 	return (
 		<motion.div
 			initial={{ opacity: 0 }}
 			animate={{ opacity: 1 }}
 			transition={{ duration: 0.3 }}
-			className="grid gap-4 md:grid-cols-2 lg:grid-cols-5"
+			className="grid gap-4 md:grid-cols-2 lg:grid-cols-4"
 		>
-			{/* Total Capacity */}
+			{/* Active Bots */}
 			<StatCard>
 				<StatCardContent>
-					<StatCardLabel>Total Capacity</StatCardLabel>
-					<StatCardValue>
-						{stats.total}/{stats.maxSize}
-					</StatCardValue>
-					<StatCardSubtext>slots provisioned</StatCardSubtext>
+					<StatCardLabel>Active Bots</StatCardLabel>
+					<StatCardValue>{totalActive}</StatCardValue>
+					<StatCardSubtext>currently running</StatCardSubtext>
 					<StatCardIcon>
 						<Server className="h-4 w-4" />
 					</StatCardIcon>
 				</StatCardContent>
-				<StatCardCapacityBar percent={capacityPercent} />
 			</StatCard>
 
-			{/* Idle */}
+			{/* In Call */}
 			<StatCard>
 				<StatCardContent>
-					<StatCardBadge className="bg-emerald-500/10 text-emerald-500">
-						[IDLE]
+					<StatCardBadge className="bg-green-500/10 text-green-500">
+						[IN_CALL]
 					</StatCardBadge>
-					<StatCardValue>{stats.idle}</StatCardValue>
-					<StatCardSubtext>ready for assignment</StatCardSubtext>
+					<StatCardValue>{activityStats.inCall}</StatCardValue>
+					<StatCardSubtext>bots in meetings</StatCardSubtext>
 					<StatCardIcon>
-						<CheckCircle className="h-4 w-4" />
+						<Phone className="h-4 w-4" />
 					</StatCardIcon>
 				</StatCardContent>
 			</StatCard>
@@ -200,44 +259,18 @@ export function PoolStatsCards({ stats, isLoading }: PoolStatsCardsProps) {
 			{/* Deploying */}
 			<StatCard>
 				<StatCardContent>
-					<StatCardBadge className="bg-accent/10 text-accent">
+					<StatCardBadge className="bg-blue-500/10 text-blue-500">
 						[DEPLOYING]
 					</StatCardBadge>
-					<StatCardValue>{stats.deploying}</StatCardValue>
-					<StatCardSubtext>starting containers</StatCardSubtext>
+					<StatCardValue>{activityStats.deploying}</StatCardValue>
+					<StatCardSubtext>starting up</StatCardSubtext>
 					<StatCardIcon>
 						<Loader className="h-4 w-4" />
 					</StatCardIcon>
 				</StatCardContent>
 			</StatCard>
 
-			{/* Busy */}
-			<StatCard>
-				<StatCardContent>
-					<StatCardBadge className="bg-amber-500/10 text-amber-500">
-						[BUSY]
-					</StatCardBadge>
-					<StatCardValue>{stats.busy}</StatCardValue>
-					<StatCardSubtext>running bots</StatCardSubtext>
-					<StatCardIcon>
-						<Box className="h-4 w-4" />
-					</StatCardIcon>
-				</StatCardContent>
-			</StatCard>
-
-			{/* Error */}
-			<StatCard>
-				<StatCardContent>
-					<StatCardBadge className="bg-destructive/10 text-destructive">
-						[ERROR]
-					</StatCardBadge>
-					<StatCardValue>{stats.error}</StatCardValue>
-					<StatCardSubtext>need attention</StatCardSubtext>
-					<StatCardIcon>
-						<AlertTriangle className="h-4 w-4" />
-					</StatCardIcon>
-				</StatCardContent>
-			</StatCard>
+			<PlatformSpecificCard platform={platform} activityStats={activityStats} />
 		</motion.div>
 	);
 }

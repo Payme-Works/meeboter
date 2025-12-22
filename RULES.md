@@ -74,7 +74,7 @@ This applies to ALL tasks including: new features, bug fixes, refactoring, confi
 #### When Working on NAMING (Interfaces, Variables, Files)
 **Triggers**: Naming interfaces, types, booleans, enums, files, components
 **MUST READ**:
-- [rules/NAMING_CONVENTIONS.md](rules/NAMING_CONVENTIONS.md) - Request/Response vs Input/Output, boolean prefixes, dialog naming
+- [rules/NAMING_CONVENTIONS.md](rules/NAMING_CONVENTIONS.md) - Request/Response vs Input/Output, boolean prefixes, dialog naming, **no Details/Info/Data suffixes**
 
 **Search for**: `Grep pattern="naming|interface|boolean|enum" path="rules/"`
 
@@ -136,7 +136,7 @@ This applies to ALL tasks including: new features, bug fixes, refactoring, confi
 | File | When to Use |
 |------|-------------|
 | `rules/CODE_STYLE.md` | Formatting, JSX, conditional rendering, composition patterns, React keys |
-| `rules/NAMING_CONVENTIONS.md` | Interface naming, booleans, enums, dialog/sheet naming |
+| `rules/NAMING_CONVENTIONS.md` | Interface naming, booleans, enums, dialog/sheet naming, **no Details/Info/Data suffixes** |
 | `rules/COMPONENT_PATTERNS.md` | Component organization, utilities, UI standards |
 | `rules/TESTING.md` | E2E tests, tRPC testing, Playwright browser tests |
 | `rules/DOMAIN_ENTITIES.md` | Entities, validation, mappers, repositories |
@@ -384,6 +384,7 @@ z.url()    // NOT z.string().url()
 - **ALWAYS implement type-safe code** - Prioritize type safety in all implementations
 - **Use ternary for conditional JSX rendering** - Use `{condition ? (<Component />) : null}` instead of `{condition && <Component />)}`. See [rules/CODE_STYLE.md](rules/CODE_STYLE.md#conditional-rendering-in-jsx)
 - **CRITICAL: Blank lines before JSDoc blocks in interfaces** - Always add a blank line before multi-line JSDoc comments in interface/type definitions. See [rules/CODE_STYLE.md](rules/CODE_STYLE.md#jsdoc-comment-spacing-in-interfaces-critical)
+- **CRITICAL: NEVER use "Details", "Info", or "Data" suffixes** in variable names, types, props, or function names. Use simple descriptive names instead (e.g., `platform` not `platformDetails`, `PlatformSection` not `PlatformDetailsSection`). See [rules/NAMING_CONVENTIONS.md](rules/NAMING_CONVENTIONS.md#avoid-details-info-and-data-suffixes)
 
 ## File Structure & Organization
 

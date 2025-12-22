@@ -20,9 +20,9 @@ const botActivityStatsSchema = z.object({
 });
 
 /**
- * Platform-specific details (union type)
+ * Platform-specific schema (union type)
  */
-const platformDetailsSchema = z.discriminatedUnion("platform", [
+const platformSchema = z.discriminatedUnion("platform", [
 	z.object({
 		platform: z.literal("k8s"),
 		activeJobs: z.number(),
@@ -109,19 +109,24 @@ export const infrastructureRouter = createTRPCRouter({
 				switch (row.status) {
 					case "DEPLOYING":
 						stats.deploying = rowCount;
+
 						break;
 					case "JOINING_CALL":
 						stats.joiningCall = rowCount;
+
 						break;
 					case "IN_WAITING_ROOM":
 						stats.inWaitingRoom = rowCount;
+
 						break;
 					case "IN_CALL":
 						stats.inCall = rowCount;
+
 						break;
 					case "LEAVING":
 					case "DONE":
 						stats.callEnded = rowCount;
+
 						break;
 				}
 			}
@@ -130,13 +135,13 @@ export const infrastructureRouter = createTRPCRouter({
 		}),
 
 	/**
-	 * Get platform-specific infrastructure details
+	 * Get platform-specific infrastructure info
 	 *
 	 * Returns metrics and configuration specific to the current deployment platform.
 	 */
-	getPlatformDetails: protectedProcedure
+	getPlatform: protectedProcedure
 		.input(z.void())
-		.output(platformDetailsSchema)
+		.output(platformSchema)
 		.query(async ({ ctx }) => {
 			const platform = getPlatformType();
 

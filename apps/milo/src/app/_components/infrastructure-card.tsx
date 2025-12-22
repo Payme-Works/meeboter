@@ -113,12 +113,12 @@ function StatusIndicator({
 }
 
 /**
- * Kubernetes platform details
+ * Kubernetes platform metrics
  */
-function K8sDetails({
-	details,
+function K8sMetrics({
+	metrics,
 }: {
-	details: {
+	metrics: {
 		activeJobs: number;
 		pendingJobs: number;
 		completedJobs: number;
@@ -129,34 +129,34 @@ function K8sDetails({
 		<div className="space-y-1.5">
 			<div className="flex items-center gap-1.5 text-xs text-muted-foreground">
 				<span className="tabular-nums font-medium text-foreground/80">
-					{details.activeJobs}
+					{metrics.activeJobs}
 				</span>
 				<span>jobs active</span>
 				<span className="text-muted-foreground/40">·</span>
 				<span className="tabular-nums font-medium text-foreground/80">
-					{details.pendingJobs}
+					{metrics.pendingJobs}
 				</span>
 				<span>pending</span>
 				<span className="text-muted-foreground/40">·</span>
 				<span className="tabular-nums font-medium text-foreground/80">
-					{details.completedJobs}
+					{metrics.completedJobs}
 				</span>
 				<span>completed</span>
 			</div>
 			<div className="text-xs text-muted-foreground/70">
-				Namespace: <span className="font-mono">{details.namespace}</span>
+				Namespace: <span className="font-mono">{metrics.namespace}</span>
 			</div>
 		</div>
 	);
 }
 
 /**
- * AWS ECS platform details
+ * AWS ECS platform metrics
  */
-function AWSDetails({
-	details,
+function AWSMetrics({
+	metrics,
 }: {
-	details: {
+	metrics: {
 		runningTasks: number;
 		cluster: string;
 		region: string;
@@ -166,27 +166,27 @@ function AWSDetails({
 		<div className="space-y-1.5">
 			<div className="flex items-center gap-1.5 text-xs text-muted-foreground">
 				<span className="tabular-nums font-medium text-foreground/80">
-					{details.runningTasks}
+					{metrics.runningTasks}
 				</span>
 				<span>tasks running</span>
 				<span className="text-muted-foreground/40">·</span>
 				<span>Cluster:</span>
-				<span className="font-mono text-foreground/80">{details.cluster}</span>
+				<span className="font-mono text-foreground/80">{metrics.cluster}</span>
 			</div>
 			<div className="text-xs text-muted-foreground/70">
-				Region: <span className="font-mono">{details.region}</span>
+				Region: <span className="font-mono">{metrics.region}</span>
 			</div>
 		</div>
 	);
 }
 
 /**
- * Coolify platform details
+ * Coolify platform metrics
  */
-function CoolifyDetails({
-	details,
+function CoolifyMetrics({
+	metrics,
 }: {
-	details: {
+	metrics: {
 		slotsUsed: number;
 		slotsTotal: number;
 		idle: number;
@@ -198,45 +198,45 @@ function CoolifyDetails({
 		<div className="space-y-1.5">
 			<div className="flex items-center gap-1.5 text-xs text-muted-foreground">
 				<span className="tabular-nums font-medium text-foreground/80">
-					{details.slotsUsed}
+					{metrics.slotsUsed}
 				</span>
-				<span className="text-muted-foreground/60">/{details.slotsTotal}</span>
+				<span className="text-muted-foreground/60">/{metrics.slotsTotal}</span>
 				<span>slots</span>
 				<span className="text-muted-foreground/40">·</span>
 				<span className="tabular-nums font-medium text-foreground/80">
-					{details.idle}
+					{metrics.idle}
 				</span>
 				<span>idle</span>
 				<span className="text-muted-foreground/40">·</span>
 				<span className="tabular-nums font-medium text-foreground/80">
-					{details.busy}
+					{metrics.busy}
 				</span>
 				<span>busy</span>
 			</div>
 			<div className="text-xs text-muted-foreground/70">
-				Queue: <span className="font-mono">{details.queueDepth}</span> pending
+				Queue: <span className="font-mono">{metrics.queueDepth}</span> pending
 			</div>
 		</div>
 	);
 }
 
 /**
- * Local platform details (development mode)
+ * Local platform message (development mode)
  */
-function LocalDetails({ message }: { message: string }) {
+function LocalMessage({ message }: { message: string }) {
 	return (
 		<div className="text-xs text-muted-foreground/70 italic">{message}</div>
 	);
 }
 
 /**
- * Platform details content renderer
+ * Platform metrics content renderer
  * Avoids nested ternaries by using switch-like pattern
  */
-function PlatformDetailsContent({
-	details,
+function PlatformMetricsContent({
+	platform,
 }: {
-	details:
+	platform:
 		| {
 				platform: "k8s";
 				activeJobs: number;
@@ -255,27 +255,27 @@ function PlatformDetailsContent({
 		  }
 		| { platform: "local"; message: string };
 }) {
-	switch (details.platform) {
+	switch (platform.platform) {
 		case "k8s":
-			return <K8sDetails details={details} />;
+			return <K8sMetrics metrics={platform} />;
 		case "aws":
-			return <AWSDetails details={details} />;
+			return <AWSMetrics metrics={platform} />;
 		case "coolify":
-			return <CoolifyDetails details={details} />;
+			return <CoolifyMetrics metrics={platform} />;
 		case "local":
-			return <LocalDetails message={details.message} />;
+			return <LocalMessage message={platform.message} />;
 	}
 }
 
 /**
- * Platform details section (collapsible)
+ * Platform section (collapsible)
  */
-function PlatformDetailsSection({
-	details,
+function PlatformSection({
+	platform,
 	isExpanded,
 	onToggle,
 }: {
-	details:
+	platform:
 		| {
 				platform: "k8s";
 				activeJobs: number;
@@ -310,12 +310,12 @@ function PlatformDetailsSection({
 							isExpanded && "rotate-180",
 						)}
 					/>
-					<span>Platform details</span>
+					<span>Platform</span>
 				</span>
 				<span className="flex items-center gap-1.5 px-1.5 py-0.5 rounded bg-muted/50">
-					<PlatformIcon platform={details.platform} className="h-3 w-3" />
+					<PlatformIcon platform={platform.platform} className="h-3 w-3" />
 					<span className="font-medium">
-						{PLATFORM_NAMES[details.platform]}
+						{PLATFORM_NAMES[platform.platform]}
 					</span>
 				</span>
 			</button>
@@ -327,7 +327,7 @@ function PlatformDetailsSection({
 				)}
 			>
 				<div className="p-2.5 rounded bg-muted/30 border border-border/30">
-					<PlatformDetailsContent details={details} />
+					<PlatformMetricsContent platform={platform} />
 				</div>
 			</div>
 		</div>
@@ -345,7 +345,7 @@ interface InfrastructureCardProps {
 		todayCompleted: number;
 		todayFailed: number;
 	};
-	platformDetails:
+	platform:
 		| {
 				platform: "k8s";
 				activeJobs: number;
@@ -367,7 +367,7 @@ interface InfrastructureCardProps {
 
 function InfrastructureCard({
 	activityStats,
-	platformDetails,
+	platform,
 }: InfrastructureCardProps) {
 	const [isPlatformExpanded, setIsPlatformExpanded] = useState(false);
 
@@ -482,9 +482,9 @@ function InfrastructureCard({
 				<span>failed</span>
 			</div>
 
-			{/* Platform Details (Collapsible) */}
-			<PlatformDetailsSection
-				details={platformDetails}
+				{/* Platform Section (Collapsible) */}
+			<PlatformSection
+				platform={platform}
 				isExpanded={isPlatformExpanded}
 				onToggle={() => setIsPlatformExpanded(!isPlatformExpanded)}
 			/>
@@ -578,23 +578,22 @@ export function InfrastructureCardLoader() {
 			refetchInterval: 5000,
 		});
 
-	const { data: platformDetails, isLoading: platformLoading } =
-		api.infrastructure.getPlatformDetails.useQuery(undefined, {
-			refetchInterval: 10000,
-		});
+	const platformQuery = api.infrastructure.getPlatform.useQuery(undefined, {
+		refetchInterval: 10000,
+	});
 
-	if (statsLoading || platformLoading) {
+	if (statsLoading || platformQuery.isLoading) {
 		return <InfrastructureCardSkeleton />;
 	}
 
-	if (!activityStats || !platformDetails) {
+	if (!activityStats || !platformQuery.data) {
 		return <InfrastructureCardUnavailable />;
 	}
 
 	return (
 		<InfrastructureCard
 			activityStats={activityStats}
-			platformDetails={platformDetails}
+			platform={platformQuery.data}
 		/>
 	);
 }
