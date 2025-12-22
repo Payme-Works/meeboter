@@ -3,7 +3,7 @@ import postgres from "postgres";
 
 import { env } from "@/env";
 
-import * as schema from "./schema";
+import * as schema from "./schema/index";
 
 /**
  * Global cache for database client to avoid creating multiple instances
