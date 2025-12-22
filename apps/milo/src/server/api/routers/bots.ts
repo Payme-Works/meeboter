@@ -294,6 +294,135 @@ const chatSubRouter = createTRPCRouter({
 });
 
 /**
+ * Kubernetes sub-router for K8s-specific operations
+ * Only available when platform is 'k8s'
+ */
+const k8sSubRouter = createTRPCRouter({
+	/**
+	 * Gets detailed information about a K8s Job including pods and events.
+	 * @param input - Object containing the job name (platformIdentifier)
+	 * @param input.jobName - The K8s Job name for the bot
+	 * @returns Job details including pods and events
+	 */
+	getJob: protectedProcedure
+		.input(
+			z.object({
+				jobName: z.string(),
+			}),
+		)
+		.output(
+			z
+				.object({
+					job: z.record(z.string(), z.unknown()),
+					pods: z.array(z.record(z.string(), z.unknown())),
+					events: z.array(z.record(z.string(), z.unknown())),
+				})
+				.nullable(),
+		)
+		.query(async ({ input }) => {
+			if (!services.k8s) {
+				throw new TRPCError({
+					code: "NOT_IMPLEMENTED",
+					message: "K8s operations are only available when using Kubernetes platform",
+				});
+			}
+
+			const result = await services.k8s.getJobDetails(input.jobName);
+
+			if (!result) {
+				return null;
+			}
+
+			return {
+				job: result.job as unknown as Record<string, unknown>,
+				pods: result.pods as unknown as Record<string, unknown>[],
+				events: result.events as unknown as Record<string, unknown>[],
+			};
+		}),
+
+	/**
+	 * Gets cluster-wide metrics for capacity monitoring.
+	 * @returns Cluster metrics including active jobs, pending jobs, and total pods
+	 */
+	getMetrics: protectedProcedure
+		.input(z.void())
+		.output(
+			z.object({
+				namespace: z.string(),
+				activeJobs: z.number(),
+				pendingJobs: z.number(),
+				totalPods: z.number(),
+			}),
+		)
+		.query(async () => {
+			if (!services.k8s) {
+				throw new TRPCError({
+					code: "NOT_IMPLEMENTED",
+					message: "K8s operations are only available when using Kubernetes platform",
+				});
+			}
+
+			return await services.k8s.getClusterMetrics();
+		}),
+
+	/**
+	 * Gets events for a K8s Job.
+	 * @param input - Object containing the job name
+	 * @param input.jobName - The K8s Job name
+	 * @returns Array of K8s events
+	 */
+	getEvents: protectedProcedure
+		.input(
+			z.object({
+				jobName: z.string(),
+			}),
+		)
+		.output(z.array(z.record(z.string(), z.unknown())))
+		.query(async ({ input }) => {
+			if (!services.k8s) {
+				throw new TRPCError({
+					code: "NOT_IMPLEMENTED",
+					message: "K8s operations are only available when using Kubernetes platform",
+				});
+			}
+
+			const events = await services.k8s.getJobEvents(input.jobName);
+
+			return events as unknown as Record<string, unknown>[];
+		}),
+
+	/**
+	 * Gets logs from the bot container in a K8s Job.
+	 * @param input - Object containing the job name
+	 * @param input.jobName - The K8s Job name
+	 * @returns Log output as a string
+	 */
+	getLogs: protectedProcedure
+		.input(
+			z.object({
+				jobName: z.string(),
+			}),
+		)
+		.output(
+			z.object({
+				logs: z.string(),
+			}),
+		)
+		.query(async ({ input }) => {
+			if (!services.k8s) {
+				throw new TRPCError({
+					code: "NOT_IMPLEMENTED",
+					message: "K8s operations are only available when using Kubernetes platform",
+				});
+			}
+
+			const logs = await services.k8s.getPodLogs(input.jobName);
+
+			return { logs };
+		}),
+});
+
+/**
  * Logs sub-router for bot log streaming operations
  */
 const logsSubRouter = createTRPCRouter({
@@ -501,6 +630,7 @@ export const botsRouter = createTRPCRouter({
 	events: eventsSubRouter,
 	chat: chatSubRouter,
 	logs: logsSubRouter,
+	k8s: k8sSubRouter,
 
 	/**
 	 * Retrieves paginated bots belonging to the authenticated user.

@@ -8,8 +8,12 @@ import { ImagePullLockService } from "./image-pull-lock-service";
 import {
 	createPlatformService,
 	getPlatformType,
-	type PlatformService,
 } from "./platform";
+import type { PlatformService } from "./platform/platform-service";
+import {
+	createKubernetesPlatformService,
+	type KubernetesPlatformService,
+} from "./platform/kubernetes-platform-service";
 
 /**
  * Service container for dependency injection
@@ -30,6 +34,12 @@ export interface Services {
 	 * Only available when platform is 'coolify'
 	 */
 	deploymentQueue?: DeploymentQueueService;
+
+	/**
+	 * Kubernetes-specific service for admin operations
+	 * Only available when platform is 'k8s'
+	 */
+	k8s?: KubernetesPlatformService;
 }
 
 /**
@@ -79,6 +89,12 @@ function createServices(): Services {
 		services.coolify = coolify;
 		services.pool = pool;
 		services.deploymentQueue = deploymentQueue;
+	}
+
+	// For Kubernetes platform, expose the underlying service
+	// for admin/monitoring operations (job details, events, metrics)
+	if (getPlatformType() === "k8s") {
+		services.k8s = createKubernetesPlatformService();
 	}
 
 	return services;

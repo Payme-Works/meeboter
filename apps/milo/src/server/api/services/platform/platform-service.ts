@@ -39,12 +39,12 @@ export type PlatformBotStatus =
 /**
  * Platform service interface for bot deployment
  *
- * This interface abstracts the deployment platform (Coolify or AWS ECS)
- * allowing the application layer to work with either without changes.
+ * This interface abstracts the deployment platform (Coolify, AWS ECS, or Kubernetes)
+ * allowing the application layer to work with any platform without changes.
  */
 export interface PlatformService {
 	/** Platform name for logging and identification */
-	readonly platformName: "coolify" | "aws" | "local";
+	readonly platformName: "coolify" | "aws" | "k8s" | "local";
 
 	/**
 	 * Deploys a bot using the platform's deployment mechanism

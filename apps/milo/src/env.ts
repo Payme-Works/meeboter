@@ -52,7 +52,7 @@ export const env = createEnv({
 
 		// Platform Selection
 		DEPLOYMENT_PLATFORM: z
-			.enum(["coolify", "aws", "local", "auto"])
+			.enum(["coolify", "aws", "k8s", "local", "auto"])
 			.default("auto"),
 
 		// Deployment Queue Configuration
@@ -70,6 +70,16 @@ export const env = createEnv({
 			.enum(["true", "false"])
 			.default("true")
 			.transform((val) => val === "true"),
+
+		// Kubernetes Configuration (required when DEPLOYMENT_PLATFORM=k8s)
+		K8S_NAMESPACE: z.string().default("meeboter"),
+		K8S_IMAGE_REGISTRY: z.string().optional(),
+		K8S_IMAGE_TAG: z.string().default("latest"),
+		K8S_KUBECONFIG: z.string().optional(),
+		K8S_BOT_CPU_REQUEST: z.string().default("250m"),
+		K8S_BOT_CPU_LIMIT: z.string().default("500m"),
+		K8S_BOT_MEMORY_REQUEST: z.string().default("768Mi"),
+		K8S_BOT_MEMORY_LIMIT: z.string().default("1Gi"),
 	},
 
 	/**
@@ -130,6 +140,16 @@ export const env = createEnv({
 		ECS_TASK_DEF_MICROSOFT_TEAMS: process.env.ECS_TASK_DEF_MICROSOFT_TEAMS,
 		ECS_TASK_DEF_GOOGLE_MEET: process.env.ECS_TASK_DEF_GOOGLE_MEET,
 		ECS_ASSIGN_PUBLIC_IP: process.env.ECS_ASSIGN_PUBLIC_IP,
+
+		// Kubernetes
+		K8S_NAMESPACE: process.env.K8S_NAMESPACE,
+		K8S_IMAGE_REGISTRY: process.env.K8S_IMAGE_REGISTRY,
+		K8S_IMAGE_TAG: process.env.K8S_IMAGE_TAG,
+		K8S_KUBECONFIG: process.env.K8S_KUBECONFIG,
+		K8S_BOT_CPU_REQUEST: process.env.K8S_BOT_CPU_REQUEST,
+		K8S_BOT_CPU_LIMIT: process.env.K8S_BOT_CPU_LIMIT,
+		K8S_BOT_MEMORY_REQUEST: process.env.K8S_BOT_MEMORY_REQUEST,
+		K8S_BOT_MEMORY_LIMIT: process.env.K8S_BOT_MEMORY_LIMIT,
 	},
 
 	/**

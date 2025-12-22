@@ -540,6 +540,12 @@ export const botsTable = pgTable(
 		/** Current log level for this bot (runtime configurable) */
 		logLevel: varchar("log_level", { length: 10 }).default("TRACE"),
 
+		/** Deployment platform used for this bot (coolify, aws, k8s, local) */
+		deploymentPlatform: varchar("deployment_platform", { length: 20 }),
+
+		/** Platform-specific identifier (Job name, task ARN, slot UUID) */
+		platformIdentifier: varchar("platform_identifier", { length: 255 }),
+
 		/** When this bot was created */
 		createdAt: timestamp("created_at").defaultNow(),
 	},
@@ -563,6 +569,10 @@ export const botsTable = pgTable(
 				table.createdAt,
 			),
 			createdAtIdx: index("bots_created_at_idx").on(table.createdAt),
+			// Platform-based queries
+			deploymentPlatformIdx: index("bots_deployment_platform_idx").on(
+				table.deploymentPlatform,
+			),
 		};
 	},
 );
