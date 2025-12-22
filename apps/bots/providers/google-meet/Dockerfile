@@ -1,5 +1,5 @@
 # Build stage - Bun + Chromium only (optimized from 6GB to ~2GB)
-FROM oven/bun:1.1-debian AS base
+FROM oven/bun:debian AS base
 
 WORKDIR /app
 
@@ -47,7 +47,7 @@ RUN bun install --production --ignore-scripts \
     && bunx playwright install chromium --with-deps
 
 # Runtime stage - Bun slim
-FROM oven/bun:1.1-debian AS runtime
+FROM oven/bun:debian AS runtime
 
 ENV DOCKER_MEETING_PLATFORM=google-meet
 ENV DISPLAY=:99
