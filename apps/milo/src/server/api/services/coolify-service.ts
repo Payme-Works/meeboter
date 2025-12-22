@@ -602,14 +602,21 @@ export class CoolifyService {
 	async waitForDeployment(
 		applicationUuid: string,
 		timeoutMs: number = 30 * 60 * 1000,
-		pollIntervalMs: number = 2.5 * 1000,
+		pollIntervalMs: number = 5 * 1000,
 	): Promise<DeploymentStatusResult> {
 		const startTime = Date.now();
+		let currentInterval = pollIntervalMs;
+		let consecutiveErrors = 0;
+		const maxBackoffMs = 30 * 1000; // Max 30 seconds between polls
 
 		while (Date.now() - startTime < timeoutMs) {
 			try {
 				const elapsedMs = Date.now() - startTime;
 				const deployment = await this.getLatestDeployment(applicationUuid);
+
+				// Reset backoff on successful API call
+				consecutiveErrors = 0;
+				currentInterval = pollIntervalMs;
 
 				if (!deployment) {
 					// Fallback: check container status directly
@@ -638,8 +645,8 @@ export class CoolifyService {
 						};
 					}
 
-					// Container not ready yet, continue waiting
-					await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+					// Container not ready yet, continue waiting with jitter
+					await this.sleepWithJitter(currentInterval);
 
 					continue;
 				}
@@ -676,15 +683,40 @@ export class CoolifyService {
 					};
 				}
 
-				// Deployment still in progress (queued or in_progress), continue polling
-				await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+				// Deployment still in progress (queued or in_progress), continue polling with jitter
+				await this.sleepWithJitter(currentInterval);
 			} catch (error) {
-				console.error(
-					"[CoolifyService] Error polling deployment status:",
-					error,
-				);
+				consecutiveErrors++;
 
-				await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+				// Detect rate limiting (429) and back off more aggressively
+				const isRateLimited =
+					error instanceof Error &&
+					error.message.includes("Too Many Requests");
+
+				if (isRateLimited) {
+					// Exponential backoff: 10s, 20s, 30s (capped)
+					currentInterval = Math.min(
+						10 * 1000 * Math.pow(2, consecutiveErrors - 1),
+						maxBackoffMs,
+					);
+
+					console.warn(
+						`[CoolifyService] Rate limited by Coolify API, backing off for ${currentInterval / 1000}s (attempt ${consecutiveErrors})`,
+					);
+				} else {
+					// Regular error: linear backoff
+					currentInterval = Math.min(
+						pollIntervalMs * (consecutiveErrors + 1),
+						maxBackoffMs,
+					);
+
+					console.error(
+						"[CoolifyService] Error polling deployment status:",
+						error,
+					);
+				}
+
+				await this.sleepWithJitter(currentInterval);
 			}
 		}
 
@@ -693,6 +725,17 @@ export class CoolifyService {
 			status: "timeout",
 			error: `Deployment timed out after ${timeoutMs / 1000} seconds`,
 		};
+	}
+
+	/**
+	 * Sleep with random jitter to prevent thundering herd
+	 * Adds ±20% random variation to the interval
+	 */
+	private sleepWithJitter(baseMs: number): Promise<void> {
+		const jitter = baseMs * 0.2 * (Math.random() * 2 - 1); // ±20%
+		const actualMs = Math.max(1000, baseMs + jitter); // Minimum 1 second
+
+		return new Promise((resolve) => setTimeout(resolve, actualMs));
 	}
 
 	/**
