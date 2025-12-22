@@ -170,12 +170,8 @@ const statisticsRouter = createTRPCRouter({
 				}
 			}
 
-			counts.total =
-				counts.deploying +
-				counts.joiningCall +
-				counts.inWaitingRoom +
-				counts.inCall +
-				counts.leaving;
+			// Only count bots actively in meeting lifecycle (not deploying/leaving)
+			counts.total = counts.joiningCall + counts.inWaitingRoom + counts.inCall;
 
 			return counts;
 		}),
