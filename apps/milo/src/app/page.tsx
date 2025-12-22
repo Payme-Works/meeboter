@@ -7,7 +7,10 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { auth } from "@/server/auth";
 import { api, HydrateClient } from "@/trpc/server";
-import { PoolCardLoader, PoolCardSkeleton } from "./_components/pool-card";
+import {
+	InfrastructureCardLoader,
+	InfrastructureCardSkeleton,
+} from "./_components/infrastructure-card";
 import {
 	QuickBotJoin,
 	QuickBotJoinSkeleton,
@@ -260,7 +263,7 @@ function StatCardsSkeleton() {
 function ResourceCardsSkeleton() {
 	return (
 		<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-			<PoolCardSkeleton />
+			<InfrastructureCardSkeleton />
 			<StatCard className="min-h-[180px]">
 				<StatCardHeader className="justify-start gap-3">
 					<StatCardIconSkeleton />
@@ -294,7 +297,7 @@ async function ResourceCardsSection() {
 
 	return (
 		<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-			<PoolCardLoader />
+			<InfrastructureCardLoader />
 
 			<StatCard className="min-h-[180px]">
 				<StatCardHeader className="justify-start gap-3">
