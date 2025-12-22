@@ -1,0 +1,1 @@
+ALTER TABLE "bot_pool_slots" ADD COLUMN "recoveryAttempts" integer DEFAULT 0 NOT NULL;

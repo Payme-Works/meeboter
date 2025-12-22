@@ -1,28 +1,26 @@
 {
-	"name": "@live-boost/bots",
+	"name": "@meeboter/bots",
 	"private": true,
 	"scripts": {
-		"start": "tsx src/index.ts",
-		"dev": "tsx src/index.ts",
+		"start": "bun src/index.ts",
+		"dev": "bun src/index.ts",
 		"typecheck": "tsc --noEmit",
-		"test": "pnpm exec jest"
+		"test": "bun test src providers/*/src"
 	},
 	"dependencies": {
-		"@aws-sdk/client-s3": "^3.749.0",
-		"@ffmpeg/ffmpeg": "^0.12.15",
-		"@live-boost/server": "workspace:*",
+		"@meeboter/milo": "workspace:*",
+		"@t3-oss/env-core": "^0.12.0",
 		"@trpc/client": "^11.5.0",
-		"dotenv": "^16.4.7",
+		"playwright": "^1.50.0",
+		"playwright-extra": "^4.3.6",
+		"puppeteer-extra-plugin-stealth": "^2.11.2",
 		"superjson": "^2.2.2",
-		"tsx": "^4.20.5",
-		"typescript": "^5.9.2"
+		"zod": "^4.2.1"
 	},
 	"devDependencies": {
-		"@live-boost/typescript-config": "workspace:*",
-		"@babel/preset-typescript": "^7.27.0",
-		"@jest/globals": "^29.7.0",
-		"@types/jest": "^29.5.14",
-		"jest": "^29.7.0",
-		"ts-jest": "^29.3.0"
+		"@meeboter/typescript-config": "workspace:*",
+		"@playwright/test": "^1.57.0",
+		"@types/bun": "^1.2.16",
+		"typescript": "^5.9.2"
 	}
 }

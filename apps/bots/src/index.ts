@@ -1,217 +1,389 @@
-import dotenv from "dotenv";
-import { type BotInterface, createBot } from "./bot";
+import type { Bot } from "./bot";
+import { createBot } from "./bot-factory";
+import { env } from "./config/env";
+import { withAutoRestart } from "./helpers/with-auto-restart";
+import type { BotLogger } from "./logger";
+import { createServices } from "./services";
 import {
-	safeReportEvent,
-	startDurationMonitor,
-	startHeartbeat,
-} from "./monitoring";
-import { createS3Client, uploadRecordingToS3 } from "./s3";
-import { trpc } from "./trpc";
-import { type BotConfig, EventCode, type SpeakerTimeframe } from "./types";
+	createTrpcClient,
+	EventCode,
+	STATUS_EVENT_CODES,
+	Status,
+	type TrpcClient,
+} from "./trpc";
 
-dotenv.config({ path: "../.env.test" }); // Load .env.test for testing
-dotenv.config();
+/** Maximum number of restart attempts before marking as FATAL */
+const MAX_RESTART_ATTEMPTS = 3;
 
-/**
- * Starts message processing for a bot with chat functionality enabled.
- * Polls the backend API for queued messages and sends them via the bot.
- */
-async function startMessageProcessing(
-	bot: BotInterface,
-	botId: number,
-): Promise<void> {
-	if (!bot.settings.chatEnabled) {
-		console.log("Chat functionality is disabled for this bot");
+/** Delay between restart attempts in milliseconds */
+const RESTART_DELAY_MS = 5000;
 
-		return;
-	}
-
-	console.log("Starting message processing for bot", botId);
-
-	// Check for messages every 5 seconds
-	const messageInterval = setInterval(async () => {
-		try {
-			// Call the backend API to get next queued message using tRPC
-			const queuedMessage = await trpc.chat.getNextQueuedMessage.query({
-				botId: botId.toString(),
-			});
-
-			if (queuedMessage?.messageText) {
-				console.log(`Sending queued message: ${queuedMessage.messageText}`);
-
-				// Add random delay between 1-6 seconds before sending message
-				const delay = Math.random() * 5000 + 1000; // 1000ms to 6000ms
-				console.log(`Waiting ${Math.round(delay)}ms before sending message...`);
-				await new Promise((resolve) => setTimeout(resolve, delay));
-
-				const success = await bot.sendChatMessage(queuedMessage.messageText);
-
-				if (success) {
-					console.log("Message sent successfully");
-				} else {
-					console.log("Failed to send message");
-				}
-			}
-		} catch (error) {
-			console.log("Error processing messages:", error);
-		}
-	}, 5000);
-
-	// Clean up interval when bot process ends
-	process.on("SIGTERM", () => {
-		clearInterval(messageInterval);
-	});
-
-	process.on("SIGINT", () => {
-		clearInterval(messageInterval);
-	});
+// Declare global logger type
+declare global {
+	var logger: BotLogger | undefined;
 }
 
+/**
+ * Global error handler for uncaught exceptions.
+ * Ensures logs are flushed before process exit.
+ */
+process.on("uncaughtException", async (error) => {
+	console.error("[FATAL] Uncaught exception:", error);
+
+	if (global.logger) {
+		global.logger.error("Uncaught exception", error);
+		await global.logger.shutdown();
+	}
+
+	process.exit(1);
+});
+
+/**
+ * Global error handler for unhandled promise rejections.
+ * Ensures logs are flushed before process exit.
+ */
+process.on("unhandledRejection", async (reason) => {
+	const error = reason instanceof Error ? reason : new Error(String(reason));
+
+	console.error("[FATAL] Unhandled rejection:", error);
+
+	if (global.logger) {
+		global.logger.error("Unhandled rejection", error);
+		await global.logger.shutdown();
+	}
+
+	process.exit(1);
+});
+
+/**
+ * Reports an event and updates status if it's a status-changing event
+ */
+async function reportEventWithStatus(
+	trpc: TrpcClient,
+	botId: number,
+	eventType: EventCode,
+	data?: { message?: string; description?: string; sub_code?: string },
+): Promise<void> {
+	// Report the event to the events log
+	await trpc.bots.events.report.mutate({
+		id: String(botId),
+		event: {
+			eventType,
+			eventTime: new Date(),
+			data: data
+				? {
+						description: data.message || data.description,
+						sub_code: data.sub_code,
+					}
+				: null,
+		},
+	});
+
+	// Also update status if this is a status-changing event
+	if (STATUS_EVENT_CODES.includes(eventType)) {
+		await trpc.bots.updateStatus.mutate({
+			id: String(botId),
+			status: eventType as unknown as Status,
+		});
+	}
+}
+
+/**
+ * Main entry point for the bot application.
+ * Creates services with dependency injection and orchestrates the bot lifecycle.
+ * Includes automatic restart on failure with configurable retry attempts.
+ */
 export const main = async () => {
-	let hasErrorOccurred = false;
+	const botIdEnv = env.BOT_ID;
+	const poolSlotUuid = env.POOL_SLOT_UUID;
 
-	const requiredEnvVars = [
-		"BOT_DATA",
-		"AWS_BUCKET_NAME",
-		"AWS_REGION",
-		"NODE_ENV",
-	] as const;
+	// Early initialization logging (before logger is available)
+	console.log("[INIT] Bot container starting...");
 
-	// Check all required environment variables are present
-	for (const envVar of requiredEnvVars) {
-		if (!process.env[envVar]) {
-			throw new Error(`Missing required environment variable: ${envVar}`);
-		}
+	console.log("[INIT] Environment:", {
+		NODE_ENV: env.NODE_ENV,
+		BOT_ID: botIdEnv || "(not set)",
+		POOL_SLOT_UUID: poolSlotUuid || "(not set)",
+		MILO_URL: env.MILO_URL,
+		DOCKER_MEETING_PLATFORM: env.DOCKER_MEETING_PLATFORM || "(not set)",
+	});
+
+	// Validate that at least one identifier is set
+	if (!botIdEnv && !poolSlotUuid) {
+		throw new Error("Either BOT_ID or POOL_SLOT_UUID must be set");
 	}
 
-	// Parse bot data
-	if (!process.env.BOT_DATA)
-		throw new Error("BOT_DATA environment variable is required");
+	// Create a temporary tRPC client to fetch initial config
+	const bootstrapTrpc = createTrpcClient({
+		url: env.MILO_URL,
+		authToken: env.MILO_AUTH_TOKEN,
+	});
 
-	const botData: BotConfig = JSON.parse(process.env.BOT_DATA);
+	// Platform-aware config retrieval:
+	// - BOT_ID: K8s/ECS ephemeral platforms → use bots.getConfig
+	// - POOL_SLOT_UUID: Coolify pool-based → use bots.pool.getSlot
+	let botConfig;
 
-	console.log("Received bot data:", botData);
+	if (botIdEnv) {
+		console.log(`[INIT] Fetching bot config by ID: ${botIdEnv}`);
+		console.log("[INIT] tRPC client created, calling bots.getConfig...");
 
-	const botId = botData.id;
+		botConfig = await bootstrapTrpc.bots.getConfig.query({
+			botId: Number(botIdEnv),
+		});
+	} else {
+		console.log(`[INIT] Fetching bot config for pool slot: ${poolSlotUuid}`);
+		console.log("[INIT] tRPC client created, calling bots.pool.getSlot...");
 
-	// Declare key variable at the top level of the function
-	let key: string = "";
-
-	// Initialize S3 client
-	const s3Client = createS3Client(
-		process.env.AWS_REGION ?? "us-east-2",
-		process.env.AWS_ACCESS_KEY_ID,
-		process.env.AWS_SECRET_ACCESS_KEY,
-	);
-
-	if (!s3Client) {
-		throw new Error("Failed to create S3 client");
+		botConfig = await bootstrapTrpc.bots.pool.getSlot.query({
+			poolSlotUuid: poolSlotUuid!,
+		});
 	}
 
-	// Create the appropriate bot instance based on platform
-	const bot = await createBot(botData);
+	console.log("[INIT] Bot config received:", {
+		id: botConfig.id,
+		platform: botConfig.meetingInfo.platform,
+		meetingUrl: `${botConfig.meetingInfo.meetingUrl?.slice(0, 50)}...`,
+		botDisplayName: botConfig.botDisplayName,
+		recordingEnabled: botConfig.recordingEnabled,
+		chatEnabled: botConfig.chatEnabled,
+	});
 
-	// Create AbortController for heartbeat and duration monitor
-	const monitoringController = new AbortController();
+	const botId = botConfig.id;
+	console.log(`[INIT] Bot ID: ${botId}`);
 
-	// Record bot start time for duration monitoring
-	const botStartTime = new Date();
+	// Track recording key for final status report (persists across retries)
+	let recordingKey = "";
 
-	// Do not start heartbeat in development
-	if (process.env.NODE_ENV !== "development") {
-		console.log("Starting heartbeat and duration monitor");
+	// Track bot instances across retries
+	let currentBot: Bot | null = null;
+	let successfulBot: Bot | null = null;
 
-		const heartbeatInterval = botData.heartbeatInterval ?? 10000; // Default to 10 seconds if not set
+	console.log("[INIT] Creating services...");
 
-		// Start both heartbeat and duration monitoring
-		startHeartbeat(botId, monitoringController.signal, heartbeatInterval);
-		startDurationMonitor(botId, botStartTime, monitoringController.signal);
-	}
+	const services = createServices({
+		botId,
+		getBot: () => currentBot,
+	});
 
-	// Report READY_TO_DEPLOY event (use safe reporting to prevent startup crashes)
-	await safeReportEvent(botId, EventCode.READY_TO_DEPLOY);
+	const { emitter, logger, trpc, uploadRecording, workers } = services;
 
-	try {
-		// Start message processing if chat is enabled
-		if (botData.chatEnabled) {
-			// Start message processing in the background
-			startMessageProcessing(bot, botId);
-		}
+	// Set global logger reference for uncaught exception handling
+	global.logger = logger;
 
-		// Run the bot
-		await bot.run().catch(async (error) => {
-			console.error("Error running bot:", error);
+	logger.info("Services initialized successfully");
 
-			// Use safe reporting to prevent cascading failures
-			await safeReportEvent(botId, EventCode.FATAL, {
-				description: (error as Error).message,
+	logger.debug("Service components ready", {
+		hasLogger: !!logger,
+		hasTrpc: !!trpc,
+		hasUploadRecording: !!uploadRecording,
+		hasWorkers: !!workers,
+	});
+
+	// Helper to report events
+	const reportEvent = async (
+		eventType: EventCode,
+		data?: { message?: string; description?: string; sub_code?: string },
+	) => {
+		await reportEventWithStatus(trpc, botId, eventType, data);
+	};
+
+	// Run bot with automatic restart on failure
+	const result = await withAutoRestart(
+		async () => {
+			logger.info("Creating platform-specific bot instance...", {
+				platform: botConfig.meetingInfo.platform,
 			});
 
-			// Check what's on the screen in case of an error
-			try {
-				await bot.screenshot();
-			} catch (screenshotError) {
-				console.warn("Failed to take screenshot:", screenshotError);
+			// Create fresh bot instance for this attempt
+			const bot = await createBot(botConfig, {
+				emitter,
+				logger,
+				trpc,
+			});
+
+			currentBot = bot;
+
+			// Register status change listener for screenshot capture
+			const screenshotHandler = (eventType: EventCode) => {
+				logger.debug(
+					`Status change detected: ${eventType}, capturing screenshot`,
+				);
+
+				bot.screenshot(`state-change-${eventType}.png`, eventType);
+			};
+
+			emitter.on("event", screenshotHandler);
+
+			logger.info("Bot instance created successfully", {
+				botType: bot.constructor.name,
+			});
+
+			// Start monitoring workers (only in production)
+			if (env.NODE_ENV !== "development") {
+				logger.info("Starting heartbeat and duration monitor");
+
+				workers.heartbeat.start(botId, {
+					onLeaveRequested: () => bot.requestLeave(),
+					onLogLevelChange: (logLevel) =>
+						bot.logger.setLogLevelFromString(logLevel),
+				});
+
+				workers.durationMonitor.start(botConfig.startTime, async () => {
+					logger.error("Bot exceeded maximum duration, terminating...");
+
+					await reportEvent(EventCode.FATAL, {
+						message: "Maximum duration exceeded",
+					});
+
+					bot.requestLeave();
+				});
 			}
 
-			// **Ensure** the bot cleans up its resources after a breaking error
-			try {
-				await bot.endLife();
-			} catch (cleanupError) {
-				console.warn("Error during bot cleanup:", cleanupError);
+			// Start message queue worker if chat is enabled
+			if (botConfig.chatEnabled) {
+				workers.messageQueue.start(botId);
 			}
-		});
 
-		// Upload recording to S3 only if recording was enabled
-		if (bot.settings.recordingEnabled) {
-			console.log("Start upload to S3...");
+			return {
+				bot,
+				run: async () => {
+					// Run the bot
+					await bot.run();
 
-			key = await uploadRecordingToS3(s3Client, bot);
-		} else {
-			console.log("Recording was disabled, skipping S3 upload");
+					// Mark as successful (for final status reporting)
+					successfulBot = bot;
 
-			key = ""; // No recording to upload
-		}
-	} catch (error) {
-		hasErrorOccurred = true;
+					// Upload recording if enabled and successful
+					if (bot.settings.recordingEnabled && uploadRecording) {
+						logger.info("Starting upload to storage...");
+						const platform = bot.settings.meetingInfo.platform ?? "unknown";
+						const recordingPath = bot.getRecordingPath();
+						const contentType = bot.getContentType();
 
-		console.error("Error running bot:", error);
+						const { promises: fs } = await import("node:fs");
+						const data = await fs.readFile(recordingPath);
 
-		// Use safe reporting to prevent secondary crashes
-		await safeReportEvent(botId, EventCode.FATAL, {
-			description: (error as Error).message,
-		});
-	}
+						recordingKey = await uploadRecording.execute({
+							botId,
+							data,
+							platform,
+							contentType,
+						});
 
-	// After S3 upload and cleanup, stop the monitoring
-	monitoringController.abort();
+						await fs.unlink(recordingPath);
 
-	console.log("Bot execution completed, monitoring stopped.");
+						logger.info("Recording uploaded successfully", {
+							key: recordingKey,
+						});
+					}
+				},
+				cleanup: async () => {
+					// Stop workers
+					workers.heartbeat.stop();
+					workers.durationMonitor.stop();
+					workers.messageQueue.stop();
 
-	// Only report DONE if no error occurred
-	if (!hasErrorOccurred) {
-		// Report final DONE event
-		let speakerTimeframes: SpeakerTimeframe[] = [];
+					// Remove event listener
+					emitter.removeAllListeners("event");
+
+					// Cleanup bot resources
+					try {
+						await bot.cleanup();
+					} catch (cleanupError) {
+						logger.warn(
+							`Error during bot cleanup: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`,
+						);
+					}
+
+					currentBot = null;
+					logger.info("Bot cleanup completed");
+				},
+			};
+		},
+		{
+			maxRestarts: MAX_RESTART_ATTEMPTS,
+			delayBetweenRestarts: RESTART_DELAY_MS,
+		},
+		{
+			onRestart: async (attempt, error) => {
+				logger.warn(
+					`Bot failed, restarting (attempt ${attempt}/${MAX_RESTART_ATTEMPTS})`,
+					{
+						error: error.message,
+					},
+				);
+
+				// Capture restart screenshot
+				await currentBot?.screenshot("restart.png", error.message);
+
+				// Report restart event to Milo (not a status change)
+				await trpc.bots.events.report.mutate({
+					id: String(botId),
+					event: {
+						eventType: EventCode.RESTARTING,
+						eventTime: new Date(),
+						data: {
+							description: `Restart attempt ${attempt}/${MAX_RESTART_ATTEMPTS}: ${error.message}`,
+							sub_code: `RESTART_${attempt}`,
+						},
+					},
+				});
+			},
+			onFatalError: async (error, totalAttempts) => {
+				logger.error(
+					`All ${totalAttempts} attempts failed, marking as FATAL`,
+					error,
+				);
+
+				// Capture fatal screenshot
+				await currentBot?.screenshot("fatal.png", error.message);
+
+				// Report FATAL status
+				await reportEvent(EventCode.FATAL, {
+					description: `Failed after ${totalAttempts} attempts: ${error.message}`,
+				});
+			},
+		},
+	);
+
+	// Report final status if successful
+	if (result.success && successfulBot) {
+		// Type assertion needed because TypeScript can't track that successfulBot
+		// is set inside the async callback before we reach this point
+		const bot = successfulBot as Bot;
+
+		let speakerTimeframes: {
+			start: number;
+			end: number;
+			speakerName: string;
+		}[] = [];
 
 		try {
 			speakerTimeframes = bot.settings.recordingEnabled
-				? bot.getSpeakerTimeframes()
+				? (bot.getSpeakerTimeframes() ?? [])
 				: [];
 		} catch (error) {
-			console.warn("Failed to get speaker timeframes:", error);
+			logger.warn(
+				`Failed to get speaker timeframes: ${error instanceof Error ? error.message : String(error)}`,
+			);
 		}
 
-		console.debug("Speaker timeframes:", speakerTimeframes);
+		logger.debug("Speaker timeframes", { count: speakerTimeframes.length });
 
-		// Use safe reporting for final event
-		await safeReportEvent(botId, EventCode.DONE, {
-			recording: key || undefined,
-			speakerTimeframes,
+		await trpc.bots.updateStatus.mutate({
+			id: String(botId),
+			status: Status.DONE,
+			recording: recordingKey || undefined,
+			speakerTimeframes:
+				speakerTimeframes.length > 0 ? speakerTimeframes : undefined,
 		});
 	}
 
-	// Exit with appropriate code
-	process.exit(hasErrorOccurred ? 1 : 0);
+	// Flush any remaining logs before exit
+	await logger.shutdown();
+
+	process.exit(result.success ? 0 : 1);
 };
 
 // Only run automatically if not in a test

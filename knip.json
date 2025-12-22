@@ -1,0 +1,50 @@
+{
+	"$schema": "https://unpkg.com/knip@5/schema.json",
+	"workspaces": {
+		".": {
+			"entry": ["scripts/*.ts"],
+			"project": ["scripts/**/*.ts"]
+		},
+		"apps/bots": {
+			"entry": ["src/index.ts", "src/**/*.test.ts"],
+			"project": ["src/**/*.ts"]
+		},
+		"apps/bots/providers/*": {
+			"entry": [
+				"src/bot.ts",
+				"src/selectors.ts",
+				"src/**/*.test.ts",
+				"e2e/**/*.ts"
+			],
+			"project": ["src/**/*.ts", "e2e/**/*.ts"]
+		},
+		"apps/milo": {
+			"entry": [
+				"src/index.ts",
+				"src/app/**/page.tsx",
+				"src/app/**/layout.tsx",
+				"src/app/**/route.ts",
+				"src/app/**/not-found.tsx"
+			],
+			"project": ["src/**/*.{ts,tsx}"],
+			"ignoreDependencies": ["tailwindcss", "tw-animate-css"]
+		},
+		"packages/config-typescript": {
+			"entry": ["*.json"],
+			"project": ["*.json"],
+			"ignoreDependencies": ["next"]
+		}
+	},
+	"ignore": [
+		"**/node_modules/**",
+		"**/.next/**",
+		"**/dist/**",
+		"**/build/**",
+		"**/.turbo/**",
+		"**/coverage/**"
+	],
+	"ignoreDependencies": [],
+	"rules": {
+		"enumMembers": "off"
+	}
+}

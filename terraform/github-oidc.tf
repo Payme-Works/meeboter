@@ -21,7 +21,7 @@ resource "aws_iam_role" "github_actions" {
             "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
           }
           StringLike = {
-            "token.actions.githubusercontent.com:sub" = "repo:live-boost/*"
+            "token.actions.githubusercontent.com:sub" = "repo:meeboter/*"
           }
         }
       }
@@ -61,8 +61,8 @@ resource "aws_iam_policy" "github_actions_ecr" {
         ]
         Resource = [
           aws_ecr_repository.server.arn,
-          aws_ecr_repository.meet_bot.arn,
-          aws_ecr_repository.teams_bot.arn,
+          aws_ecr_repository.google_meet_bot.arn,
+          aws_ecr_repository.microsoft_teams_bot.arn,
           aws_ecr_repository.zoom_bot.arn
         ]
       }

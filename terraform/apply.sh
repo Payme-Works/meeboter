@@ -11,7 +11,7 @@ export AWS_PAGER=""
 # Configuration
 ENVIRONMENT="${1:-development}"
 SHARED_DIR="shared"
-AWS_PROFILE=${AWS_PROFILE:-"live-boost"}
+AWS_PROFILE=${AWS_PROFILE:-"meeboter"}
 AWS_REGION=${AWS_REGION:-"us-east-2"}
 
 # Colors for output (same as deploy.sh)

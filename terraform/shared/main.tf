@@ -2,10 +2,10 @@ terraform {
   required_version = ">= 1.0"
   
   backend "s3" {
-    bucket  = "tf-state-live-boost"
-    key     = "live-boost/shared/terraform.tfstate"
+    bucket  = "tf-state-meeboter"
+    key     = "meeboter/shared/terraform.tfstate"
     region  = "us-east-2"
-    profile = "live-boost"
+    profile = "meeboter"
   }
   
   required_providers {
@@ -18,11 +18,11 @@ terraform {
 
 provider "aws" {
   region  = "us-east-2"
-  profile = "live-boost"
+  profile = "meeboter"
   
   default_tags {
     tags = {
-      Project     = "Live Boost"
+      Project     = "Meeboter"
       Component   = "Shared"
       ManagedBy   = "Terraform"
     }

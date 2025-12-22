@@ -10,14 +10,14 @@ output "ecr_server_repository_url" {
   value       = aws_ecr_repository.server.repository_url
 }
 
-output "ecr_meet_bot_repository_url" {
-  description = "The URL of the ECR repository for the meet bot"
-  value       = aws_ecr_repository.meet_bot.repository_url
+output "ecr_google_meet_bot_repository_url" {
+  description = "The URL of the ECR repository for the Google Meet bot"
+  value       = aws_ecr_repository.google_meet_bot.repository_url
 }
 
-output "ecr_teams_bot_repository_url" {
-  description = "The URL of the ECR repository for the teams bot"
-  value       = aws_ecr_repository.teams_bot.repository_url
+output "ecr_microsoft_teams_bot_repository_url" {
+  description = "The URL of the ECR repository for the Microsoft Teams bot"
+  value       = aws_ecr_repository.microsoft_teams_bot.repository_url
 }
 
 output "ecr_zoom_bot_repository_url" {

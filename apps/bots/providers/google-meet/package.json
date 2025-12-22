@@ -1,0 +1,7 @@
+{
+	"name": "@meeboter/bots-google-meet",
+	"private": true,
+	"scripts": {
+		"test:e2e": "set -a && source ../../.env.test.local && set +a && ../../node_modules/.bin/playwright test --config=playwright.config.ts"
+	}
+}

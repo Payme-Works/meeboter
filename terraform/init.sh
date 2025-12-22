@@ -9,9 +9,9 @@ set -euo pipefail
 export AWS_PAGER=""
 
 # Configuration
-AWS_BUCKET_NAME=${AWS_BUCKET_NAME:-"tf-state-live-boost"}
+AWS_BUCKET_NAME=${AWS_BUCKET_NAME:-"tf-state-meeboter"}
 AWS_REGION=${AWS_REGION:-"us-east-2"}
-AWS_PROFILE=${AWS_PROFILE:-"live-boost"}
+AWS_PROFILE=${AWS_PROFILE:-"meeboter"}
 
 # Colors for output (same as deploy.sh)
 RED='\033[0;31m'

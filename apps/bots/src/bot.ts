@@ -1,98 +1,28 @@
-import type { AppRouter } from "@live-boost/server";
+import type { AppRouter } from "@meeboter/milo";
 import type { TRPCClient } from "@trpc/client";
-import { reportEvent } from "./monitoring";
-import { trpc } from "./trpc";
-import type { BotConfig, EventCode, SpeakerTimeframe } from "./types";
+import { env } from "./config/env";
+import type { BotEventEmitter } from "./events";
+import type { BotLogger } from "./logger";
+import {
+	type BotConfig,
+	createTrpcClient,
+	type SpeakerTimeframe,
+} from "./trpc";
 
 /**
- * Interface defining the contract for all bot implementations.
- * This interface ensures consistent behavior across different platform bots
- * and provides a standardized API for bot lifecycle management.
+ * Abstract base class for all meeting bots.
+ * Provides the foundation for platform-specific bot implementations
+ * and handles common functionality shared across all platforms.
  */
-export interface BotInterface {
-	/** Bot configuration settings containing meeting info and other parameters */
-	readonly settings: BotConfig;
-
-	/**
-	 * Event handler for bot lifecycle and operational events.
-	 * @param eventType - The type of event being reported
-	 * @param data - Optional additional data associated with the event
-	 * @returns Promise that resolves when the event is processed
-	 */
-	onEvent: (
-		eventType: EventCode,
-		data?: Record<string, unknown>,
-	) => Promise<void>;
-
-	/**
-	 * Gets the file path where the meeting recording is stored.
-	 * @returns The absolute path to the recording file
-	 */
-	getRecordingPath(): string;
-
-	/**
-	 * Gets the MIME content type of the recording file.
-	 * @returns The content type string (e.g., "video/mp4", "audio/wav")
-	 */
-	getContentType(): string;
-
-	/**
-	 * Executes the main bot workflow including joining the meeting,
-	 * setting up recording, and managing the bot lifecycle.
-	 * @returns Promise that resolves when the bot completes its execution
-	 */
-	run(): Promise<void>;
-
-	/**
-	 * Captures a screenshot of the current page for debugging purposes.
-	 * @param fName - Optional filename for the screenshot
-	 * @returns Promise that resolves when the screenshot is saved
-	 */
-	screenshot(fName?: string): Promise<void>;
-
-	/**
-	 * Initiates the process of joining the meeting.
-	 * @returns Promise that resolves with platform-specific join result
-	 */
-	joinMeeting(): Promise<unknown>;
-
-	/**
-	 * Cleans up resources and terminates the bot session.
-	 * @returns Promise that resolves with cleanup result
-	 */
-	endLife(): Promise<unknown>;
-
-	/**
-	 * Checks if the bot has been removed or kicked from the meeting.
-	 * @returns Promise that resolves to true if the bot was kicked, false otherwise
-	 */
-	checkKicked(): Promise<boolean>;
-
-	/**
-	 * Sends a chat message in the meeting (if supported by the platform).
-	 * @param message - The message text to send
-	 * @returns Promise that resolves to true if message was sent successfully, false otherwise
-	 */
-	sendChatMessage(message: string): Promise<boolean>;
-}
-
-/**
- * Base implementation for all meeting bots.
- * This abstract implementation provides the foundation for platform-specific
- * bot implementations and handles common functionality shared across all platforms.
- */
-export class Bot implements BotInterface {
+export abstract class Bot {
 	/** Bot configuration settings containing meeting information and parameters */
 	readonly settings: BotConfig;
 
-	/**
-	 * Event handler function for reporting bot lifecycle and operational events.
-	 * This function is injected during bot creation to handle event reporting.
-	 */
-	onEvent: (
-		eventType: EventCode,
-		data?: Record<string, unknown>,
-	) => Promise<void>;
+	/** Logger instance for structured logging with breadcrumbs and screenshots */
+	readonly logger: BotLogger;
+
+	/** Event emitter for reporting bot lifecycle events and managing state */
+	readonly emitter: BotEventEmitter;
 
 	/**
 	 * tRPC client instance for making API calls to the backend
@@ -100,238 +30,92 @@ export class Bot implements BotInterface {
 	protected trpc: TRPCClient<AppRouter>;
 
 	/**
-	 * Creates a new Bot instance with the provided configuration and event handler.
+	 * Flag indicating if a leave has been requested via user action.
+	 * When true, the bot's main loop should exit gracefully.
+	 */
+	protected leaveRequested: boolean = false;
+
+	/**
+	 * Creates a new Bot instance with the provided configuration and dependencies.
 	 *
 	 * @param settings - Bot configuration containing meeting info and other parameters
-	 * @param onEvent - Event handler function for reporting bot events
-	 * @param trpcInstance - tRPC client instance for backend API calls
+	 * @param emitter - Event emitter for reporting bot events and managing state
+	 * @param logger - Logger instance for structured logging
+	 * @param trpc - tRPC client instance for backend API calls (optional, creates default if not provided)
 	 */
 	constructor(
 		settings: BotConfig,
-		onEvent: (
-			eventType: EventCode,
-			data?: Record<string, unknown>,
-		) => Promise<void>,
-		trpcInstance?: TRPCClient<AppRouter>,
+		emitter: BotEventEmitter,
+		logger: BotLogger,
+		trpc?: TRPCClient<AppRouter>,
 	) {
 		this.settings = settings;
-		this.onEvent = onEvent;
-		this.trpc = trpcInstance || trpc;
+		this.emitter = emitter;
+		this.logger = logger;
+
+		// Create default tRPC client if not provided (for backward compatibility with tests)
+		this.trpc =
+			trpc ??
+			createTrpcClient({
+				url: env.MILO_URL,
+				authToken: env.MILO_AUTH_TOKEN,
+			});
 	}
 
 	/**
 	 * Opens a browser and navigates to join the meeting.
-	 * This method handles the platform-specific process of connecting to a meeting,
-	 * including authentication, navigation, and initial setup.
-	 *
-	 * @returns Promise that resolves with platform-specific join result data
-	 * @throws Error when called on the base implementation - must be overridden by platform-specific bots
 	 */
-	async joinMeeting(): Promise<unknown> {
-		throw new Error("Method not implemented.");
-	}
+	abstract joinCall(): Promise<unknown>;
 
 	/**
-	 * Takes a screenshot of the current page and saves it to a file for debugging purposes.
-	 * This method captures the current state of the browser window to help with
-	 * troubleshooting bot behavior and meeting interface interactions.
-	 *
-	 * @param _fName - Optional filename for the screenshot. If not provided, a default name will be generated
-	 * @returns Promise that resolves when the screenshot is successfully saved
-	 * @throws Error when called on the base implementation - must be overridden by platform-specific bots
+	 * Takes a screenshot of the current page and uploads to S3.
 	 */
-	async screenshot(_fName?: string): Promise<void> {
-		throw new Error("Method not implemented.");
-	}
+	abstract screenshot(
+		filename?: string,
+		trigger?: string,
+	): Promise<string | null>;
 
 	/**
 	 * Cleans up resources and closes the browser.
-	 * This method handles the graceful shutdown of the bot by cleaning up all
-	 * allocated resources, closing browser instances, and performing any necessary
-	 * cleanup operations. Implementation varies by platform but should always be
-	 * called at the end of the bot's lifecycle.
-	 *
-	 * Particularly useful in testing environments where the bot might not be able
-	 * to close the browser due to different lifecycle management or test termination.
-	 *
-	 * @returns Promise that resolves with cleanup result data
-	 * @throws Error when called on the base implementation - must be overridden by platform-specific bots
 	 */
-	async endLife(): Promise<unknown> {
-		throw new Error("Method not implemented.");
-	}
+	abstract cleanup(): Promise<unknown>;
 
 	/**
 	 * Runs the platform-specific bot through its complete lifecycle.
-	 * This method orchestrates the entire bot workflow including:
-	 * 1. Joining the meeting
-	 * 2. Setting up recording capabilities
-	 * 3. Monitoring the meeting session
-	 * 4. Gracefully leaving when appropriate
-	 *
-	 * The implementation varies by platform but follows this general pattern
-	 * to ensure consistent behavior across all bot types.
-	 *
-	 * @returns Promise that resolves when the bot completes its full lifecycle
-	 * @throws Error when called on the base implementation - must be overridden by platform-specific bots
 	 */
-	async run(): Promise<void> {
-		throw new Error("Method not implemented.");
-	}
+	abstract run(): Promise<void>;
 
 	/**
 	 * Gets the file path where the meeting recording is stored.
-	 * This method returns the absolute path to the recording file that was
-	 * created during the meeting session. The path format and location may
-	 * vary depending on the platform and configuration settings.
-	 *
-	 * @returns The absolute file path to the recording
-	 * @throws Error when called on the base implementation - must be overridden by platform-specific bots
 	 */
-	getRecordingPath(): string {
-		throw new Error("Method not implemented.");
-	}
+	abstract getRecordingPath(): string;
 
 	/**
 	 * Gets the MIME content type of the recording file.
-	 * This method returns the appropriate content type string for the recording
-	 * file format, such as "video/mp4" for video recordings or "audio/wav" for
-	 * audio-only recordings. The content type depends on the platform's recording
-	 * capabilities and configuration.
-	 *
-	 * @returns The MIME content type string for the recording file
-	 * @throws Error when called on the base implementation - must be overridden by platform-specific bots
 	 */
-	getContentType(): string {
-		throw new Error("Method not implemented.");
-	}
+	abstract getContentType(): string;
 
 	/**
 	 * Gets the speaker timeframe information from the meeting recording.
-	 * This method returns an array of timeframe objects that indicate when
-	 * different speakers were active during the meeting. This information is
-	 * useful for creating speaker-segmented transcriptions or summaries.
-	 *
-	 * @returns Array of speaker timeframe objects containing timing and speaker information
-	 * @throws Error when called on the base implementation - must be overridden by platform-specific bots
 	 */
-	getSpeakerTimeframes(): SpeakerTimeframe[] {
-		throw new Error("Method not implemented.");
-	}
+	abstract getSpeakerTimeframes(): SpeakerTimeframe[];
 
 	/**
 	 * Checks if the bot has been kicked or removed from the meeting.
-	 * This method monitors the meeting state to determine if the bot has been
-	 * forcibly removed by a meeting host or due to meeting policies. Different
-	 * platforms may have varying indicators for this condition.
-	 *
-	 * @returns Promise that resolves to true if the bot has been kicked, false otherwise
-	 * @throws Error when called on the base implementation - must be overridden by platform-specific bots
 	 */
-	async checkKicked(): Promise<boolean> {
-		throw new Error("Method not implemented.");
-	}
+	abstract hasBeenRemovedFromCall(): Promise<boolean>;
 
-	async sendChatMessage(_message: string): Promise<boolean> {
-		throw new Error("Method not implemented.");
+	/**
+	 * Sends a chat message in the meeting.
+	 */
+	abstract sendChatMessage(message: string): Promise<boolean>;
+
+	/**
+	 * Requests the bot to leave the meeting gracefully.
+	 * Sets the leaveRequested flag which should be checked in the bot's main loop.
+	 */
+	requestLeave(): void {
+		this.logger.info("Leave requested by user, setting leaveRequested flag");
+		this.leaveRequested = true;
 	}
 }
-
-/**
- * Validates if the given platform matches the expected Docker image name.
- * This function ensures that the bot is running on the correct platform as defined
- * in the Docker environment or configuration, providing a safety check to prevent
- * platform mismatches that could cause runtime errors.
- *
- * @param platform - The platform name from BotConfig (e.g., "google", "teams", "zoom")
- * @param imageName - The Docker image name from Dockerfile or environment variable
- * @returns True if the platform matches the image name, or if platform is "google" and image name is "meet"
- */
-const validPlatformForImage = (
-	platform: string,
-	imageName: string,
-): boolean => {
-	if (platform === imageName) return true;
-
-	// Special case: ignore any mismatch between platform and bot name for Google Meet
-	if (platform === "google" && imageName === "meet") return true;
-
-	return false;
-};
-
-/**
- * Factory function that creates platform-specific bot instances.
- * This function handles the dynamic creation of bot implementations based on
- * the meeting platform specified in the configuration. It includes safety checks
- * to ensure platform compatibility and dynamically imports the appropriate
- * bot implementation to optimize bundle size.
- *
- * The factory pattern allows for:
- * - Dynamic bot creation based on platform
- * - Lazy loading of platform-specific implementations
- * - Centralized event handling setup
- * - Platform validation and safety checks
- *
- * @param botData - Configuration data containing meeting info and bot settings
- * @returns Promise that resolves to a platform-specific bot instance
- * @throws Error if the platform is unsupported or if there's a platform/Docker image mismatch
- */
-export const createBot = async (botData: BotConfig): Promise<Bot> => {
-	const botId = botData.id;
-	const platform = botData.meetingInfo.platform;
-
-	// Retrieve Docker image name from environment variable
-	const dockerImageName = process.env.DOCKER_MEETING_PLATFORM;
-
-	// Ensure the Docker image name matches the platform - safety check
-	// If local development (implies DOCKER_MEETING_PLATFORM is not set), we don't need this check
-	if (
-		dockerImageName &&
-		!validPlatformForImage(platform ?? "", dockerImageName)
-	) {
-		throw new Error(
-			`Docker image name ${dockerImageName} does not match platform ${platform}`,
-		);
-	}
-
-	switch (botData.meetingInfo.platform) {
-		case "google": {
-			const { GoogleMeetBot } = await import("../providers/meet/src/bot");
-
-			return new GoogleMeetBot(
-				botData,
-				async (eventType: EventCode, data?: Record<string, unknown>) => {
-					await reportEvent(botId, eventType, data);
-				},
-				trpc,
-			);
-		}
-
-		case "teams": {
-			const { MicrosoftTeamsBot } = await import("../providers/teams/src/bot");
-
-			return new MicrosoftTeamsBot(
-				botData,
-				async (eventType: EventCode, data?: Record<string, unknown>) => {
-					await reportEvent(botId, eventType, data);
-				},
-				trpc,
-			);
-		}
-
-		case "zoom": {
-			const { ZoomBot } = await import("../providers/zoom/src/bot");
-
-			return new ZoomBot(
-				botData,
-				async (eventType: EventCode, data?: Record<string, unknown>) => {
-					await reportEvent(botId, eventType, data);
-				},
-				trpc,
-			);
-		}
-
-		default:
-			throw new Error(`Unsupported platform: ${botData.meetingInfo.platform}`);
-	}
-};

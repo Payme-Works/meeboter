@@ -1,23 +1,23 @@
 #!/bin/bash
 
-# Live Boost Deployment Script
-# This script deploys the Live Boost infrastructure and applications
+# Meeboter Deployment Script
+# This script deploys the Meeboter infrastructure and applications
 # It applies Terraform, builds Docker images, and pushes them to AWS ECR
 #
 # Usage:
 #   ./deploy.sh                                    # Deploy all images to development
-#   ./deploy.sh --images server                    # Build only server image
-#   ./deploy.sh --images server,bots-meet          # Build server and meet bot images
+#   ./deploy.sh --images milo                      # Build only milo image
+#   ./deploy.sh --images milo,bots-google-meet     # Build milo and meet bot images
 #   ./deploy.sh --workspace production             # Deploy to production
-#   ./deploy.sh --skip-terraform --images server   # Only build/push images, skip infrastructure
-#   ./deploy.sh -w staging --images bots-meet      # Deploy meet bot to staging
+#   ./deploy.sh --skip-terraform --images milo     # Only build/push images, skip infrastructure
+#   ./deploy.sh -w staging --images bots-google-meet # Deploy meet bot to staging
 
 set -euo pipefail
 
 # Configuration
-PROJECT_NAME="live-boost"
+PROJECT_NAME="meeboter"
 
-AWS_PROFILE=${AWS_PROFILE:-"live-boost"}
+AWS_PROFILE=${AWS_PROFILE:-"meeboter"}
 AWS_REGION=${AWS_REGION:-"us-east-2"}
 
 TERRAFORM_WORKSPACE=${TERRAFORM_WORKSPACE:-"development"}  # Default to development
@@ -103,7 +103,7 @@ check_prerequisites() {
     fi
     
     # Check required tools
-    local required_tools=("docker" "aws" "git" "pnpm")
+    local required_tools=("docker" "aws" "git" "bun")
     for tool in "${required_tools[@]}"; do
         if ! command -v "$tool" &> /dev/null; then
             log_error "$tool is required but not installed"
@@ -156,7 +156,7 @@ get_aws_account_id() {
 
 # Create S3 bucket for Terraform state if it doesn't exist
 create_s3_bucket() {
-    local bucket_name="tf-state-live-boost"
+    local bucket_name="tf-state-meeboter"
     
     log_info "Checking if S3 bucket '$bucket_name' exists..."
     
@@ -246,8 +246,8 @@ create_s3_bucket() {
 build_ecr_urls() {
     ECR_BASE="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
     ECR_SERVER="$ECR_BASE/$PROJECT_NAME-$TERRAFORM_WORKSPACE/server"
-    ECR_MEET="$ECR_BASE/$PROJECT_NAME-$TERRAFORM_WORKSPACE/bots/meet"
-    ECR_TEAMS="$ECR_BASE/$PROJECT_NAME-$TERRAFORM_WORKSPACE/bots/teams"
+    ECR_GOOGLE_MEET="$ECR_BASE/$PROJECT_NAME-$TERRAFORM_WORKSPACE/bots/google-meet"
+    ECR_MICROSOFT_TEAMS="$ECR_BASE/$PROJECT_NAME-$TERRAFORM_WORKSPACE/bots/microsoft-teams"
     ECR_ZOOM="$ECR_BASE/$PROJECT_NAME-$TERRAFORM_WORKSPACE/bots/zoom"
     
     log_info "ECR URLs configured for workspace: $TERRAFORM_WORKSPACE"
@@ -324,8 +324,8 @@ check_ecr_repositories() {
     
     local repos=(
         "$PROJECT_NAME-$TERRAFORM_WORKSPACE/server"
-        "$PROJECT_NAME-$TERRAFORM_WORKSPACE/bots/meet"
-        "$PROJECT_NAME-$TERRAFORM_WORKSPACE/bots/teams"
+        "$PROJECT_NAME-$TERRAFORM_WORKSPACE/bots/google-meet"
+        "$PROJECT_NAME-$TERRAFORM_WORKSPACE/bots/microsoft-teams"
         "$PROJECT_NAME-$TERRAFORM_WORKSPACE/bots/zoom"
     )
     
@@ -344,10 +344,10 @@ prepare_build() {
     log_info "Installing dependencies and running typecheck..."
     
     # Install root dependencies
-    pnpm install
+    bun install
     
     # Run typecheck
-    if pnpm run typecheck; then
+    if bun run typecheck; then
         log_success "Typecheck passed"
     else
         log_error "Typecheck failed"
@@ -374,14 +374,14 @@ should_build_image() {
     return 1
 }
 
-# Build, push, and remove server image
-build_and_push_server() {
-    if ! should_build_image "server"; then
-        log_info "Skipping server image build (not in --images list)"
+# Build, push, and remove milo image
+build_and_push_milo() {
+    if ! should_build_image "milo"; then
+        log_info "Skipping milo image build (not in --images list)"
         return 0
     fi
     
-    log_info "Building server image..."
+    log_info "Building milo image..."
     
     # Build from monorepo root with proper context
     if ! docker build \
@@ -394,30 +394,30 @@ build_and_push_server() {
         --build-arg AWS_SECRET_ACCESS_KEY="dummy" \
         --build-arg AWS_BUCKET_NAME="dummy" \
         --build-arg AWS_REGION="dummy" \
-        --build-arg ECS_TASK_DEFINITION_MEET="dummy" \
-        --build-arg ECS_TASK_DEFINITION_TEAMS="dummy" \
+        --build-arg ECS_TASK_DEFINITION_GOOGLE_MEET="dummy" \
+        --build-arg ECS_TASK_DEFINITION_MICROSOFT_TEAMS="dummy" \
         --build-arg ECS_TASK_DEFINITION_ZOOM="dummy" \
         --build-arg ECS_CLUSTER_NAME="dummy" \
         --build-arg ECS_SUBNETS="dummy" \
         --build-arg ECS_SECURITY_GROUPS="dummy" \
-        -f apps/server/Dockerfile \
+        -f apps/milo/Dockerfile \
         -t "$ECR_SERVER:$TAG" \
         -t "$ECR_SERVER:latest" \
         .; then
         
-        log_error "Failed to build server image"
+        log_error "Failed to build milo image"
         exit 1
     fi
     
-    log_success "Server image built"
-    
+    log_success "Milo image built"
+
     # Push immediately after build
-    log_info "Pushing server image to ECR..."
+    log_info "Pushing milo image to ECR..."
 
     docker push "$ECR_SERVER:$TAG"
     docker push "$ECR_SERVER:latest"
 
-    log_success "Server image pushed"
+    log_success "Milo image pushed"
 }
 
 # Build, push, and remove bot images
@@ -471,8 +471,8 @@ docker_cleanup() {
             
             # Remove any images that might have been built but not pushed or removed
             docker rmi "$ECR_SERVER:$TAG" "$ECR_SERVER:latest" 2>/dev/null || true
-            docker rmi "$ECR_MEET:$TAG" "$ECR_MEET:latest" 2>/dev/null || true
-            docker rmi "$ECR_TEAMS:$TAG" "$ECR_TEAMS:latest" 2>/dev/null || true
+            docker rmi "$ECR_GOOGLE_MEET:$TAG" "$ECR_GOOGLE_MEET:latest" 2>/dev/null || true
+            docker rmi "$ECR_MICROSOFT_TEAMS:$TAG" "$ECR_MICROSOFT_TEAMS:latest" 2>/dev/null || true
             docker rmi "$ECR_ZOOM:$TAG" "$ECR_ZOOM:latest" 2>/dev/null || true
             
             # Remove intermediate/untagged images
@@ -624,7 +624,7 @@ apply_terraform() {
 
 # Main execution with guaranteed cleanup
 main() {
-    log_info "Starting Live Boost deployment process..."
+    log_info "Starting Meeboter deployment process..."
     
     # Set up cleanup trap for both success and failure
     trap 'cleanup_on_exit' EXIT
@@ -672,15 +672,15 @@ main() {
     prepare_build
     
     # Build, push, and remove images one by one to save disk space
-    build_and_push_server
+    build_and_push_milo
 
     docker_cleanup "standard"
 
-    build_and_push_bot_provider "meet" "$ECR_MEET"
+    build_and_push_bot_provider "google-meet" "$ECR_GOOGLE_MEET"
 
     docker_cleanup "standard"
 
-    build_and_push_bot_provider "teams" "$ECR_TEAMS"
+    build_and_push_bot_provider "microsoft-teams" "$ECR_MICROSOFT_TEAMS"
 
     docker_cleanup "standard"
 
@@ -697,9 +697,9 @@ main() {
     
     log_success "Deployment process completed!"
     log_info "Tagged images:"
-    log_info "- Server: $ECR_SERVER:$TAG"
-    log_info "- Meet Bot: $ECR_MEET:$TAG"
-    log_info "- Teams Bot: $ECR_TEAMS:$TAG"
+    log_info "- Milo: $ECR_SERVER:$TAG"
+    log_info "- Google Meet Bot: $ECR_GOOGLE_MEET:$TAG"
+    log_info "- Microsoft Teams Bot: $ECR_MICROSOFT_TEAMS:$TAG"
     log_info "- Zoom Bot: $ECR_ZOOM:$TAG"
 }
 
@@ -765,7 +765,7 @@ parse_args() {
 # Show help
 show_help() {
     cat <<EOF
-Live Boost Deployment Script
+Meeboter Deployment Script
 
 Usage: $0 [OPTIONS]
 
@@ -779,10 +779,10 @@ Environment Variables:
 
 Options:
   --images <list>        Comma-separated list of images to build
-                         Options: server, bots-meet, bots-teams, bots-zoom, all
-                         Examples: --images server
-                                  --images server,bots-meet
-                                  --images bots-meet,bots-teams,bots-zoom
+                         Options: milo, bots-google-meet, bots-teams, bots-zoom, all
+                         Examples: --images milo
+                                  --images milo,bots-google-meet
+                                  --images bots-google-meet,bots-teams,bots-zoom
   -w, --workspace <env>  Terraform workspace (development, staging, production)
   --skip-terraform       Skip Terraform apply step
   -h, --help             Show this help message
@@ -794,15 +794,15 @@ Examples:
   TAG=v1.0.0 $0                        # Deploy with custom tag
   SKIP_RESTART=true $0                 # Deploy without restarting services
   $0 --skip-terraform                  # Only build/push images, skip infrastructure
-  $0 --images server                   # Build and push only server image
-  $0 --images server,bots-meet         # Build and push server and meet bot images
-  $0 --workspace staging --images server # Build server image for staging
-  $0 --skip-terraform --images bots-meet # Build meet bot without Terraform
+  $0 --images milo                     # Build and push only milo image
+  $0 --images milo,bots-google-meet    # Build and push milo and meet bot images
+  $0 --workspace staging --images milo # Build milo image for staging
+  $0 --skip-terraform --images bots-google-meet # Build meet bot without Terraform
 
 Prerequisites:
   - Docker installed and running
   - AWS CLI configured with appropriate permissions
-  - pnpm package manager
+  - bun package manager
   - git repository
   - Terraform installed and configured
   - S3 bucket for Terraform state will be created automatically if needed
@@ -812,7 +812,7 @@ The script will:
   2. Validate prerequisites and AWS credentials
   3. Create S3 bucket for Terraform state if it doesn't exist
   4. Apply Terraform configuration for selected workspace
-  5. Build all Docker images (server + 3 bot providers)
+  5. Build all Docker images (milo + 3 bot providers)
   6. Push images to AWS ECR
   7. Restart ECS services to deploy latest images
   8. Clean up local Docker images

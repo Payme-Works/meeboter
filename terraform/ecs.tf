@@ -183,12 +183,12 @@ resource "aws_ecs_task_definition" "server" {
           value = aws_ecs_cluster.this.name
         },
         {
-          name  = "ECS_TASK_DEFINITION_MEET"
-          value = aws_ecs_task_definition.meet_bot.family
+          name  = "ECS_TASK_DEFINITION_GOOGLE_MEET"
+          value = aws_ecs_task_definition.google_meet_bot.family
         },
         {
-          name  = "ECS_TASK_DEFINITION_TEAMS"
-          value = aws_ecs_task_definition.teams_bot.family
+          name  = "ECS_TASK_DEFINITION_MICROSOFT_TEAMS"
+          value = aws_ecs_task_definition.microsoft_teams_bot.family
         },
         {
           name  = "ECS_TASK_DEFINITION_ZOOM"
@@ -215,8 +215,8 @@ resource "aws_ecs_task_definition" "server" {
           value = "https://${local.workspace_domain}"
         },
         {
-          name  = "BOT_AUTH_TOKEN"
-          value = var.bot_auth_token
+          name  = "MILO_AUTH_TOKEN"
+          value = var.milo_auth_token
         }
       ]
 
@@ -235,10 +235,9 @@ resource "aws_ecs_task_definition" "server" {
     environment = {
       NODE_TLS_REJECT_UNAUTHORIZED = "0"
       DATABASE_URL                 = "postgresql://${aws_db_instance.this.username}:${random_password.db_password.result}@${aws_db_instance.this.endpoint}/${aws_db_instance.this.db_name}?sslmode=no-verify"
-      SKIP_ENV_VALIDATION          = "true"
     }
 
-    command = "cd ../apps/server && pnpm i && pnpm db:migrate && echo 'Database migrations completed successfully'"
+    command = "cd ../apps/milo && bun install && bun db:migrate && echo 'Database migrations completed successfully'"
   }
 }
 
@@ -299,8 +298,8 @@ resource "aws_security_group_rule" "ecs_all_outbound" {
 }
 
 # One-off Tasks (bots)
-resource "aws_ecs_task_definition" "meet_bot" {
-  family                   = "${local.name}-meet-bot"
+resource "aws_ecs_task_definition" "google_meet_bot" {
+  family                   = "${local.name}-google-meet-bot"
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
   cpu                      = 512
@@ -311,12 +310,12 @@ resource "aws_ecs_task_definition" "meet_bot" {
   container_definitions = jsonencode([
     {
       name      = "bot"
-      image     = "${aws_ecr_repository.meet_bot.repository_url}:latest"
+      image     = "${aws_ecr_repository.google_meet_bot.repository_url}:latest"
       essential = true
       environment = [
         {
-          name  = "BACKEND_URL"
-          value = "https://${local.workspace_domain}/api/trpc"
+          name  = "MILO_URL"
+          value = "https://${local.workspace_domain}"
         },
         {
           name  = "AWS_BUCKET_NAME"
@@ -331,8 +330,8 @@ resource "aws_ecs_task_definition" "meet_bot" {
           value = "production"
         },
         {
-          name  = "BOT_AUTH_TOKEN"
-          value = var.bot_auth_token
+          name  = "MILO_AUTH_TOKEN"
+          value = var.milo_auth_token
         }
       ]
       readonlyRootFilesystem = false
@@ -342,7 +341,7 @@ resource "aws_ecs_task_definition" "meet_bot" {
         options = {
           "awslogs-group"         = aws_cloudwatch_log_group.server.name
           "awslogs-region"        = var.aws_region
-          "awslogs-stream-prefix" = "meet-bot"
+          "awslogs-stream-prefix" = "google-meet-bot"
         }
       }
     }
@@ -365,8 +364,8 @@ resource "aws_ecs_task_definition" "zoom_bot" {
       essential = true
       environment = [
         {
-          name  = "BACKEND_URL"
-          value = "https://${local.workspace_domain}/api/trpc"
+          name  = "MILO_URL"
+          value = "https://${local.workspace_domain}"
         },
         {
           name  = "AWS_BUCKET_NAME"
@@ -381,8 +380,8 @@ resource "aws_ecs_task_definition" "zoom_bot" {
           value = "production"
         },
         {
-          name  = "BOT_AUTH_TOKEN"
-          value = var.bot_auth_token
+          name  = "MILO_AUTH_TOKEN"
+          value = var.milo_auth_token
         }
       ]
       readonlyRootFilesystem = false
@@ -399,8 +398,8 @@ resource "aws_ecs_task_definition" "zoom_bot" {
   ])
 }
 
-resource "aws_ecs_task_definition" "teams_bot" {
-  family                   = "${local.name}-teams-bot"
+resource "aws_ecs_task_definition" "microsoft_teams_bot" {
+  family                   = "${local.name}-microsoft-teams-bot"
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
   cpu                      = 512
@@ -411,12 +410,12 @@ resource "aws_ecs_task_definition" "teams_bot" {
   container_definitions = jsonencode([
     {
       name      = "bot"
-      image     = "${aws_ecr_repository.teams_bot.repository_url}:latest"
+      image     = "${aws_ecr_repository.microsoft_teams_bot.repository_url}:latest"
       essential = true
       environment = [
         {
-          name  = "BACKEND_URL"
-          value = "https://${local.workspace_domain}/api/trpc"
+          name  = "MILO_URL"
+          value = "https://${local.workspace_domain}"
         },
         {
           name  = "AWS_BUCKET_NAME"
@@ -431,8 +430,8 @@ resource "aws_ecs_task_definition" "teams_bot" {
           value = "production"
         },
         {
-          name  = "BOT_AUTH_TOKEN"
-          value = var.bot_auth_token
+          name  = "MILO_AUTH_TOKEN"
+          value = var.milo_auth_token
         }
       ]
       readonlyRootFilesystem = false
@@ -442,7 +441,7 @@ resource "aws_ecs_task_definition" "teams_bot" {
         options = {
           "awslogs-group"         = aws_cloudwatch_log_group.server.name
           "awslogs-region"        = var.aws_region
-          "awslogs-stream-prefix" = "teams-bot"
+          "awslogs-stream-prefix" = "microsoft-teams-bot"
         }
       }
     }

@@ -1,15 +1,9 @@
 {
 	"permissions": {
-		"allow": [
-			"Bash(*)",
-			"Bash(*:*)",
-			"Bash(**:*)",
-			"Edit(*)",
-			"Read(*)",
-			"Write(*)",
-			"WebFetch(*)",
-			"WebSearch(*)"
-		],
+		"allow": ["Edit(*)", "Read(*)", "Write(*)"],
 		"deny": []
+	},
+	"enabledPlugins": {
+		"vercel@claude-plugins-official": true
 	}
 }

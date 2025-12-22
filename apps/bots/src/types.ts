@@ -8,9 +8,9 @@
  * @property {string} [tenantId] - Tenant or organization identifier
  * @property {string} [messageId] - Associated message identifier
  * @property {string} [threadId] - Associated thread identifier
- * @property {"zoom" | "teams" | "google"} [platform] - Meeting platform type
+ * @property {"zoom" | "microsoft-teams" | "google-meet"} [platform] - Meeting platform type
  */
-export type MeetingInfo = {
+type MeetingInfo = {
 	meetingId?: string;
 	meetingPassword?: string;
 	meetingUrl?: string;
@@ -18,7 +18,7 @@ export type MeetingInfo = {
 	tenantId?: string;
 	messageId?: string;
 	threadId?: string;
-	platform?: "zoom" | "teams" | "google";
+	platform?: "zoom" | "microsoft-teams" | "google-meet";
 };
 
 /**
@@ -29,7 +29,7 @@ export type MeetingInfo = {
  * @property {number} everyoneLeftTimeout - Timeout in milliseconds after all participants leave
  * @property {number} inactivityTimeout - Timeout in milliseconds during meeting inactivity
  */
-export type AutomaticLeave = {
+type AutomaticLeave = {
 	waitingRoomTimeout: number;
 	noOneJoinedTimeout: number;
 	everyoneLeftTimeout: number;
@@ -70,35 +70,10 @@ export type BotConfig = {
 };
 
 /**
- * Enumeration of possible bot status states throughout the meeting lifecycle
- * @enum {string}
- */
-export enum Status {
-	/** Bot is configured and ready to be deployed */
-	READY_TO_DEPLOY = "READY_TO_DEPLOY",
-	/** Bot deployment is in progress */
-	DEPLOYING = "DEPLOYING",
-	/** Bot is attempting to join the meeting call */
-	JOINING_CALL = "JOINING_CALL",
-	/** Bot is waiting in the meeting's waiting room */
-	IN_WAITING_ROOM = "IN_WAITING_ROOM",
-	/** Bot has successfully joined and is active in the call */
-	IN_CALL = "IN_CALL",
-	/** Meeting has ended but bot cleanup may still be in progress */
-	CALL_ENDED = "CALL_ENDED",
-	/** Bot has completed all tasks and is fully terminated */
-	DONE = "DONE",
-	/** Bot encountered a fatal error and cannot continue */
-	FATAL = "FATAL",
-}
-
-/**
  * Enumeration of event codes for bot lifecycle and meeting events
  * @enum {string}
  */
 export enum EventCode {
-	/** Bot is ready for deployment */
-	READY_TO_DEPLOY = "READY_TO_DEPLOY",
 	/** Bot deployment is in progress */
 	DEPLOYING = "DEPLOYING",
 	/** Bot is joining the meeting call */
@@ -119,6 +94,19 @@ export enum EventCode {
 	PARTICIPANT_LEAVE = "PARTICIPANT_LEAVE",
 	/** General log event */
 	LOG = "LOG",
+
+	/** Bot blocked: Google sign-in required to join */
+	SIGN_IN_REQUIRED = "SIGN_IN_REQUIRED",
+	/** Bot blocked: Captcha challenge detected */
+	CAPTCHA_DETECTED = "CAPTCHA_DETECTED",
+	/** Bot blocked: Meeting not found or invalid code */
+	MEETING_NOT_FOUND = "MEETING_NOT_FOUND",
+	/** Bot blocked: Meeting has ended */
+	MEETING_ENDED = "MEETING_ENDED",
+	/** Bot blocked: Permission denied to join */
+	PERMISSION_DENIED = "PERMISSION_DENIED",
+	/** Bot blocked: Generic join failure */
+	JOIN_BLOCKED = "JOIN_BLOCKED",
 }
 
 /**
@@ -135,21 +123,6 @@ export class WaitingRoomTimeoutError extends Error {
 	) {
 		super(message);
 		this.name = "WaitingRoomTimeoutError";
-	}
-}
-
-/**
- * Custom error implementation thrown when bot fails to join a meeting
- * @extends Error
- */
-export class MeetingJoinError extends Error {
-	/**
-	 * Creates a new meeting join error
-	 * @param {string} message - Error message describing the join failure
-	 */
-	constructor(message: string = "Simulated Meeting Join Error") {
-		super(message);
-		this.name = "MeetingJoinError";
 	}
 }
 

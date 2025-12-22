@@ -9,10 +9,10 @@ set -euo pipefail
 export AWS_PAGER=""
 
 # Configuration
-AWS_PROFILE=${AWS_PROFILE:-"live-boost"}
+AWS_PROFILE=${AWS_PROFILE:-"meeboter"}
 AWS_REGION=${AWS_REGION:-"us-east-2"}
-S3_BUCKET="tf-state-live-boost"
-STATE_KEY="live-boost/shared/terraform.tfstate"
+S3_BUCKET="tf-state-meeboter"
+STATE_KEY="meeboter/shared/terraform.tfstate"
 
 # Colors for output (same as deploy.sh)
 RED='\033[0;31m'

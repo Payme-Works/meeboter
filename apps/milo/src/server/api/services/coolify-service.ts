@@ -1,0 +1,923 @@
+import type * as schema from "@/server/database/schema";
+import type { ImagePullLockService } from "./image-pull-lock-service";
+
+/**
+ * Configuration for CoolifyService
+ */
+interface CoolifyConfig {
+	apiUrl: string;
+	apiToken: string;
+	projectUuid: string;
+	serverUuid: string;
+	environmentName: string;
+	destinationUuid: string;
+}
+
+/**
+ * Configuration for bot environment variables
+ */
+interface BotEnvConfig {
+	miloUrl: string;
+	miloAuthToken: string;
+	s3Endpoint: string;
+	s3AccessKey: string;
+	s3SecretKey: string;
+	s3BucketName: string;
+	s3Region: string;
+}
+
+/**
+ * Configuration for bot image selection
+ */
+interface ImageConfig {
+	ghcrOrg: string;
+}
+
+/**
+ * Bot image configuration
+ */
+interface BotImage {
+	name: string;
+	tag: string;
+}
+
+/**
+ * Deployment status result
+ */
+interface DeploymentStatusResult {
+	success: boolean;
+	status: string;
+	error?: string;
+}
+
+/**
+ * Environment variable for Coolify
+ */
+interface EnvVar {
+	key: string;
+	value: string;
+}
+
+/**
+ * Coolify API response when creating an application
+ */
+interface CoolifyCreateResponse {
+	uuid: string;
+	domains?: string[];
+}
+
+/**
+ * Custom error for Coolify deployment failures
+ */
+export class CoolifyDeploymentError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = "CoolifyDeploymentError";
+	}
+}
+
+/**
+ * Coolify application summary for listing
+ */
+interface CoolifyApplicationSummary {
+	uuid: string;
+	name: string;
+}
+
+/**
+ * Service for interacting with Coolify API
+ *
+ * Handles all Coolify operations: creating, starting, stopping,
+ * and managing Docker applications.
+ */
+export class CoolifyService {
+	constructor(
+		private readonly config: CoolifyConfig,
+		private readonly botEnvConfig: BotEnvConfig,
+		private readonly imageConfig: ImageConfig,
+		private readonly imagePullLock: ImagePullLockService,
+	) {}
+
+	/**
+	 * Selects the appropriate bot Docker image based on meeting platform
+	 */
+	selectBotImage(meetingInfo: schema.MeetingInfo): BotImage {
+		const baseImage = `ghcr.io/${this.imageConfig.ghcrOrg}/meeboter`;
+
+		switch (meetingInfo.platform?.toLowerCase()) {
+			case "google-meet":
+				return { name: `${baseImage}-google-meet-bot`, tag: "latest" };
+			case "microsoft-teams":
+				return { name: `${baseImage}-microsoft-teams-bot`, tag: "latest" };
+			case "zoom":
+				return { name: `${baseImage}-zoom-bot`, tag: "latest" };
+			default:
+				throw new CoolifyDeploymentError(
+					`Unsupported platform: ${meetingInfo.platform}`,
+				);
+		}
+	}
+
+	/**
+	 * Creates a bot application in Coolify via the API
+	 */
+	async createApplication(
+		botId: number,
+		image: BotImage,
+		botConfig: schema.BotConfig,
+		customName?: string,
+	): Promise<string> {
+		const applicationName = customName ?? `meeboter-bot-${botId}-${Date.now()}`;
+
+		const response = await fetch(
+			`${this.config.apiUrl}/applications/dockerimage`,
+			{
+				method: "POST",
+				headers: {
+					Authorization: `Bearer ${this.config.apiToken}`,
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					project_uuid: this.config.projectUuid,
+					server_uuid: this.config.serverUuid,
+					environment_name: this.config.environmentName,
+					destination_uuid: this.config.destinationUuid,
+					docker_registry_image_name: image.name,
+					docker_registry_image_tag: image.tag,
+					name: applicationName,
+					description: `Bot ${botId} for ${botConfig.meeting.platform} meeting`,
+					ports_exposes: "3000",
+					instant_deploy: false,
+					// Resource limits for bot containers (headless browser needs decent resources)
+					limits_cpus: "1",
+					limits_memory: "2048m",
+				}),
+			},
+		);
+
+		if (!response.ok) {
+			const responseText = await response.text();
+			let errorMessage = response.statusText;
+
+			try {
+				const errorData = JSON.parse(responseText) as Record<string, unknown>;
+
+				console.error("[CoolifyService] API error response:", {
+					status: response.status,
+					statusText: response.statusText,
+					body: errorData,
+				});
+
+				console.error("[CoolifyService] Request body was:", {
+					project_uuid: this.config.projectUuid,
+					server_uuid: this.config.serverUuid,
+					environment_name: this.config.environmentName,
+					destination_uuid: this.config.destinationUuid,
+					docker_registry_image_name: image.name,
+					docker_registry_image_tag: image.tag,
+					name: applicationName,
+				});
+
+				errorMessage =
+					(errorData.message as string) ||
+					JSON.stringify(errorData) ||
+					response.statusText;
+			} catch {
+				console.error("[CoolifyService] API raw response:", responseText);
+				errorMessage = responseText || response.statusText;
+			}
+
+			throw new CoolifyDeploymentError(
+				`Failed to create Coolify application: ${errorMessage}`,
+			);
+		}
+
+		const data = (await response.json()) as CoolifyCreateResponse;
+
+		console.log(
+			`[CoolifyService] Created application ${data.uuid} for bot ${botId}`,
+		);
+
+		// Set environment variables for the application
+		// POOL_SLOT_UUID allows bot container to fetch its config from API on startup
+		// MILO_URL is the API base URL for all tRPC calls
+		const envVars: EnvVar[] = [
+			{ key: "POOL_SLOT_UUID", value: data.uuid },
+			{ key: "MILO_URL", value: this.botEnvConfig.miloUrl },
+			{ key: "MILO_AUTH_TOKEN", value: this.botEnvConfig.miloAuthToken },
+			{ key: "S3_ENDPOINT", value: this.botEnvConfig.s3Endpoint },
+			{ key: "S3_ACCESS_KEY", value: this.botEnvConfig.s3AccessKey },
+			{ key: "S3_SECRET_KEY", value: this.botEnvConfig.s3SecretKey },
+			{ key: "S3_BUCKET_NAME", value: this.botEnvConfig.s3BucketName },
+			{ key: "S3_REGION", value: this.botEnvConfig.s3Region },
+			{ key: "NODE_ENV", value: "production" },
+		];
+
+		console.log(
+			`[CoolifyService] Setting env vars for ${data.uuid}: POOL_SLOT_UUID=${data.uuid}, MILO_URL=${this.botEnvConfig.miloUrl}`,
+		);
+
+		const envResponse = await fetch(
+			`${this.config.apiUrl}/applications/${data.uuid}/envs/bulk`,
+			{
+				method: "PATCH",
+				headers: {
+					Authorization: `Bearer ${this.config.apiToken}`,
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({ data: envVars }),
+			},
+		);
+
+		if (!envResponse.ok) {
+			const errorText = await envResponse.text();
+
+			console.error(
+				`[CoolifyService] Failed to set environment variables for ${data.uuid}:`,
+				errorText,
+			);
+
+			// Throw error to prevent deployment without env vars
+			throw new CoolifyDeploymentError(
+				`Failed to set environment variables: ${errorText}`,
+			);
+		}
+
+		console.log(`[CoolifyService] Successfully set env vars for ${data.uuid}`);
+
+		return data.uuid;
+	}
+
+	/**
+	 * Deploys a Coolify application
+	 *
+	 * Uses the /deploy endpoint which triggers a full deployment with tracking.
+	 * This creates a deployment record that can be polled via getLatestDeployment().
+	 *
+	 * Note: The old /applications/{uuid}/start endpoint only starts a stopped
+	 * container without creating a deployment record.
+	 */
+	async startApplication(applicationUuid: string): Promise<void> {
+		const url = `${this.config.apiUrl}/deploy?uuid=${applicationUuid}`;
+
+		console.log(`[CoolifyService] Calling deploy endpoint: ${url}`);
+
+		const response = await fetch(url, {
+			method: "GET",
+			headers: {
+				Authorization: `Bearer ${this.config.apiToken}`,
+			},
+		});
+
+		const responseBody = await response.text();
+
+		console.log(
+			`[CoolifyService] Deploy response: ${response.status} ${response.statusText}`,
+			responseBody,
+		);
+
+		if (!response.ok) {
+			throw new CoolifyDeploymentError(
+				`Failed to deploy Coolify application: ${response.statusText} - ${responseBody}`,
+			);
+		}
+	}
+
+	/**
+	 * Stops a Coolify application
+	 *
+	 * This operation is idempotent: if the application doesn't exist (404),
+	 * we treat it as success since a non-existent app is effectively stopped.
+	 */
+	async stopApplication(applicationUuid: string): Promise<void> {
+		const response = await fetch(
+			`${this.config.apiUrl}/applications/${applicationUuid}/stop`,
+			{
+				method: "GET",
+				headers: {
+					Authorization: `Bearer ${this.config.apiToken}`,
+				},
+			},
+		);
+
+		if (response.status === 404) {
+			console.log(
+				`[CoolifyService] Application ${applicationUuid} not found, treating as stopped`,
+			);
+
+			return;
+		}
+
+		if (!response.ok) {
+			throw new CoolifyDeploymentError(
+				`Failed to stop Coolify application: ${response.statusText}`,
+			);
+		}
+	}
+
+	/**
+	 * Restarts/redeploys a Coolify application
+	 *
+	 * Uses the /deploy endpoint to start the container using cached image.
+	 * This creates a new deployment record for tracking.
+	 */
+	async restartApplication(applicationUuid: string): Promise<void> {
+		const response = await fetch(
+			`${this.config.apiUrl}/deploy?uuid=${applicationUuid}`,
+			{
+				method: "GET",
+				headers: {
+					Authorization: `Bearer ${this.config.apiToken}`,
+				},
+			},
+		);
+
+		if (!response.ok) {
+			const errorBody = await response.text();
+
+			throw new CoolifyDeploymentError(
+				`Failed to redeploy Coolify application: ${response.statusText} - ${errorBody}`,
+			);
+		}
+
+		console.log(`[CoolifyService] Redeployed application: ${applicationUuid}`);
+	}
+
+	/**
+	 * Deletes a Coolify application
+	 *
+	 * This operation is idempotent: if the application doesn't exist (404),
+	 * we treat it as a successful deletion since the desired state is achieved.
+	 */
+	async deleteApplication(applicationUuid: string): Promise<void> {
+		const response = await fetch(
+			`${this.config.apiUrl}/applications/${applicationUuid}?delete_configurations=true&delete_volumes=true&docker_cleanup=true`,
+			{
+				method: "DELETE",
+				headers: {
+					Authorization: `Bearer ${this.config.apiToken}`,
+				},
+			},
+		);
+
+		if (response.status === 404) {
+			console.log(
+				`[CoolifyService] Application ${applicationUuid} already deleted or not found`,
+			);
+
+			return;
+		}
+
+		if (!response.ok) {
+			throw new CoolifyDeploymentError(
+				`Failed to delete Coolify application: ${response.statusText}`,
+			);
+		}
+
+		console.log(`[CoolifyService] Deleted application: ${applicationUuid}`);
+	}
+
+	/**
+	 * Checks if a Coolify application exists
+	 */
+	async applicationExists(applicationUuid: string): Promise<boolean> {
+		const response = await fetch(
+			`${this.config.apiUrl}/applications/${applicationUuid}`,
+			{
+				method: "GET",
+				headers: {
+					Authorization: `Bearer ${this.config.apiToken}`,
+				},
+			},
+		);
+
+		return response.ok;
+	}
+
+	/**
+	 * Lists all pool applications from Coolify
+	 *
+	 * Fetches all applications and filters by "pool-" prefix
+	 * to identify pool slot applications.
+	 */
+	async listPoolApplications(): Promise<CoolifyApplicationSummary[]> {
+		const response = await fetch(`${this.config.apiUrl}/applications`, {
+			method: "GET",
+			headers: {
+				Authorization: `Bearer ${this.config.apiToken}`,
+			},
+		});
+
+		if (!response.ok) {
+			console.error(
+				`[CoolifyService] Failed to list applications: ${response.status} ${response.statusText}`,
+			);
+
+			return [];
+		}
+
+		const data = (await response.json()) as Array<{
+			uuid: string;
+			name: string;
+		}>;
+
+		// Filter to only pool applications (prefixed with "pool-")
+		return data
+			.filter((app) => app.name.startsWith("pool-"))
+			.map((app) => ({ uuid: app.uuid, name: app.name }));
+	}
+
+	/**
+	 * Gets the status of a Coolify application (container status)
+	 */
+	async getApplicationStatus(applicationUuid: string): Promise<string> {
+		const response = await fetch(
+			`${this.config.apiUrl}/applications/${applicationUuid}`,
+			{
+				method: "GET",
+				headers: {
+					Authorization: `Bearer ${this.config.apiToken}`,
+				},
+			},
+		);
+
+		if (!response.ok) {
+			throw new CoolifyDeploymentError(
+				`Failed to get Coolify application status: ${response.statusText}`,
+			);
+		}
+
+		const data = (await response.json()) as { status: string };
+
+		return data.status;
+	}
+
+	/**
+	 * Gets the latest deployment for a Coolify application
+	 *
+	 * Returns the most recent deployment with its status:
+	 * - queued: waiting in queue
+	 * - in_progress: currently deploying
+	 * - finished: completed successfully
+	 * - failed: deployment failed
+	 */
+	async getLatestDeployment(
+		applicationUuid: string,
+	): Promise<{ status: string; uuid: string; createdAt: Date | null } | null> {
+		// Correct endpoint per Coolify API docs: /deployments/applications/{uuid}
+		// NOT /applications/{uuid}/deployments
+		const url = `${this.config.apiUrl}/deployments/applications/${applicationUuid}?take=1`;
+
+		const response = await fetch(url, {
+			method: "GET",
+			headers: {
+				Authorization: `Bearer ${this.config.apiToken}`,
+			},
+		});
+
+		if (!response.ok) {
+			const errorBody = await response.text();
+
+			console.error(
+				`[CoolifyService] Failed to get deployments for ${applicationUuid}: ${response.status} ${response.statusText}`,
+				errorBody,
+			);
+
+			return null;
+		}
+
+		// API returns { count: number, deployments: [...] }
+		const data = (await response.json()) as {
+			count: number;
+			deployments: Array<{
+				status: string;
+				deployment_uuid: string;
+				created_at?: string;
+			}>;
+		};
+
+		const deployment = data.deployments?.[0];
+
+		if (!deployment) {
+			return null;
+		}
+
+		return {
+			status: deployment.status,
+			uuid: deployment.deployment_uuid,
+			createdAt: deployment.created_at ? new Date(deployment.created_at) : null,
+		};
+	}
+
+	/**
+	 * Updates the description of a Coolify application
+	 */
+	async updateDescription(
+		applicationUuid: string,
+		description: string,
+	): Promise<void> {
+		try {
+			const response = await fetch(
+				`${this.config.apiUrl}/applications/${applicationUuid}`,
+				{
+					method: "PATCH",
+					headers: {
+						Authorization: `Bearer ${this.config.apiToken}`,
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify({ description }),
+				},
+			);
+
+			if (!response.ok) {
+				console.error(
+					`[CoolifyService] Failed to update description for ${applicationUuid}:`,
+					await response.text(),
+				);
+			}
+		} catch (error) {
+			console.error("[CoolifyService] Error updating description:", error);
+		}
+	}
+
+	/**
+	 * Updates resource limits for a Coolify application
+	 *
+	 * This ensures existing pool slots have consistent resource limits
+	 * when being reused for new bot deployments.
+	 */
+	async updateResourceLimits(
+		applicationUuid: string,
+		limits: { cpus?: string; memory?: string } = {},
+	): Promise<void> {
+		const { cpus = "1", memory = "2048m" } = limits;
+
+		try {
+			const response = await fetch(
+				`${this.config.apiUrl}/applications/${applicationUuid}`,
+				{
+					method: "PATCH",
+					headers: {
+						Authorization: `Bearer ${this.config.apiToken}`,
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify({
+						limits_cpus: cpus,
+						limits_memory: memory,
+					}),
+				},
+			);
+
+			if (!response.ok) {
+				const errorText = await response.text();
+
+				console.error(
+					`[CoolifyService] Failed to update resource limits for ${applicationUuid}:`,
+					errorText,
+				);
+			} else {
+				console.log(
+					`[CoolifyService] Updated resource limits for ${applicationUuid}: cpus=${cpus}, memory=${memory}`,
+				);
+			}
+		} catch (error) {
+			console.error("[CoolifyService] Error updating resource limits:", error);
+		}
+	}
+
+	/**
+	 * Waits for a Coolify application deployment to complete
+	 *
+	 * Polls the Coolify deployment API to check deployment status:
+	 * - queued: waiting in deployment queue, continue polling
+	 * - in_progress: deployment is running, continue polling
+	 * - finished: deployment completed successfully
+	 * - failed: deployment failed (image pull error, config issue, etc.)
+	 * - cancelled-by-user: deployment was cancelled via Coolify UI
+	 *
+	 * This approach uses Coolify's deployment status as the source of truth,
+	 * rather than checking container status which can be unreliable during
+	 * deployment transitions.
+	 */
+	async waitForDeployment(
+		applicationUuid: string,
+		timeoutMs: number = 30 * 60 * 1000,
+		pollIntervalMs: number = 5 * 1000,
+	): Promise<DeploymentStatusResult> {
+		const startTime = Date.now();
+		let currentInterval = pollIntervalMs;
+		let consecutiveErrors = 0;
+		const maxBackoffMs = 30 * 1000; // Max 30 seconds between polls
+
+		while (Date.now() - startTime < timeoutMs) {
+			try {
+				const elapsedMs = Date.now() - startTime;
+				const deployment = await this.getLatestDeployment(applicationUuid);
+
+				// Reset backoff on successful API call
+				consecutiveErrors = 0;
+				currentInterval = pollIntervalMs;
+
+				if (!deployment) {
+					// Fallback: check container status directly
+					// If container is running/healthy, consider deployment successful
+					const containerStatus =
+						await this.getApplicationStatus(applicationUuid);
+
+					const normalizedStatus = containerStatus.toLowerCase();
+
+					console.log(
+						`[CoolifyService] No deployment record for ${applicationUuid}, container status: ${containerStatus} (elapsed: ${Math.round(elapsedMs / 1000)}s)`,
+					);
+
+					if (
+						normalizedStatus === "running" ||
+						normalizedStatus === "healthy" ||
+						normalizedStatus.startsWith("running:")
+					) {
+						console.log(
+							`[CoolifyService] Container ${applicationUuid} is ${containerStatus}, treating as successful deployment`,
+						);
+
+						return {
+							success: true,
+							status: containerStatus,
+						};
+					}
+
+					// Container not ready yet, continue waiting with jitter
+					await this.sleepWithJitter(currentInterval);
+
+					continue;
+				}
+
+				const deploymentStatus = deployment.status.toLowerCase();
+
+				console.log(
+					`[CoolifyService] Application ${applicationUuid} deployment: ${deployment.status} (elapsed: ${Math.round(elapsedMs / 1000)}s)`,
+				);
+
+				// Deployment completed successfully
+				if (deploymentStatus === "finished") {
+					return {
+						success: true,
+						status: deployment.status,
+					};
+				}
+
+				// Deployment failed (image pull error, config issue, container crash, etc.)
+				if (deploymentStatus === "failed") {
+					return {
+						success: false,
+						status: deployment.status,
+						error: `Coolify deployment failed (deployment UUID: ${deployment.uuid})`,
+					};
+				}
+
+				// Deployment was cancelled by user via Coolify UI
+				if (deploymentStatus === "cancelled-by-user") {
+					return {
+						success: false,
+						status: deployment.status,
+						error: `Coolify deployment cancelled by user (deployment UUID: ${deployment.uuid})`,
+					};
+				}
+
+				// Deployment still in progress (queued or in_progress), continue polling with jitter
+				await this.sleepWithJitter(currentInterval);
+			} catch (error) {
+				consecutiveErrors++;
+
+				// Detect rate limiting (429) and back off more aggressively
+				const isRateLimited =
+					error instanceof Error && error.message.includes("Too Many Requests");
+
+				if (isRateLimited) {
+					// Exponential backoff: 10s, 20s, 30s (capped)
+					currentInterval = Math.min(
+						10 * 1000 * 2 ** (consecutiveErrors - 1),
+						maxBackoffMs,
+					);
+
+					console.warn(
+						`[CoolifyService] Rate limited by Coolify API, backing off for ${currentInterval / 1000}s (attempt ${consecutiveErrors})`,
+					);
+				} else {
+					// Regular error: linear backoff
+					currentInterval = Math.min(
+						pollIntervalMs * (consecutiveErrors + 1),
+						maxBackoffMs,
+					);
+
+					console.error(
+						"[CoolifyService] Error polling deployment status:",
+						error,
+					);
+				}
+
+				await this.sleepWithJitter(currentInterval);
+			}
+		}
+
+		return {
+			success: false,
+			status: "timeout",
+			error: `Deployment timed out after ${timeoutMs / 1000} seconds`,
+		};
+	}
+
+	/**
+	 * Sleep with random jitter to prevent thundering herd
+	 * Adds ±20% random variation to the interval
+	 */
+	private sleepWithJitter(baseMs: number): Promise<void> {
+		const jitter = baseMs * 0.2 * (Math.random() * 2 - 1); // ±20%
+		const actualMs = Math.max(1000, baseMs + jitter); // Minimum 1 second
+
+		return new Promise((resolve) => setTimeout(resolve, actualMs));
+	}
+
+	/**
+	 * Starts an application with image pull lock coordination and retry logic.
+	 *
+	 * This method coordinates Docker image pulls across multiple deployments:
+	 * - First deployer acquires lock, pulls image, retries until success
+	 * - Subsequent deployers wait for lock, then use cached image
+	 *
+	 * @param applicationUuid - The Coolify application UUID
+	 * @param platform - Platform name for lock key (e.g., "google-meet")
+	 * @param imageTag - Docker image tag for lock key
+	 * @param maxRetries - Maximum retry attempts (default: 3)
+	 * @returns Promise that resolves when deployment succeeds
+	 */
+	async startWithLockAndRetry(
+		applicationUuid: string,
+		platform: string,
+		imageTag: string,
+		maxRetries: number = 3,
+	): Promise<DeploymentStatusResult> {
+		// Acquire lock (serializes deployments per platform/image)
+		const { release: releaseLock, didWait } =
+			await this.imagePullLock.acquireLock(platform, imageTag);
+
+		try {
+			// Start deployment
+			console.log(
+				`[CoolifyService] Starting application ${applicationUuid} (didWait: ${didWait})`,
+			);
+
+			await this.startApplication(applicationUuid);
+
+			// Wait for deployment with retries
+			let attempt = 0;
+			let lastError: string | undefined;
+
+			while (attempt <= maxRetries) {
+				attempt++;
+
+				console.log(
+					`[CoolifyService] Waiting for deployment ${applicationUuid} (attempt ${attempt}/${maxRetries + 1})...`,
+				);
+
+				const result = await this.waitForDeployment(applicationUuid);
+
+				if (result.success) {
+					console.log(
+						`[CoolifyService] Deployment succeeded for ${applicationUuid}`,
+					);
+
+					return result;
+				}
+
+				lastError = result.error ?? "Deployment failed";
+
+				if (attempt <= maxRetries) {
+					console.log(
+						`[CoolifyService] Deployment failed for ${applicationUuid}, retrying (${attempt}/${maxRetries})... Error: ${lastError}`,
+					);
+
+					// Wait before retry with exponential backoff
+					const backoffMs = Math.min(1000 * 2 ** attempt, 30000);
+					await new Promise((resolve) => setTimeout(resolve, backoffMs));
+
+					// Trigger a new deployment
+					await this.startApplication(applicationUuid);
+				}
+			}
+
+			// All retries exhausted
+			console.error(
+				`[CoolifyService] Deployment failed for ${applicationUuid} after ${attempt} attempts: ${lastError}`,
+			);
+
+			return {
+				success: false,
+				status: "failed",
+				error: `Deployment failed after ${attempt} attempts: ${lastError}`,
+			};
+		} finally {
+			releaseLock();
+
+			console.log(
+				`[CoolifyService] Released image pull lock for ${platform}:${imageTag}`,
+			);
+		}
+	}
+
+	/**
+	 * Deploys a bot with retry logic
+	 */
+	async deployWithRetry(
+		botId: number,
+		image: BotImage,
+		botConfig: schema.BotConfig,
+		maxRetries: number = 3,
+	): Promise<string> {
+		let applicationUuid: string | null = null;
+		let lastError: string | null = null;
+
+		for (let attempt = 1; attempt <= maxRetries; attempt++) {
+			console.log(
+				`[CoolifyService] Deployment attempt ${attempt}/${maxRetries} for bot ${botId}`,
+			);
+
+			try {
+				if (!applicationUuid) {
+					applicationUuid = await this.createApplication(
+						botId,
+						image,
+						botConfig,
+					);
+
+					console.log(
+						`[CoolifyService] Created application ${applicationUuid} for bot ${botId}`,
+					);
+				} else {
+					console.log(
+						`[CoolifyService] Restarting application ${applicationUuid} (retry ${attempt})`,
+					);
+
+					await this.restartApplication(applicationUuid);
+				}
+
+				const result = await this.waitForDeployment(applicationUuid);
+
+				if (result.success) {
+					console.log(
+						`[CoolifyService] Bot ${botId} deployed successfully on attempt ${attempt}`,
+					);
+
+					return applicationUuid;
+				}
+
+				lastError =
+					result.error ?? `Deployment failed with status: ${result.status}`;
+
+				console.warn(
+					`[CoolifyService] Deployment attempt ${attempt} failed: ${lastError}`,
+				);
+
+				if (attempt < maxRetries) {
+					const backoffMs = Math.min(1000 * 2 ** attempt, 30000);
+
+					console.log(
+						`[CoolifyService] Waiting ${backoffMs}ms before retry...`,
+					);
+
+					await new Promise((resolve) => setTimeout(resolve, backoffMs));
+				}
+			} catch (error) {
+				lastError = error instanceof Error ? error.message : "Unknown error";
+
+				console.error(
+					`[CoolifyService] Deployment attempt ${attempt} error:`,
+					error,
+				);
+
+				if (attempt < maxRetries) {
+					const backoffMs = Math.min(1000 * 2 ** attempt, 30000);
+					await new Promise((resolve) => setTimeout(resolve, backoffMs));
+				}
+			}
+		}
+
+		if (applicationUuid) {
+			console.log(
+				`[CoolifyService] All ${maxRetries} deployment attempts failed. Cleaning up application ${applicationUuid}`,
+			);
+
+			try {
+				await this.deleteApplication(applicationUuid);
+			} catch (cleanupError) {
+				console.error(
+					"[CoolifyService] Failed to cleanup application:",
+					cleanupError,
+				);
+			}
+		}
+
+		throw new CoolifyDeploymentError(
+			`Bot deployment failed after ${maxRetries} attempts: ${lastError}`,
+		);
+	}
+}

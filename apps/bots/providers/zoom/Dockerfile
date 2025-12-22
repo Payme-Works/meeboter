@@ -1,48 +1,9 @@
-# Base
+# Optimized Zoom Bot Dockerfile - Bun + Alpine + Chromium
+FROM oven/bun:alpine AS base
 
-FROM node:20-alpine
+WORKDIR /app
 
-RUN echo "Use Node.js 20 Alpine as the base stage"
-
-RUN echo "Create a non-root user"
-
-RUN addgroup -g 1001 -S pptruser \
-    && adduser -S pptruser -u 1001
-
-RUN echo "Set working directory"
-
-WORKDIR /home/pptruser/
-
-RUN echo "Copy workspace configuration and files"
-
-COPY ./pnpm-workspace.yaml ./
-COPY ./turbo.json ./
-COPY ./package.json ./
-COPY ./pnpm-lock.yaml ./
-
-RUN echo "Ensure we're building from monorepo root"
-
-RUN test -f pnpm-workspace.yaml || (echo "ERROR: Must build from monorepo root directory" && exit 1)
-
-RUN echo "Copy node_modules if they exist"
-
-COPY ./node_modules* /app/node_modules
-
-RUN echo "Copy bots and packages"
-
-COPY ./apps/bots/ ./apps/bots/
-COPY ./packages/ ./packages/
-
-RUN echo "Configure default locale (important for chrome-headless-shell)"
-
-ENV LANG=en_US.UTF-8
-
-RUN echo "Get meeting platform this file is built for"
-
-ENV DOCKER_MEETING_PLATFORM=zoom
-
-RUN echo "Install system dependencies required for Chrome/Puppeteer"
-
+# Install system dependencies in single layer
 RUN apk add --no-cache \
     chromium \
     nss \
@@ -51,37 +12,57 @@ RUN apk add --no-cache \
     harfbuzz \
     ca-certificates \
     ttf-freefont \
+    bash \
     && rm -rf /var/cache/apk/*
 
-RUN echo "Tell Puppeteer to skip installing Chrome. We'll be using the installed package"
+# Copy workspace files (milo needed for type resolution during install)
+COPY package.json turbo.json bun.lock ./
+COPY apps/bots/ ./apps/bots/
+COPY apps/milo/package.json ./apps/milo/package.json
+COPY apps/milo/src/ ./apps/milo/src/
+COPY packages/ ./packages/
 
+# Install dependencies
+ENV PUPPETEER_SKIP_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+ENV LANG=en_US.UTF-8
 
-RUN echo "Install npm and pnpm"
+# --ignore-scripts: skip milo's postinstall (tsup build not needed, only types)
+RUN bun install --production --ignore-scripts
 
-RUN npm install -g npm@latest
-RUN npm install -g pnpm@latest
+# Runtime stage
+FROM oven/bun:alpine AS runtime
 
-RUN echo "Convert entrypoint.sh to use Unix line endings"
+ENV DOCKER_MEETING_PLATFORM=zoom
+ENV PUPPETEER_SKIP_DOWNLOAD=true
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+ENV LANG=en_US.UTF-8
 
+WORKDIR /home/pptruser
+
+# Install runtime deps + create user in single layer
+RUN apk add --no-cache \
+    chromium \
+    nss \
+    freetype \
+    harfbuzz \
+    ca-certificates \
+    ttf-freefont \
+    bash \
+    && rm -rf /var/cache/apk/* \
+    && addgroup -g 1001 -S pptruser \
+    && adduser -S pptruser -u 1001
+
+# Copy from build stage
+COPY --from=base --chown=pptruser:pptruser /app/node_modules ./node_modules
+COPY --from=base --chown=pptruser:pptruser /app/apps/bots ./apps/bots
+COPY --from=base --chown=pptruser:pptruser /app/packages ./packages
+
+# Convert entrypoint to Unix line endings
 RUN sed -i 's/\r$//' ./apps/bots/providers/zoom/entrypoint.sh
-
-RUN echo "Install dependencies as root with workspace context"
-
-RUN pnpm install --frozen-lockfile
-
-RUN echo "Change ownership of all files after installation"
-
-RUN chown -R pptruser:pptruser /home/pptruser
-
-RUN echo "Switch to pptruser for running the application"
 
 USER pptruser
 
-RUN echo "Make entrypoint executable"
-
 RUN chmod +x ./apps/bots/providers/zoom/entrypoint.sh
 
-RUN echo "Command to run the application"
-
-CMD ["/apps/bots/providers/zoom/entrypoint.sh"]
+CMD ["./apps/bots/providers/zoom/entrypoint.sh"]

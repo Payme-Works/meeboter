@@ -12,7 +12,7 @@ Each bot is responsible for executing the following key tasks:
 - **Uploading the Recording**: Transferring the recorded content to a designated storage location upon completion.
 - **Notifying the Backend**: Sending updates to the backend system to reflect the recording status and other relevant details.
 
-These bots are integral to the Live Boost application, ensuring seamless and automated meeting recording functionality across supported platforms.
+These bots are integral to the Meeboter application, ensuring seamless and automated meeting recording functionality across supported platforms.
 
 ## File Structure
 
@@ -20,9 +20,8 @@ These bots are integral to the Live Boost application, ensuring seamless and aut
 src/bots/
 ├── .env.example            # Example environment template file
 ├── package.json            # Global dependencies
-├── pnpm-workspace.yaml     # Specifies sub-workspaces
+├── package.json            # Workspace configuration
 ├── tsconfig.json           # Global ts configurations
-├── jest.config.js          # Jest configuration for tests
 
 ├── src/
 │   ├── index.ts          ! # Main script -- You'll want to look here first!!
@@ -30,41 +29,59 @@ src/bots/
 │   ├── monitoring.ts       # Monitoring methods used by main script
 │   ├── trpc.ts             # trpc client
 
-├── team|zoom|meet/
+├── microsoft-teams|zoom|google-meet/
 │   ├── Dockerfile          # Bot-specific docker file
 │   ├── package.json        # Bot-specific dependencies
-│   ├── pnpm-lock.yaml
+│   ├── bun.lock
 │   ├── tsconfig.json       # Bot-specific ts configurations
 │   ├── src/
 │   │   ├── bot.ts          # Platform-specific bot class
-
-├── __mocks__/              # Mock implementations for classes
-├── tests/                  # Jest test files
 ```
 
 ## Environment
 
 Refer to the `.env.example` file for the required environment variables. Duplicate this file and rename it to `.env`. This `.env` file will be utilized by the application during execution.
 
-### Using `env-bot-data-example.ts`
+### How Configuration Works
 
-`env-bot-data-example.ts` is a script used to create the `BOT_DATA` environment variable for the bot when testing locally. This is a visually easier way to fill in the values than doing it manually. Create a duplicate of this file to
+Bots fetch their configuration dynamically from the Milo API using `POOL_SLOT_UUID`. This pattern avoids issues with stale environment variables in containerized deployments.
 
-1. Copy the script into `env-bot-data.ts` (this will be ignored by git)
-2. Fill in the `<...>` with the actual values
-3. Ensure the `.env` file is in this directory with _no_ `BOT_DATA` variable
-4. Run the script using the following command (this will modify your `.env` file)
+**Startup flow:**
+1. Bot container starts with `POOL_SLOT_UUID` and `MILO_URL` environment variables
+2. Bot calls `getPoolSlot` API endpoint to fetch configuration (meeting details, timeouts, recording settings)
+3. Bot uses `MILO_URL` env var for all tRPC API calls
+
+This ensures:
+- No stale configuration from cached container builds
+- Dynamic configuration without container rebuilds
+- Consistent behavior across Coolify, AWS ECS, and local development
+
+### Required Environment Variables
 
 ```bash
-cd src/bots
-pnpm tsx env-bot-data.ts
+# Pool slot identifier (used to fetch bot config from API)
+POOL_SLOT_UUID="your-pool-slot-uuid"
+
+# Milo API URL for all tRPC calls
+MILO_URL="https://meeboter.yourdomain.com"
+
+# Authentication token for API calls
+MILO_AUTH_TOKEN="your-auth-token"
+
+# S3-compatible storage
+S3_ENDPOINT="https://s3.amazonaws.com"
+S3_ACCESS_KEY="your-access-key"
+S3_SECRET_KEY="your-secret-key"
+S3_BUCKET_NAME="your-bucket"
+S3_REGION="us-east-1"
+
+# Runtime
+NODE_ENV="production"
 ```
 
-### Environment Setup
+### Meeting Info Structure
 
-See `.env.example` for an understanding of the file structure. Look at `env-bot-data-example.ts` for the structure of the variable `BOT_DATA`.
-
-The `meeting_info` object in the `.env` file is used to store the meeting information for the bot to join the meeting. However, this information is platform dependant- Each platform requires the use of different keys in the `meeting_info` object.
+The `meeting_info` object is stored in the bot configuration (fetched from API) and contains platform-specific meeting information.
 
 ### Zoom
 
@@ -83,7 +100,7 @@ The `meeting_info` object in the `.env` file is used to store the meeting inform
 ```json
 {
   "meeting_info": {
-    "platform": "google",
+    "platform": "google-meet",
     "meetingUrl": "<MEETING_LINK>"
   }
 }
@@ -96,7 +113,7 @@ Where Meeting Link is the full URL to the meeting.
 ```json
 {
   "meeting_info": {
-    "platform": "teams",
+    "platform": "microsoft-teams",
     "meetingId": "<MEETING_ID>",
     "organizerId": "<ORGANIZER_ID>",
     "tenantId": "<TENANT_ID>"
@@ -109,14 +126,14 @@ Where Meeting Link is the full URL to the meeting.
 The following code is used to run the bots locally in your own environment. Bot code should work as intended on your environment, but we make no guarentees about this. Instead, you should aim to test and develop your code in the docker environment.
 
 ```bash
-cd src/bots
-pnpm install
-pnpm run dev
+cd apps/bots
+bun install
+bun run dev
 ```
 
 ## Building
 
-This section provides instructions for building the Docker images required for the Live Boost application.
+This section provides instructions for building the Docker images required for the Meeboter application.
 The code below outlines the necessary steps and configurations to create containerized environments
 for deploying the bot services.
 
@@ -124,9 +141,9 @@ Ensure that [Docker](https://www.docker.com/) is installed and properly configur
 
 ```bash
 cd src/bots
-docker build -f meet/Dockerfile -t meet .
-docker build -f teams/Dockerfile -t teams .
-docker build -f zoom/Dockerfile -t zoom .
+docker build -f providers/google-meet/Dockerfile -t meeboter-google-meet-bot .
+docker build -f providers/microsoft-teams/Dockerfile -t meeboter-microsoft-teams-bot .
+docker build -f providers/zoom/Dockerfile -t meeboter-zoom-bot .
 ```
 
 The above commands will build the three docker images of the bots.
@@ -134,19 +151,19 @@ The above commands will build the three docker images of the bots.
 # Running
 
 To run your docker file, ensure you have created your `.env` file as described in an earlier section.
-Ensure that the `.env` file and docker image you are running are configured for the same platform (either `meet | teams | zoom`).
+Ensure that the `.env` file and docker image you are running are configured for the same platform (either `google-meet | microsoft-teams | zoom`).
 
 ```bash
 docker run --env-file .env <PLATFORM>
 ```
 
-Where `<PLATFORM>` is one of either `meet | teams | zoom`.
+Where `<PLATFORM>` is one of either `meeboter-google-meet-bot | meeboter-microsoft-teams-bot | meeboter-zoom-bot`.
 
 ### Build Issues
 
 If you get an strange erorr while running (eg. Browser not found at file specified), upgrade puppeteer to the latest version in the specific platform's `node_modules` folder.
 
 ```bash
-cd zoom
-pnpm install puppeteer@latest
+cd apps/bots/providers/zoom
+bun install puppeteer@latest
 ```

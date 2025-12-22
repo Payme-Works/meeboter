@@ -1,0 +1,240 @@
+name: Release Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - bare-metal
+  workflow_dispatch:
+    inputs:
+      release_milo:
+        description: 'Release milo image'
+        required: false
+        default: true
+        type: boolean
+      release_google_meet_bot:
+        description: 'Release google-meet-bot image'
+        required: false
+        default: true
+        type: boolean
+      release_microsoft_teams_bot:
+        description: 'Release microsoft-teams-bot image'
+        required: false
+        default: true
+        type: boolean
+      release_zoom_bot:
+        description: 'Release zoom-bot image'
+        required: false
+        default: true
+        type: boolean
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository_owner }}/meeboter
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - name: milo
+            dockerfile: apps/milo/Dockerfile
+            input_check: release_milo
+          - name: google-meet-bot
+            dockerfile: apps/bots/providers/google-meet/Dockerfile
+            input_check: release_google_meet_bot
+          - name: microsoft-teams-bot
+            dockerfile: apps/bots/providers/microsoft-teams/Dockerfile
+            input_check: release_microsoft_teams_bot
+          - name: zoom-bot
+            dockerfile: apps/bots/providers/zoom/Dockerfile
+            input_check: release_zoom_bot
+
+    steps:
+      - name: Check if should release
+        id: should_release
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_VALUE: ${{ github.event.inputs[matrix.input_check] }}
+        run: |
+          if [ "$EVENT_NAME" == "workflow_dispatch" ]; then
+            echo "release=$INPUT_VALUE" >> $GITHUB_OUTPUT
+          else
+            echo "release=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout repository
+        if: steps.should_release.outputs.release == 'true'
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        if: steps.should_release.outputs.release == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        if: steps.should_release.outputs.release == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels)
+        if: steps.should_release.outputs.release == 'true'
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-${{ matrix.name }}
+          tags: |
+            type=sha,prefix=
+            type=raw,value=latest
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
+      - name: Build and push Docker image
+        if: steps.should_release.outputs.release == 'true'
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+
+      - name: Generate build summary
+        if: steps.should_release.outputs.release == 'true'
+        env:
+          IMAGE_NAME: ${{ matrix.name }}
+          REGISTRY: ghcr.io
+          IMAGE_PREFIX: ${{ github.repository_owner }}/meeboter
+          COMMIT_SHA: ${{ github.sha }}
+          BRANCH: ${{ github.ref_name }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          # Determine description based on image type
+          case "$IMAGE_NAME" in
+            "milo") DESC="Core API Server" ;;
+            "google-meet-bot") DESC="Google Meet Bot" ;;
+            "microsoft-teams-bot") DESC="Microsoft Teams Bot" ;;
+            "zoom-bot") DESC="Zoom Bot" ;;
+            *) DESC="Container" ;;
+          esac
+
+          SHORT_SHA="${COMMIT_SHA:0:7}"
+
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          ### \`$IMAGE_NAME\` — $DESC
+
+          | Property | Value |
+          |:---------|:------|
+          | **Image** | \`$REGISTRY/$IMAGE_PREFIX-$IMAGE_NAME\` |
+          | **Tags** | \`$SHORT_SHA\` \`latest\` \`$BRANCH\` |
+          | **Digest** | \`${DIGEST:0:20}...\` |
+
+          <details>
+          <summary>Docker Pull Commands</summary>
+
+          \`\`\`bash
+          # Pull by commit SHA (recommended for production)
+          docker pull $REGISTRY/$IMAGE_PREFIX-$IMAGE_NAME:$SHORT_SHA
+
+          # Pull latest
+          docker pull $REGISTRY/$IMAGE_PREFIX-$IMAGE_NAME:latest
+
+          # Pull by branch
+          docker pull $REGISTRY/$IMAGE_PREFIX-$IMAGE_NAME:$BRANCH
+          \`\`\`
+
+          </details>
+
+          ---
+
+          EOF
+
+  release-summary:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/bare-metal'
+
+    steps:
+      - name: Generate release summary
+        env:
+          REGISTRY: ghcr.io
+          IMAGE_PREFIX: ${{ github.repository_owner }}/meeboter
+          COMMIT_SHA: ${{ github.sha }}
+          BRANCH: ${{ github.ref_name }}
+          ACTOR: ${{ github.actor }}
+          RUN_ID: ${{ github.run_id }}
+          REPO: ${{ github.repository }}
+        run: |
+          SHORT_SHA="${COMMIT_SHA:0:7}"
+          TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          # Meeboter Release
+
+          > **Meeting Engagement API** — Transform meetings from passive recordings into interactive experiences
+
+          ---
+
+          ## Release Overview
+
+          | | |
+          |:--|:--|
+          | **Branch** | \`$BRANCH\` |
+          | **Commit** | [\`$SHORT_SHA\`](https://github.com/$REPO/commit/$COMMIT_SHA) |
+          | **Triggered by** | @$ACTOR |
+          | **Timestamp** | $TIMESTAMP |
+
+          ---
+
+          ## Published Images
+
+          | Component | Image | Pull Command |
+          |:----------|:------|:-------------|
+          | **Milo** | \`$REGISTRY/$IMAGE_PREFIX-milo\` | \`docker pull $REGISTRY/$IMAGE_PREFIX-milo:$SHORT_SHA\` |
+          | **Google Meet Bot** | \`$REGISTRY/$IMAGE_PREFIX-google-meet-bot\` | \`docker pull $REGISTRY/$IMAGE_PREFIX-google-meet-bot:$SHORT_SHA\` |
+          | **Microsoft Teams Bot** | \`$REGISTRY/$IMAGE_PREFIX-microsoft-teams-bot\` | \`docker pull $REGISTRY/$IMAGE_PREFIX-microsoft-teams-bot:$SHORT_SHA\` |
+          | **Zoom Bot** | \`$REGISTRY/$IMAGE_PREFIX-zoom-bot\` | \`docker pull $REGISTRY/$IMAGE_PREFIX-zoom-bot:$SHORT_SHA\` |
+
+          ---
+
+          ## Quick Links
+
+          | Resource | Link |
+          |:---------|:-----|
+          | Documentation | [View Docs](https://github.com/$REPO#readme) |
+          | Container Registry | [GHCR Packages](https://github.com/orgs/${{ github.repository_owner }}/packages?repo_name=meeboter) |
+          | Workflow Run | [View Details](https://github.com/$REPO/actions/runs/$RUN_ID) |
+
+          ---
+
+          <details>
+          <summary>Environment Configuration</summary>
+
+          \`\`\`bash
+          # Set these environment variables for your deployment
+          export MILO_IMAGE="$REGISTRY/$IMAGE_PREFIX-milo:$SHORT_SHA"
+          export GOOGLE_MEET_BOT_IMAGE="$REGISTRY/$IMAGE_PREFIX-google-meet-bot:$SHORT_SHA"
+          export MICROSOFT_TEAMS_BOT_IMAGE="$REGISTRY/$IMAGE_PREFIX-microsoft-teams-bot:$SHORT_SHA"
+          export ZOOM_BOT_IMAGE="$REGISTRY/$IMAGE_PREFIX-zoom-bot:$SHORT_SHA"
+          \`\`\`
+
+          </details>
+
+          EOF

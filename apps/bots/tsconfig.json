@@ -1,9 +1,10 @@
 {
 	"$schema": "https://json.schemastore.org/tsconfig",
-	"extends": "@live-boost/typescript-config/base.json",
+	"extends": "@meeboter/typescript-config/base.json",
 	"compilerOptions": {
 		"declaration": false,
 		"declarationMap": false,
+		"moduleResolution": "bundler",
 		"baseUrl": ".",
 		"paths": {
 			"@/*": ["./src/*"]

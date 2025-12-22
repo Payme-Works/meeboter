@@ -3,10 +3,10 @@ data "terraform_remote_state" "shared" {
   backend = "s3"
   
   config = {
-    bucket  = "tf-state-live-boost"
-    key     = "live-boost/shared/terraform.tfstate"
+    bucket  = "tf-state-meeboter"
+    key     = "meeboter/shared/terraform.tfstate"
     region  = "us-east-2"
-    profile = "live-boost"
+    profile = "meeboter"
   }
 }
 
