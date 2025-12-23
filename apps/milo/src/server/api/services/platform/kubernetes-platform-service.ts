@@ -8,6 +8,7 @@ import {
 
 import { env } from "@/env";
 import type { BotConfig } from "@/server/database/schema";
+import type { ImagePullLockService } from "../image-pull-lock-service";
 import { K8sStatusMapper } from "./mappers/k8s-status-mapper";
 import type {
 	PlatformDeployWithQueueResult,
@@ -107,6 +108,7 @@ export class KubernetesPlatformService
 	constructor(
 		private readonly config: KubernetesPlatformConfig,
 		private readonly botEnvConfig: KubernetesBotEnvConfig,
+		private readonly imagePullLock: ImagePullLockService,
 	) {
 		const kc = new KubeConfig();
 
@@ -128,6 +130,12 @@ export class KubernetesPlatformService
 	): Promise<PlatformDeployWithQueueResult> {
 		const jobName = this.buildJobName(botConfig.id);
 		const job = this.buildJobSpec(botConfig, jobName);
+		const platform = botConfig.meeting.platform ?? "unknown";
+
+		// Acquire image pull lock to coordinate first deployment
+		// This prevents all pods from simultaneously pulling the 2GB+ image
+		const { release: releaseLock, didWait } =
+			await this.imagePullLock.acquireLock(platform, this.config.imageTag);
 
 		try {
 			await this.batchApi.createNamespacedJob({
@@ -136,8 +144,23 @@ export class KubernetesPlatformService
 			});
 
 			console.log(
-				`[KubernetesPlatform] Bot ${botConfig.id} deployed as job ${jobName}`,
+				`[KubernetesPlatform] Bot ${botConfig.id} deployed as job ${jobName} (didWait: ${didWait})`,
 			);
+
+			// If we're the first deployment (didn't wait), wait for pod to be running
+			// This ensures the image is fully pulled before releasing the lock
+			// Subsequent deployments can then use the cached image
+			if (!didWait) {
+				console.log(
+					`[KubernetesPlatform] First deployment for ${platform}:${this.config.imageTag}, waiting for pod to be running...`,
+				);
+
+				await this.waitForPodRunning(jobName);
+
+				console.log(
+					`[KubernetesPlatform] Pod for ${jobName} is running, image is now cached on node`,
+				);
+			}
 
 			return {
 				success: true,
@@ -156,6 +179,8 @@ export class KubernetesPlatformService
 				success: false,
 				error: `Kubernetes Job creation failed: ${errorMessage}`,
 			};
+		} finally {
+			releaseLock();
 		}
 	}
 
@@ -438,6 +463,73 @@ export class KubernetesPlatformService
 		}
 	}
 
+	// ─── Private Helpers ──────────────────────────────────────────────────────────
+
+	/**
+	 * Waits for a Job's pod to reach Running state (image pulled successfully)
+	 *
+	 * Polls every 5 seconds for up to 10 minutes. This ensures the first deployment
+	 * waits for the image to be fully pulled before releasing the lock, allowing
+	 * subsequent deployments to use the cached image.
+	 *
+	 * @param jobName - The Job name to wait for
+	 * @returns Promise that resolves when pod is running or rejects on timeout
+	 */
+	private async waitForPodRunning(jobName: string): Promise<void> {
+		const maxWaitMs = 10 * 60 * 1000; // 10 minutes
+		const pollIntervalMs = 5_000; // 5 seconds
+		const startTime = Date.now();
+
+		while (Date.now() - startTime < maxWaitMs) {
+			try {
+				const podList = await this.coreApi.listNamespacedPod({
+					namespace: this.config.namespace,
+					labelSelector: `job-name=${jobName}`,
+				});
+
+				if (podList.items.length > 0) {
+					const pod = podList.items[0];
+					const phase = pod.status?.phase;
+
+					// Running means image is pulled and container started
+					if (phase === "Running") {
+						return;
+					}
+
+					// Failed or Succeeded means we shouldn't wait anymore
+					if (phase === "Failed" || phase === "Succeeded") {
+						console.warn(
+							`[KubernetesPlatform] Pod for ${jobName} ended with phase ${phase} before reaching Running`,
+						);
+
+						return;
+					}
+
+					// Log progress for debugging
+					const containerStatuses = pod.status?.containerStatuses;
+
+					const waitingReason =
+						containerStatuses?.[0]?.state?.waiting?.reason ?? "Unknown";
+
+					console.log(
+						`[KubernetesPlatform] Waiting for ${jobName}: phase=${phase}, waiting=${waitingReason}`,
+					);
+				}
+			} catch (error) {
+				console.error(
+					`[KubernetesPlatform] Error checking pod status for ${jobName}:`,
+					error,
+				);
+			}
+
+			await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+		}
+
+		console.warn(
+			`[KubernetesPlatform] Timeout waiting for pod ${jobName} to be running after ${maxWaitMs / 1000}s`,
+		);
+	}
+
 	/**
 	 * Builds a unique job name for a bot
 	 */
@@ -585,8 +677,12 @@ export class KubernetesPlatformService
 
 /**
  * Creates a Kubernetes platform service instance from environment variables
+ *
+ * @param imagePullLock - Shared ImagePullLockService instance for coordinating deployments
  */
-export function createKubernetesPlatformService(): KubernetesPlatformService {
+export function createKubernetesPlatformService(
+	imagePullLock: ImagePullLockService,
+): KubernetesPlatformService {
 	const config: KubernetesPlatformConfig = {
 		namespace: env.K8S_NAMESPACE,
 		imageRegistry: env.K8S_IMAGE_REGISTRY ?? env.GHCR_ORG,
@@ -608,5 +704,5 @@ export function createKubernetesPlatformService(): KubernetesPlatformService {
 		s3Region: env.S3_REGION,
 	};
 
-	return new KubernetesPlatformService(config, botEnvConfig);
+	return new KubernetesPlatformService(config, botEnvConfig, imagePullLock);
 }

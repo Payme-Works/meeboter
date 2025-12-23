@@ -99,7 +99,9 @@ function createServices(): Services {
 	// For Kubernetes platform, expose the underlying service
 	// for admin/monitoring operations (job details, events, metrics)
 	if (getPlatformType() === "k8s") {
-		services.k8s = createKubernetesPlatformService();
+		const imagePullLock = new ImagePullLockService();
+
+		services.k8s = createKubernetesPlatformService(imagePullLock);
 	}
 
 	// For AWS platform, expose the underlying service

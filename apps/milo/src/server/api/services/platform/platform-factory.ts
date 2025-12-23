@@ -159,7 +159,9 @@ export function createPlatformService(): PlatformService {
 	}
 
 	if (platform === "k8s") {
-		return createKubernetesPlatformService();
+		const imagePullLock = new ImagePullLockService();
+
+		return createKubernetesPlatformService(imagePullLock);
 	}
 
 	if (platform === "local") {
