@@ -1,7 +1,13 @@
+import { desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
-import { poolSlotStatus } from "@/server/database/schema";
+import { db } from "@/server/database/db";
+import {
+	botPoolSlotsTable,
+	botsTable,
+	poolSlotStatus,
+} from "@/server/database/schema";
 import { services } from "../../../services";
 import { poolRouter } from "./pool";
 
@@ -28,6 +34,7 @@ const coolifySlotSchema = z.object({
 	slotName: z.string(),
 	status: coolifySlotStatusSchema,
 	assignedBotId: z.number().nullable(),
+	botName: z.string().nullable(),
 	applicationUuid: z.string(),
 	createdAt: z.date(),
 });
@@ -75,14 +82,38 @@ export const coolifyRouter = createTRPCRouter({
 			}),
 		)
 		.output(z.array(coolifySlotSchema))
-		.query(async () => {
-			const slots = services.pool ? await services.pool.getAllSlots() : [];
+		.query(async ({ input }) => {
+			// Build query with left join to get bot display name
+			let query = db
+				.select({
+					id: botPoolSlotsTable.id,
+					slotName: botPoolSlotsTable.slotName,
+					status: botPoolSlotsTable.status,
+					assignedBotId: botPoolSlotsTable.assignedBotId,
+					botName: botsTable.displayName,
+					applicationUuid: botPoolSlotsTable.applicationUuid,
+					createdAt: botPoolSlotsTable.createdAt,
+				})
+				.from(botPoolSlotsTable)
+				.leftJoin(botsTable, eq(botPoolSlotsTable.assignedBotId, botsTable.id))
+				.$dynamic();
+
+			// Apply status filter if provided
+			if (input.status && input.status.length > 0) {
+				query = query.where(inArray(botPoolSlotsTable.status, input.status));
+			}
+
+			// Apply sorting (default: newest first)
+			query = query.orderBy(desc(botPoolSlotsTable.createdAt));
+
+			const slots = await query;
 
 			return slots.map((slot) => ({
 				id: slot.id,
 				slotName: slot.slotName,
 				status: slot.status as z.infer<typeof coolifySlotStatusSchema>,
 				assignedBotId: slot.assignedBotId,
+				botName: slot.botName,
 				applicationUuid: slot.applicationUuid,
 				createdAt: slot.createdAt,
 			}));

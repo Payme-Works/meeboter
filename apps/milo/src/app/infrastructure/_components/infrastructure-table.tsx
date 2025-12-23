@@ -3,8 +3,9 @@
 import { keepPreviousData } from "@tanstack/react-query";
 import { Container, Filter } from "lucide-react";
 import { parseAsArrayOf, parseAsString, useQueryStates } from "nuqs";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 
+import { BotDialog } from "@/app/bots/_components/bot-dialog";
 import { DataTable } from "@/components/custom/data-table";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,6 +19,7 @@ import { api } from "@/trpc/react";
 import {
 	getInfrastructureColumns,
 	type InfrastructureItem,
+	type InfrastructureTableMeta,
 	type Platform,
 } from "./infrastructure-columns";
 
@@ -113,6 +115,8 @@ function EmptyState({ platform }: { platform: Platform }) {
 // ─── K8s Table ────────────────────────────────────────────────────────────────
 
 function K8sTable() {
+	const [selectedBotId, setSelectedBotId] = useState<number | null>(null);
+
 	const [queryState, setQueryState] = useQueryStates({
 		status: parseAsArrayOf(parseAsString).withDefault([]),
 		sort: parseAsString.withDefault("age.desc"),
@@ -173,6 +177,7 @@ function K8sTable() {
 			(data ?? []).map((job) => ({
 				id: job.id,
 				botId: job.botId,
+				name: job.botName,
 				status: job.status,
 				platformId: job.jobName,
 				createdAt: job.createdAt,
@@ -180,40 +185,54 @@ function K8sTable() {
 		[data],
 	);
 
+	const tableMeta: InfrastructureTableMeta = useMemo(
+		() => ({
+			onViewDetails: (botId: number) => setSelectedBotId(botId),
+		}),
+		[],
+	);
+
 	if (!isLoading && items.length === 0 && queryState.status.length === 0) {
 		return <EmptyState platform="k8s" />;
 	}
 
 	return (
-		<div className="space-y-4">
-			<div className="flex items-center justify-between">
-				<div className="flex items-center gap-2">
-					<h2 className="text-lg font-semibold">Active Jobs</h2>
-					{items.length > 0 ? (
-						<span className="font-mono text-xs px-2 py-0.5 bg-green-500/10 text-green-500 tabular-nums">
-							{items.length} total
-						</span>
-					) : null}
+		<>
+			<div className="space-y-4">
+				<div className="flex items-center justify-between">
+					<div className="flex items-center gap-2">
+						<h2 className="text-lg font-semibold">Active Jobs</h2>
+						{items.length > 0 ? (
+							<span className="font-mono text-xs px-2 py-0.5 bg-green-500/10 text-green-500 tabular-nums">
+								{items.length} total
+							</span>
+						) : null}
+					</div>
+					<StatusFilter
+						platform="k8s"
+						selectedStatuses={queryState.status}
+						onStatusChange={handleStatusChange}
+					/>
 				</div>
-				<StatusFilter
-					platform="k8s"
-					selectedStatuses={queryState.status}
-					onStatusChange={handleStatusChange}
+				<DataTable
+					columns={columns}
+					data={items}
+					isLoading={isLoading}
+					errorMessage={error?.message}
+					meta={tableMeta}
 				/>
 			</div>
-			<DataTable
-				columns={columns}
-				data={items}
-				isLoading={isLoading}
-				errorMessage={error?.message}
-			/>
-		</div>
+
+			<BotDialog botId={selectedBotId} onClose={() => setSelectedBotId(null)} />
+		</>
 	);
 }
 
 // ─── Coolify Table ────────────────────────────────────────────────────────────
 
 function CoolifyTable() {
+	const [selectedBotId, setSelectedBotId] = useState<number | null>(null);
+
 	const [queryState, setQueryState] = useQueryStates({
 		status: parseAsArrayOf(parseAsString).withDefault([]),
 		sort: parseAsString.withDefault("age.desc"),
@@ -275,6 +294,7 @@ function CoolifyTable() {
 			(data ?? []).map((slot) => ({
 				id: slot.id,
 				botId: slot.assignedBotId,
+				name: slot.botName,
 				status: slot.status,
 				platformId: slot.slotName,
 				createdAt: slot.createdAt,
@@ -282,40 +302,54 @@ function CoolifyTable() {
 		[data],
 	);
 
+	const tableMeta: InfrastructureTableMeta = useMemo(
+		() => ({
+			onViewDetails: (botId: number) => setSelectedBotId(botId),
+		}),
+		[],
+	);
+
 	if (!isLoading && items.length === 0 && queryState.status.length === 0) {
 		return <EmptyState platform="coolify" />;
 	}
 
 	return (
-		<div className="space-y-4">
-			<div className="flex items-center justify-between">
-				<div className="flex items-center gap-2">
-					<h2 className="text-lg font-semibold">Pool Slots</h2>
-					{items.length > 0 ? (
-						<span className="font-mono text-xs px-2 py-0.5 bg-green-500/10 text-green-500 tabular-nums">
-							{items.length} total
-						</span>
-					) : null}
+		<>
+			<div className="space-y-4">
+				<div className="flex items-center justify-between">
+					<div className="flex items-center gap-2">
+						<h2 className="text-lg font-semibold">Pool Slots</h2>
+						{items.length > 0 ? (
+							<span className="font-mono text-xs px-2 py-0.5 bg-green-500/10 text-green-500 tabular-nums">
+								{items.length} total
+							</span>
+						) : null}
+					</div>
+					<StatusFilter
+						platform="coolify"
+						selectedStatuses={queryState.status}
+						onStatusChange={handleStatusChange}
+					/>
 				</div>
-				<StatusFilter
-					platform="coolify"
-					selectedStatuses={queryState.status}
-					onStatusChange={handleStatusChange}
+				<DataTable
+					columns={columns}
+					data={items}
+					isLoading={isLoading}
+					errorMessage={error?.message}
+					meta={tableMeta}
 				/>
 			</div>
-			<DataTable
-				columns={columns}
-				data={items}
-				isLoading={isLoading}
-				errorMessage={error?.message}
-			/>
-		</div>
+
+			<BotDialog botId={selectedBotId} onClose={() => setSelectedBotId(null)} />
+		</>
 	);
 }
 
 // ─── AWS Table ────────────────────────────────────────────────────────────────
 
 function AWSTable() {
+	const [selectedBotId, setSelectedBotId] = useState<number | null>(null);
+
 	const [queryState, setQueryState] = useQueryStates({
 		status: parseAsArrayOf(parseAsString).withDefault([]),
 		sort: parseAsString.withDefault("age.desc"),
@@ -376,6 +410,7 @@ function AWSTable() {
 			(data ?? []).map((task) => ({
 				id: task.id,
 				botId: task.botId,
+				name: task.botName,
 				status: task.status,
 				platformId: task.taskArn,
 				createdAt: task.createdAt,
@@ -383,34 +418,46 @@ function AWSTable() {
 		[data],
 	);
 
+	const tableMeta: InfrastructureTableMeta = useMemo(
+		() => ({
+			onViewDetails: (botId: number) => setSelectedBotId(botId),
+		}),
+		[],
+	);
+
 	if (!isLoading && items.length === 0 && queryState.status.length === 0) {
 		return <EmptyState platform="aws" />;
 	}
 
 	return (
-		<div className="space-y-4">
-			<div className="flex items-center justify-between">
-				<div className="flex items-center gap-2">
-					<h2 className="text-lg font-semibold">ECS Tasks</h2>
-					{items.length > 0 ? (
-						<span className="font-mono text-xs px-2 py-0.5 bg-green-500/10 text-green-500 tabular-nums">
-							{items.length} total
-						</span>
-					) : null}
+		<>
+			<div className="space-y-4">
+				<div className="flex items-center justify-between">
+					<div className="flex items-center gap-2">
+						<h2 className="text-lg font-semibold">ECS Tasks</h2>
+						{items.length > 0 ? (
+							<span className="font-mono text-xs px-2 py-0.5 bg-green-500/10 text-green-500 tabular-nums">
+								{items.length} total
+							</span>
+						) : null}
+					</div>
+					<StatusFilter
+						platform="aws"
+						selectedStatuses={queryState.status}
+						onStatusChange={handleStatusChange}
+					/>
 				</div>
-				<StatusFilter
-					platform="aws"
-					selectedStatuses={queryState.status}
-					onStatusChange={handleStatusChange}
+				<DataTable
+					columns={columns}
+					data={items}
+					isLoading={isLoading}
+					errorMessage={error?.message}
+					meta={tableMeta}
 				/>
 			</div>
-			<DataTable
-				columns={columns}
-				data={items}
-				isLoading={isLoading}
-				errorMessage={error?.message}
-			/>
-		</div>
+
+			<BotDialog botId={selectedBotId} onClose={() => setSelectedBotId(null)} />
+		</>
 	);
 }
 

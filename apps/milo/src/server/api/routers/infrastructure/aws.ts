@@ -31,6 +31,7 @@ const awsTaskSchema = z.object({
 	taskArn: z.string(),
 	status: awsTaskStatusSchema,
 	botId: z.number(),
+	botName: z.string().nullable(),
 	cluster: z.string(),
 	createdAt: z.date(),
 });

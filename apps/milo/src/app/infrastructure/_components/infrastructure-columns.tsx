@@ -1,11 +1,28 @@
 "use client";
 
-import type { ColumnDef } from "@tanstack/react-table";
+import type { ColumnDef, RowData } from "@tanstack/react-table";
 import { formatDistanceToNow } from "date-fns";
-import { ArrowUpDown, ExternalLink } from "lucide-react";
-import Link from "next/link";
+import { ArrowUpDown, Eye, MoreHorizontal } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuLabel,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+// ─── Table Meta Type ─────────────────────────────────────────────────────────
+
+export interface InfrastructureTableMeta {
+	onViewDetails: (botId: number) => void;
+}
+
+declare module "@tanstack/react-table" {
+	interface TableMeta<TData extends RowData> extends InfrastructureTableMeta {}
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -18,6 +35,7 @@ export type Platform = "k8s" | "aws" | "coolify";
 export type InfrastructureItem = {
 	id: number;
 	botId: number | null;
+	name: string | null;
 	status: string;
 	platformId: string;
 	createdAt: Date;
@@ -106,6 +124,15 @@ export function getInfrastructureColumns(
 			cell: ({ row }) => <StatusBadge status={row.original.status} />,
 		},
 		{
+			accessorKey: "name",
+			header: "Name",
+			cell: ({ row }) => (
+				<span className="text-sm truncate max-w-[200px] block">
+					{row.original.name ?? "—"}
+				</span>
+			),
+		},
+		{
 			accessorKey: "platformId",
 			header: PLATFORM_ID_LABELS[platform],
 			cell: ({ row }) => (
@@ -144,18 +171,36 @@ export function getInfrastructureColumns(
 		{
 			id: "actions",
 			header: "",
-			cell: ({ row }) => {
+			cell: ({ row, table }) => {
 				const botId = row.original.botId;
 
 				if (!botId) return null;
 
 				return (
-					<Link
-						href={`/bots/${botId}`}
-						className="text-muted-foreground hover:text-foreground transition-colors"
-					>
-						<ExternalLink className="h-4 w-4" />
-					</Link>
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button
+								variant="ghost"
+								size="icon"
+								className="h-8 w-8 hover:bg-muted/80 hover:text-foreground data-[state=open]:bg-muted"
+							>
+								<MoreHorizontal className="h-4 w-4" />
+								<span className="sr-only">Open menu for bot #{botId}</span>
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="end" className="w-48">
+							<DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+								Bot #{botId}
+							</DropdownMenuLabel>
+							<DropdownMenuSeparator />
+							<DropdownMenuItem
+								onClick={() => table.options.meta?.onViewDetails(botId)}
+							>
+								<Eye className="h-4 w-4" />
+								View details
+							</DropdownMenuItem>
+						</DropdownMenuContent>
+					</DropdownMenu>
 				);
 			},
 		},

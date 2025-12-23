@@ -35,18 +35,3 @@ export const searchParamsCache = createSearchParamsCache({
 	 */
 	sort: parseAsString.withDefault("age.desc"),
 });
-
-/**
- * Helper to parse sort string into field and direction
- */
-export function parseSort(sort: string): {
-	field: string;
-	direction: "asc" | "desc";
-} {
-	const [field, direction] = sort.split(".");
-
-	return {
-		field: field ?? "age",
-		direction: direction === "asc" ? "asc" : "desc",
-	};
-}

@@ -1,7 +1,10 @@
 import { TRPCError } from "@trpc/server";
+import { inArray } from "drizzle-orm";
 import { z } from "zod";
 
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
+import { db } from "@/server/database/db";
+import { botsTable } from "@/server/database/schema";
 import { services } from "../../services";
 
 /**
@@ -27,6 +30,7 @@ const k8sJobSchema = z.object({
 	jobName: z.string(),
 	status: k8sJobStatusSchema,
 	botId: z.number(),
+	botName: z.string().nullable(),
 	namespace: z.string(),
 	createdAt: z.date(),
 });
@@ -92,10 +96,32 @@ export const k8sRouter = createTRPCRouter({
 				});
 			}
 
-			return services.k8s.listJobs({
+			const jobs = await services.k8s.listJobs({
 				status: input.status,
 				sort: input.sort,
 			});
+
+			// Get unique bot IDs to look up names
+			const botIds = Array.from(
+				new Set(jobs.map((j) => j.botId).filter((id) => id > 0)),
+			);
+
+			// Look up bot names from database
+			const botNames =
+				botIds.length > 0
+					? await db
+							.select({ id: botsTable.id, displayName: botsTable.displayName })
+							.from(botsTable)
+							.where(inArray(botsTable.id, botIds))
+					: [];
+
+			const botNameMap = new Map(botNames.map((b) => [b.id, b.displayName]));
+
+			// Merge bot names into jobs
+			return jobs.map((job) => ({
+				...job,
+				botName: botNameMap.get(job.botId) ?? null,
+			}));
 		}),
 
 	/**

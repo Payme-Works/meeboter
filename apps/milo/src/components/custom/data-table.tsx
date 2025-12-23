@@ -6,7 +6,9 @@ import {
 	getCoreRowModel,
 	getPaginationRowModel,
 	type PaginationState,
+	type RowData,
 	type RowSelectionState,
+	type TableMeta,
 	type Table as TanstackTable,
 	useReactTable,
 } from "@tanstack/react-table";
@@ -75,9 +77,12 @@ type DataTableProps<TData, TValue> = {
 
 	/** Callback when a row is clicked (ignored for interactive elements) */
 	onRowClick?: (row: TData) => void;
+
+	/** Table meta object for passing custom data/callbacks to columns */
+	meta?: TableMeta<TData>;
 };
 
-export function DataTable<TData, TValue>({
+export function DataTable<TData extends RowData, TValue>({
 	columns,
 	data,
 	isLoading,
@@ -96,6 +101,7 @@ export function DataTable<TData, TValue>({
 	hasNextPage,
 	hasPreviousPage,
 	onRowClick,
+	meta,
 }: DataTableProps<TData, TValue>) {
 	// Server-side pagination is enabled when totalCount is provided
 	const isServerSidePagination = totalCount !== undefined;
@@ -201,6 +207,7 @@ export function DataTable<TData, TValue>({
 			pagination,
 		},
 		getRowId,
+		meta,
 	});
 
 	// Expose table instance to parent
