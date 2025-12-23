@@ -145,9 +145,10 @@ export function RecentBots() {
 							const canCancel = bot.status === "DEPLOYING";
 
 							return (
-								<div
+								<button
 									key={bot.id}
-									className="group p-4 hover:bg-muted/50 transition-colors cursor-pointer"
+									type="button"
+									className="group p-4 hover:bg-muted/50 transition-colors cursor-pointer w-full text-left"
 									onClick={() => setSelectedBot(bot.id)}
 								>
 									<div className="flex items-center gap-3">
@@ -229,7 +230,7 @@ export function RecentBots() {
 											</Button>
 										) : null}
 									</div>
-								</div>
+								</button>
 							);
 						})}
 					</div>

@@ -50,11 +50,6 @@ export const env = createEnv({
 
 		MILO_AUTH_TOKEN: z.string(),
 
-		// Platform Selection
-		DEPLOYMENT_PLATFORM: z
-			.enum(["coolify", "aws", "k8s", "local", "auto"])
-			.default("auto"),
-
 		// Deployment Queue Configuration
 		DEPLOYMENT_QUEUE_MAX_CONCURRENT: z.coerce.number().int().min(1).default(4),
 
@@ -88,6 +83,9 @@ export const env = createEnv({
 	 */
 	client: {
 		NEXT_PUBLIC_APP_ORIGIN_URL: z.url(),
+		NEXT_PUBLIC_DEPLOYMENT_PLATFORM: z
+			.enum(["coolify", "aws", "k8s", "local"])
+			.default("local"),
 	},
 
 	/**
@@ -123,9 +121,8 @@ export const env = createEnv({
 		MILO_AUTH_TOKEN: process.env.MILO_AUTH_TOKEN,
 
 		NEXT_PUBLIC_APP_ORIGIN_URL: process.env.NEXT_PUBLIC_APP_ORIGIN_URL,
-
-		// Platform Selection
-		DEPLOYMENT_PLATFORM: process.env.DEPLOYMENT_PLATFORM,
+		NEXT_PUBLIC_DEPLOYMENT_PLATFORM:
+			process.env.NEXT_PUBLIC_DEPLOYMENT_PLATFORM,
 
 		// Deployment Queue
 		DEPLOYMENT_QUEUE_MAX_CONCURRENT:

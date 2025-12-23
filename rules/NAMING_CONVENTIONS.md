@@ -271,7 +271,11 @@ interface WalletProps {
 
 ## Enum Naming Convention
 
-**ALWAYS use UPPERCASE for enum values and keys** - All enum values must be in UPPERCASE format.
+**ALWAYS use UPPERCASE for enum values and keys** - All enum values must be in UPPERCASE format. This applies to:
+- TypeScript enums and const objects
+- API response status values
+- URL query parameters for status/enum values
+- Database enum columns
 
 ```typescript
 // ✅ CORRECT: UPPERCASE enum values
@@ -282,11 +286,22 @@ export const ThemeVariableType = {
   TEXT: "TEXT",
 } as const;
 
+// ✅ CORRECT: Status types in API responses
+type SlotStatus = "IDLE" | "DEPLOYING" | "HEALTHY" | "ERROR";
+type JobStatus = "PENDING" | "ACTIVE" | "SUCCEEDED" | "FAILED";
+
+// ✅ CORRECT: URL params match enum values
+// ?status=ACTIVE&status=PENDING
+
 // ❌ WRONG: lowercase or mixed case
 export const ThemeVariableType = {
   color: "color",
   Dimension: "dimension",
 } as const;
+
+// ❌ WRONG: lowercase status types
+type SlotStatus = "idle" | "deploying" | "healthy" | "error";
+// ?status=active  ← Should be ACTIVE
 ```
 
 ## Raw Prefix Naming Convention

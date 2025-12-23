@@ -6,10 +6,12 @@ import { CoolifyService } from "./coolify-service";
 import { DeploymentQueueService } from "./deployment-queue-service";
 import { ImagePullLockService } from "./image-pull-lock-service";
 import { createPlatformService, getPlatformType } from "./platform";
+import type { AWSPlatformService } from "./platform/aws-platform-service";
 import {
 	createKubernetesPlatformService,
 	type KubernetesPlatformService,
 } from "./platform/kubernetes-platform-service";
+import { createAWSPlatformService } from "./platform/platform-factory";
 import type { PlatformService } from "./platform/platform-service";
 
 /**
@@ -37,13 +39,19 @@ export interface Services {
 	 * Only available when platform is 'k8s'
 	 */
 	k8s?: KubernetesPlatformService;
+
+	/**
+	 * AWS-specific service for admin operations
+	 * Only available when platform is 'aws'
+	 */
+	aws?: AWSPlatformService;
 }
 
 /**
  * Creates all services with their dependencies wired up
  *
  * Uses the platform factory to create the appropriate platform service
- * based on the DEPLOYMENT_PLATFORM environment variable or auto-detection.
+ * based on the NEXT_PUBLIC_DEPLOYMENT_PLATFORM environment variable.
  */
 function createServices(): Services {
 	const platform = createPlatformService();
@@ -92,6 +100,12 @@ function createServices(): Services {
 	// for admin/monitoring operations (job details, events, metrics)
 	if (getPlatformType() === "k8s") {
 		services.k8s = createKubernetesPlatformService();
+	}
+
+	// For AWS platform, expose the underlying service
+	// for admin/monitoring operations (task counts, metrics)
+	if (getPlatformType() === "aws") {
+		services.aws = createAWSPlatformService();
 	}
 
 	return services;

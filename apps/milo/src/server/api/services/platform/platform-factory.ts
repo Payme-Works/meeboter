@@ -17,67 +17,6 @@ import { LocalPlatformService } from "./local-platform-service";
 import type { PlatformService } from "./platform-service";
 
 /**
- * Detects which platform to use based on available environment variables
- *
- * Priority:
- * 1. Local (in development mode, to avoid accidentally using production services)
- * 2. Coolify (if COOLIFY_API_URL is set and not a fake placeholder)
- * 3. AWS (if AWS_REGION and ECS_CLUSTER are set)
- * 4. Kubernetes (if K8S_NAMESPACE is set or running in-cluster)
- * 5. Error if none is configured
- *
- * To use Coolify, AWS, or K8s in development, explicitly set DEPLOYMENT_PLATFORM.
- */
-function detectPlatform(): "coolify" | "aws" | "k8s" | "local" {
-	// In development, default to local to avoid accidentally using production services
-	// Use DEPLOYMENT_PLATFORM=coolify, DEPLOYMENT_PLATFORM=aws, or DEPLOYMENT_PLATFORM=k8s to override
-	if (env.NODE_ENV === "development") {
-		console.log(
-			"[PlatformFactory] Development mode, defaulting to local platform. " +
-				"Set DEPLOYMENT_PLATFORM=coolify, DEPLOYMENT_PLATFORM=aws, or DEPLOYMENT_PLATFORM=k8s to override.",
-		);
-
-		return "local";
-	}
-
-	// Check for Coolify configuration
-	// Note: env.js provides fake defaults for development, so we check for real values
-	const hasCoolify =
-		env.COOLIFY_API_URL &&
-		!env.COOLIFY_API_URL.includes("localhost:8000") &&
-		env.COOLIFY_API_TOKEN &&
-		!env.COOLIFY_API_TOKEN.includes("fake");
-
-	if (hasCoolify) {
-		return "coolify";
-	}
-
-	// Check for AWS configuration
-	const hasAWS = env.AWS_REGION && env.ECS_CLUSTER && env.ECS_SUBNETS;
-
-	if (hasAWS) {
-		return "aws";
-	}
-
-	// Check for Kubernetes configuration
-	// Either running in-cluster or K8S_KUBECONFIG is set
-	const hasK8s = process.env.KUBERNETES_SERVICE_HOST || env.K8S_KUBECONFIG;
-
-	if (hasK8s) {
-		return "k8s";
-	}
-
-	throw new Error(
-		"Unable to detect deployment platform. " +
-			"Set DEPLOYMENT_PLATFORM environment variable or provide platform-specific configuration. " +
-			"For Coolify: COOLIFY_API_URL, COOLIFY_API_TOKEN. " +
-			"For AWS: AWS_REGION, ECS_CLUSTER, ECS_SUBNETS. " +
-			"For Kubernetes: K8S_KUBECONFIG or run in-cluster. " +
-			"For Local: Set DEPLOYMENT_PLATFORM=local.",
-	);
-}
-
-/**
  * Creates a Coolify platform service instance
  */
 function createCoolifyPlatformService(): CoolifyPlatformService {
@@ -116,7 +55,7 @@ function createCoolifyPlatformService(): CoolifyPlatformService {
 /**
  * Creates an AWS platform service instance
  */
-function createAWSPlatformService(): AWSPlatformService {
+export function createAWSPlatformService(): AWSPlatformService {
 	if (!env.AWS_REGION) {
 		throw new Error(
 			"AWS_REGION environment variable is required for AWS platform",
@@ -168,17 +107,17 @@ function createLocalPlatformService(): LocalPlatformService {
 /**
  * Creates a platform service based on configuration
  *
- * Uses DEPLOYMENT_PLATFORM environment variable if set,
- * otherwise auto-detects based on available configuration.
+ * Uses NEXT_PUBLIC_DEPLOYMENT_PLATFORM environment variable if set,
+ * otherwise defaults to local platform.
  *
  * In development mode, ALWAYS defaults to local platform to prevent
- * accidentally using production services. Set DEPLOYMENT_PLATFORM=coolify
- * or DEPLOYMENT_PLATFORM=aws AND FORCE_REMOTE_PLATFORM=true to override.
+ * accidentally using production services. Set NEXT_PUBLIC_DEPLOYMENT_PLATFORM=coolify
+ * or NEXT_PUBLIC_DEPLOYMENT_PLATFORM=aws AND FORCE_REMOTE_PLATFORM=true to override.
  *
  * @returns Configured platform service instance
  */
 export function createPlatformService(): PlatformService {
-	const configuredPlatform = env.DEPLOYMENT_PLATFORM;
+	const configuredPlatform = env.NEXT_PUBLIC_DEPLOYMENT_PLATFORM;
 
 	// During build phase, env vars may be undefined (default to local)
 	if (!configuredPlatform) {
@@ -207,8 +146,7 @@ export function createPlatformService(): PlatformService {
 		);
 	}
 
-	const platform =
-		configuredPlatform === "auto" ? detectPlatform() : configuredPlatform;
+	const platform = configuredPlatform;
 
 	console.log(`[PlatformFactory] Using ${platform} deployment platform`);
 
@@ -238,7 +176,7 @@ export function createPlatformService(): PlatformService {
  * Returns "local" in development mode unless FORCE_REMOTE_PLATFORM=true.
  */
 export function getPlatformType(): "coolify" | "aws" | "k8s" | "local" {
-	const configuredPlatform = env.DEPLOYMENT_PLATFORM;
+	const configuredPlatform = env.NEXT_PUBLIC_DEPLOYMENT_PLATFORM;
 
 	// During build phase, env vars may be undefined (default to local)
 	if (!configuredPlatform) {
@@ -254,5 +192,5 @@ export function getPlatformType(): "coolify" | "aws" | "k8s" | "local" {
 		}
 	}
 
-	return configuredPlatform === "auto" ? detectPlatform() : configuredPlatform;
+	return configuredPlatform;
 }

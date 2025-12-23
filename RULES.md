@@ -26,6 +26,23 @@ This skill guides collaborative design through:
 
 This applies to ALL tasks including: new features, bug fixes, refactoring, configuration changes, database migrations, and any code modifications.
 
+## Rule Organization (CRITICAL)
+
+**Each rule MUST be in its own dedicated file in `/rules`** - Never add rules directly to CLAUDE.md. This file only contains brief references to rules.
+
+- **Create dedicated rule files** - Each topic gets its own file in `/rules` (e.g., `rules/URL_STATE.md`, `rules/API_PATTERNS.md`)
+- **Brief references only in CLAUDE.md** - Only add a one-line reference in the Quick Reference table
+- **Library-specific rules go in `/rules/libraries/`** - E.g., `rules/libraries/NUQS.md`
+
+```bash
+# ✅ CORRECT: Rule in dedicated file
+rules/URL_STATE.md          # Contains full URL state patterns
+CLAUDE.md                   # Just references: "URL_STATE.md | nuqs, search params, sort format"
+
+# ❌ WRONG: Rule directly in CLAUDE.md
+CLAUDE.md                   # Contains full URL state patterns inline
+```
+
 ## Rule Lookup Protocol (MANDATORY)
 
 **BEFORE starting ANY task, you MUST identify and read the relevant rule files.** This is not optional. Failing to consult rules leads to inconsistent code and rework.
@@ -100,21 +117,45 @@ This applies to ALL tasks including: new features, bug fixes, refactoring, confi
 
 **Search for**: `Grep pattern="debug|trace|investigate|error" path="rules/"`
 
+#### When Working on tRPC ROUTERS or API DESIGN
+**Triggers**: Creating routers, platform-specific APIs, multi-platform services
+**MUST READ**:
+- [rules/API_PATTERNS.md](rules/API_PATTERNS.md) - Platform-specific routers, tRPC structure
+
+**Search for**: `Grep pattern="router|trpc|platform" path="rules/"`
+
+#### When Working on URL STATE or SEARCH PARAMS
+**Triggers**: nuqs, search params, filters, sorting, URL-based state
+**MUST READ**:
+- [rules/URL_STATE.md](rules/URL_STATE.md) - nuqs patterns, sort format, server-side parsing
+
+**Search for**: `Grep pattern="nuqs|searchParams|sort" path="rules/"`
+
+#### When Working on INFRASTRUCTURE or DEPLOYMENT PLATFORMS
+**Triggers**: Coolify, Kubernetes, AWS ECS, platform statuses, infrastructure monitoring
+**MUST READ**:
+- [rules/PLATFORM_NOMENCLATURE.md](rules/PLATFORM_NOMENCLATURE.md) - Official platform terminology, status values
+
+**Search for**: `Grep pattern="coolify|k8s|aws|platform" path="rules/"`
+
 ### Quick Reference: All Rule Files
 
 | File | When to Use |
 |------|-------------|
 | `rules/CODE_STYLE.md` | Formatting, JSX, conditional rendering, composition patterns, React keys |
-| `rules/NAMING_CONVENTIONS.md` | Interface naming, booleans, enums, dialog/sheet naming, **no Details/Info/Data suffixes** |
+| `rules/NAMING_CONVENTIONS.md` | Interface naming, booleans, enums (UPPERCASE), dialog/sheet naming, **no Details/Info/Data suffixes** |
 | `rules/COMPONENT_PATTERNS.md` | Component organization, utilities, UI standards |
 | `rules/TESTING.md` | E2E tests, tRPC testing, Playwright browser tests |
 | `rules/DOMAIN_ENTITIES.md` | Entities, validation, mappers, repositories |
 | `rules/AUTHENTICATION.md` | Better-Auth, API keys, OAuth, sessions |
 | `rules/DEBUGGING.md` | Error investigation, tracing, debugging protocol |
 | `rules/PACKAGE_EXPORTS.md` | Module exports and package organization |
+| `rules/API_PATTERNS.md` | Platform-specific tRPC routers, API structure |
+| `rules/URL_STATE.md` | nuqs, search params, sort format (`?sort=field.desc`) |
+| `rules/PLATFORM_NOMENCLATURE.md` | Coolify/K8s/AWS official terminology, status values |
 | `rules/libraries/ZOD.md` | Zod best practices, enum validation, empty inputs |
 | `rules/libraries/REACT_TABLE.md` | TanStack React Table, table meta types, column definitions |
-| `rules/libraries/NEXTJS.md` | "use client"/"use server" directives, component boundaries |
+| `rules/libraries/NEXTJS.md` | "use client"/"use server" directives, env vars (no duplication) |
 | `rules/libraries/BUN.md` | Bun runtime standards and patterns |
 | `rules/libraries/TAILWINDCSS.md` | Tailwind CSS patterns and utilities |
 | `rules/libraries/MOTION.md` | Animation and motion patterns |

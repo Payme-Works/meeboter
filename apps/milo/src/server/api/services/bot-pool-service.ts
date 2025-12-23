@@ -15,9 +15,11 @@ import type { DeploymentQueueService } from "./deployment-queue-service";
 const MAX_POOL_SIZE = 100;
 
 /**
- * Slot status type for transitions
+ * Slot status type for transitions (Coolify platform nomenclature)
+ *
+ * @see rules/PLATFORM_NOMENCLATURE.md
  */
-type SlotStatus = "idle" | "deploying" | "busy" | "error";
+type SlotStatus = "IDLE" | "DEPLOYING" | "HEALTHY" | "ERROR";
 
 /**
  * Structured log entry for slot state transitions
@@ -74,7 +76,7 @@ interface PoolSlot {
 	id: number;
 	applicationUuid: string;
 	slotName: string;
-	status: "idle" | "deploying" | "busy" | "error";
+	status: "IDLE" | "DEPLOYING" | "HEALTHY" | "ERROR";
 	assignedBotId: number | null;
 }
 
@@ -90,14 +92,14 @@ interface QueueEntry {
 }
 
 /**
- * Pool statistics for monitoring
+ * Pool statistics for monitoring (Coolify platform nomenclature)
  */
 interface PoolStats {
 	total: number;
-	idle: number;
-	deploying: number;
-	busy: number;
-	error: number;
+	IDLE: number;
+	DEPLOYING: number;
+	HEALTHY: number;
+	ERROR: number;
 	maxSize: number;
 }
 
@@ -118,7 +120,7 @@ interface DeployResult {
 	slot?: PoolSlot;
 	queuePosition?: number;
 	estimatedWaitMs?: number;
-	error?: string;
+	ERROR?: string;
 }
 
 /**
@@ -158,11 +160,11 @@ export class BotPoolService {
 		previousState?: SlotStatus,
 	): Promise<void> {
 		await this.db.transaction(async (tx) => {
-			// Update slot: mark as deploying, record assignment
+			// Update slot: mark as DEPLOYING, record assignment
 			await tx
 				.update(botPoolSlotsTable)
 				.set({
-					status: "deploying",
+					status: "DEPLOYING",
 					assignedBotId: botId,
 					lastUsedAt: new Date(),
 					errorMessage: null,
@@ -175,7 +177,7 @@ export class BotPoolService {
 			slotName,
 			coolifyUuid,
 			previousState,
-			newState: "deploying",
+			newState: "DEPLOYING",
 			botId,
 			reason: "Bot assigned to slot",
 		});
@@ -218,7 +220,7 @@ export class BotPoolService {
 		await this.db
 			.update(botPoolSlotsTable)
 			.set({
-				status: "idle",
+				status: "IDLE",
 				assignedBotId: null,
 				lastUsedAt: new Date(),
 				errorMessage: null,
@@ -231,7 +233,7 @@ export class BotPoolService {
 			slotName: slot.slotName,
 			coolifyUuid: slot.applicationUuid,
 			previousState: slot.status as SlotStatus,
-			newState: "idle",
+			newState: "IDLE",
 			botId: previousBotId,
 			reason: "Slot released",
 		});
@@ -248,7 +250,7 @@ export class BotPoolService {
 	// ─────────────────────────────────────────────────────────────────────────
 
 	/**
-	 * Acquires an idle slot or creates a new one if pool has capacity
+	 * Acquires an IDLE slot or creates a new one if pool has capacity
 	 *
 	 * @param botId - The bot ID to assign to the slot
 	 * @returns Pool slot if available/created, null if pool exhausted
@@ -282,10 +284,10 @@ export class BotPoolService {
 				slotId: idleSlot.id,
 				slotName: idleSlot.slotName,
 				coolifyUuid: idleSlot.applicationUuid,
-				previousState: "idle",
-				newState: "deploying",
+				previousState: "IDLE",
+				newState: "DEPLOYING",
 				botId,
-				reason: "Acquired existing idle slot",
+				reason: "Acquired existing IDLE slot",
 			});
 
 			return idleSlot;
@@ -343,20 +345,20 @@ export class BotPoolService {
 			// Use centralized release function
 			await this.releaseBotFromSlot(slot.id);
 
-			await this.updateSlotDescription(slot.applicationUuid, "idle");
-		} catch (error) {
+			await this.updateSlotDescription(slot.applicationUuid, "IDLE");
+		} catch (ERROR) {
 			const errorMessage =
-				error instanceof Error ? error.message : "Unknown error";
+				ERROR instanceof Error ? ERROR.message : "Unknown ERROR";
 
 			console.error(
 				`[BotPoolService] Error releasing slot ${slot.slotName}:`,
-				error,
+				ERROR,
 			);
 
 			await this.db
 				.update(botPoolSlotsTable)
 				.set({
-					status: "error",
+					status: "ERROR",
 					errorMessage,
 				})
 				.where(eq(botPoolSlotsTable.id, slot.id));
@@ -366,14 +368,14 @@ export class BotPoolService {
 				slotName: slot.slotName,
 				coolifyUuid: slot.applicationUuid,
 				previousState: slot.status as SlotStatus,
-				newState: "error",
+				newState: "ERROR",
 				botId,
 				reason: `Release failed: ${errorMessage}`,
 			});
 
 			await this.updateSlotDescription(
 				slot.applicationUuid,
-				"error",
+				"ERROR",
 				undefined,
 				errorMessage,
 			);
@@ -392,7 +394,7 @@ export class BotPoolService {
 	 * Uses deployment queue to limit concurrent deployments (max 4).
 	 * Uses image pull lock to coordinate Docker image pulls.
 	 *
-	 * Returns immediately with `deploying` status for optimistic UI feedback.
+	 * Returns immediately with `DEPLOYING` status for optimistic UI feedback.
 	 */
 	async configureAndStartSlot(
 		slot: PoolSlot,
@@ -423,10 +425,10 @@ export class BotPoolService {
 		// No updateBotData call, bot fetches config from API using POOL_SLOT_UUID
 		// This avoids Coolify rebuild triggered by env var changes
 
-		// Update Coolify description to show deploying status
+		// Update Coolify description to show DEPLOYING status
 		await this.updateSlotDescription(
 			activeSlot.applicationUuid,
-			"deploying",
+			"DEPLOYING",
 			botConfig.id,
 		);
 
@@ -446,18 +448,18 @@ export class BotPoolService {
 			platformName,
 			image.tag,
 		)
-			.catch((error) => {
+			.catch((ERROR) => {
 				console.error(
 					`[BotPoolService] Deployment failed for ${activeSlot.slotName}:`,
-					error,
+					ERROR,
 				);
 			})
 			.finally(() => {
 				this.deploymentQueue.release(String(botConfig.id));
 			});
 
-		// Return immediately with deploying status for optimistic UI feedback
-		return { ...activeSlot, status: "deploying" as const };
+		// Return immediately with DEPLOYING status for optimistic UI feedback
+		return { ...activeSlot, status: "DEPLOYING" as const };
 	}
 
 	/**
@@ -467,7 +469,7 @@ export class BotPoolService {
 	 * - Image pull lock coordination (first deployer pulls, others wait)
 	 * - Retry logic with exponential backoff
 	 *
-	 * Updates status to `busy` on success or `error` on failure.
+	 * Updates status to `HEALTHY` on success or `ERROR` on failure.
 	 *
 	 * @param slot - The pool slot being deployed
 	 * @param botId - The bot ID
@@ -496,7 +498,7 @@ export class BotPoolService {
 			await this.db
 				.update(botPoolSlotsTable)
 				.set({
-					status: "error",
+					status: "ERROR",
 					errorMessage,
 				})
 				.where(eq(botPoolSlotsTable.id, slot.id));
@@ -505,15 +507,15 @@ export class BotPoolService {
 				slotId: slot.id,
 				slotName: slot.slotName,
 				coolifyUuid: slot.applicationUuid,
-				previousState: "deploying",
-				newState: "error",
+				previousState: "DEPLOYING",
+				newState: "ERROR",
 				botId,
 				reason: `Deployment failed: ${errorMessage}`,
 			});
 
 			await this.updateSlotDescription(
 				slot.applicationUuid,
-				"error",
+				"ERROR",
 				undefined,
 				errorMessage,
 			);
@@ -521,27 +523,27 @@ export class BotPoolService {
 			return;
 		}
 
-		// Container is running, transition from deploying to busy
+		// Container is running, transition from DEPLOYING to HEALTHY
 		await this.db
 			.update(botPoolSlotsTable)
-			.set({ status: "busy" })
+			.set({ status: "HEALTHY" })
 			.where(eq(botPoolSlotsTable.id, slot.id));
 
 		logSlotTransition({
 			slotId: slot.id,
 			slotName: slot.slotName,
 			coolifyUuid: slot.applicationUuid,
-			previousState: "deploying",
-			newState: "busy",
+			previousState: "DEPLOYING",
+			newState: "HEALTHY",
 			botId,
 			reason: "Container running",
 		});
 
-		await this.updateSlotDescription(slot.applicationUuid, "busy", botId);
+		await this.updateSlotDescription(slot.applicationUuid, "HEALTHY", botId);
 	}
 
 	/**
-	 * Marks a slot as error state
+	 * Marks a slot as ERROR state
 	 */
 	async markSlotError(slotId: number, errorMessage: string): Promise<void> {
 		const slotResult = await this.db
@@ -562,7 +564,7 @@ export class BotPoolService {
 		await this.db
 			.update(botPoolSlotsTable)
 			.set({
-				status: "error",
+				status: "ERROR",
 				errorMessage,
 			})
 			.where(eq(botPoolSlotsTable.id, slotId));
@@ -572,14 +574,14 @@ export class BotPoolService {
 			slotName: slot.slotName,
 			coolifyUuid: slot.applicationUuid,
 			previousState: slot.status as SlotStatus,
-			newState: "error",
+			newState: "ERROR",
 			botId: slot.assignedBotId,
 			reason: errorMessage,
 		});
 
 		await this.updateSlotDescription(
 			slot.applicationUuid,
-			"error",
+			"ERROR",
 			undefined,
 			errorMessage,
 		);
@@ -599,10 +601,10 @@ export class BotPoolService {
 
 		const stats: PoolStats = {
 			total: 0,
-			idle: 0,
-			deploying: 0,
-			busy: 0,
-			error: 0,
+			IDLE: 0,
+			DEPLOYING: 0,
+			HEALTHY: 0,
+			ERROR: 0,
 			maxSize: MAX_POOL_SIZE,
 		};
 
@@ -610,16 +612,51 @@ export class BotPoolService {
 			const count = Number(row.count);
 			stats.total += count;
 
-			if (row.status === "idle") stats.idle = count;
+			if (row.status === "IDLE") stats.IDLE = count;
 
-			if (row.status === "deploying") stats.deploying = count;
+			if (row.status === "DEPLOYING") stats.DEPLOYING = count;
 
-			if (row.status === "busy") stats.busy = count;
+			if (row.status === "HEALTHY") stats.HEALTHY = count;
 
-			if (row.status === "error") stats.error = count;
+			if (row.status === "ERROR") stats.ERROR = count;
 		}
 
 		return stats;
+	}
+
+	/**
+	 * Gets all pool slots for table display
+	 */
+	async getAllSlots(): Promise<
+		{
+			id: number;
+			slotName: string;
+			status: "IDLE" | "DEPLOYING" | "HEALTHY" | "ERROR";
+			assignedBotId: number | null;
+			applicationUuid: string;
+			createdAt: Date;
+		}[]
+	> {
+		const slots = await this.db
+			.select({
+				id: botPoolSlotsTable.id,
+				slotName: botPoolSlotsTable.slotName,
+				status: botPoolSlotsTable.status,
+				assignedBotId: botPoolSlotsTable.assignedBotId,
+				applicationUuid: botPoolSlotsTable.applicationUuid,
+				createdAt: botPoolSlotsTable.createdAt,
+			})
+			.from(botPoolSlotsTable)
+			.orderBy(botPoolSlotsTable.createdAt);
+
+		return slots as {
+			id: number;
+			slotName: string;
+			status: "IDLE" | "DEPLOYING" | "HEALTHY" | "ERROR";
+			assignedBotId: number | null;
+			applicationUuid: string;
+			createdAt: Date;
+		}[];
 	}
 
 	// ─────────────────────────────────────────────────────────────────────────
@@ -764,7 +801,7 @@ export class BotPoolService {
 		if (!entry[0]) {
 			return {
 				success: false,
-				error: "Bot not found in queue",
+				ERROR: "Bot not found in queue",
 			};
 		}
 
@@ -786,7 +823,7 @@ export class BotPoolService {
 			if (slot) {
 				await this.removeFromQueue(botId);
 
-				if (slot.status === "deploying") {
+				if (slot.status === "DEPLOYING") {
 					await this.configureAndStartSlot(slot, botConfig);
 				}
 
@@ -812,7 +849,7 @@ export class BotPoolService {
 
 		return {
 			success: false,
-			error: "Queue timeout - no pool slot became available",
+			ERROR: "Queue timeout - no pool slot became available",
 		};
 	}
 
@@ -927,7 +964,7 @@ export class BotPoolService {
 	// ─────────────────────────────────────────────────────────────────────────
 
 	/**
-	 * Atomically acquires an idle slot using SELECT FOR UPDATE SKIP LOCKED
+	 * Atomically acquires an IDLE slot using SELECT FOR UPDATE SKIP LOCKED
 	 *
 	 * Note: Drizzle ORM transforms raw SQL result columns back to TypeScript
 	 * property names based on schema mapping, so we access results using
@@ -938,17 +975,17 @@ export class BotPoolService {
 			id: number;
 			applicationUuid: string;
 			slotName: string;
-			status: "idle" | "deploying" | "busy" | "error";
+			status: "IDLE" | "DEPLOYING" | "HEALTHY" | "ERROR";
 			assignedBotId: number | null;
 		}>(sql`
 			UPDATE ${botPoolSlotsTable}
 			SET
-				status = 'deploying',
+				status = 'DEPLOYING',
 				"assigned_bot_id" = ${botId},
 				"last_used_at" = NOW()
 			WHERE id = (
 				SELECT id FROM ${botPoolSlotsTable}
-				WHERE status = 'idle'
+				WHERE status = 'IDLE'
 				ORDER BY "last_used_at" ASC NULLS FIRST
 				LIMIT 1
 				FOR UPDATE SKIP LOCKED
@@ -957,7 +994,7 @@ export class BotPoolService {
 		`);
 
 		if (result.length === 0) {
-			console.log(`[BotPoolService] No idle slots available for bot ${botId}`);
+			console.log(`[BotPoolService] No IDLE slots available for bot ${botId}`);
 
 			return null;
 		}
@@ -965,7 +1002,7 @@ export class BotPoolService {
 		const row = result[0];
 
 		console.log(
-			`[BotPoolService] Acquired idle slot ${row.slotName} (id=${row.id}) for bot ${botId}`,
+			`[BotPoolService] Acquired IDLE slot ${row.slotName} (id=${row.id}) for bot ${botId}`,
 		);
 
 		return {
@@ -1071,7 +1108,7 @@ export class BotPoolService {
 				.values({
 					applicationUuid: tempUuid,
 					slotName: reservedSlotName,
-					status: "deploying",
+					status: "DEPLOYING",
 					assignedBotId: botId,
 					lastUsedAt: new Date(),
 				})
@@ -1116,13 +1153,13 @@ export class BotPoolService {
 				.set({ applicationUuid })
 				.where(eq(botPoolSlotsTable.id, slotId));
 
-			await this.updateSlotDescription(applicationUuid, "deploying", botId);
+			await this.updateSlotDescription(applicationUuid, "DEPLOYING", botId);
 
 			logSlotTransition({
 				slotId,
 				slotName,
 				coolifyUuid: applicationUuid,
-				newState: "deploying",
+				newState: "DEPLOYING",
 				botId,
 				reason: "Created new slot",
 			});
@@ -1131,21 +1168,21 @@ export class BotPoolService {
 				id: slotId,
 				applicationUuid,
 				slotName,
-				status: "deploying",
+				status: "DEPLOYING",
 				assignedBotId: botId,
 			};
-		} catch (error) {
+		} catch (ERROR) {
 			// Clean up the reserved slot on Coolify failure
 			console.error(
 				`[BotPoolService] Failed to create Coolify app for ${slotName}, cleaning up:`,
-				error,
+				ERROR,
 			);
 
 			await this.db
 				.delete(botPoolSlotsTable)
 				.where(eq(botPoolSlotsTable.id, slotId));
 
-			throw error;
+			throw ERROR;
 		}
 	}
 
@@ -1197,27 +1234,27 @@ export class BotPoolService {
 	 */
 	private async updateSlotDescription(
 		applicationUuid: string,
-		status: "idle" | "deploying" | "busy" | "error",
+		status: "IDLE" | "DEPLOYING" | "HEALTHY" | "ERROR",
 		botId?: number,
 		errorMessage?: string,
 	): Promise<void> {
 		let description: string;
 
 		switch (status) {
-			case "deploying":
+			case "DEPLOYING":
 				description = `[DEPLOYING] Bot #${botId} - Starting container...`;
 
 				break;
-			case "busy":
+			case "HEALTHY":
 				description = `[BUSY] Bot #${botId} - ${new Date().toISOString()}`;
 
 				break;
-			case "idle":
+			case "IDLE":
 				description = `[IDLE] Available - Last used: ${new Date().toISOString()}`;
 
 				break;
-			case "error":
-				description = `[ERROR] ${errorMessage ?? "Unknown error"} - ${new Date().toISOString()}`;
+			case "ERROR":
+				description = `[ERROR] ${errorMessage ?? "Unknown ERROR"} - ${new Date().toISOString()}`;
 
 				break;
 		}

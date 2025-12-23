@@ -5,6 +5,7 @@ import { withAutoRestart } from "./helpers/with-auto-restart";
 import type { BotLogger } from "./logger";
 import { createServices } from "./services";
 import {
+	type BotConfig,
 	createTrpcClient,
 	EventCode,
 	STATUS_EVENT_CODES,
@@ -122,7 +123,7 @@ export const main = async () => {
 	// Platform-aware config retrieval:
 	// - BOT_ID: K8s/ECS ephemeral platforms → use bots.getConfig
 	// - POOL_SLOT_UUID: Coolify pool-based → use bots.pool.getSlot
-	let botConfig;
+	let botConfig: BotConfig;
 
 	if (botIdEnv) {
 		console.log(`[INIT] Fetching bot config by ID: ${botIdEnv}`);
@@ -133,9 +134,12 @@ export const main = async () => {
 		});
 	} else {
 		console.log(`[INIT] Fetching bot config for pool slot: ${poolSlotUuid}`);
-		console.log("[INIT] tRPC client created, calling bots.pool.getSlot...");
 
-		botConfig = await bootstrapTrpc.bots.pool.getSlot.query({
+		console.log(
+			"[INIT] tRPC client created, calling infrastructure.coolify.pool.getSlot...",
+		);
+
+		botConfig = await bootstrapTrpc.infrastructure.coolify.pool.getSlot.query({
 			poolSlotUuid: poolSlotUuid!,
 		});
 	}

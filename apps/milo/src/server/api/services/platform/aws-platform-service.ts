@@ -1,16 +1,22 @@
 import {
 	DescribeTasksCommand,
 	type ECSClient,
+	ListTasksCommand,
 	RunTaskCommand,
 	StopTaskCommand,
 } from "@aws-sdk/client-ecs";
 
 import type { BotConfig } from "@/server/database/schema";
+import { AWSStatusMapper } from "./mappers/aws-status-mapper";
 import type {
-	PlatformBotStatus,
 	PlatformDeployWithQueueResult,
 	PlatformService,
 } from "./platform-service";
+
+/**
+ * AWS ECS task status values (UPPERCASE convention)
+ */
+export type AWSBotStatus = "PROVISIONING" | "RUNNING" | "STOPPED" | "FAILED";
 
 /**
  * Configuration for AWS ECS platform
@@ -56,7 +62,7 @@ export interface AWSBotEnvConfig {
  * Each bot deployment creates a new task that runs until completion.
  * No pool concept - tasks are ephemeral.
  */
-export class AWSPlatformService implements PlatformService {
+export class AWSPlatformService implements PlatformService<AWSBotStatus> {
 	readonly platformName = "aws" as const;
 
 	constructor(
@@ -149,7 +155,7 @@ export class AWSPlatformService implements PlatformService {
 		}
 	}
 
-	async getBotStatus(identifier: string): Promise<PlatformBotStatus> {
+	async getBotStatus(identifier: string): Promise<AWSBotStatus> {
 		try {
 			const result = await this.ecsClient.send(
 				new DescribeTasksCommand({
@@ -161,12 +167,21 @@ export class AWSPlatformService implements PlatformService {
 			const task = result.tasks?.[0];
 
 			if (!task) {
-				return "unknown";
+				console.warn(
+					`[AWSPlatform] No task found for identifier ${identifier}`,
+				);
+
+				return "FAILED";
 			}
 
-			return this.normalizeStatus(task.lastStatus);
-		} catch {
-			return "unknown";
+			return AWSStatusMapper.toDomain(task.lastStatus);
+		} catch (error) {
+			console.error(
+				`[AWSPlatform] Failed to get status for task ${identifier}:`,
+				error,
+			);
+
+			return "FAILED";
 		}
 	}
 
@@ -182,6 +197,111 @@ export class AWSPlatformService implements PlatformService {
 		// AWS doesn't have a queue concept
 		// Tasks are created on-demand without resource limits
 		// (ECS handles scaling automatically)
+	}
+
+	/**
+	 * Gets cluster metrics for capacity monitoring
+	 * Field order: metadata, then status fields (UPPERCASE per PLATFORM_NOMENCLATURE.md)
+	 */
+	async getClusterMetrics(): Promise<{
+		cluster: string;
+		region: string;
+		PROVISIONING: number;
+		RUNNING: number;
+		STOPPED: number;
+		FAILED: number;
+		total: number;
+	}> {
+		try {
+			// List all tasks in the cluster
+			const listResult = await this.ecsClient.send(
+				new ListTasksCommand({
+					cluster: this.config.cluster,
+				}),
+			);
+
+			const taskArns = listResult.taskArns ?? [];
+
+			if (taskArns.length === 0) {
+				return {
+					cluster: this.config.cluster,
+					region: this.getRegionFromCluster(),
+					PROVISIONING: 0,
+					RUNNING: 0,
+					STOPPED: 0,
+					FAILED: 0,
+					total: 0,
+				};
+			}
+
+			// Describe tasks to get their statuses
+			const describeResult = await this.ecsClient.send(
+				new DescribeTasksCommand({
+					cluster: this.config.cluster,
+					tasks: taskArns,
+				}),
+			);
+
+			let PROVISIONING = 0;
+			let RUNNING = 0;
+			let STOPPED = 0;
+			let FAILED = 0;
+
+			for (const task of describeResult.tasks ?? []) {
+				const status = AWSStatusMapper.toDomain(task.lastStatus);
+
+				switch (status) {
+					case "PROVISIONING":
+						PROVISIONING++;
+
+						break;
+					case "RUNNING":
+						RUNNING++;
+
+						break;
+					case "STOPPED":
+						STOPPED++;
+
+						break;
+					case "FAILED":
+						FAILED++;
+
+						break;
+				}
+			}
+
+			return {
+				cluster: this.config.cluster,
+				region: this.getRegionFromCluster(),
+				PROVISIONING,
+				RUNNING,
+				STOPPED,
+				FAILED,
+				total: taskArns.length,
+			};
+		} catch (error) {
+			console.error("[AWSPlatform] Failed to get cluster metrics:", error);
+
+			return {
+				cluster: this.config.cluster,
+				region: this.getRegionFromCluster(),
+				PROVISIONING: 0,
+				RUNNING: 0,
+				STOPPED: 0,
+				FAILED: 0,
+				total: 0,
+			};
+		}
+	}
+
+	/**
+	 * Extracts region from cluster ARN or returns 'unknown'
+	 */
+	private getRegionFromCluster(): string {
+		// Cluster ARN format: arn:aws:ecs:REGION:ACCOUNT:cluster/NAME
+		const arnMatch = this.config.cluster.match(/arn:aws:ecs:([^:]+):/);
+
+		return arnMatch?.[1] ?? "unknown";
 	}
 
 	/**
@@ -243,34 +363,5 @@ export class AWSPlatformService implements PlatformService {
 			// Runtime
 			{ name: "NODE_ENV", value: "production" },
 		];
-	}
-
-	/**
-	 * Normalizes ECS task status to platform-agnostic status
-	 */
-	private normalizeStatus(ecsStatus: string | undefined): PlatformBotStatus {
-		if (!ecsStatus) {
-			return "unknown";
-		}
-
-		const status = ecsStatus.toUpperCase();
-
-		if (status === "RUNNING") {
-			return "running";
-		}
-
-		if (status === "STOPPED" || status === "DEPROVISIONING") {
-			return "stopped";
-		}
-
-		if (
-			status === "PENDING" ||
-			status === "ACTIVATING" ||
-			status === "PROVISIONING"
-		) {
-			return "deploying";
-		}
-
-		return "unknown";
 	}
 }

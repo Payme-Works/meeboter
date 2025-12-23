@@ -633,12 +633,11 @@ main() {
     check_docker
     
     # Skip environment selection if workspace was provided via flag or env var
-    # But allow SKIP_ENV_PROMPT env var to skip the prompt for automation
-    if [[ "${SKIP_ENV_PROMPT:-false}" == "true" ]] || [[ "${WORKSPACE_PROVIDED:-false}" == "true" ]]; then
+    if [[ "${WORKSPACE_PROVIDED:-false}" == "true" ]]; then
         # Validate provided workspace name
         case "$TERRAFORM_WORKSPACE" in
             "development"|"staging"|"production")
-                log_success "Using environment: $TERRAFORM_WORKSPACE (${WORKSPACE_PROVIDED:+flag provided}${SKIP_ENV_PROMPT:+prompt skipped})"
+                log_success "Using environment: $TERRAFORM_WORKSPACE (flag provided)"
                 ;;
             *)
                 log_error "Invalid TERRAFORM_WORKSPACE: $TERRAFORM_WORKSPACE. Must be one of: development, staging, production"

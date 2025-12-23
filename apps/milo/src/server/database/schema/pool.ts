@@ -13,9 +13,11 @@ import { pgTable } from "../helpers/columns";
 import { botsTable } from "./bots";
 
 /**
- * Pool slot status codes
+ * Pool slot status codes (Coolify platform nomenclature)
+ *
+ * @see rules/PLATFORM_NOMENCLATURE.md
  */
-export const poolSlotStatus = z.enum(["idle", "deploying", "busy", "error"]);
+export const poolSlotStatus = z.enum(["IDLE", "DEPLOYING", "HEALTHY", "ERROR"]);
 export type PoolSlotStatus = z.infer<typeof poolSlotStatus>;
 
 /**
@@ -37,7 +39,7 @@ export const botPoolSlotsTable = pgTable(
 		status: varchar("status", { length: 50 })
 			.$type<PoolSlotStatus>()
 			.notNull()
-			.default("idle"),
+			.default("IDLE"),
 		/** Reference to the bot currently using this slot */
 		assignedBotId: integer("assigned_bot_id").references(() => botsTable.id, {
 			onDelete: "set null",

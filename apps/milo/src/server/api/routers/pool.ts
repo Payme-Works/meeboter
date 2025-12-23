@@ -58,10 +58,10 @@ const statisticsRouter = createTRPCRouter({
 		.output(
 			z.object({
 				total: z.number(),
-				idle: z.number(),
-				deploying: z.number(),
-				busy: z.number(),
-				error: z.number(),
+				IDLE: z.number(),
+				DEPLOYING: z.number(),
+				HEALTHY: z.number(),
+				ERROR: z.number(),
 				maxSize: z.number(),
 			}),
 		)
@@ -315,7 +315,7 @@ const slotsRouter = createTRPCRouter({
 					);
 
 					// Stop the container first if it's running
-					if (slot.status === "busy" || slot.status === "deploying") {
+					if (slot.status === "HEALTHY" || slot.status === "DEPLOYING") {
 						console.log(`[Pool] Stopping container for slot ${slot.slotName}`);
 						await services.coolify.stopApplication(slot.applicationUuid);
 					}

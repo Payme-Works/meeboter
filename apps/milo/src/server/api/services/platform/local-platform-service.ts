@@ -4,11 +4,16 @@ import { fileURLToPath } from "node:url";
 
 import type { BotConfig } from "@/server/database/schema";
 
+import { LocalStatusMapper } from "./mappers/local-status-mapper";
 import type {
-	PlatformBotStatus,
 	PlatformDeployWithQueueResult,
 	PlatformService,
 } from "./platform-service";
+
+/**
+ * Local development status values (UPPERCASE convention)
+ */
+export type LocalBotStatus = "IDLE" | "RUNNING" | "STOPPED" | "ERROR";
 
 interface LocalBotProcess {
 	process: ChildProcess;
@@ -36,7 +41,7 @@ const __dirname = path.dirname(__filename);
  * Runs bot processes locally using child_process.spawn
  * instead of deploying to Coolify or AWS.
  */
-export class LocalPlatformService implements PlatformService {
+export class LocalPlatformService implements PlatformService<LocalBotStatus> {
 	readonly platformName = "local" as const;
 
 	private readonly runningBots = new Map<string, LocalBotProcess>();
@@ -205,21 +210,16 @@ export class LocalPlatformService implements PlatformService {
 		}
 	}
 
-	async getBotStatus(identifier: string): Promise<PlatformBotStatus> {
+	async getBotStatus(identifier: string): Promise<LocalBotStatus> {
 		const botProcess = this.runningBots.get(identifier);
+		const status = LocalStatusMapper.toDomain(botProcess?.process);
 
-		if (!botProcess) {
-			return "stopped";
-		}
-
-		// Check if process is still running
-		if (botProcess.process.killed || botProcess.process.exitCode !== null) {
+		// Clean up stopped processes from the map
+		if (status === "STOPPED" && botProcess) {
 			this.runningBots.delete(identifier);
-
-			return "stopped";
 		}
 
-		return "running";
+		return status;
 	}
 
 	async releaseBot(botId: number): Promise<void> {

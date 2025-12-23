@@ -1,11 +1,16 @@
 import type { BotConfig } from "@/server/database/schema";
 import type { BotPoolService } from "../bot-pool-service";
 import type { CoolifyService } from "../coolify-service";
+import { CoolifyStatusMapper } from "./mappers/coolify-status-mapper";
 import type {
-	PlatformBotStatus,
 	PlatformDeployWithQueueResult,
 	PlatformService,
 } from "./platform-service";
+
+/**
+ * Coolify slot status values (matches pool schema UPPERCASE convention)
+ */
+export type CoolifyBotStatus = "IDLE" | "DEPLOYING" | "HEALTHY" | "ERROR";
 
 /**
  * Coolify platform service implementation
@@ -14,7 +19,9 @@ import type {
  * a pool-based deployment system where pre-provisioned containers
  * are reused across bot deployments.
  */
-export class CoolifyPlatformService implements PlatformService {
+export class CoolifyPlatformService
+	implements PlatformService<CoolifyBotStatus>
+{
 	readonly platformName = "coolify" as const;
 
 	constructor(
@@ -34,7 +41,7 @@ export class CoolifyPlatformService implements PlatformService {
 		if (slot) {
 			// Got a slot, fire-and-forget configuration and start
 			// This avoids HTTP timeout when waiting for image pull lock
-			// The slot is already in "deploying" state from acquireOrCreateSlot
+			// The slot is already in "DEPLOYING" state from acquireOrCreateSlot
 			this.poolService.configureAndStartSlot(slot, botConfig).catch((error) => {
 				console.error(
 					`[CoolifyPlatform] Failed to configure slot ${slot.slotName} for bot ${botId}:`,
@@ -79,13 +86,18 @@ export class CoolifyPlatformService implements PlatformService {
 		await this.coolifyService.stopApplication(identifier);
 	}
 
-	async getBotStatus(identifier: string): Promise<PlatformBotStatus> {
+	async getBotStatus(identifier: string): Promise<CoolifyBotStatus> {
 		try {
 			const status = await this.coolifyService.getApplicationStatus(identifier);
 
-			return this.normalizeStatus(status);
-		} catch {
-			return "unknown";
+			return CoolifyStatusMapper.toDomain(status);
+		} catch (error) {
+			console.error(
+				`[CoolifyPlatform] Failed to get status for application ${identifier}:`,
+				error,
+			);
+
+			return "ERROR";
 		}
 	}
 
@@ -95,30 +107,5 @@ export class CoolifyPlatformService implements PlatformService {
 
 	async processQueue(): Promise<void> {
 		await this.poolService.processQueueOnSlotRelease();
-	}
-
-	/**
-	 * Normalizes Coolify status strings to platform-agnostic status
-	 */
-	private normalizeStatus(coolifyStatus: string): PlatformBotStatus {
-		const status = coolifyStatus.toLowerCase();
-
-		if (status === "running" || status === "healthy") {
-			return "running";
-		}
-
-		if (status === "stopped" || status === "exited") {
-			return "stopped";
-		}
-
-		if (status === "error" || status === "degraded") {
-			return "error";
-		}
-
-		if (status === "starting" || status === "restarting") {
-			return "deploying";
-		}
-
-		return "unknown";
 	}
 }

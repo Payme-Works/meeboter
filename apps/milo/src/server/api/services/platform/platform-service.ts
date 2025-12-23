@@ -27,22 +27,23 @@ export interface PlatformDeployWithQueueResult {
 }
 
 /**
- * Normalized bot status across platforms
- */
-export type PlatformBotStatus =
-	| "deploying"
-	| "running"
-	| "stopped"
-	| "error"
-	| "unknown";
-
-/**
  * Platform service interface for bot deployment
  *
  * This interface abstracts the deployment platform (Coolify, AWS ECS, or Kubernetes)
  * allowing the application layer to work with any platform without changes.
+ *
+ * The TStatus type parameter allows each platform to define its own status enum,
+ * ensuring type-safe status handling specific to each platform.
+ *
+ * Platform-specific status types are defined in their respective service files:
+ * - CoolifyBotStatus: "IDLE" | "DEPLOYING" | "HEALTHY" | "ERROR"
+ * - K8sBotStatus: "PENDING" | "ACTIVE" | "SUCCEEDED" | "FAILED"
+ * - AWSBotStatus: "PROVISIONING" | "RUNNING" | "STOPPED" | "FAILED"
+ * - LocalBotStatus: "IDLE" | "RUNNING" | "STOPPED" | "ERROR"
+ *
+ * @template TStatus - Platform-specific bot status type
  */
-export interface PlatformService {
+export interface PlatformService<TStatus extends string = string> {
 	/** Platform name for logging and identification */
 	readonly platformName: "coolify" | "aws" | "k8s" | "local";
 
@@ -75,9 +76,9 @@ export interface PlatformService {
 	 * Gets the current status of a bot
 	 *
 	 * @param identifier - Platform-specific identifier
-	 * @returns Normalized status string
+	 * @returns Platform-specific status value
 	 */
-	getBotStatus(identifier: string): Promise<PlatformBotStatus>;
+	getBotStatus(identifier: string): Promise<TStatus>;
 
 	/**
 	 * Releases resources after bot completion

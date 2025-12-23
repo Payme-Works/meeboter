@@ -1,48 +1,49 @@
 /**
  * SlotRecoveryWorker - Monitors and recovers stuck pool slots
  *
- * ## Slot Status Flow
+ * ## Slot Status Flow (Coolify Platform Nomenclature)
  *
  * Normal lifecycle:
- *   idle → deploying → busy → idle (released)
+ *   IDLE → DEPLOYING → HEALTHY → IDLE (released)
  *
  * Error scenarios handled by this worker:
- *   deploying → error (deployment failed) → idle (recovered)
- *   deploying → [stuck >15min] → idle (recovered)
- *   busy → [bot deleted, FK sets assignedBotId=NULL] → idle (recovered)
+ *   DEPLOYING → ERROR (deployment failed) → IDLE (recovered)
+ *   DEPLOYING → [stuck >15min] → IDLE (recovered)
+ *   HEALTHY → [bot deleted, FK sets assignedBotId=NULL] → IDLE (recovered)
  *
  * ## Recovery Scenarios
  *
  * 1. ERROR slots:
- *    - Slot status = "error"
- *    - Action: Stop container, reset to idle
+ *    - Slot status = "ERROR"
+ *    - Action: Stop container, reset to IDLE
  *    - Example: Coolify deployment failed, container crashed
  *
  * 2. STALE DEPLOYING slots:
- *    - Slot status = "deploying" AND lastUsedAt > 15 minutes ago
+ *    - Slot status = "DEPLOYING" AND lastUsedAt > 15 minutes ago
  *    - BUT if bot has recent heartbeat, skip recovery (bot is alive)
- *    - After 3 skipped recoveries, fix status to "busy"
+ *    - After 3 skipped recoveries, fix status to "HEALTHY"
  *    - Example: Container started but status wasn't updated
  *
- * 3. ORPHANED BUSY slots (added to fix stuck slots issue):
- *    - Slot status = "busy" AND assignedBotId IS NULL
- *    - Action: Stop container, reset to idle
+ * 3. ORPHANED HEALTHY slots (added to fix stuck slots issue):
+ *    - Slot status = "HEALTHY" AND assignedBotId IS NULL
+ *    - Action: Stop container, reset to IDLE
  *    - Example: Bot was deleted (via API or user cascade), FK set
- *      assignedBotId to NULL but status remained "busy"
+ *      assignedBotId to NULL but status remained "HEALTHY"
  *
  * ## Recovery Process
  *
  * For each stuck slot:
- *   1. If deploying with assigned bot → check bot heartbeat
+ *   1. If DEPLOYING with assigned bot → check bot heartbeat
  *      - Recent heartbeat? Skip recovery (bot is alive)
- *      - After 3 skips → fix status to "busy"
+ *      - After 3 skips → fix status to "HEALTHY"
  *   2. If max attempts (3) reached → delete slot permanently
  *   3. Otherwise → attempt recovery:
  *      - Mark assigned bot as FATAL (if any)
  *      - Stop Coolify container
- *      - Reset slot to idle
+ *      - Reset slot to IDLE
  *
  * @see BotPoolService for slot acquisition and release logic
+ * @see rules/PLATFORM_NOMENCLATURE.md
  */
 
 import { and, eq, isNull, lt, or } from "drizzle-orm";
@@ -64,7 +65,7 @@ const DEPLOYING_TIMEOUT_MS = 15 * 60 * 1000;
 /** Threshold for considering a heartbeat "recent" (5 minutes) */
 const HEARTBEAT_FRESHNESS_MS = 5 * 60 * 1000;
 
-/** Number of skipped recoveries before fixing slot status to "busy" */
+/** Number of skipped recoveries before fixing slot status to "HEALTHY" */
 const MAX_SKIPPED_RECOVERIES = 3;
 
 interface SlotRecoveryResult extends WorkerResult {
@@ -110,13 +111,13 @@ export class SlotRecoveryWorker extends BaseWorker<SlotRecoveryResult> {
 			.from(botPoolSlotsTable)
 			.where(
 				or(
-					eq(botPoolSlotsTable.status, "error"),
+					eq(botPoolSlotsTable.status, "ERROR"),
 					and(
-						eq(botPoolSlotsTable.status, "deploying"),
+						eq(botPoolSlotsTable.status, "DEPLOYING"),
 						lt(botPoolSlotsTable.lastUsedAt, staleDeployingCutoff),
 					),
 					and(
-						eq(botPoolSlotsTable.status, "busy"),
+						eq(botPoolSlotsTable.status, "HEALTHY"),
 						isNull(botPoolSlotsTable.assignedBotId),
 					),
 				),
@@ -133,12 +134,12 @@ export class SlotRecoveryWorker extends BaseWorker<SlotRecoveryResult> {
 		for (const slot of stuckSlots) {
 			// Check if bot is actually alive before recovery (only for deploying slots with assigned bots)
 			// Orphaned busy slots (no assignedBotId) skip this check and go straight to recovery
-			if (slot.assignedBotId && slot.status === "deploying") {
+			if (slot.assignedBotId && slot.status === "DEPLOYING") {
 				const skipResult = await this.checkBotHeartbeatBeforeRecovery(slot);
 
 				if (skipResult.skip) {
 					if (skipResult.fixStatus) {
-						await this.fixSlotStatusToBusy(slot);
+						await this.fixSlotStatusToHealthy(slot);
 					} else {
 						await this.bumpSlotTimestamp(slot);
 					}
@@ -224,22 +225,22 @@ export class SlotRecoveryWorker extends BaseWorker<SlotRecoveryResult> {
 	}
 
 	/**
-	 * Fixes a slot's status to "busy" when the bot is clearly alive.
+	 * Fixes a slot's status to "HEALTHY" when the bot is clearly alive.
 	 */
-	private async fixSlotStatusToBusy(
+	private async fixSlotStatusToHealthy(
 		slot: SelectBotPoolSlotType,
 	): Promise<void> {
 		await this.db
 			.update(botPoolSlotsTable)
 			.set({
-				status: "busy",
+				status: "HEALTHY",
 				recoveryAttempts: 0,
 				lastUsedAt: new Date(),
 			})
 			.where(eq(botPoolSlotsTable.id, slot.id));
 
 		console.log(
-			`[${this.name}] Fixed slot ${slot.slotName} status to "busy" - bot is alive with heartbeats`,
+			`[${this.name}] Fixed slot ${slot.slotName} status to "HEALTHY" - bot is alive with heartbeats`,
 		);
 	}
 
@@ -289,11 +290,11 @@ export class SlotRecoveryWorker extends BaseWorker<SlotRecoveryResult> {
 			// Force stop the Coolify container
 			await this.services.coolify.stopApplication(slot.applicationUuid);
 
-			// Reset slot to idle state
+			// Reset slot to IDLE state
 			await this.db
 				.update(botPoolSlotsTable)
 				.set({
-					status: "idle",
+					status: "IDLE",
 					assignedBotId: null,
 					errorMessage: null,
 					recoveryAttempts: 0,

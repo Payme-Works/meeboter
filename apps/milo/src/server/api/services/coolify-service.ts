@@ -69,7 +69,7 @@ interface CoolifyCreateResponse {
 /**
  * Custom error for Coolify deployment failures
  */
-export class CoolifyDeploymentError extends Error {
+class CoolifyDeploymentError extends Error {
 	constructor(message: string) {
 		super(message);
 		this.name = "CoolifyDeploymentError";

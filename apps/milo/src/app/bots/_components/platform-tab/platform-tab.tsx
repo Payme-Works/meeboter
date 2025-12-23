@@ -157,7 +157,7 @@ function K8sPlatformView({
 		isLoading,
 		isRefetching,
 		refetch,
-	} = api.bots.k8s.getJob.useQuery(
+	} = api.infrastructure.k8s.getJob.useQuery(
 		{ jobName: platformIdentifier ?? "" },
 		{
 			enabled: !!platformIdentifier,

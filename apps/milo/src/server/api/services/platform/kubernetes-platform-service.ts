@@ -8,11 +8,16 @@ import {
 
 import { env } from "@/env";
 import type { BotConfig } from "@/server/database/schema";
+import { K8sStatusMapper } from "./mappers/k8s-status-mapper";
 import type {
-	PlatformBotStatus,
 	PlatformDeployWithQueueResult,
 	PlatformService,
 } from "./platform-service";
+
+/**
+ * Kubernetes job status values (UPPERCASE convention)
+ */
+export type K8sBotStatus = "PENDING" | "ACTIVE" | "SUCCEEDED" | "FAILED";
 
 /**
  * Configuration for Kubernetes platform
@@ -91,7 +96,9 @@ function toPlainObjectArray(obj: unknown[]): Record<string, unknown>[] {
  *
  * Similar to AWS ECS - ephemeral, no pool concept.
  */
-export class KubernetesPlatformService implements PlatformService {
+export class KubernetesPlatformService
+	implements PlatformService<K8sBotStatus>
+{
 	readonly platformName = "k8s" as const;
 
 	private batchApi: BatchV1Api;
@@ -178,36 +185,26 @@ export class KubernetesPlatformService implements PlatformService {
 		}
 	}
 
-	async getBotStatus(identifier: string): Promise<PlatformBotStatus> {
+	async getBotStatus(identifier: string): Promise<K8sBotStatus> {
 		try {
 			const response = await this.batchApi.readNamespacedJobStatus({
 				name: identifier,
 				namespace: this.config.namespace,
 			});
 
-			const job = response;
-			const status = job.status;
-
-			if (status?.succeeded && status.succeeded > 0) {
-				return "stopped"; // Job completed successfully
-			}
-
-			if (status?.failed && status.failed > 0) {
-				return "error"; // Job failed
-			}
-
-			if (status?.active && status.active > 0) {
-				return "running"; // Job is running
-			}
-
-			// Job exists but no pods yet
-			return "deploying";
+			return K8sStatusMapper.toDomain(response.status);
 		} catch (error) {
 			if (this.isNotFoundError(error)) {
-				return "unknown"; // Job not found (may be cleaned up)
+				// Job was deleted or TTL-expired - this is expected
+				return "FAILED";
 			}
 
-			return "unknown";
+			console.error(
+				`[KubernetesPlatform] Failed to get status for job ${identifier}:`,
+				error,
+			);
+
+			return "FAILED";
 		}
 	}
 
@@ -304,37 +301,111 @@ export class KubernetesPlatformService implements PlatformService {
 			});
 
 			return toPlainObjectArray(eventList.items);
-		} catch {
+		} catch (error) {
+			console.error(
+				`[KubernetesPlatform] Failed to get events for job ${jobName}:`,
+				error,
+			);
+
+			return [];
+		}
+	}
+
+	/**
+	 * Lists all K8s jobs with their status for table display
+	 * Extracts botId from job labels and determines status from job conditions
+	 */
+	async listJobs(options?: { status?: K8sBotStatus[]; sort?: string }): Promise<
+		{
+			id: number;
+			jobName: string;
+			status: K8sBotStatus;
+			botId: number;
+			namespace: string;
+			createdAt: Date;
+		}[]
+	> {
+		try {
+			const jobList = await this.batchApi.listNamespacedJob({
+				namespace: this.config.namespace,
+			});
+
+			const jobs = jobList.items
+				.map((job, index) => {
+					const status = K8sStatusMapper.toDomain(job.status);
+					const botIdLabel = job.metadata?.labels?.botId;
+					const botId = botIdLabel ? Number.parseInt(botIdLabel, 10) : 0;
+					const jobName = job.metadata?.name ?? `unknown-${index}`;
+
+					const createdAt = job.metadata?.creationTimestamp
+						? new Date(job.metadata.creationTimestamp)
+						: new Date();
+
+					return {
+						id: index + 1,
+						jobName,
+						status,
+						botId,
+						namespace: this.config.namespace,
+						createdAt,
+					};
+				})
+				.filter((job) => {
+					if (options?.status && options.status.length > 0) {
+						return options.status.includes(job.status);
+					}
+
+					return true;
+				});
+
+			// Sort jobs (default: age.desc = newest first)
+			const sortField = options?.sort ?? "age.desc";
+
+			if (sortField === "age.desc") {
+				jobs.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+			} else if (sortField === "age.asc") {
+				jobs.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+			}
+
+			return jobs;
+		} catch (error) {
+			console.error("[KubernetesPlatform] Failed to list jobs:", error);
+
 			return [];
 		}
 	}
 
 	/**
 	 * Gets cluster resource metrics (for capacity monitoring)
+	 * Field order: platform discriminator, metadata, then status fields (UPPERCASE per PLATFORM_NOMENCLATURE.md)
 	 */
 	async getClusterMetrics(): Promise<{
 		namespace: string;
-		activeJobs: number;
-		pendingJobs: number;
-		totalPods: number;
+		PENDING: number;
+		ACTIVE: number;
+		SUCCEEDED: number;
+		FAILED: number;
+		total: number;
 	}> {
 		try {
 			const jobList = await this.batchApi.listNamespacedJob({
 				namespace: this.config.namespace,
 			});
 
-			let activeJobs = 0;
-			let pendingJobs = 0;
+			let ACTIVE = 0;
+			let PENDING = 0;
+			let SUCCEEDED = 0;
+			let FAILED = 0;
 
 			for (const job of jobList.items) {
 				if (job.status?.active && job.status.active > 0) {
-					activeJobs++;
-				} else if (
-					!job.status?.succeeded &&
-					!job.status?.failed &&
-					!job.status?.active
-				) {
-					pendingJobs++;
+					ACTIVE++;
+				} else if (job.status?.succeeded && job.status.succeeded > 0) {
+					SUCCEEDED++;
+				} else if (job.status?.failed && job.status.failed > 0) {
+					FAILED++;
+				} else {
+					PENDING++;
 				}
 			}
 
@@ -344,9 +415,11 @@ export class KubernetesPlatformService implements PlatformService {
 
 			return {
 				namespace: this.config.namespace,
-				activeJobs,
-				pendingJobs,
-				totalPods: podList.items.length,
+				PENDING,
+				ACTIVE,
+				SUCCEEDED,
+				FAILED,
+				total: podList.items.length,
 			};
 		} catch (error) {
 			console.error(
@@ -356,9 +429,11 @@ export class KubernetesPlatformService implements PlatformService {
 
 			return {
 				namespace: this.config.namespace,
-				activeJobs: 0,
-				pendingJobs: 0,
-				totalPods: 0,
+				PENDING: 0,
+				ACTIVE: 0,
+				SUCCEEDED: 0,
+				FAILED: 0,
+				total: 0,
 			};
 		}
 	}

@@ -302,3 +302,49 @@ export function Counter() {
 |----------------|---------------|----------------|-------------------|-------------------|
 | Server | ❌ | ✅ Direct | ✅ | None (not shipped to client) |
 | Client | ✅ | ⚠️ Via hooks | ❌ Direct | Added to JS bundle |
+
+## Environment Variables
+
+### No Duplication Rule
+
+**When exposing a server env var to the client, rename it with `NEXT_PUBLIC_` prefix instead of creating a duplicate.**
+
+```bash
+# ✅ CORRECT: Rename the existing variable
+NEXT_PUBLIC_DEPLOYMENT_PLATFORM=coolify
+
+# ❌ WRONG: Creating a duplicate that references another
+DEPLOYMENT_PLATFORM=coolify
+NEXT_PUBLIC_DEPLOYMENT_PLATFORM=${DEPLOYMENT_PLATFORM}
+```
+
+### Why This Matters
+
+1. **Single source of truth** - One variable, one value
+2. **No synchronization issues** - Can't have mismatched values
+3. **Cleaner configuration** - Fewer env vars to manage
+4. **Build-time safety** - Next.js inlines `NEXT_PUBLIC_` vars at build time
+
+### Migration Pattern
+
+When you need to expose a server-only env var to the client:
+
+```bash
+# Before (server-only)
+DEPLOYMENT_PLATFORM=coolify
+
+# After (client-accessible)
+NEXT_PUBLIC_DEPLOYMENT_PLATFORM=coolify
+```
+
+Update all server-side references to use the new name:
+
+```typescript
+// env.ts
+export const env = createEnv({
+  client: {
+    NEXT_PUBLIC_DEPLOYMENT_PLATFORM: z.enum(["coolify", "k8s", "aws", "local"]),
+  },
+  // Remove from server section
+});
+```

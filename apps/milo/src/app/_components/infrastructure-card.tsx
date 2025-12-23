@@ -121,9 +121,10 @@ function K8sMetrics({
 	metrics,
 }: {
 	metrics: {
-		activeJobs: number;
-		pendingJobs: number;
-		completedJobs: number;
+		PENDING: number;
+		ACTIVE: number;
+		SUCCEEDED: number;
+		FAILED: number;
 		namespace: string;
 	};
 }) {
@@ -131,17 +132,17 @@ function K8sMetrics({
 		<div className="space-y-1.5">
 			<div className="flex items-center gap-1.5 text-xs text-muted-foreground">
 				<span className="tabular-nums font-medium text-foreground/80">
-					{metrics.activeJobs}
+					{metrics.ACTIVE}
 				</span>
 				<span>jobs active</span>
 				<span className="text-muted-foreground/40">·</span>
 				<span className="tabular-nums font-medium text-foreground/80">
-					{metrics.pendingJobs}
+					{metrics.PENDING}
 				</span>
 				<span>pending</span>
 				<span className="text-muted-foreground/40">·</span>
 				<span className="tabular-nums font-medium text-foreground/80">
-					{metrics.completedJobs}
+					{metrics.SUCCEEDED}
 				</span>
 				<span>completed</span>
 			</div>
@@ -159,7 +160,10 @@ function AWSMetrics({
 	metrics,
 }: {
 	metrics: {
-		runningTasks: number;
+		PROVISIONING: number;
+		RUNNING: number;
+		STOPPED: number;
+		FAILED: number;
 		cluster: string;
 		region: string;
 	};
@@ -168,7 +172,7 @@ function AWSMetrics({
 		<div className="space-y-1.5">
 			<div className="flex items-center gap-1.5 text-xs text-muted-foreground">
 				<span className="tabular-nums font-medium text-foreground/80">
-					{metrics.runningTasks}
+					{metrics.RUNNING}
 				</span>
 				<span>tasks running</span>
 				<span className="text-muted-foreground/40">·</span>
@@ -189,29 +193,32 @@ function CoolifyMetrics({
 	metrics,
 }: {
 	metrics: {
-		slotsUsed: number;
-		slotsTotal: number;
-		idle: number;
-		busy: number;
+		IDLE: number;
+		DEPLOYING: number;
+		HEALTHY: number;
+		ERROR: number;
 		queueDepth: number;
 	};
 }) {
+	const slotsUsed = metrics.DEPLOYING + metrics.HEALTHY + metrics.ERROR;
+	const slotsTotal = slotsUsed + metrics.IDLE;
+
 	return (
 		<div className="space-y-1.5">
 			<div className="flex items-center gap-1.5 text-xs text-muted-foreground">
 				<span className="tabular-nums font-medium text-foreground/80">
-					{metrics.slotsUsed}
+					{slotsUsed}
 				</span>
-				<span className="text-muted-foreground/60">/{metrics.slotsTotal}</span>
+				<span className="text-muted-foreground/60">/{slotsTotal}</span>
 				<span>slots</span>
 				<span className="text-muted-foreground/40">·</span>
 				<span className="tabular-nums font-medium text-foreground/80">
-					{metrics.idle}
+					{metrics.IDLE}
 				</span>
 				<span>idle</span>
 				<span className="text-muted-foreground/40">·</span>
 				<span className="tabular-nums font-medium text-foreground/80">
-					{metrics.busy}
+					{metrics.HEALTHY}
 				</span>
 				<span>busy</span>
 			</div>
@@ -232,31 +239,41 @@ function LocalMessage({ message }: { message: string }) {
 }
 
 /**
+ * Platform info type matching API schema (UPPERCASE status fields per PLATFORM_NOMENCLATURE.md)
+ */
+type PlatformInfo =
+	| {
+			platform: "k8s";
+			namespace: string;
+			PENDING: number;
+			ACTIVE: number;
+			SUCCEEDED: number;
+			FAILED: number;
+	  }
+	| {
+			platform: "aws";
+			cluster: string;
+			region: string;
+			PROVISIONING: number;
+			RUNNING: number;
+			STOPPED: number;
+			FAILED: number;
+	  }
+	| {
+			platform: "coolify";
+			queueDepth: number;
+			IDLE: number;
+			DEPLOYING: number;
+			HEALTHY: number;
+			ERROR: number;
+	  }
+	| { platform: "local"; message: string };
+
+/**
  * Platform metrics content renderer
  * Avoids nested ternaries by using switch-like pattern
  */
-function PlatformMetricsContent({
-	platform,
-}: {
-	platform:
-		| {
-				platform: "k8s";
-				activeJobs: number;
-				pendingJobs: number;
-				completedJobs: number;
-				namespace: string;
-		  }
-		| { platform: "aws"; runningTasks: number; cluster: string; region: string }
-		| {
-				platform: "coolify";
-				slotsUsed: number;
-				slotsTotal: number;
-				idle: number;
-				busy: number;
-				queueDepth: number;
-		  }
-		| { platform: "local"; message: string };
-}) {
+function PlatformMetricsContent({ platform }: { platform: PlatformInfo }) {
 	switch (platform.platform) {
 		case "k8s":
 			return <K8sMetrics metrics={platform} />;
@@ -277,24 +294,7 @@ function PlatformSection({
 	isExpanded,
 	onToggle,
 }: {
-	platform:
-		| {
-				platform: "k8s";
-				activeJobs: number;
-				pendingJobs: number;
-				completedJobs: number;
-				namespace: string;
-		  }
-		| { platform: "aws"; runningTasks: number; cluster: string; region: string }
-		| {
-				platform: "coolify";
-				slotsUsed: number;
-				slotsTotal: number;
-				idle: number;
-				busy: number;
-				queueDepth: number;
-		  }
-		| { platform: "local"; message: string };
+	platform: PlatformInfo;
 	isExpanded: boolean;
 	onToggle: () => void;
 }) {
@@ -347,24 +347,7 @@ interface InfrastructureCardProps {
 		todayCompleted: number;
 		todayFailed: number;
 	};
-	platform:
-		| {
-				platform: "k8s";
-				activeJobs: number;
-				pendingJobs: number;
-				completedJobs: number;
-				namespace: string;
-		  }
-		| { platform: "aws"; runningTasks: number; cluster: string; region: string }
-		| {
-				platform: "coolify";
-				slotsUsed: number;
-				slotsTotal: number;
-				idle: number;
-				busy: number;
-				queueDepth: number;
-		  }
-		| { platform: "local"; message: string };
+	platform: PlatformInfo;
 }
 
 function InfrastructureCard({

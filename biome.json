@@ -45,6 +45,9 @@
 			"style": {
 				"noNestedTernary": "error"
 			},
+			"complexity": {
+				"noStaticOnlyClass": "off"
+			},
 			"a11y": {
 				"useValidAnchor": "off"
 			}
