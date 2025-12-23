@@ -9,7 +9,7 @@
 			"entry": ["src/index.ts", "src/**/*.test.ts"],
 			"project": ["src/**/*.ts"]
 		},
-		"apps/bots/providers/*": {
+		"apps/bots/providers/google-meet": {
 			"entry": [
 				"src/bot.ts",
 				"src/selectors.ts",
@@ -17,6 +17,14 @@
 				"e2e/**/*.ts"
 			],
 			"project": ["src/**/*.ts", "e2e/**/*.ts"]
+		},
+		"apps/bots/providers/microsoft-teams": {
+			"entry": ["src/bot.ts", "src/selectors.ts"],
+			"project": ["src/**/*.ts"]
+		},
+		"apps/bots/providers/zoom": {
+			"entry": ["src/bot.ts", "src/selectors.ts"],
+			"project": ["src/**/*.ts"]
 		},
 		"apps/milo": {
 			"entry": [

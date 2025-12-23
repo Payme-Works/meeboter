@@ -132,7 +132,7 @@ export const main = async () => {
 		botConfig = await bootstrapTrpc.bots.getConfig.query({
 			botId: Number(botIdEnv),
 		});
-	} else {
+	} else if (poolSlotUuid) {
 		console.log(`[INIT] Fetching bot config for pool slot: ${poolSlotUuid}`);
 
 		console.log(
@@ -140,8 +140,10 @@ export const main = async () => {
 		);
 
 		botConfig = await bootstrapTrpc.infrastructure.coolify.pool.getSlot.query({
-			poolSlotUuid: poolSlotUuid!,
+			poolSlotUuid: poolSlotUuid,
 		});
+	} else {
+		throw new Error("Either BOT_ID or POOL_SLOT_UUID must be set");
 	}
 
 	console.log("[INIT] Bot config received:", {

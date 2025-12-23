@@ -68,20 +68,20 @@ export class MicrosoftTeamsBot extends Bot {
 	 * Initialize S3 storage provider via dynamic import.
 	 */
 	private initializeS3Storage(): void {
-		if (
-			env.S3_ENDPOINT &&
-			env.S3_ACCESS_KEY &&
-			env.S3_SECRET_KEY &&
-			env.S3_BUCKET_NAME
-		) {
+		const s3Endpoint = env.S3_ENDPOINT;
+		const s3AccessKey = env.S3_ACCESS_KEY;
+		const s3SecretKey = env.S3_SECRET_KEY;
+		const s3BucketName = env.S3_BUCKET_NAME;
+
+		if (s3Endpoint && s3AccessKey && s3SecretKey && s3BucketName) {
 			import("../../../src/services/storage/s3-provider")
 				.then(({ S3StorageProvider }) => {
 					const storageService: StorageService = new S3StorageProvider({
-						endpoint: env.S3_ENDPOINT!,
+						endpoint: s3Endpoint,
 						region: env.S3_REGION,
-						accessKeyId: env.S3_ACCESS_KEY!,
-						secretAccessKey: env.S3_SECRET_KEY!,
-						bucketName: env.S3_BUCKET_NAME!,
+						accessKeyId: s3AccessKey,
+						secretAccessKey: s3SecretKey,
+						bucketName: s3BucketName,
 					});
 
 					this.uploadScreenshot = new UploadScreenshotUseCase(storageService);
