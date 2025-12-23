@@ -76,10 +76,14 @@ export const env = createEnv({
 		K8S_IMAGE_REGISTRY: z.string().optional(),
 		K8S_IMAGE_TAG: z.string().default("latest"),
 		K8S_KUBECONFIG: z.string().optional(),
-		K8S_BOT_CPU_REQUEST: z.string().default("250m"),
-		K8S_BOT_CPU_LIMIT: z.string().default("500m"),
-		K8S_BOT_MEMORY_REQUEST: z.string().default("768Mi"),
-		K8S_BOT_MEMORY_LIMIT: z.string().default("1Gi"),
+		K8S_BOT_CPU_REQUEST: z.string().default("150m"),
+		K8S_BOT_CPU_LIMIT: z.string().default("250m"),
+		K8S_BOT_MEMORY_REQUEST: z.string().default("512Mi"),
+		K8S_BOT_MEMORY_LIMIT: z.string().default("768Mi"),
+		K8S_IMAGE_PULL_LOCK_ENABLED: z
+			.enum(["true", "false"])
+			.default("true")
+			.transform((val) => val === "true"),
 	},
 
 	/**
@@ -150,6 +154,7 @@ export const env = createEnv({
 		K8S_BOT_CPU_LIMIT: process.env.K8S_BOT_CPU_LIMIT,
 		K8S_BOT_MEMORY_REQUEST: process.env.K8S_BOT_MEMORY_REQUEST,
 		K8S_BOT_MEMORY_LIMIT: process.env.K8S_BOT_MEMORY_LIMIT,
+		K8S_IMAGE_PULL_LOCK_ENABLED: process.env.K8S_IMAGE_PULL_LOCK_ENABLED,
 	},
 
 	/**

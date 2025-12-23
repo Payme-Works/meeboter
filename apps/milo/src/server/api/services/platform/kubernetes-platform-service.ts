@@ -47,6 +47,9 @@ export interface KubernetesPlatformConfig {
 
 	/** Memory limit per bot (e.g., 1Gi) */
 	memoryLimit: string;
+
+	/** Enable image pull lock coordination (default: true) */
+	imagePullLockEnabled: boolean;
 }
 
 /**
@@ -130,6 +133,64 @@ export class KubernetesPlatformService
 	): Promise<PlatformDeployWithQueueResult> {
 		const jobName = this.buildJobName(botConfig.id);
 		const job = this.buildJobSpec(botConfig, jobName);
+
+		// If image pull lock is disabled, deploy without coordination
+		if (!this.config.imagePullLockEnabled) {
+			return this.deployJobWithoutLock(botConfig.id, jobName, job);
+		}
+
+		return this.deployJobWithLock(botConfig, jobName, job);
+	}
+
+	/**
+	 * Deploy Job without image pull lock coordination
+	 */
+	private async deployJobWithoutLock(
+		botId: number,
+		jobName: string,
+		job: V1Job,
+	): Promise<PlatformDeployWithQueueResult> {
+		try {
+			await this.batchApi.createNamespacedJob({
+				namespace: this.config.namespace,
+				body: job,
+			});
+
+			console.log(
+				`[KubernetesPlatform] Bot ${botId} deployed as job ${jobName} (lock disabled)`,
+			);
+
+			return {
+				success: true,
+				identifier: jobName,
+			};
+		} catch (error) {
+			const errorMessage =
+				error instanceof Error ? error.message : "Unknown error";
+
+			console.error(
+				`[KubernetesPlatform] Failed to deploy bot ${botId}:`,
+				error,
+			);
+
+			return {
+				success: false,
+				error: `Kubernetes Job creation failed: ${errorMessage}`,
+			};
+		}
+	}
+
+	/**
+	 * Deploy Job with image pull lock coordination
+	 *
+	 * First deployment waits for pod to reach Running state before releasing lock,
+	 * ensuring the image is cached on the node for subsequent deployments.
+	 */
+	private async deployJobWithLock(
+		botConfig: BotConfig,
+		jobName: string,
+		job: V1Job,
+	): Promise<PlatformDeployWithQueueResult> {
 		const platform = botConfig.meeting.platform ?? "unknown";
 
 		// Acquire image pull lock to coordinate first deployment
@@ -692,6 +753,7 @@ export function createKubernetesPlatformService(
 		cpuLimit: env.K8S_BOT_CPU_LIMIT,
 		memoryRequest: env.K8S_BOT_MEMORY_REQUEST,
 		memoryLimit: env.K8S_BOT_MEMORY_LIMIT,
+		imagePullLockEnabled: env.K8S_IMAGE_PULL_LOCK_ENABLED,
 	};
 
 	const botEnvConfig: KubernetesBotEnvConfig = {
