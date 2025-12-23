@@ -269,14 +269,14 @@ Kubernetes deployment uses Kubernetes Jobs to create ephemeral pods for each mee
 DEPLOYMENT_PLATFORM="kubernetes"
 
 # Kubernetes Configuration
-KUBE_NAMESPACE="meeboter"
-KUBE_CONFIG_PATH="/path/to/kubeconfig"  # Optional, uses default if not set
+K8S_NAMESPACE="meeboter"
+K8S_KUBECONFIG="/path/to/kubeconfig"  # Optional, uses default if not set
 
-# Bot Resources (per bot)
-KUBE_CPU_REQUEST="250m"
-KUBE_CPU_LIMIT="500m"
-KUBE_MEMORY_REQUEST="768Mi"
-KUBE_MEMORY_LIMIT="1Gi"
+# Bot Resources (optimized for 80 concurrent bots)
+K8S_BOT_CPU_REQUEST="150m"
+K8S_BOT_CPU_LIMIT="250m"
+K8S_BOT_MEMORY_REQUEST="512Mi"
+K8S_BOT_MEMORY_LIMIT="768Mi"
 
 # Bot Configuration
 MILO_AUTH_TOKEN="your-milo-auth-token"
@@ -299,7 +299,7 @@ kubectl create secret docker-registry ghcr-secret \
   --namespace=meeboter
 ```
 
-3. **Apply ResourceQuota** (optional, for capacity limits):
+3. **Apply ResourceQuota** (optimized for 80 bots on 24 CPU / 64GB node):
 ```yaml
 apiVersion: v1
 kind: ResourceQuota
@@ -309,8 +309,10 @@ metadata:
 spec:
   hard:
     pods: "100"
-    requests.cpu: "25"
-    requests.memory: "75Gi"
+    requests.cpu: "14"
+    requests.memory: "45Gi"
+    limits.cpu: "22"
+    limits.memory: "65Gi"
 ```
 
 ### Capacity Planning

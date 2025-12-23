@@ -80,8 +80,10 @@ This document describes the design for adding Kubernetes as a third deployment p
 
 | Resource | Request | Limit |
 |----------|---------|-------|
-| CPU | 250m (0.25 vCPU) | 500m (0.5 vCPU) |
-| Memory | 768Mi | 1Gi |
+| CPU | 150m (0.15 vCPU) | 250m (0.25 vCPU) |
+| Memory | 512Mi | 768Mi |
+
+> **Note**: These values are optimized for 80 concurrent bots on a single 24 CPU / 64GB node with overcommit.
 
 ### Capacity Estimation
 
