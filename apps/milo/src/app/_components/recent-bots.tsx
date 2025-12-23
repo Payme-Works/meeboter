@@ -48,11 +48,19 @@ function formatStatus(status: string): string {
 		.join(" ");
 }
 
+const REFRESH_INTERVAL_MS = 5_000; // Auto-refresh every 5 seconds
+
 export function RecentBots() {
-	const { data: botsResponse, isLoading } = api.bots.getBots.useQuery({
-		page: 1,
-		pageSize: 10,
-	});
+	const { data: botsResponse, isLoading } = api.bots.getBots.useQuery(
+		{
+			page: 1,
+			pageSize: 10,
+		},
+		{
+			refetchInterval: REFRESH_INTERVAL_MS,
+			refetchIntervalInBackground: true,
+		},
+	);
 
 	const bots = botsResponse?.data ?? [];
 
