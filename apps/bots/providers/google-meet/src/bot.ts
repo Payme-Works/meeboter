@@ -606,6 +606,16 @@ export class GoogleMeetBot extends Bot {
 								checkDurationMs: checkDuration,
 							});
 
+							// Emit IN_CALL if status is still JOINING_CALL
+							// This is a fallback for cases where waitForCallEntry() didn't detect admission
+							if (this.emitter.getState() === EventCode.JOINING_CALL) {
+								this.emitter.emit("event", EventCode.IN_CALL);
+
+								this.logger.info(
+									"[monitorCall] Emitted IN_CALL (fallback from JOINING_CALL)",
+								);
+							}
+
 							// Screenshot when confirmed in-call
 							try {
 								await this.screenshot(
