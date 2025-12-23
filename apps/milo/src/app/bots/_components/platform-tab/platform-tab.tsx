@@ -25,6 +25,159 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { api } from "@/trpc/react";
 
+// ─── K8s Metrics Formatting ──────────────────────────────────────────────────
+
+/**
+ * Formats Kubernetes CPU metrics to human-readable values.
+ * K8s reports CPU in nanocores (n suffix) - 1 core = 1,000,000,000n = 1000m
+ *
+ * @example "299609316n" → "300m"
+ * @example "1500000000n" → "1.5 cores"
+ */
+function formatCpuUsage(cpu: string): string {
+	// Handle nanocores (e.g., "299609316n")
+	if (cpu.endsWith("n")) {
+		const nanocores = Number.parseInt(cpu.slice(0, -1), 10);
+		const millicores = nanocores / 1_000_000;
+
+		if (millicores >= 1000) {
+			return `${(millicores / 1000).toFixed(2)} cores`;
+		}
+
+		return `${Math.round(millicores)}m`;
+	}
+
+	// Handle millicores (e.g., "500m")
+	if (cpu.endsWith("m")) {
+		const millicores = Number.parseInt(cpu.slice(0, -1), 10);
+
+		if (millicores >= 1000) {
+			return `${(millicores / 1000).toFixed(2)} cores`;
+		}
+
+		return cpu;
+	}
+
+	// Handle raw cores (e.g., "2")
+	const cores = Number.parseFloat(cpu);
+
+	if (!Number.isNaN(cores)) {
+		return `${cores} cores`;
+	}
+
+	return cpu;
+}
+
+/**
+ * Formats Kubernetes memory metrics to human-readable values.
+ * K8s reports memory in Ki (kibibytes), Mi (mebibytes), Gi (gibibytes)
+ *
+ * @example "774260Ki" → "756 Mi"
+ * @example "1073741824" → "1 Gi"
+ */
+function formatMemoryUsage(memory: string): string {
+	// Handle kibibytes (e.g., "774260Ki")
+	if (memory.endsWith("Ki")) {
+		const ki = Number.parseInt(memory.slice(0, -2), 10);
+		const mi = ki / 1024;
+
+		if (mi >= 1024) {
+			return `${(mi / 1024).toFixed(2)} Gi`;
+		}
+
+		return `${Math.round(mi)} Mi`;
+	}
+
+	// Handle mebibytes (e.g., "512Mi")
+	if (memory.endsWith("Mi")) {
+		const mi = Number.parseInt(memory.slice(0, -2), 10);
+
+		if (mi >= 1024) {
+			return `${(mi / 1024).toFixed(2)} Gi`;
+		}
+
+		return memory;
+	}
+
+	// Handle gibibytes (e.g., "2Gi")
+	if (memory.endsWith("Gi")) {
+		return memory;
+	}
+
+	// Handle raw bytes (e.g., "1073741824")
+	const bytes = Number.parseInt(memory, 10);
+
+	if (!Number.isNaN(bytes)) {
+		const mi = bytes / (1024 * 1024);
+
+		if (mi >= 1024) {
+			return `${(mi / 1024).toFixed(2)} Gi`;
+		}
+
+		return `${Math.round(mi)} Mi`;
+	}
+
+	return memory;
+}
+
+/**
+ * Parses CPU string to millicores for percentage calculation
+ */
+function parseCpuToMillicores(cpu: string): number {
+	if (cpu.endsWith("n")) {
+		return Number.parseInt(cpu.slice(0, -1), 10) / 1_000_000;
+	}
+
+	if (cpu.endsWith("m")) {
+		return Number.parseInt(cpu.slice(0, -1), 10);
+	}
+
+	// Raw cores
+	const cores = Number.parseFloat(cpu);
+
+	return Number.isNaN(cores) ? 0 : cores * 1000;
+}
+
+/**
+ * Parses memory string to bytes for percentage calculation
+ */
+function parseMemoryToBytes(memory: string): number {
+	if (memory.endsWith("Ki")) {
+		return Number.parseInt(memory.slice(0, -2), 10) * 1024;
+	}
+
+	if (memory.endsWith("Mi")) {
+		return Number.parseInt(memory.slice(0, -2), 10) * 1024 * 1024;
+	}
+
+	if (memory.endsWith("Gi")) {
+		return Number.parseInt(memory.slice(0, -2), 10) * 1024 * 1024 * 1024;
+	}
+
+	// Raw bytes
+	const bytes = Number.parseInt(memory, 10);
+
+	return Number.isNaN(bytes) ? 0 : bytes;
+}
+
+/**
+ * Calculates percentage of usage vs limit
+ */
+function calculatePercentage(
+	usage: string | undefined,
+	limit: string | undefined,
+	parseFunc: (val: string) => number,
+): number | null {
+	if (!usage || !limit) return null;
+
+	const usageVal = parseFunc(usage);
+	const limitVal = parseFunc(limit);
+
+	if (limitVal === 0) return null;
+
+	return Math.round((usageVal / limitVal) * 100);
+}
+
 type DeploymentPlatform = "k8s" | "coolify" | "aws" | "local" | null;
 
 interface PlatformTabProps {
@@ -441,7 +594,20 @@ function K8sPlatformView({
 										CPU Usage
 									</div>
 									<div className="text-lg font-semibold font-mono text-blue-600 dark:text-blue-400">
-										{cpuUsage ?? "—"}
+										{cpuUsage ? formatCpuUsage(cpuUsage) : "—"}
+										{(() => {
+											const pct = calculatePercentage(
+												cpuUsage,
+												cpuLimit,
+												parseCpuToMillicores,
+											);
+
+											return pct !== null ? (
+												<span className="text-sm font-normal text-muted-foreground ml-1">
+													({pct}%)
+												</span>
+											) : null;
+										})()}
 									</div>
 								</div>
 								<div className="text-center">
@@ -449,7 +615,20 @@ function K8sPlatformView({
 										Memory Usage
 									</div>
 									<div className="text-lg font-semibold font-mono text-purple-600 dark:text-purple-400">
-										{memoryUsage ?? "—"}
+										{memoryUsage ? formatMemoryUsage(memoryUsage) : "—"}
+										{(() => {
+											const pct = calculatePercentage(
+												memoryUsage,
+												memoryLimit,
+												parseMemoryToBytes,
+											);
+
+											return pct !== null ? (
+												<span className="text-sm font-normal text-muted-foreground ml-1">
+													({pct}%)
+												</span>
+											) : null;
+										})()}
 									</div>
 								</div>
 							</div>
