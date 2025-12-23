@@ -88,10 +88,6 @@ export const env = createEnv({
 	 */
 	client: {
 		NEXT_PUBLIC_APP_ORIGIN_URL: z.url(),
-		// Note: Must be set at BUILD TIME since NEXT_PUBLIC_ vars are inlined into client bundle
-		NEXT_PUBLIC_DEPLOYMENT_PLATFORM: z
-			.enum(["coolify", "aws", "k8s", "local"])
-			.default("local"),
 	},
 
 	/**
@@ -127,8 +123,6 @@ export const env = createEnv({
 		MILO_AUTH_TOKEN: process.env.MILO_AUTH_TOKEN,
 
 		NEXT_PUBLIC_APP_ORIGIN_URL: process.env.NEXT_PUBLIC_APP_ORIGIN_URL,
-		NEXT_PUBLIC_DEPLOYMENT_PLATFORM:
-			process.env.NEXT_PUBLIC_DEPLOYMENT_PLATFORM,
 
 		// Deployment Platform
 		DEPLOYMENT_PLATFORM: process.env.DEPLOYMENT_PLATFORM,
