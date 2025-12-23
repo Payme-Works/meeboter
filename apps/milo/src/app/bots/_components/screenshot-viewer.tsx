@@ -99,7 +99,10 @@ export function ScreenshotViewer({
 	isRefetching,
 	onRefresh,
 }: ScreenshotViewerProps) {
-	// Select first screenshot by default
+	// Reverse to show most recent screenshots first
+	const sortedScreenshots = [...screenshots].reverse();
+
+	// Select first screenshot by default (now the most recent)
 	const [selectedIndex, setSelectedIndex] = useState(0);
 	const thumbnailRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
 
@@ -131,7 +134,7 @@ export function ScreenshotViewer({
 		);
 	}
 
-	if (screenshots.length === 0) {
+	if (sortedScreenshots.length === 0) {
 		return (
 			<div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
 				<ImageIcon className="h-12 w-12 mb-3 opacity-50" />
@@ -157,7 +160,7 @@ export function ScreenshotViewer({
 		);
 	}
 
-	const selectedScreenshot = screenshots[selectedIndex];
+	const selectedScreenshot = sortedScreenshots[selectedIndex];
 
 	const handlePrevious = () => {
 		if (selectedIndex > 0) {
@@ -166,7 +169,7 @@ export function ScreenshotViewer({
 	};
 
 	const handleNext = () => {
-		if (selectedIndex < screenshots.length - 1) {
+		if (selectedIndex < sortedScreenshots.length - 1) {
 			setSelectedIndex(selectedIndex + 1);
 		}
 	};
@@ -202,7 +205,7 @@ export function ScreenshotViewer({
 
 						<div className="flex items-center gap-2">
 							<span className="text-xs text-muted-foreground tabular-nums">
-								{selectedIndex + 1} / {screenshots.length}
+								{selectedIndex + 1} / {sortedScreenshots.length}
 							</span>
 							{isRefetching ? (
 								<RefreshCw className="h-3 w-3 text-muted-foreground animate-spin" />
@@ -245,7 +248,7 @@ export function ScreenshotViewer({
 							size="icon"
 							className="absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-background/80 hover:bg-background z-10"
 							onClick={handleNext}
-							disabled={selectedIndex === screenshots.length - 1}
+							disabled={selectedIndex === sortedScreenshots.length - 1}
 						>
 							<ChevronRight className="h-5 w-5" />
 						</Button>
@@ -274,7 +277,7 @@ export function ScreenshotViewer({
 			<div className="pt-3 px-2">
 				<ScrollArea className="w-full whitespace-nowrap">
 					<div className="flex gap-2 pb-2">
-						{screenshots.map((screenshot, index) => {
+						{sortedScreenshots.map((screenshot, index) => {
 							const config = TYPE_CONFIG[screenshot.type];
 							const Icon = config.icon;
 							const isSelected = selectedIndex === index;
