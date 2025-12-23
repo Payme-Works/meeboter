@@ -66,6 +66,11 @@ export const env = createEnv({
 			.default("true")
 			.transform((val) => val === "true"),
 
+		// Deployment Platform (runtime env var for server-side reading)
+		DEPLOYMENT_PLATFORM: z
+			.enum(["coolify", "aws", "k8s", "local"])
+			.default("local"),
+
 		// Kubernetes Configuration (required when DEPLOYMENT_PLATFORM=k8s)
 		K8S_NAMESPACE: z.string().default("meeboter"),
 		K8S_IMAGE_REGISTRY: z.string().optional(),
@@ -124,6 +129,9 @@ export const env = createEnv({
 		NEXT_PUBLIC_APP_ORIGIN_URL: process.env.NEXT_PUBLIC_APP_ORIGIN_URL,
 		NEXT_PUBLIC_DEPLOYMENT_PLATFORM:
 			process.env.NEXT_PUBLIC_DEPLOYMENT_PLATFORM,
+
+		// Deployment Platform
+		DEPLOYMENT_PLATFORM: process.env.DEPLOYMENT_PLATFORM,
 
 		// Deployment Queue
 		DEPLOYMENT_QUEUE_MAX_CONCURRENT:
