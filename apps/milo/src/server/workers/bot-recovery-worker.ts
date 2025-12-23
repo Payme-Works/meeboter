@@ -37,7 +37,13 @@
  *    - Example: Bot was deleted (via API or user cascade), FK set
  *      assignedBotId to NULL but status remained "HEALTHY"
  *
- * 4. Platform resource cleanup (all platforms):
+ * 4. Stuck K8s DEPLOYING bots (Kubernetes only):
+ *    - Bot status = "DEPLOYING" AND deploymentPlatform = "k8s" AND createdAt > 15 minutes ago
+ *    - If bot has recent heartbeat → fix status to "JOINING_CALL" (bot is alive)
+ *    - Otherwise → stop K8s Job, mark bot as FATAL
+ *    - Example: Kueue queued the job, but pod never started or crashed on init
+ *
+ * 5. Platform resource cleanup (all platforms):
  *    - Bots marked FATAL but platform resources not released
  *    - Action: Call platform.releaseBot() to clean up
  *
@@ -92,11 +98,13 @@ interface BotRecoveryResult extends WorkerResult {
  *
  * Platform-specific behavior:
  * - Coolify: Recovers stuck pool slots (error, deploying, orphaned)
- * - K8s/AWS: Cleans up orphaned platform resources
+ * - K8s: Cleans up stuck DEPLOYING bots and orphaned Jobs
+ * - AWS: Cleans up orphaned ECS tasks
  *
  * Handles:
  * - Error slots: attempts recovery by stopping container and resetting to idle
  * - Stale deploying slots: checks if bot has heartbeat before recovering
+ * - Stuck K8s DEPLOYING bots: marks as FATAL if no heartbeat, fixes status if alive
  * - Permanent deletion: removes slots after 3 failed recovery attempts
  * - Bot FATAL marking: marks assigned bots as FATAL when recovering/deleting
  */
@@ -219,8 +227,9 @@ export class BotRecoveryWorker extends BaseWorker<BotRecoveryResult> {
 	private async cleanupOrphanedBotResources(
 		result: BotRecoveryResult,
 	): Promise<void> {
-		// For K8s: Clean up Jobs for FATAL bots
+		// For K8s: Clean up stuck DEPLOYING bots and orphaned Jobs
 		if (this.services.k8s) {
+			await this.cleanupK8sStuckDeployingBots(result);
 			await this.cleanupK8sOrphanedJobs(result);
 		}
 
@@ -231,11 +240,117 @@ export class BotRecoveryWorker extends BaseWorker<BotRecoveryResult> {
 	}
 
 	/**
+	 * Cleans up K8s bots stuck in DEPLOYING state.
+	 *
+	 * A bot is considered stuck if:
+	 * - Status is "DEPLOYING" and deploymentPlatform is "k8s"
+	 * - No heartbeat received within HEARTBEAT_FRESHNESS_MS (5 minutes)
+	 * - Has been deploying longer than DEPLOYING_TIMEOUT_MS (15 minutes)
+	 *
+	 * Recovery actions:
+	 * 1. Stop the K8s Job (if it exists)
+	 * 2. Mark the bot as FATAL
+	 */
+	private async cleanupK8sStuckDeployingBots(
+		result: BotRecoveryResult,
+	): Promise<void> {
+		const k8sService = this.services.k8s;
+
+		if (!k8sService) return;
+
+		const staleDeployingCutoff = new Date(Date.now() - DEPLOYING_TIMEOUT_MS);
+
+		const heartbeatFreshnessCutoff = new Date(
+			Date.now() - HEARTBEAT_FRESHNESS_MS,
+		);
+
+		// Find K8s bots stuck in DEPLOYING state
+		const stuckBots = await this.db.query.botsTable.findMany({
+			where: and(
+				eq(botsTable.status, "DEPLOYING"),
+				eq(botsTable.deploymentPlatform, "k8s"),
+				lt(botsTable.createdAt, staleDeployingCutoff),
+			),
+			columns: {
+				id: true,
+				platformIdentifier: true,
+				lastHeartbeat: true,
+				createdAt: true,
+			},
+		});
+
+		if (stuckBots.length === 0) {
+			return;
+		}
+
+		console.log(
+			`[${this.name}] Found ${stuckBots.length} K8s bots stuck in DEPLOYING state`,
+		);
+
+		for (const bot of stuckBots) {
+			// Skip if bot has recent heartbeat (it's alive, just status wasn't updated)
+			if (
+				bot.lastHeartbeat &&
+				bot.lastHeartbeat.getTime() > heartbeatFreshnessCutoff.getTime()
+			) {
+				console.log(
+					`[${this.name}] Skipping K8s bot ${bot.id} - has recent heartbeat, updating status to JOINING_CALL`,
+				);
+
+				// Fix the status since the bot is clearly alive
+				await this.db
+					.update(botsTable)
+					.set({ status: "JOINING_CALL" })
+					.where(eq(botsTable.id, bot.id));
+
+				result.recovered++;
+
+				continue;
+			}
+
+			// Bot is truly stuck - clean up
+			console.log(
+				`[${this.name}] Cleaning up stuck K8s DEPLOYING bot ${bot.id} (created: ${bot.createdAt?.toISOString() ?? "unknown"}, lastHeartbeat: ${bot.lastHeartbeat?.toISOString() ?? "never"})`,
+			);
+
+			// Stop the K8s Job if it exists
+			if (bot.platformIdentifier) {
+				try {
+					await k8sService.stopBot(bot.platformIdentifier);
+
+					console.log(
+						`[${this.name}] Stopped K8s Job ${bot.platformIdentifier} for stuck bot ${bot.id}`,
+					);
+				} catch {
+					// Job might not exist or already be cleaned up
+					console.log(
+						`[${this.name}] K8s Job ${bot.platformIdentifier} already stopped or not found`,
+					);
+				}
+			}
+
+			// Mark bot as FATAL
+			await this.db
+				.update(botsTable)
+				.set({ status: "FATAL" })
+				.where(eq(botsTable.id, bot.id));
+
+			console.log(`[${this.name}] Marked stuck K8s bot ${bot.id} as FATAL`);
+
+			result.recovered++;
+		}
+	}
+
+	/**
 	 * Cleans up orphaned K8s Jobs for bots that are FATAL.
 	 */
 	private async cleanupK8sOrphanedJobs(
 		result: BotRecoveryResult,
 	): Promise<void> {
+		const k8sService = this.services.k8s;
+
+		if (!k8sService) return;
+
 		// Find FATAL bots with K8s platform identifiers that might still have running Jobs
 		const fatalBots = await this.db.query.botsTable.findMany({
 			where: and(
@@ -253,14 +368,14 @@ export class BotRecoveryWorker extends BaseWorker<BotRecoveryResult> {
 
 			try {
 				// Check if Job still exists and stop it
-				const job = await this.services.k8s!.getJob(bot.platformIdentifier);
+				const job = await k8sService.getJob(bot.platformIdentifier);
 
 				if (job) {
 					console.log(
 						`[${this.name}] Cleaning up orphaned K8s Job ${bot.platformIdentifier} for FATAL bot ${bot.id}`,
 					);
 
-					await this.services.k8s!.stopBot(bot.platformIdentifier);
+					await k8sService.stopBot(bot.platformIdentifier);
 					result.recovered++;
 				}
 			} catch {
