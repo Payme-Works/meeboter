@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { cn } from "@/lib/utils";
 
 interface PageHeaderProps {
 	children: ReactNode;
@@ -22,11 +23,16 @@ export function PageHeaderContent({ children }: PageHeaderContentProps) {
 
 interface PageHeaderTitleProps {
 	children: ReactNode;
+	className?: string;
 }
 
-export function PageHeaderTitle({ children }: PageHeaderTitleProps) {
+export function PageHeaderTitle({ children, className }: PageHeaderTitleProps) {
 	return (
-		<h1 className="text-xl sm:text-2xl font-bold tracking-tight">{children}</h1>
+		<h1
+			className={cn("text-xl sm:text-2xl font-bold tracking-tight", className)}
+		>
+			{children}
+		</h1>
 	);
 }
 
