@@ -303,7 +303,7 @@ function K8sPlatformView({
 			</div>
 
 			<div className="grid grid-cols-2 gap-4">
-				<Card className="gap-0">
+				<Card className="gap-1.5">
 					<CardHeader className="pb-2">
 						<CardTitle className="text-sm flex items-center gap-2">
 							<Box className="h-4 w-4" />
@@ -338,7 +338,7 @@ function K8sPlatformView({
 				</Card>
 
 				{pod ? (
-					<Card className="gap-0">
+					<Card className="gap-1.5">
 						<CardHeader className="pb-2">
 							<CardTitle className="text-sm flex items-center gap-2">
 								<Container className="h-4 w-4" />
