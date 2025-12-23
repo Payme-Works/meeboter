@@ -144,6 +144,30 @@ export function BotDialog({ botId, onClose }: BotDialogProps) {
 		{ enabled: !!botId },
 	);
 
+	// ─── Prefetch Logs Tab Data ───────────────────────────────────────────────────
+	// Prefetch historical logs to avoid layout shift when switching to logs tab
+	// (Live logs use cursor-based fetching which can't be prefetched effectively)
+	const isActive = Boolean(
+		bot?.status && !["DONE", "FATAL"].includes(bot.status),
+	);
+
+	api.bots.logs.getHistorical.useQuery(
+		{ botId: String(botId), limit: 500 },
+		{ enabled: !!botId && !isActive },
+	);
+
+	// ─── Prefetch Platform Tab Data ───────────────────────────────────────────────
+	// Prefetch K8s job data to avoid layout shift when switching to platform tab
+	api.infrastructure.k8s.getJob.useQuery(
+		{ jobName: bot?.platformIdentifier ?? "" },
+		{
+			enabled:
+				!!botId &&
+				bot?.deploymentPlatform === "k8s" &&
+				!!bot?.platformIdentifier,
+		},
+	);
+
 	const statusConfig = bot?.status
 		? STATUS_CONFIG[bot.status] || STATUS_CONFIG.CREATED
 		: STATUS_CONFIG.CREATED;
@@ -221,7 +245,7 @@ export function BotDialog({ botId, onClose }: BotDialogProps) {
 
 	return (
 		<Dialog open={!!botId} onOpenChange={onClose}>
-			<DialogContent className="sm:max-w-3xl p-0 gap-0 overflow-hidden border-0 [&>button]:text-white">
+			<DialogContent className="sm:max-w-4xl p-0 gap-0 overflow-hidden border-0 [&>button]:text-white">
 				{/* Header */}
 				<div className="bg-linear-to-r from-zinc-900 to-zinc-800 px-6 py-5 border-b border-zinc-700">
 					<DialogHeader className="space-y-3">
