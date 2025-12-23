@@ -18,6 +18,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { env } from "@/env";
 import { api } from "@/trpc/react";
 
+import { InfrastructureTable } from "./_components/infrastructure-table";
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Platform = "k8s" | "aws" | "coolify" | "local";
@@ -270,7 +272,6 @@ function PlatformStatsCards({ platform }: { platform: Platform | undefined }) {
 			return <K8sStatsCards />;
 		case "aws":
 			return <AWSStatsCards />;
-		case "local":
 		default:
 			return <LocalStatsCards />;
 	}
@@ -305,8 +306,10 @@ export default function InfrastructurePage() {
 			<PageHeader>
 				<PageHeaderContent>
 					<div className="flex items-center gap-2">
-						<PageHeaderTitle>Infrastructure</PageHeaderTitle>
+						<PageHeaderTitle className="mb-2">Infrastructure</PageHeaderTitle>
+
 						<PlatformIcon platform={platform} className="h-5 w-5" />
+
 						<span className="text-sm text-muted-foreground">
 							{PLATFORM_NAMES[platform] ?? "Unknown"}
 						</span>
@@ -332,17 +335,11 @@ export default function InfrastructurePage() {
 
 			<PlatformStatsCards platform={platform} />
 
-			{/* TODO: Add platform-specific table component */}
-			<Card>
-				<CardHeader>
-					<CardTitle>Resource List</CardTitle>
-				</CardHeader>
-				<CardContent>
-					<p className="text-muted-foreground">
-						Table component coming soon...
-					</p>
-				</CardContent>
-			</Card>
+			{platform !== "local" ? (
+				<InfrastructureTable
+					platform={platform as "k8s" | "aws" | "coolify" | undefined}
+				/>
+			) : null}
 		</div>
 	);
 }
