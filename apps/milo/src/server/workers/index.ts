@@ -6,8 +6,8 @@ import { BotHealthWorker } from "./bot-health-worker";
 import { BotRecoveryWorker } from "./bot-recovery-worker";
 import { CoolifyPoolSlotSyncWorker } from "./coolify-pool-slot-sync-worker";
 
-/** Default interval for all workers (5 minutes) */
-const DEFAULT_INTERVAL_MS = 5 * 60 * 1000;
+/** Default interval for all workers (1 minute) */
+const DEFAULT_INTERVAL_MS = 60 * 1000;
 
 /**
  * Container for named worker instances.
