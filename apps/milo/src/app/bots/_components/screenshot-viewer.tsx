@@ -292,7 +292,7 @@ export function ScreenshotViewer({
 									type="button"
 									onClick={() => setSelectedIndex(index)}
 									className={cn(
-										"relative shrink-0 rounded-lg overflow-hidden border-2 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-primary",
+										"relative shrink-0 rounded-lg overflow-hidden border-2 transition-all duration-150 focus:outline-none",
 										"w-28 h-20",
 										isSelected ? "border-primary" : "border-transparent",
 									)}

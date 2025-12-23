@@ -30,6 +30,7 @@ export function InfrastructureHeaderActions() {
 	return (
 		<>
 			<LiveIndicator lastUpdated={lastUpdated} />
+
 			<Button
 				variant="outline"
 				size="icon"

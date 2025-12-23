@@ -1,9 +1,11 @@
 "use client";
 
 import { keepPreviousData } from "@tanstack/react-query";
-import { Container, Filter } from "lucide-react";
+import type { RowSelectionState } from "@tanstack/react-table";
+import { Container, Filter, Loader2, Square } from "lucide-react";
 import { parseAsArrayOf, parseAsString, useQueryStates } from "nuqs";
 import { useCallback, useMemo, useState } from "react";
+import { toast } from "sonner";
 
 import { BotDialog } from "@/app/bots/_components/bot-dialog";
 import { DataTable } from "@/components/custom/data-table";
@@ -116,10 +118,43 @@ function EmptyState({ platform }: { platform: Platform }) {
 
 function K8sTable() {
 	const [selectedBotId, setSelectedBotId] = useState<number | null>(null);
+	const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 
 	const [queryState, setQueryState] = useQueryStates({
 		status: parseAsArrayOf(parseAsString).withDefault([]),
 		sort: parseAsString.withDefault("age.desc"),
+	});
+
+	const utils = api.useUtils();
+
+	const deleteJobMutation = api.infrastructure.k8s.deleteJob.useMutation({
+		onSuccess: () => {
+			toast.success("Job stopped successfully");
+			void utils.infrastructure.k8s.getJobs.invalidate();
+			void utils.infrastructure.k8s.getStats.invalidate();
+		},
+		onError: (error) => {
+			toast.error(`Failed to stop job: ${error.message}`);
+		},
+	});
+
+	const deleteJobsMutation = api.infrastructure.k8s.deleteJobs.useMutation({
+		onSuccess: (result) => {
+			if (result.failed > 0) {
+				toast.warning(
+					`Stopped ${result.succeeded} jobs, ${result.failed} failed`,
+				);
+			} else {
+				toast.success(`Stopped ${result.succeeded} jobs`);
+			}
+
+			setRowSelection({});
+			void utils.infrastructure.k8s.getJobs.invalidate();
+			void utils.infrastructure.k8s.getStats.invalidate();
+		},
+		onError: (error) => {
+			toast.error(`Failed to stop jobs: ${error.message}`);
+		},
 	});
 
 	const { data, isLoading, error } = api.infrastructure.k8s.getJobs.useQuery(
@@ -167,8 +202,18 @@ function K8sTable() {
 		[setQueryState],
 	);
 
+	const handleStop = useCallback(
+		(jobName: string) => {
+			deleteJobMutation.mutate({ jobName });
+		},
+		[deleteJobMutation],
+	);
+
 	const columns = useMemo(
-		() => getInfrastructureColumns("k8s", handleSort, currentSort),
+		() =>
+			getInfrastructureColumns("k8s", handleSort, currentSort, {
+				enableRowSelection: true,
+			}),
 		[currentSort, handleSort],
 	);
 
@@ -188,13 +233,43 @@ function K8sTable() {
 	const tableMeta: InfrastructureTableMeta = useMemo(
 		() => ({
 			onView: (botId: number) => setSelectedBotId(botId),
+			onStop: handleStop,
 		}),
-		[],
+		[handleStop],
 	);
+
+	// Build a map of item ID to item for quick lookup
+	const itemsById = useMemo(() => {
+		return new Map(items.map((item) => [String(item.id), item]));
+	}, [items]);
+
+	// Get selected items
+	const selectedItems = useMemo(() => {
+		return Object.keys(rowSelection)
+			.filter((key) => rowSelection[key])
+			.map((id) => itemsById.get(id))
+			.filter((item): item is InfrastructureItem => !!item);
+	}, [rowSelection, itemsById]);
+
+	// Filter to only stoppable jobs (ACTIVE or PENDING)
+	const stoppableSelectedJobs = useMemo(() => {
+		return selectedItems
+			.filter((item) => item.status === "ACTIVE" || item.status === "PENDING")
+			.map((item) => item.platformId);
+	}, [selectedItems]);
+
+	const handleBulkStop = useCallback(() => {
+		if (stoppableSelectedJobs.length === 0) return;
+
+		deleteJobsMutation.mutate({ jobNames: stoppableSelectedJobs });
+	}, [stoppableSelectedJobs, deleteJobsMutation]);
 
 	if (!isLoading && items.length === 0 && queryState.status.length === 0) {
 		return <EmptyState platform="k8s" />;
 	}
+
+	const isDeleting =
+		deleteJobMutation.isPending || deleteJobsMutation.isPending;
 
 	return (
 		<>
@@ -208,11 +283,30 @@ function K8sTable() {
 							</span>
 						) : null}
 					</div>
-					<StatusFilter
-						platform="k8s"
-						selectedStatuses={queryState.status}
-						onStatusChange={handleStatusChange}
-					/>
+					<div className="flex items-center gap-2">
+						{selectedItems.length > 0 ? (
+							<Button
+								variant="destructive"
+								size="sm"
+								className="h-8 gap-2"
+								onClick={handleBulkStop}
+								disabled={isDeleting || stoppableSelectedJobs.length === 0}
+							>
+								{isDeleting ? (
+									<Loader2 className="h-4 w-4 animate-spin" />
+								) : (
+									<Square className="h-4 w-4" />
+								)}
+								Stop {stoppableSelectedJobs.length} job
+								{stoppableSelectedJobs.length !== 1 ? "s" : ""}
+							</Button>
+						) : null}
+						<StatusFilter
+							platform="k8s"
+							selectedStatuses={queryState.status}
+							onStatusChange={handleStatusChange}
+						/>
+					</div>
 				</div>
 				<DataTable
 					columns={columns}
@@ -220,6 +314,10 @@ function K8sTable() {
 					isLoading={isLoading}
 					errorMessage={error?.message}
 					meta={tableMeta}
+					enableRowSelection
+					rowSelection={rowSelection}
+					onRowSelectionChange={setRowSelection}
+					getRowId={(row) => String(row.id)}
 				/>
 			</div>
 

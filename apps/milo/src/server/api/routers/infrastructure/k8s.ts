@@ -288,4 +288,73 @@ export const k8sRouter = createTRPCRouter({
 
 			return await services.k8s.getPodMetrics(input.jobName);
 		}),
+
+	/**
+	 * Deletes a K8s Job.
+	 * @param input - Object containing the job name
+	 * @param input.jobName - The K8s Job name to delete
+	 */
+	deleteJob: protectedProcedure
+		.input(
+			z.object({
+				jobName: z.string(),
+			}),
+		)
+		.output(z.object({ success: z.boolean() }))
+		.mutation(async ({ input }) => {
+			if (!services.k8s) {
+				throw new TRPCError({
+					code: "NOT_IMPLEMENTED",
+					message:
+						"K8s operations are only available when using Kubernetes platform",
+				});
+			}
+
+			await services.k8s.stopBot(input.jobName);
+
+			return { success: true };
+		}),
+
+	/**
+	 * Deletes multiple K8s Jobs.
+	 * @param input - Object containing array of job names
+	 * @param input.jobNames - Array of K8s Job names to delete
+	 */
+	deleteJobs: protectedProcedure
+		.input(
+			z.object({
+				jobNames: z.array(z.string()),
+			}),
+		)
+		.output(
+			z.object({
+				succeeded: z.number(),
+				failed: z.number(),
+			}),
+		)
+		.mutation(async ({ input }) => {
+			if (!services.k8s) {
+				throw new TRPCError({
+					code: "NOT_IMPLEMENTED",
+					message:
+						"K8s operations are only available when using Kubernetes platform",
+				});
+			}
+
+			let succeeded = 0;
+			let failed = 0;
+
+			await Promise.all(
+				input.jobNames.map(async (jobName) => {
+					try {
+						await services.k8s?.stopBot(jobName);
+						succeeded++;
+					} catch {
+						failed++;
+					}
+				}),
+			);
+
+			return { succeeded, failed };
+		}),
 });

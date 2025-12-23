@@ -118,6 +118,7 @@ export default async function InfrastructurePage({
 							{PLATFORM_DESCRIPTIONS[platform]}
 						</PageHeaderDescription>
 					</PageHeaderContent>
+
 					<PageHeaderActions>
 						<InfrastructureHeaderActions />
 					</PageHeaderActions>
