@@ -163,7 +163,7 @@ export function ScreenshotViewer({
 			{selectedScreenshot ? (
 				<div className="flex-1 min-h-0 flex flex-col">
 					{/* Header with metadata */}
-					<div className="flex items-center justify-between px-2 py-2 border-b">
+					<div className="flex items-center justify-between px-2 py-2">
 						<div className="flex items-center gap-2">
 							<Badge
 								variant="outline"
@@ -250,14 +250,14 @@ export function ScreenshotViewer({
 					</div>
 
 					{/* Footer with timestamp */}
-					<div className="px-2 py-1.5 border-t text-xs text-muted-foreground">
+					<div className="px-2 py-1.5 text-xs text-muted-foreground">
 						Captured {format(new Date(selectedScreenshot.capturedAt), "PPpp")}
 					</div>
 				</div>
 			) : null}
 
 			{/* Horizontal thumbnail carousel */}
-			<div className="border-t pt-3 px-2">
+			<div className="pt-3 px-2">
 				<ScrollArea className="w-full whitespace-nowrap">
 					<div className="flex gap-2 pb-2">
 						{screenshots.map((screenshot, index) => {
