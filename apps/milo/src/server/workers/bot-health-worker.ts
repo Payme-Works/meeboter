@@ -8,8 +8,8 @@
  *
  * Error scenarios handled by this worker:
  *   DEPLOYING → [stuck >15min without heartbeat] → FATAL (platform-agnostic)
- *   IN_CALL → [heartbeat stops >10min] → FATAL (marked + resources released)
- *   JOINING_CALL → [heartbeat stops >10min] → FATAL
+ *   IN_CALL → [heartbeat stops >5min] → FATAL (marked + resources released)
+ *   JOINING_CALL → [heartbeat stops >5min] → FATAL
  *
  * ## Monitored Statuses
  *
@@ -61,15 +61,15 @@ import {
 
 import { BaseWorker, type WorkerResult } from "./base-worker";
 
-/** Timeout for heartbeat before marking bot as FATAL (10 minutes) */
-const HEARTBEAT_TIMEOUT_MS = 10 * 60 * 1000;
+/** Timeout for heartbeat before marking bot as FATAL (5 minutes) */
+const HEARTBEAT_TIMEOUT_MS = 5 * 60 * 1000;
 
 /** Timeout for DEPLOYING status before marking bot as FATAL (15 minutes) */
 const DEPLOYING_TIMEOUT_MS = 15 * 60 * 1000;
 
 /**
  * Active statuses where the bot container should be running and sending heartbeats.
- * If heartbeat goes stale (> 10 min), the bot is marked as FATAL.
+ * If heartbeat goes stale (> 5 min), the bot is marked as FATAL.
  */
 const ACTIVE_STATUSES: Status[] = [
 	"JOINING_CALL",
