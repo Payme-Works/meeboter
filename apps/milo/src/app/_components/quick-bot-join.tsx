@@ -19,6 +19,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatPlatformName } from "@/utils/platform";
 import { api } from "@/trpc/react";
 import { getRandomBrazilianNames } from "@/utils/random-names";
 
@@ -42,19 +43,6 @@ function detectPlatform(url: string): Platform {
 	if (url.includes("zoom.us")) return "zoom";
 
 	return "unknown";
-}
-
-function getPlatformDisplayName(platform: Platform): string {
-	switch (platform) {
-		case "google-meet":
-			return "Google Meet";
-		case "microsoft-teams":
-			return "Microsoft Teams";
-		case "zoom":
-			return "Zoom";
-		default:
-			return "Unknown";
-	}
 }
 
 interface UsageStatsProps {
@@ -211,13 +199,11 @@ export function QuickBotJoin() {
 			await utils.bots.getDailyUsage.invalidate();
 			await utils.pool.statistics.getPool.invalidate();
 
-			const platformName = getPlatformDisplayName(platform);
-
 			toast.success("Bots deployed successfully", {
 				description:
 					data.botCount === 1
-						? `Your bot is joining the ${platformName} meeting`
-						: `${data.botCount} bots are joining the ${platformName} meeting`,
+						? `Your bot is joining the ${formatPlatformName(platform)} meeting`
+						: `${data.botCount} bots are joining the ${formatPlatformName(platform)} meeting`,
 			});
 
 			form.reset();

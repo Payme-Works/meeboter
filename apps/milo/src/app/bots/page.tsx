@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { formatPlatformName } from "@/utils/platform";
 import { parseAsInteger, useQueryState } from "nuqs";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -361,9 +362,7 @@ export default function BotsPage() {
 								/>
 							) : null}
 							<span className="text-muted-foreground">
-								{typeof platform === "string"
-									? platform.charAt(0).toUpperCase() + platform.slice(1)
-									: "Unknown"}
+								{formatPlatformName(platform)}
 							</span>
 						</div>
 					);
