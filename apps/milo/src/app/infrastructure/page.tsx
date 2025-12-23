@@ -34,7 +34,7 @@ function PlatformIcon({
 	platform,
 	className,
 }: {
-	platform: Platform;
+	platform: Platform | undefined;
 	className?: string;
 }) {
 	const icons: Record<Platform, typeof Server> = {
@@ -44,7 +44,7 @@ function PlatformIcon({
 		local: Server,
 	};
 
-	const Icon = icons[platform] ?? Server;
+	const Icon = (platform ? icons[platform] : undefined) ?? Server;
 
 	return <Icon className={className} />;
 }
@@ -262,7 +262,7 @@ function LocalStatsCards() {
 
 // ─── Platform Stats Cards ─────────────────────────────────────────────────────
 
-function PlatformStatsCards({ platform }: { platform: Platform }) {
+function PlatformStatsCards({ platform }: { platform: Platform | undefined }) {
 	switch (platform) {
 		case "coolify":
 			return <CoolifyStatsCards />;
@@ -271,6 +271,7 @@ function PlatformStatsCards({ platform }: { platform: Platform }) {
 		case "aws":
 			return <AWSStatsCards />;
 		case "local":
+		default:
 			return <LocalStatsCards />;
 	}
 }
@@ -281,7 +282,7 @@ export default function InfrastructurePage() {
 	const [lastUpdated, setLastUpdated] = useState<Date | undefined>(undefined);
 	const [isManualRefreshing, setIsManualRefreshing] = useState(false);
 
-	const platform: Platform = env.NEXT_PUBLIC_DEPLOYMENT_PLATFORM;
+	const platform = env.NEXT_PUBLIC_DEPLOYMENT_PLATFORM;
 
 	// Update last updated timestamp
 	useEffect(() => {
