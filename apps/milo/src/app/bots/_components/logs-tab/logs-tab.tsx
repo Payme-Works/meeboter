@@ -160,6 +160,7 @@ export function LogsTab({ botId, botStatus }: LogsTabProps) {
 	const [showTimestamps, setShowTimestamps] = useState(true);
 	const terminalRef = useRef<HTMLDivElement>(null);
 	const lastLogIdRef = useRef<string | undefined>();
+	const hasInitialScrolledRef = useRef(false);
 
 	const isActive = Boolean(botStatus && !["DONE", "FATAL"].includes(botStatus));
 
@@ -268,6 +269,19 @@ export function LogsTab({ botId, botStatus }: LogsTabProps) {
 
 		return matchesSearch && matchesLevel;
 	});
+
+	// Initial scroll to bottom when logs are first loaded
+	useEffect(() => {
+		if (
+			!hasInitialScrolledRef.current &&
+			!isHistoricalLoading &&
+			filteredLogs.length > 0 &&
+			terminalRef.current
+		) {
+			hasInitialScrolledRef.current = true;
+			terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
+		}
+	}, [isHistoricalLoading, filteredLogs.length]);
 
 	// Auto-scroll to bottom when filtered logs change (only for live logs)
 	const logCount = filteredLogs.length;
