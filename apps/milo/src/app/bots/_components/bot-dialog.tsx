@@ -222,13 +222,13 @@ export function BotDialog({ botId, onClose }: BotDialogProps) {
 
 	const hasScreenshots = (bot?.screenshots?.length ?? 0) > 0;
 
-	const hasPlatformInfo = Boolean(bot?.deploymentPlatform);
+	const hasPlatform = Boolean(bot?.deploymentPlatform);
 
 	const tabs = [
 		{ id: "details" as const, label: "Overview", icon: Radio },
 		{ id: "events" as const, label: "Events", icon: Activity },
 		{ id: "logs" as const, label: "Logs", icon: Terminal },
-		...(hasPlatformInfo
+		...(hasPlatform
 			? [{ id: "platform" as const, label: "Platform", icon: Server }]
 			: []),
 		...(hasScreenshots

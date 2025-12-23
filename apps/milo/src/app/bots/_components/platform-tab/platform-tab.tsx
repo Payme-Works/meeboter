@@ -308,7 +308,7 @@ function K8sPlatformView({
 	isActive,
 }: K8sPlatformViewProps) {
 	const {
-		data: jobData,
+		data: k8sJob,
 		isLoading,
 		isRefetching,
 		refetch,
@@ -321,7 +321,7 @@ function K8sPlatformView({
 	);
 
 	// Real-time metrics (only fetch when active)
-	const { data: metricsData } = api.infrastructure.k8s.getPodMetrics.useQuery(
+	const { data: podMetrics } = api.infrastructure.k8s.getPodMetrics.useQuery(
 		{ jobName: platformIdentifier ?? "" },
 		{
 			enabled: !!platformIdentifier && isActive,
@@ -367,7 +367,7 @@ function K8sPlatformView({
 		);
 	}
 
-	if (!jobData) {
+	if (!k8sJob) {
 		return (
 			<div className="p-6">
 				<PlatformHeader>
@@ -388,12 +388,12 @@ function K8sPlatformView({
 		);
 	}
 
-	const job = jobData.job as {
+	const job = k8sJob.job as {
 		status?: { active?: number; succeeded?: number; failed?: number };
 		metadata?: { creationTimestamp?: string; name?: string };
 	};
 
-	const pods = jobData.pods as Array<{
+	const pods = k8sJob.pods as Array<{
 		metadata?: { name?: string };
 		status?: {
 			phase?: string;
@@ -413,7 +413,7 @@ function K8sPlatformView({
 		};
 	}>;
 
-	const events = jobData.events as Array<{
+	const events = k8sJob.events as Array<{
 		type?: string;
 		reason?: string;
 		message?: string;
@@ -459,7 +459,7 @@ function K8sPlatformView({
 	const hasResources = cpuRequest || cpuLimit || memoryRequest || memoryLimit;
 
 	// Extract live metrics
-	const liveMetrics = metricsData?.containers?.[0]?.usage;
+	const liveMetrics = podMetrics?.containers?.[0]?.usage;
 	const cpuUsage = liveMetrics?.cpu;
 	const memoryUsage = liveMetrics?.memory;
 

@@ -16,7 +16,7 @@ interface BotActionsDropdownProps {
 	botName: string;
 	status: string;
 	recording: string | null;
-	onViewDetails: () => void;
+	onView: () => void;
 	onRemoveFromCall: () => void;
 	onCancelDeployment: () => void;
 }
@@ -28,7 +28,7 @@ export function BotActionsDropdown({
 	botName,
 	status,
 	recording,
-	onViewDetails,
+	onView,
 	onRemoveFromCall,
 	onCancelDeployment,
 }: BotActionsDropdownProps) {
@@ -54,7 +54,7 @@ export function BotActionsDropdown({
 				</DropdownMenuLabel>
 				<DropdownMenuSeparator />
 
-				<DropdownMenuItem onClick={onViewDetails}>
+				<DropdownMenuItem onClick={onView}>
 					<Eye className="h-4 w-4" />
 					View details
 				</DropdownMenuItem>

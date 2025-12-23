@@ -17,7 +17,7 @@ import {
 // ─── Table Meta Type ─────────────────────────────────────────────────────────
 
 export interface InfrastructureTableMeta {
-	onViewDetails: (botId: number) => void;
+	onView: (botId: number) => void;
 }
 
 declare module "@tanstack/react-table" {
@@ -195,7 +195,7 @@ export function getInfrastructureColumns(
 							</DropdownMenuLabel>
 							<DropdownMenuSeparator />
 							<DropdownMenuItem
-								onClick={() => table.options.meta?.onViewDetails(botId)}
+								onClick={() => table.options.meta?.onView(botId)}
 							>
 								<Eye className="h-4 w-4" />
 								View details

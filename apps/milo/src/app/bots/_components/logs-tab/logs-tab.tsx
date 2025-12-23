@@ -138,7 +138,7 @@ export function LogsTab({ botId, botStatus }: LogsTabProps) {
 	const isActive = Boolean(botStatus && !["DONE", "FATAL"].includes(botStatus));
 
 	// Fetch live logs with polling
-	const { data: liveData, isLoading } = api.bots.logs.getLive.useQuery(
+	const { data: liveLogsResponse, isLoading } = api.bots.logs.getLive.useQuery(
 		{
 			botId: String(botId),
 			afterId: lastLogIdRef.current,
@@ -152,7 +152,7 @@ export function LogsTab({ botId, botStatus }: LogsTabProps) {
 	);
 
 	// Fetch historical logs for finished bots
-	const { data: historicalData, isLoading: historicalLoading } =
+	const { data: historicalLogsResponse, isLoading: historicalLoading } =
 		api.bots.logs.getHistorical.useQuery(
 			{
 				botId: String(botId),
@@ -165,29 +165,30 @@ export function LogsTab({ botId, botStatus }: LogsTabProps) {
 
 	// Update logs when new data arrives
 	useEffect(() => {
-		if (liveData?.entries && liveData.entries.length > 0) {
+		if (liveLogsResponse?.entries && liveLogsResponse.entries.length > 0) {
 			setLogs((prev) => {
-				const newLogs = [...prev, ...liveData.entries];
+				const newLogs = [...prev, ...liveLogsResponse.entries];
 
 				// Keep only the last 2000 logs
 				return newLogs.slice(-2000);
 			});
 
 			// Update cursor for next fetch
-			const lastEntry = liveData.entries[liveData.entries.length - 1];
+			const lastEntry =
+				liveLogsResponse.entries[liveLogsResponse.entries.length - 1];
 
 			if (lastEntry) {
 				lastLogIdRef.current = lastEntry.id;
 			}
 		}
-	}, [liveData]);
+	}, [liveLogsResponse]);
 
 	// Load historical logs for finished bots
 	useEffect(() => {
-		if (historicalData?.entries) {
-			setLogs(historicalData.entries);
+		if (historicalLogsResponse?.entries) {
+			setLogs(historicalLogsResponse.entries);
 		}
-	}, [historicalData]);
+	}, [historicalLogsResponse]);
 
 	// Handle scroll to detect manual scrolling
 	const handleScroll = useCallback(() => {

@@ -32,9 +32,9 @@ timeout?: number;
 timeoutMs?: number;
 ```
 
-## Avoid "Details", "Info", and "Data" Suffixes
+## Avoid Redundant Suffixes
 
-- **NEVER use "Details", "Info", or "Data" suffixes** for variables, types, props, interfaces, or function names
+- **NEVER use "Details", "Info", "Data", "Response", or "List" suffixes** for variables, types, props, interfaces, or function names
 - **These suffixes add noise without clarity** - They don't convey meaningful information about what the variable contains
 - **Use simple, descriptive names** - The name itself should indicate what it represents
 
@@ -76,12 +76,15 @@ interface KubernetesJob { ... }
 const platformDetails = ...;    // → platform
 const platformInfo = ...;       // → platform
 const subscriptionInfo = ...;   // → subscription
-const botsData = ...;           // → botsResponse (for query results)
+const botsData = ...;           // → bots
+const botsResponse = ...;       // → bots
+const botsList = ...;           // → bots
 
 // ✅ CORRECT: Simple names
 const platform = platformQuery.data;
 const subscription = await getUserSubscription(db, userId);
-const { data: botsResponse } = api.bots.getBots.useQuery();
+const { data } = api.bots.getBots.useQuery();
+const bots = data?.data ?? [];
 
 // ─── Functions/Methods ────────────────────────────────────────────────────────
 
@@ -120,10 +123,15 @@ function PlatformMetrics({ metrics }) { ... }
 |--------|-------|
 | `platformDetails` | `platform` |
 | `platformInfo` | `platform` |
-| `platformData` | `platform` (or `platformOutput` for tRPC types) |
+| `platformData` | `platform` |
+| `platformResponse` | `platform` |
 | `userInfo` | `user` or `profile` |
 | `subscriptionInfo` | `subscription` |
-| `botsData` | `botsResponse` or `bots` |
+| `botsData` | `bots` |
+| `botsResponse` | `bots` |
+| `botsList` | `bots` |
+| `templatesResponse` | `templates` |
+| `templatesList` | `templates` |
 | `MeetingInfo` | `Meeting` |
 | `meetingInfo` | `meeting` |
 | `getJobDetails()` | `getJob()` |
@@ -175,20 +183,22 @@ type PlatformResponse = RouterOutputs["infrastructure"]["getPlatform"]; // Shoul
 
 ### tRPC Query Result Variable Naming
 
-When destructuring tRPC query results, use meaningful names that avoid "Data" suffix:
+When destructuring tRPC query results, use simple entity names:
 
 ```typescript
-// ✅ CORRECT: Descriptive names for query results
-const { data: botsResponse, isLoading } = api.bots.getBots.useQuery();
-const { data: subscription, isLoading: subLoading } = api.bots.getUserSubscription.useQuery();
+// ✅ CORRECT: Simple entity names for query results
+const { data } = api.bots.getBots.useQuery();
+const bots = data?.data ?? [];
+
+const { data: subscription } = api.subscriptions.get.useQuery();
 const { data: platform } = api.infrastructure.getPlatform.useQuery();
+const { data: templates } = api.chat.getMessageTemplates.useQuery();
+const { data: apiKeys } = api.apiKeys.list.useQuery();
 
-// Then use the response
-const bots = (botsResponse?.data ?? []).filter((bot) => isActive(bot));
-
-// ❌ WRONG: Using "Data" suffix
-const { data: botsData } = api.bots.getBots.useQuery();      // → botsResponse or bots
-const { data: subscriptionData } = api.bots.getUserSubscription.useQuery(); // → subscription
+// ❌ WRONG: Using suffixes like "Data", "Response", "List"
+const { data: botsData } = ...;           // → use data, then extract
+const { data: botsResponse } = ...;       // → use data, then extract
+const botsList = data?.data ?? [];        // → bots
 
 // ✅ ALSO CORRECT: Using the query object directly when you need refetch
 const platformQuery = api.infrastructure.getPlatform.useQuery();

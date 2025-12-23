@@ -48,11 +48,13 @@ export function startWorkers(
 		}),
 	};
 
-	const workerList = Object.values(workers);
+	const workerEntries = Object.values(workers);
 
-	console.log(`[Workers] Starting ${workerList.length} background workers...`);
+	console.log(
+		`[Workers] Starting ${workerEntries.length} background workers...`,
+	);
 
-	for (const worker of workerList) {
+	for (const worker of workerEntries) {
 		worker.start();
 	}
 

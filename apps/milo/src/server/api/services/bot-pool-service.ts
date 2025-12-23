@@ -42,10 +42,10 @@ function logSlotTransition(log: SlotTransitionLog): void {
 		? `${log.previousState} → ${log.newState}`
 		: log.newState;
 
-	const botInfo = log.botId ? `bot=${log.botId}` : "bot=none";
+	const botLabel = log.botId ? `bot=${log.botId}` : "bot=none";
 
 	console.log(
-		`[BotPoolService] Slot ${log.slotName} (${log.slotId}): ${stateChange} | ${botInfo} | coolify=${log.coolifyUuid} | reason="${log.reason}"`,
+		`[BotPoolService] Slot ${log.slotName} (${log.slotId}): ${stateChange} | ${botLabel} | coolify=${log.coolifyUuid} | reason="${log.reason}"`,
 	);
 }
 

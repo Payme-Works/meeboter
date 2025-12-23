@@ -20,11 +20,7 @@ export function ViewLogsDialog({
 	selectedViewLogsKeyId,
 	setSelectedViewLogsKeyId,
 }: ViewLogsDialogProps) {
-	const {
-		data: logsData,
-		isLoading,
-		error,
-	} = api.apiKeys.getApiKeyLogs.useQuery(
+	const { data, isLoading, error } = api.apiKeys.getApiKeyLogs.useQuery(
 		{
 			id: String(selectedViewLogsKeyId),
 			limit: "10",
@@ -35,7 +31,7 @@ export function ViewLogsDialog({
 		},
 	);
 
-	const logs = logsData?.logs ?? [];
+	const logs = data?.logs ?? [];
 
 	type Log = (typeof logs)[number];
 

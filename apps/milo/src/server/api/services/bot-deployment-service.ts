@@ -170,12 +170,12 @@ export class BotDeploymentService {
 				);
 			}
 
-			const slotInfo = deployResult.slotName
+			const slotLabel = deployResult.slotName
 				? ` (slot: ${deployResult.slotName})`
 				: "";
 
 			console.log(
-				`[BotDeploymentService] Bot ${botId} deployed via ${this.platform.platformName}${slotInfo}`,
+				`[BotDeploymentService] Bot ${botId} deployed via ${this.platform.platformName}${slotLabel}`,
 			);
 
 			return { bot: deployedBot, queued: false };

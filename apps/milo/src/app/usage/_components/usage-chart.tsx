@@ -198,30 +198,30 @@ export function UsageChart() {
 		setUserTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone);
 	}, []);
 
-	const dailyData = api.usage.getDailyUsage.useQuery(
+	const dailyQuery = api.usage.getDailyUsage.useQuery(
 		{ timeZone: userTimezone },
 		{ enabled: timeframe === "daily" && !!userTimezone },
 	);
 
-	const weekData = api.usage.getWeekDailyUsage.useQuery(
+	const weekQuery = api.usage.getWeekDailyUsage.useQuery(
 		{ timeZone: userTimezone },
 		{ enabled: timeframe === "week" && !!userTimezone },
 	);
 
-	const monthData = api.usage.getMonthDailyUsage.useQuery(
+	const monthQuery = api.usage.getMonthDailyUsage.useQuery(
 		{ timeZone: userTimezone },
 		{ enabled: timeframe === "month" && !!userTimezone },
 	);
 
-	function getTimeframeData() {
-		if (timeframe === "daily") return dailyData;
+	function getTimeframeQuery() {
+		if (timeframe === "daily") return dailyQuery;
 
-		if (timeframe === "week") return weekData;
+		if (timeframe === "week") return weekQuery;
 
-		return monthData;
+		return monthQuery;
 	}
 
-	const { data, isLoading, error } = getTimeframeData();
+	const { data, isLoading, error } = getTimeframeQuery();
 
 	const max =
 		data &&

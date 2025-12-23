@@ -76,9 +76,9 @@ export function UsageTooltip({
 		return null;
 	}
 
-	const objData = payload[0]?.payload;
+	const entry = payload[0]?.payload;
 
-	if (!objData) {
+	if (!entry) {
 		return null;
 	}
 
@@ -99,7 +99,7 @@ export function UsageTooltip({
 					<span
 						className={`tabular-nums ${metric === "botsUsed" ? "text-sm font-semibold" : "text-xs"}`}
 					>
-						{objData.botsUsed}
+						{entry.botsUsed}
 					</span>
 				</div>
 
@@ -113,7 +113,7 @@ export function UsageTooltip({
 					<span
 						className={`tabular-nums ${metric === "msEllapsed" ? "text-sm font-semibold" : "text-xs"}`}
 					>
-						{formatDuration(objData.msEllapsed)}
+						{formatDuration(entry.msEllapsed)}
 					</span>
 				</div>
 			</div>

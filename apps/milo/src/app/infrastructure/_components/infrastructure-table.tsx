@@ -187,7 +187,7 @@ function K8sTable() {
 
 	const tableMeta: InfrastructureTableMeta = useMemo(
 		() => ({
-			onViewDetails: (botId: number) => setSelectedBotId(botId),
+			onView: (botId: number) => setSelectedBotId(botId),
 		}),
 		[],
 	);
@@ -304,7 +304,7 @@ function CoolifyTable() {
 
 	const tableMeta: InfrastructureTableMeta = useMemo(
 		() => ({
-			onViewDetails: (botId: number) => setSelectedBotId(botId),
+			onView: (botId: number) => setSelectedBotId(botId),
 		}),
 		[],
 	);
@@ -420,7 +420,7 @@ function AWSTable() {
 
 	const tableMeta: InfrastructureTableMeta = useMemo(
 		() => ({
-			onViewDetails: (botId: number) => setSelectedBotId(botId),
+			onView: (botId: number) => setSelectedBotId(botId),
 		}),
 		[],
 	);

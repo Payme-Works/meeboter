@@ -456,7 +456,7 @@ export default function BotsPage() {
 								botName={row.original.displayName}
 								status={row.original.status}
 								recording={row.original.recording}
-								onViewDetails={() => setSelectedBot(row.original.id)}
+								onView={() => setSelectedBot(row.original.id)}
 								onRemoveFromCall={() =>
 									setBotToRemove({
 										id: row.original.id,

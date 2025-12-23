@@ -239,9 +239,9 @@ function LocalMessage({ message }: { message: string }) {
 }
 
 /**
- * Platform info type matching API schema (UPPERCASE status fields per PLATFORM_NOMENCLATURE.md)
+ * Platform type matching API schema (UPPERCASE status fields per PLATFORM_NOMENCLATURE.md)
  */
-type PlatformInfo =
+type Platform =
 	| {
 			platform: "k8s";
 			namespace: string;
@@ -273,7 +273,7 @@ type PlatformInfo =
  * Platform metrics content renderer
  * Avoids nested ternaries by using switch-like pattern
  */
-function PlatformMetricsContent({ platform }: { platform: PlatformInfo }) {
+function PlatformMetricsContent({ platform }: { platform: Platform }) {
 	switch (platform.platform) {
 		case "k8s":
 			return <K8sMetrics metrics={platform} />;
@@ -294,7 +294,7 @@ function PlatformSection({
 	isExpanded,
 	onToggle,
 }: {
-	platform: PlatformInfo;
+	platform: Platform;
 	isExpanded: boolean;
 	onToggle: () => void;
 }) {
@@ -347,7 +347,7 @@ interface InfrastructureCardProps {
 		todayCompleted: number;
 		todayFailed: number;
 	};
-	platform: PlatformInfo;
+	platform: Platform;
 }
 
 function InfrastructureCard({
