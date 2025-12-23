@@ -13,10 +13,10 @@ import {
 import { CreateApiKeyForm } from "./create-api-key-form";
 
 export function CreateApiKeyDialog() {
-	const [open, setOpen] = useState(false);
+	const [isOpen, setIsOpen] = useState(false);
 
 	return (
-		<Dialog open={open} onOpenChange={setOpen}>
+		<Dialog open={isOpen} onOpenChange={setIsOpen}>
 			<DialogTrigger asChild>
 				<Button>
 					<Plus className="mr-2 h-4 w-4" />
@@ -27,7 +27,7 @@ export function CreateApiKeyDialog() {
 				<DialogHeader>
 					<DialogTitle>Create API Key</DialogTitle>
 				</DialogHeader>
-				<CreateApiKeyForm onSuccess={() => setOpen(false)} />
+				<CreateApiKeyForm onSuccess={() => setIsOpen(false)} />
 			</DialogContent>
 		</Dialog>
 	);

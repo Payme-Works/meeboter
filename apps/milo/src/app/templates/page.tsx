@@ -176,7 +176,7 @@ export default function TemplatesPage() {
 			/>
 
 			<CreateTemplateDialog
-				open={createDialogOpen}
+				isOpen={createDialogOpen}
 				onClose={() => setCreateDialogOpen(false)}
 				onTemplateCreated={handleTemplateCreated}
 			/>

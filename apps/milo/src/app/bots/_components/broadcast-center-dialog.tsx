@@ -26,13 +26,13 @@ import type { SelectBotType } from "@/server/database/schema";
 import { api } from "@/trpc/react";
 
 interface BroadcastCenterDialogProps {
-	open: boolean;
+	isOpen: boolean;
 	onClose: () => void;
 	bots: SelectBotType[];
 }
 
 export function BroadcastCenterDialog({
-	open,
+	isOpen,
 	onClose,
 	bots,
 }: BroadcastCenterDialogProps) {
@@ -163,7 +163,7 @@ export function BroadcastCenterDialog({
 		(messageType === "template" ? selectedTemplateId : customMessage.trim());
 
 	return (
-		<Dialog open={open} onOpenChange={resetForm}>
+		<Dialog open={isOpen} onOpenChange={resetForm}>
 			<DialogContent className="max-w-2xl p-0 gap-0 overflow-hidden border-0 [&_[data-slot=dialog-close]]:text-white">
 				{/* Header */}
 				<div className="bg-gradient-to-r from-zinc-900 to-zinc-800 px-6 py-5 border-b border-zinc-700">

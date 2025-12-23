@@ -15,15 +15,15 @@ import { api } from "@/trpc/react";
 interface CancelDeploymentDialogProps {
 	botId: number | null;
 	botName: string;
-	open: boolean;
-	onOpenChange: (open: boolean) => void;
+	isOpen: boolean;
+	onOpenChange: (isOpen: boolean) => void;
 	onSuccess?: () => void;
 }
 
 export function CancelDeploymentDialog({
 	botId,
 	botName,
-	open,
+	isOpen,
 	onOpenChange,
 	onSuccess,
 }: CancelDeploymentDialogProps) {
@@ -44,7 +44,7 @@ export function CancelDeploymentDialog({
 	};
 
 	return (
-		<Dialog open={open} onOpenChange={onOpenChange}>
+		<Dialog open={isOpen} onOpenChange={onOpenChange}>
 			<DialogContent className="sm:max-w-md">
 				<DialogHeader>
 					<DialogTitle>Cancel Deployment?</DialogTitle>

@@ -581,12 +581,12 @@ function InfrastructureCardUnavailable() {
  * Uses React Query for caching and automatic refetching.
  */
 export function InfrastructureCardLoader() {
-	const { data: activityStats, isLoading: statsLoading } =
+	const { data: activityStats, isLoading: isStatsLoading } =
 		api.infrastructure.getActivityStats.useQuery(undefined, {
 			refetchInterval: 5000,
 		});
 
-	const { data: botSequence, isLoading: sequenceLoading } =
+	const { data: botSequence, isLoading: isSequenceLoading } =
 		api.infrastructure.getActiveBotSequence.useQuery(undefined, {
 			refetchInterval: 5000,
 		});
@@ -595,7 +595,7 @@ export function InfrastructureCardLoader() {
 		refetchInterval: 10000,
 	});
 
-	if (statsLoading || sequenceLoading || platformQuery.isLoading) {
+	if (isStatsLoading || isSequenceLoading || platformQuery.isLoading) {
 		return <InfrastructureCardSkeleton />;
 	}
 

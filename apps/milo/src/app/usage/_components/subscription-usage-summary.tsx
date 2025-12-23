@@ -122,15 +122,15 @@ function LoadingSkeleton() {
 export function SubscriptionUsageSummary() {
 	const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-	const { data: subscription, isLoading: subLoading } =
+	const { data: subscription, isLoading: isSubLoading } =
 		api.bots.getUserSubscription.useQuery();
 
-	const { data: dailyUsage, isLoading: usageLoading } =
+	const { data: dailyUsage, isLoading: isUsageLoading } =
 		api.bots.getDailyUsage.useQuery({
 			timeZone: userTimezone,
 		});
 
-	if (subLoading || usageLoading) {
+	if (isSubLoading || isUsageLoading) {
 		return <LoadingSkeleton />;
 	}
 

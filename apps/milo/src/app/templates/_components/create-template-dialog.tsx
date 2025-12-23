@@ -20,13 +20,13 @@ import { cn } from "@/lib/utils";
 import { api } from "@/trpc/react";
 
 interface CreateTemplateDialogProps {
-	open: boolean;
+	isOpen: boolean;
 	onClose: () => void;
 	onTemplateCreated: () => void;
 }
 
 export function CreateTemplateDialog({
-	open,
+	isOpen,
 	onClose,
 	onTemplateCreated,
 }: CreateTemplateDialogProps) {
@@ -101,7 +101,7 @@ export function CreateTemplateDialog({
 	const filledCount = messages.filter((m) => m.value.trim()).length;
 
 	return (
-		<Dialog open={open} onOpenChange={handleClose}>
+		<Dialog open={isOpen} onOpenChange={handleClose}>
 			<DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
 				<DialogHeader>
 					<DialogTitle>Create Message Template</DialogTitle>

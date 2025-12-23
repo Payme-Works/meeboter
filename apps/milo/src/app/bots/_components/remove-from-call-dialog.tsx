@@ -15,15 +15,15 @@ import { api } from "@/trpc/react";
 interface RemoveFromCallDialogProps {
 	botId: number | null;
 	botName: string;
-	open: boolean;
-	onOpenChange: (open: boolean) => void;
+	isOpen: boolean;
+	onOpenChange: (isOpen: boolean) => void;
 	onSuccess?: () => void;
 }
 
 export function RemoveFromCallDialog({
 	botId,
 	botName,
-	open,
+	isOpen,
 	onOpenChange,
 	onSuccess,
 }: RemoveFromCallDialogProps) {
@@ -44,7 +44,7 @@ export function RemoveFromCallDialog({
 	};
 
 	return (
-		<Dialog open={open} onOpenChange={onOpenChange}>
+		<Dialog open={isOpen} onOpenChange={onOpenChange}>
 			<DialogContent className="sm:max-w-md">
 				<DialogHeader>
 					<DialogTitle>Remove Bot from Call?</DialogTitle>

@@ -589,12 +589,12 @@ export default function BotsPage() {
 			<BotDialog botId={selectedBot} onClose={() => setSelectedBot(null)} />
 
 			<MultiBotJoinDialog
-				open={multiBotDialogOpen}
+				isOpen={multiBotDialogOpen}
 				onClose={() => setMultiBotDialogOpen(false)}
 			/>
 
 			<BroadcastCenterDialog
-				open={broadcastCenterOpen}
+				isOpen={broadcastCenterOpen}
 				onClose={() => setBroadcastCenterOpen(false)}
 				bots={bots}
 			/>
@@ -602,18 +602,18 @@ export default function BotsPage() {
 			<RemoveFromCallDialog
 				botId={botToRemove?.id ?? null}
 				botName={botToRemove?.name ?? ""}
-				open={!!botToRemove}
-				onOpenChange={(open) => {
-					if (!open) setBotToRemove(null);
+				isOpen={!!botToRemove}
+				onOpenChange={(isOpen) => {
+					if (!isOpen) setBotToRemove(null);
 				}}
 			/>
 
 			<CancelDeploymentDialog
 				botId={botToCancel?.id ?? null}
 				botName={botToCancel?.name ?? ""}
-				open={!!botToCancel}
-				onOpenChange={(open) => {
-					if (!open) setBotToCancel(null);
+				isOpen={!!botToCancel}
+				onOpenChange={(isOpen) => {
+					if (!isOpen) setBotToCancel(null);
 				}}
 			/>
 

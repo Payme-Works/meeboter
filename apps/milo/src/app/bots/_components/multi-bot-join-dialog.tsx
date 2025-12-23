@@ -41,7 +41,7 @@ const multiBotSchema = z.object({
 type MultiBotFormData = z.infer<typeof multiBotSchema>;
 
 interface MultiBotJoinDialogProps {
-	open: boolean;
+	isOpen: boolean;
 	onClose: () => void;
 }
 
@@ -65,7 +65,10 @@ function SubmitButtonText({
 	return "Create Bots";
 }
 
-export function MultiBotJoinDialog({ open, onClose }: MultiBotJoinDialogProps) {
+export function MultiBotJoinDialog({
+	isOpen,
+	onClose,
+}: MultiBotJoinDialogProps) {
 	const [isSubmitting, setIsSubmitting] = useState(false);
 
 	const form = useForm<MultiBotFormData>({
@@ -83,10 +86,10 @@ export function MultiBotJoinDialog({ open, onClose }: MultiBotJoinDialogProps) {
 	const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 	// Fetch subscription and usage data
-	const { data: subscription, isLoading: subLoading } =
+	const { data: subscription, isLoading: isSubLoading } =
 		api.bots.getUserSubscription.useQuery();
 
-	const { data: dailyUsage, isLoading: usageLoading } =
+	const { data: dailyUsage, isLoading: isUsageLoading } =
 		api.bots.getDailyUsage.useQuery({
 			timeZone: userTimezone,
 		});
@@ -186,7 +189,7 @@ export function MultiBotJoinDialog({ open, onClose }: MultiBotJoinDialogProps) {
 	};
 
 	return (
-		<Dialog open={open} onOpenChange={onClose}>
+		<Dialog open={isOpen} onOpenChange={onClose}>
 			<DialogContent className="sm:max-w-md">
 				<DialogHeader>
 					<DialogTitle>Join Multiple Bots to Meeting</DialogTitle>
@@ -197,7 +200,7 @@ export function MultiBotJoinDialog({ open, onClose }: MultiBotJoinDialogProps) {
 				</DialogHeader>
 
 				{/* Subscription & Quota Information */}
-				{subLoading || usageLoading ? (
+				{isSubLoading || isUsageLoading ? (
 					<div className="space-y-2">
 						<Skeleton className="h-4 w-32" />
 						<Skeleton className="h-4 w-48" />

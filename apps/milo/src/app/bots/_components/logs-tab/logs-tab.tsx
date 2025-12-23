@@ -152,7 +152,7 @@ export function LogsTab({ botId, botStatus }: LogsTabProps) {
 	);
 
 	// Fetch historical logs for finished bots
-	const { data: historicalLogsResponse, isLoading: historicalLoading } =
+	const { data: historicalLogsResponse, isLoading: isHistoricalLoading } =
 		api.bots.logs.getHistorical.useQuery(
 			{
 				botId: String(botId),
@@ -364,7 +364,7 @@ export function LogsTab({ botId, botStatus }: LogsTabProps) {
 				className="flex-1 overflow-auto bg-zinc-950 font-mono text-xs"
 			>
 				<TerminalContent
-					isLoading={isLoading || historicalLoading}
+					isLoading={isLoading || isHistoricalLoading}
 					filteredLogs={filteredLogs}
 					totalLogs={logs.length}
 					showTimestamps={showTimestamps}

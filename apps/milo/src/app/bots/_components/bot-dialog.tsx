@@ -117,9 +117,9 @@ export function BotDialog({ botId, onClose }: BotDialogProps) {
 
 	const {
 		data: bot,
-		isLoading: botLoading,
+		isLoading: isBotLoading,
 		error: botError,
-		isRefetching: botRefetching,
+		isRefetching: isBotRefetching,
 		refetch: refetchBot,
 	} = api.bots.getBot.useQuery(
 		{ id: String(botId) },
@@ -132,7 +132,7 @@ export function BotDialog({ botId, onClose }: BotDialogProps) {
 
 	const {
 		data: events = [],
-		isLoading: eventsLoading,
+		isLoading: isEventsLoading,
 		error: eventsError,
 	} = api.events.getEventsForBot.useQuery(
 		{ botId: String(botId) },
@@ -251,10 +251,10 @@ export function BotDialog({ botId, onClose }: BotDialogProps) {
 						<div className="flex items-start justify-between">
 							<div className="flex items-center gap-4">
 								{/* Platform Icon */}
-								{botLoading ? (
+								{isBotLoading ? (
 									<Skeleton className="h-12 w-12 rounded-xl bg-zinc-700" />
 								) : null}
-								{!botLoading && bot?.meeting.platform ? (
+								{!isBotLoading && bot?.meeting.platform ? (
 									<div className="h-12 w-12 rounded-xl bg-white/10 backdrop-blur flex items-center justify-center">
 										<Image
 											src={`/platform-logos/${bot.meeting.platform}.svg`}
@@ -267,14 +267,14 @@ export function BotDialog({ botId, onClose }: BotDialogProps) {
 
 								<div className="space-y-1">
 									<DialogTitle className="text-white text-lg font-semibold tracking-tight">
-										{botLoading ? (
+										{isBotLoading ? (
 											<Skeleton className="h-5 w-48 bg-zinc-700" />
 										) : (
 											bot?.displayName || "Bot Details"
 										)}
 									</DialogTitle>
 									<DialogDescription className="text-zinc-400 text-sm">
-										{botLoading ? (
+										{isBotLoading ? (
 											<Skeleton className="h-4 w-64 bg-zinc-700" />
 										) : (
 											"Meeting details"
@@ -323,14 +323,14 @@ export function BotDialog({ botId, onClose }: BotDialogProps) {
 											<InfoRow
 												icon={Calendar}
 												label="Scheduled"
-												loading={botLoading}
+												loading={isBotLoading}
 											>
 												{bot?.startTime
 													? format(new Date(bot.startTime), "PPP")
 													: "Not scheduled"}
 											</InfoRow>
 
-											<InfoRow icon={Clock} label="Time" loading={botLoading}>
+											<InfoRow icon={Clock} label="Time" loading={isBotLoading}>
 												{bot?.startTime && bot?.endTime
 													? `${format(new Date(bot.startTime), "p")} - ${format(new Date(bot.endTime), "p")}`
 													: "—"}
@@ -339,7 +339,7 @@ export function BotDialog({ botId, onClose }: BotDialogProps) {
 											<InfoRow
 												icon={Video}
 												label="Recording"
-												loading={botLoading}
+												loading={isBotLoading}
 											>
 												<RecordingStatus
 													recording={bot?.recording}
@@ -355,7 +355,11 @@ export function BotDialog({ botId, onClose }: BotDialogProps) {
 											Bot Status
 										</h3>
 										<div className="space-y-3">
-											<InfoRow icon={Radio} label="Status" loading={botLoading}>
+											<InfoRow
+												icon={Radio}
+												label="Status"
+												loading={isBotLoading}
+											>
 												{bot?.status ? (
 													<Badge
 														variant="outline"
@@ -375,7 +379,7 @@ export function BotDialog({ botId, onClose }: BotDialogProps) {
 											<InfoRow
 												icon={Heart}
 												label="Last Heartbeat"
-												loading={botLoading}
+												loading={isBotLoading}
 											>
 												{bot?.lastHeartbeat ? (
 													<span className="tabular-nums">
@@ -393,7 +397,7 @@ export function BotDialog({ botId, onClose }: BotDialogProps) {
 											<InfoRow
 												icon={Activity}
 												label="Events"
-												loading={eventsLoading}
+												loading={isEventsLoading}
 											>
 												<span className="tabular-nums">{events.length}</span>
 											</InfoRow>
@@ -401,7 +405,7 @@ export function BotDialog({ botId, onClose }: BotDialogProps) {
 											<InfoRow
 												icon={Clock}
 												label="Created"
-												loading={botLoading}
+												loading={isBotLoading}
 											>
 												{bot?.createdAt ? (
 													<span className="tabular-nums">
@@ -425,7 +429,7 @@ export function BotDialog({ botId, onClose }: BotDialogProps) {
 							<DataTable
 								columns={eventColumns}
 								data={events}
-								isLoading={botLoading || eventsLoading}
+								isLoading={isBotLoading || isEventsLoading}
 								errorMessage={eventsError?.message}
 							/>
 						</div>
@@ -454,8 +458,8 @@ export function BotDialog({ botId, onClose }: BotDialogProps) {
 						<div className="h-full p-3">
 							<ScreenshotViewer
 								screenshots={bot?.screenshots ?? []}
-								isLoading={botLoading}
-								isRefetching={botRefetching}
+								isLoading={isBotLoading}
+								isRefetching={isBotRefetching}
 								onRefresh={() => refetchBot()}
 							/>
 						</div>

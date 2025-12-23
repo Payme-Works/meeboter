@@ -246,18 +246,18 @@ export function RecentBots() {
 			<RemoveFromCallDialog
 				botId={botToRemove?.id ?? null}
 				botName={botToRemove?.name ?? ""}
-				open={!!botToRemove}
-				onOpenChange={(open) => {
-					if (!open) setBotToRemove(null);
+				isOpen={!!botToRemove}
+				onOpenChange={(isOpen) => {
+					if (!isOpen) setBotToRemove(null);
 				}}
 			/>
 
 			<CancelDeploymentDialog
 				botId={botToCancel?.id ?? null}
 				botName={botToCancel?.name ?? ""}
-				open={!!botToCancel}
-				onOpenChange={(open) => {
-					if (!open) setBotToCancel(null);
+				isOpen={!!botToCancel}
+				onOpenChange={(isOpen) => {
+					if (!isOpen) setBotToCancel(null);
 				}}
 			/>
 
