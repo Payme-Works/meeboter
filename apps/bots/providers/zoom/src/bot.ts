@@ -13,7 +13,6 @@ import { CLEANUP_TIMEOUTS } from "../../../src/constants";
 import type { BotEventEmitter } from "../../../src/events";
 import { withTimeout } from "../../../src/helpers/with-timeout";
 import type { BotLogger } from "../../../src/logger";
-import type { StorageService } from "../../../src/services/storage/storage-service";
 import {
 	type BotConfig,
 	type SpeakerTimeframe,
@@ -38,7 +37,6 @@ export class ZoomBot extends Bot {
 	private contentType: string;
 	private meetingUrl: string;
 	private uploadScreenshot: UploadScreenshotUseCase | null = null;
-	private s3Ready: Promise<void> | null = null;
 	private removalDetector: ZoomRemovalDetector | null = null;
 
 	browser!: Browser;
@@ -58,45 +56,11 @@ export class ZoomBot extends Bot {
 		this.contentType = "video/mp4";
 		this.meetingUrl = `https://app.zoom.us/wc/${this.settings.meeting.meetingId}/join?fromPWA=1&pwd=${this.settings.meeting.meetingPassword}`;
 
-		// Initialize S3 via dynamic import (Bun-specific API)
-		this.s3Ready = this.initializeS3();
-	}
-
-	/**
-	 * Initialize S3 provider via dynamic import.
-	 */
-	private async initializeS3(): Promise<void> {
-		const s3Endpoint = env.S3_ENDPOINT;
-		const s3AccessKey = env.S3_ACCESS_KEY;
-		const s3SecretKey = env.S3_SECRET_KEY;
-		const s3BucketName = env.S3_BUCKET_NAME;
-
-		if (!s3Endpoint || !s3AccessKey || !s3SecretKey || !s3BucketName) {
-			this.logger.debug(
-				"S3 storage not configured, screenshots will be local only",
-			);
-
-			return;
-		}
-
-		try {
-			const { S3StorageProvider } = await import(
-				"../../../src/services/storage/s3-provider"
-			);
-
-			const storageService: StorageService = new S3StorageProvider({
-				endpoint: s3Endpoint,
-				region: env.S3_REGION,
-				accessKeyId: s3AccessKey,
-				secretAccessKey: s3SecretKey,
-				bucketName: s3BucketName,
-			});
-
-			this.uploadScreenshot = new UploadScreenshotUseCase(storageService);
-			this.logger.debug("S3 storage initialized successfully");
-		} catch (error) {
-			this.logger.warn("S3 storage initialization failed", {
-				error: error instanceof Error ? error.message : String(error),
+		// Initialize screenshot upload use case (sends to Milo for compression and S3 upload)
+		if (env.MILO_URL && env.MILO_AUTH_TOKEN) {
+			this.uploadScreenshot = new UploadScreenshotUseCase({
+				miloUrl: env.MILO_URL,
+				authToken: env.MILO_AUTH_TOKEN,
 			});
 		}
 	}
@@ -107,11 +71,6 @@ export class ZoomBot extends Bot {
 	 * Main entry point: join meeting and monitor until exit.
 	 */
 	async run(): Promise<void> {
-		// Ensure S3 is ready before proceeding
-		if (this.s3Ready) {
-			await this.s3Ready;
-		}
-
 		await this.joinCall();
 		await this.monitorCall();
 	}
@@ -552,10 +511,10 @@ export class ZoomBot extends Bot {
 	private static readonly SCREENSHOT_TIMEOUT = 5000;
 
 	/**
-	 * Take a screenshot, upload to S3, and persist to database.
+	 * Take a screenshot, upload to Milo for compression and S3 storage.
 	 * @param filename - Local filename for the screenshot
-	 * @param trigger - Optional trigger description for S3 metadata
-	 * @returns The S3 key if uploaded, local path if S3 not configured, or null on error
+	 * @param trigger - Optional trigger description for metadata
+	 * @returns The S3 key if uploaded, local path if not configured, or null on error
 	 */
 	async screenshot(
 		filename: string = "screenshot.png",
@@ -600,7 +559,7 @@ export class ZoomBot extends Bot {
 			return null;
 		}
 
-		// Step 2: Read file and upload to S3 (if configured)
+		// Step 2: Read file and upload to Milo (if configured)
 		if (this.uploadScreenshot) {
 			let data: Buffer;
 
@@ -618,7 +577,7 @@ export class ZoomBot extends Bot {
 				return null;
 			}
 
-			// Step 3: Upload to S3
+			// Step 3: Upload to Milo (which compresses to WebP and uploads to S3)
 			let result: Awaited<ReturnType<UploadScreenshotUseCase["execute"]>>;
 
 			try {
@@ -632,7 +591,7 @@ export class ZoomBot extends Bot {
 			} catch (err) {
 				const error = err instanceof Error ? err : new Error(String(err));
 
-				this.logger.error("Screenshot S3 upload failed", error, {
+				this.logger.error("Screenshot upload to Milo failed", error, {
 					filename: uniqueFilename,
 					trigger,
 					isTimeout: error.message.includes("timeout"),
@@ -641,7 +600,7 @@ export class ZoomBot extends Bot {
 						error.message.includes("ETIMEDOUT"),
 				});
 
-				// Clean up local file even on S3 failure
+				// Clean up local file even on upload failure
 				try {
 					await fsPromises.unlink(screenshotPath);
 				} catch {
@@ -661,20 +620,9 @@ export class ZoomBot extends Bot {
 				});
 			}
 
-			this.logger.debug("Screenshot uploaded to S3", { key: result.key });
-
-			// Step 5: Persist to database (non-blocking, fire-and-forget pattern)
-			this.trpc.bots.addScreenshot
-				.mutate({
-					id: String(this.settings.id),
-					screenshot: result,
-				})
-				.catch((dbError) => {
-					this.logger.warn("Failed to persist screenshot to database", {
-						error: dbError instanceof Error ? dbError.message : String(dbError),
-						key: result.key,
-					});
-				});
+			this.logger.debug("Screenshot uploaded and compressed", {
+				key: result.key,
+			});
 
 			return result.key;
 		}

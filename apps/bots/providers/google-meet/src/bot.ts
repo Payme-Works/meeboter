@@ -48,7 +48,6 @@ const FILL_RETRYABLE_ERRORS = [
 ];
 
 import type { BotLogger } from "../../../src/logger";
-import type { StorageService } from "../../../src/services/storage/storage-service";
 import {
 	type BotConfig,
 	EventCode,
@@ -105,7 +104,6 @@ export class GoogleMeetBot extends Bot {
 	private removalDetector: GoogleMeetRemovalDetector | null = null;
 
 	private uploadScreenshot: UploadScreenshotUseCase | null = null;
-	private s3Ready: Promise<void> | null = null;
 
 	constructor(
 		config: BotConfig,
@@ -119,8 +117,13 @@ export class GoogleMeetBot extends Bot {
 		this.meetingUrl = config.meeting.meetingUrl ?? "";
 		this.chatEnabled = true; // Chat is always enabled
 
-		// Initialize S3 via dynamic import (Bun-specific API)
-		this.s3Ready = this.initializeS3();
+		// Initialize screenshot use case (sends to Milo for compression and S3 upload)
+		if (env.MILO_URL && env.MILO_AUTH_TOKEN) {
+			this.uploadScreenshot = new UploadScreenshotUseCase({
+				miloUrl: env.MILO_URL,
+				authToken: env.MILO_AUTH_TOKEN,
+			});
+		}
 
 		this.browserArgs = [
 			"--incognito",
@@ -148,55 +151,9 @@ export class GoogleMeetBot extends Bot {
 		];
 	}
 
-	/**
-	 * Initialize S3 provider via dynamic import.
-	 * Uses Bun-specific S3Client, imported dynamically to avoid
-	 * breaking Node.js-based test runners like Playwright.
-	 */
-	private async initializeS3(): Promise<void> {
-		const s3Endpoint = env.S3_ENDPOINT;
-		const s3AccessKey = env.S3_ACCESS_KEY;
-		const s3SecretKey = env.S3_SECRET_KEY;
-		const s3BucketName = env.S3_BUCKET_NAME;
-
-		if (!s3Endpoint || !s3AccessKey || !s3SecretKey || !s3BucketName) {
-			this.logger.debug(
-				"S3 storage not configured, screenshots will be local only",
-			);
-
-			return;
-		}
-
-		try {
-			const { S3StorageProvider } = await import(
-				"../../../src/services/storage/s3-provider"
-			);
-
-			const storageService: StorageService = new S3StorageProvider({
-				endpoint: s3Endpoint,
-				region: env.S3_REGION,
-				accessKeyId: s3AccessKey,
-				secretAccessKey: s3SecretKey,
-				bucketName: s3BucketName,
-			});
-
-			this.uploadScreenshot = new UploadScreenshotUseCase(storageService);
-			this.logger.debug("S3 storage initialized successfully");
-		} catch (error) {
-			this.logger.warn("S3 storage initialization failed", {
-				error: error instanceof Error ? error.message : String(error),
-			});
-		}
-	}
-
 	// --- Lifecycle ---
 
 	async run(): Promise<void> {
-		// Ensure S3 is ready before proceeding
-		if (this.s3Ready) {
-			await this.s3Ready;
-		}
-
 		await this.joinCall();
 		await this.monitorCall();
 	}
@@ -1488,7 +1445,7 @@ export class GoogleMeetBot extends Bot {
 			return null;
 		}
 
-		// Step 2: Read file and upload to S3 (if configured)
+		// Step 2: Read file and upload to Milo (if configured)
 		if (this.uploadScreenshot) {
 			let data: Buffer;
 
@@ -1506,7 +1463,7 @@ export class GoogleMeetBot extends Bot {
 				return null;
 			}
 
-			// Step 3: Upload to S3
+			// Step 3: Upload to Milo (which compresses to WebP and uploads to S3)
 			let result: Awaited<ReturnType<UploadScreenshotUseCase["execute"]>>;
 
 			try {
@@ -1520,7 +1477,7 @@ export class GoogleMeetBot extends Bot {
 			} catch (err) {
 				const error = err instanceof Error ? err : new Error(String(err));
 
-				this.logger.error("Screenshot S3 upload failed", error, {
+				this.logger.error("Screenshot upload to Milo failed", error, {
 					filename: uniqueFilename,
 					trigger,
 					isTimeout: error.message.includes("timeout"),
@@ -1529,7 +1486,7 @@ export class GoogleMeetBot extends Bot {
 						error.message.includes("ETIMEDOUT"),
 				});
 
-				// Clean up local file even on S3 failure
+				// Clean up local file even on upload failure
 				try {
 					await fsPromises.unlink(screenshotPath);
 				} catch {
@@ -1550,20 +1507,9 @@ export class GoogleMeetBot extends Bot {
 				});
 			}
 
-			this.logger.debug("Screenshot uploaded to S3", { key: result.key });
-
-			// Step 5: Persist to database (non-blocking, fire-and-forget pattern)
-			this.trpc.bots.addScreenshot
-				.mutate({
-					id: String(this.settings.id),
-					screenshot: result,
-				})
-				.catch((dbError) => {
-					this.logger.warn("Failed to persist screenshot to database", {
-						error: dbError instanceof Error ? dbError.message : String(dbError),
-						key: result.key,
-					});
-				});
+			this.logger.debug("Screenshot uploaded and compressed", {
+				key: result.key,
+			});
 
 			return result.key;
 		}
