@@ -107,17 +107,17 @@ function createLocalPlatformService(): LocalPlatformService {
 /**
  * Creates a platform service based on configuration
  *
- * Uses NEXT_PUBLIC_DEPLOYMENT_PLATFORM environment variable if set,
+ * Uses DEPLOYMENT_PLATFORM environment variable if set,
  * otherwise defaults to local platform.
  *
  * In development mode, ALWAYS defaults to local platform to prevent
- * accidentally using production services. Set NEXT_PUBLIC_DEPLOYMENT_PLATFORM=coolify
- * or NEXT_PUBLIC_DEPLOYMENT_PLATFORM=aws AND FORCE_REMOTE_PLATFORM=true to override.
+ * accidentally using production services. Set DEPLOYMENT_PLATFORM=coolify
+ * or DEPLOYMENT_PLATFORM=aws AND FORCE_REMOTE_PLATFORM=true to override.
  *
  * @returns Configured platform service instance
  */
 export function createPlatformService(): PlatformService {
-	const configuredPlatform = env.NEXT_PUBLIC_DEPLOYMENT_PLATFORM;
+	const configuredPlatform = env.DEPLOYMENT_PLATFORM;
 
 	// During build phase, env vars may be undefined (default to local)
 	if (!configuredPlatform) {
@@ -176,7 +176,7 @@ export function createPlatformService(): PlatformService {
  * Returns "local" in development mode unless FORCE_REMOTE_PLATFORM=true.
  */
 export function getPlatformType(): "coolify" | "aws" | "k8s" | "local" {
-	const configuredPlatform = env.NEXT_PUBLIC_DEPLOYMENT_PLATFORM;
+	const configuredPlatform = env.DEPLOYMENT_PLATFORM;
 
 	// During build phase, env vars may be undefined (default to local)
 	if (!configuredPlatform) {

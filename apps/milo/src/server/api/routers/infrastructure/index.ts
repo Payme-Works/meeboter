@@ -162,13 +162,13 @@ export const infrastructureRouter = createTRPCRouter({
 
 	/**
 	 * Get platform-specific info for dashboard card
-	 * Returns platform info based on NEXT_PUBLIC_DEPLOYMENT_PLATFORM
+	 * Returns platform info based on DEPLOYMENT_PLATFORM
 	 */
 	getPlatform: protectedProcedure
 		.input(z.void())
 		.output(platformInfoSchema)
 		.query(async () => {
-			const platform = env.NEXT_PUBLIC_DEPLOYMENT_PLATFORM;
+			const platform = env.DEPLOYMENT_PLATFORM;
 
 			switch (platform) {
 				case "k8s": {

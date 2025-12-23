@@ -51,7 +51,7 @@ export interface Services {
  * Creates all services with their dependencies wired up
  *
  * Uses the platform factory to create the appropriate platform service
- * based on the NEXT_PUBLIC_DEPLOYMENT_PLATFORM environment variable.
+ * based on the DEPLOYMENT_PLATFORM environment variable.
  */
 function createServices(): Services {
 	const platform = createPlatformService();
