@@ -263,7 +263,7 @@ export class BotRecoveryWorker extends BaseWorker<BotRecoveryResult> {
 					await this.services.k8s!.stopBot(bot.platformIdentifier);
 					result.recovered++;
 				}
-			} catch (error) {
+			} catch {
 				// Job might already be deleted, which is fine
 				console.log(
 					`[${this.name}] K8s Job ${bot.platformIdentifier} already cleaned up or not found`,

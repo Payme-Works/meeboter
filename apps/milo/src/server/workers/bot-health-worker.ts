@@ -1,5 +1,5 @@
 /**
- * BotHealthWorker - Monitors bot health via heartbeats and deployment timeouts
+ * BotHealthWorker - Monitors ACTIVE bot health via heartbeats
  *
  * ## Bot Status Flow
  *
@@ -7,48 +7,41 @@
  *   DEPLOYING → JOINING_CALL → IN_WAITING_ROOM → IN_CALL → LEAVING → DONE
  *
  * Error scenarios handled by this worker:
- *   DEPLOYING → [stuck >15min without heartbeat] → FATAL (platform-agnostic)
  *   IN_CALL → [heartbeat stops >5min] → FATAL (marked + resources released)
  *   JOINING_CALL → [heartbeat stops >5min] → FATAL
+ *   IN_WAITING_ROOM → [heartbeat stops >5min] → FATAL
+ *   LEAVING → [heartbeat stops >5min] → FATAL
  *
- * ## Monitored Statuses
+ * ## Monitored Statuses (ACTIVE only)
  *
- * 1. DEPLOYING status (platform-agnostic cleanup):
- *    - Bots stuck in DEPLOYING for >15 minutes without heartbeat
- *    - Handles K8s, AWS, and Coolify platforms uniformly
- *    - Complementary to BotRecoveryWorker (which handles platform resource cleanup)
+ * ACTIVE statuses where the bot container should be running and sending heartbeats:
+ *   - JOINING_CALL: Bot is connecting to the meeting
+ *   - IN_WAITING_ROOM: Bot is waiting to be admitted
+ *   - IN_CALL: Bot is in the meeting (recording/participating)
+ *   - LEAVING: Bot is gracefully exiting
  *
- * 2. ACTIVE statuses (container should be running):
- *    - JOINING_CALL: Bot is connecting to the meeting
- *    - IN_WAITING_ROOM: Bot is waiting to be admitted
- *    - IN_CALL: Bot is in the meeting (recording/participating)
- *    - LEAVING: Bot is gracefully exiting
- *
- * NOT monitored:
+ * NOT monitored by this worker:
+ *   - DEPLOYING: Handled by BotRecoveryWorker (has retry logic, slot recovery)
  *   - DONE/FATAL: Terminal states, no monitoring needed
+ *   - CREATED: Not yet deployed
  *
  * ## Detection Criteria
  *
- * DEPLOYING bots are considered stuck when:
- *   - Status is DEPLOYING
- *   - AND createdAt > 15 minutes ago
- *   - AND (lastHeartbeat is NULL OR lastHeartbeat > 10 minutes ago)
- *
  * Active bots are considered crashed when:
  *   - Status is in ACTIVE_STATUSES (container should be running)
- *   - AND (lastHeartbeat > 10 minutes ago OR lastHeartbeat is NULL)
+ *   - AND (lastHeartbeat > 5 minutes ago OR lastHeartbeat is NULL)
  *
  * ## Recovery Process
  *
- * For each stuck/stale bot:
- *   1. Mark bot status as FATAL with error message
+ * For each stale bot:
+ *   1. Mark bot status as FATAL
  *   2. Release platform resources (stop container via PlatformService)
  *
  * ## Relationship with Other Workers
  *
- * - BotRecoveryWorker: Handles platform resource cleanup (all platforms)
+ * - BotRecoveryWorker: Handles DEPLOYING timeouts + platform resource cleanup
  * - PoolSlotSyncWorker: Handles Coolify ↔ Database consistency
- * - BotHealthWorker: Handles bot health monitoring (platform-agnostic)
+ * - BotHealthWorker: Handles ACTIVE bot heartbeat monitoring only
  */
 
 import { and, eq, inArray, isNull, lt, or } from "drizzle-orm";
@@ -63,9 +56,6 @@ import { BaseWorker, type WorkerResult } from "./base-worker";
 
 /** Timeout for heartbeat before marking bot as FATAL (5 minutes) */
 const HEARTBEAT_TIMEOUT_MS = 5 * 60 * 1000;
-
-/** Timeout for DEPLOYING status before marking bot as FATAL (15 minutes) */
-const DEPLOYING_TIMEOUT_MS = 15 * 60 * 1000;
 
 /**
  * Active statuses where the bot container should be running and sending heartbeats.
@@ -82,7 +72,6 @@ interface BotHealthResult extends WorkerResult {
 	checked: number;
 	markedFatal: number;
 	resourcesReleased: number;
-	stuckDeploying: number;
 }
 
 /**
@@ -96,11 +85,7 @@ export class BotHealthWorker extends BaseWorker<BotHealthResult> {
 			checked: 0,
 			markedFatal: 0,
 			resourcesReleased: 0,
-			stuckDeploying: 0,
 		};
-
-		// Handle stuck DEPLOYING bots (platform-agnostic, handles K8s/AWS/Coolify)
-		await this.handleStuckDeployingBots(result);
 
 		const heartbeatCutoff = new Date(Date.now() - HEARTBEAT_TIMEOUT_MS);
 
@@ -183,92 +168,5 @@ export class BotHealthWorker extends BaseWorker<BotHealthResult> {
 		}
 
 		return result;
-	}
-
-	/**
-	 * Handles bots stuck in DEPLOYING status for too long.
-	 *
-	 * This is platform-agnostic and covers K8s, AWS, and Coolify platforms.
-	 * Bots stuck in DEPLOYING for more than 15 minutes are marked as FATAL.
-	 */
-	private async handleStuckDeployingBots(
-		result: BotHealthResult,
-	): Promise<void> {
-		const deployingCutoff = new Date(Date.now() - DEPLOYING_TIMEOUT_MS);
-
-		// Find bots stuck in DEPLOYING for more than 15 minutes
-		const stuckBots = await this.db
-			.select({
-				id: botsTable.id,
-				createdAt: botsTable.createdAt,
-				lastHeartbeat: botsTable.lastHeartbeat,
-				platformIdentifier: botsTable.platformIdentifier,
-			})
-			.from(botsTable)
-			.where(
-				and(
-					eq(botsTable.status, "DEPLOYING"),
-					lt(botsTable.createdAt, deployingCutoff),
-				),
-			);
-
-		if (stuckBots.length === 0) {
-			return;
-		}
-
-		console.log(
-			`[${this.name}] Found ${stuckBots.length} bots stuck in DEPLOYING for >15 minutes`,
-		);
-
-		for (const bot of stuckBots) {
-			try {
-				// Check if bot has recent heartbeat (might be alive but status not updated)
-				if (bot.lastHeartbeat) {
-					const heartbeatAge = Date.now() - bot.lastHeartbeat.getTime();
-
-					if (heartbeatAge < HEARTBEAT_TIMEOUT_MS) {
-						console.log(
-							`[${this.name}] Skipping bot ${bot.id}, has recent heartbeat (${Math.round(heartbeatAge / 1000)}s ago)`,
-						);
-
-						continue;
-					}
-				}
-
-				console.log(
-					`[${this.name}] Marking stuck DEPLOYING bot ${bot.id} as FATAL (created: ${bot.createdAt?.toISOString()})`,
-				);
-
-				await this.db
-					.update(botsTable)
-					.set({
-						status: "FATAL",
-					})
-					.where(eq(botsTable.id, bot.id));
-
-				result.stuckDeploying++;
-				result.markedFatal++;
-
-				// Release platform resources if available
-				try {
-					await this.services.platform.releaseBot(bot.id);
-					result.resourcesReleased++;
-
-					console.log(
-						`[${this.name}] Released platform resources for stuck bot ${bot.id}`,
-					);
-				} catch {
-					// Ignore release errors, bot might not have platform resources
-					console.log(
-						`[${this.name}] No platform resources to release for bot ${bot.id}`,
-					);
-				}
-			} catch (botError) {
-				console.error(
-					`[${this.name}] Failed to process stuck DEPLOYING bot ${bot.id}:`,
-					botError,
-				);
-			}
-		}
 	}
 }

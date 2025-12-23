@@ -15,9 +15,9 @@ import {
 	poolSlotStatus,
 } from "@/server/database/schema";
 import {
-	type PoolSlotSyncResult,
-	PoolSlotSyncWorker,
-} from "@/server/workers/pool-slot-sync-worker";
+	type CoolifyPoolSlotSyncResult,
+	CoolifyPoolSlotSyncWorker,
+} from "@/server/workers/coolify-pool-slot-sync-worker";
 import { services } from "../services";
 
 /**
@@ -460,7 +460,7 @@ export const poolRouter = createTRPCRouter({
 	sync: protectedProcedure
 		.input(z.void())
 		.output(syncResultSchema)
-		.mutation(async ({ ctx }): Promise<PoolSlotSyncResult> => {
+		.mutation(async ({ ctx }): Promise<CoolifyPoolSlotSyncResult> => {
 			if (!services.coolify) {
 				throw new TRPCError({
 					code: "NOT_IMPLEMENTED",
@@ -469,7 +469,7 @@ export const poolRouter = createTRPCRouter({
 			}
 
 			// Create a worker instance for manual execution (no interval)
-			const syncWorker = new PoolSlotSyncWorker(ctx.db, services, {
+			const syncWorker = new CoolifyPoolSlotSyncWorker(ctx.db, services, {
 				intervalMs: 0,
 				runOnStart: false,
 			});

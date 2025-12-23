@@ -1,5 +1,5 @@
 /**
- * PoolSlotSyncWorker - Synchronizes Coolify applications with database pool slots
+ * CoolifyPoolSlotSyncWorker - Synchronizes Coolify applications with database pool slots
  *
  * ## Purpose
  *
@@ -51,7 +51,7 @@ import { botPoolSlotsTable } from "@/server/database/schema";
 
 import { BaseWorker, type WorkerResult } from "./base-worker";
 
-export interface PoolSlotSyncResult extends WorkerResult {
+export interface CoolifyPoolSlotSyncResult extends WorkerResult {
 	coolifyOrphansDeleted: number;
 	databaseOrphansDeleted: number;
 	totalCoolifyApps: number;
@@ -61,11 +61,11 @@ export interface PoolSlotSyncResult extends WorkerResult {
 /**
  * Worker that synchronizes Coolify applications with database pool slots.
  */
-export class PoolSlotSyncWorker extends BaseWorker<PoolSlotSyncResult> {
-	readonly name = "PoolSlotSyncWorker";
+export class CoolifyPoolSlotSyncWorker extends BaseWorker<CoolifyPoolSlotSyncResult> {
+	readonly name = "CoolifyPoolSlotSyncWorker";
 
-	protected async execute(): Promise<PoolSlotSyncResult> {
-		const result: PoolSlotSyncResult = {
+	protected async execute(): Promise<CoolifyPoolSlotSyncResult> {
+		const result: CoolifyPoolSlotSyncResult = {
 			coolifyOrphansDeleted: 0,
 			databaseOrphansDeleted: 0,
 			totalCoolifyApps: 0,

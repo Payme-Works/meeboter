@@ -145,9 +145,9 @@ Manages queued bot deployments when pool is exhausted:
 | Worker | Purpose |
 |--------|---------|
 | `base-worker.ts` | Abstract base class for workers |
-| `bot-health-worker.ts` | Monitors bot heartbeats and marks failed bots |
-| `slot-recovery-worker.ts` | Recovers error/stuck slots |
-| `pool-slot-sync-worker.ts` | Syncs slot status with deployment platform |
+| `bot-health-worker.ts` | Monitors ACTIVE bot heartbeats (JOINING_CALL, IN_WAITING_ROOM, IN_CALL, LEAVING) |
+| `bot-recovery-worker.ts` | Platform-agnostic recovery: DEPLOYING timeouts, orphaned K8s Jobs, AWS tasks |
+| `coolify-pool-slot-sync-worker.ts` | Coolify-specific: syncs Coolify apps with database pool slots |
 
 ---
 
