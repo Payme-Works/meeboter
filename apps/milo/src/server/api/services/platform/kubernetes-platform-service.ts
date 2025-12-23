@@ -484,6 +484,9 @@ export class KubernetesPlatformService
 							{
 								name: "bot",
 								image,
+								// Use cached image if available to avoid 2GB+ pull on every deployment
+								// Only pull if image doesn't exist on node
+								imagePullPolicy: "IfNotPresent",
 								env: this.buildEnvironmentVariables(botConfig),
 								resources: {
 									requests: {

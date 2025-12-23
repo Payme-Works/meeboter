@@ -21,6 +21,7 @@ export interface InfrastructureTableMeta {
 }
 
 declare module "@tanstack/react-table" {
+	// biome-ignore lint/correctness/noUnusedVariables: Required by TanStack Table module augmentation - TData must match original interface
 	interface TableMeta<TData extends RowData> extends InfrastructureTableMeta {}
 }
 
