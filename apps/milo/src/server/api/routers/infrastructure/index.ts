@@ -27,6 +27,16 @@ const activityStatsSchema = z.object({
 });
 
 /**
+ * Bot status for activity bars visualization
+ */
+const botActivityStatusSchema = z.enum(["DEPLOYING", "JOINING", "IN_CALL"]);
+
+/**
+ * Active bots sequence for dashboard visualization
+ */
+const activeBotSequenceSchema = z.array(botActivityStatusSchema);
+
+/**
  * Platform info discriminated union for dashboard card
  */
 const platformInfoSchema = z.discriminatedUnion("platform", [
@@ -158,6 +168,39 @@ export const infrastructureRouter = createTRPCRouter({
 				todayCompleted: Number(todayStats?.completed ?? 0),
 				todayFailed: Number(todayStats?.failed ?? 0),
 			};
+		}),
+
+	/**
+	 * Get active bots status sequence for dashboard visualization
+	 * Returns array of statuses in creation order (oldest first)
+	 */
+	getActiveBotSequence: protectedProcedure
+		.input(z.void())
+		.output(activeBotSequenceSchema)
+		.query(async () => {
+			const activeBots = await db
+				.select({
+					status: botsTable.status,
+				})
+				.from(botsTable)
+				.where(
+					sql`${botsTable.status} IN ('DEPLOYING', 'JOINING_CALL', 'IN_WAITING_ROOM', 'IN_CALL')`,
+				)
+				.orderBy(botsTable.createdAt);
+
+			return activeBots.map((bot) => {
+				switch (bot.status) {
+					case "DEPLOYING":
+						return "DEPLOYING" as const;
+					case "JOINING_CALL":
+					case "IN_WAITING_ROOM":
+						return "JOINING" as const;
+					case "IN_CALL":
+						return "IN_CALL" as const;
+					default:
+						return "DEPLOYING" as const;
+				}
+			});
 		}),
 
 	/**

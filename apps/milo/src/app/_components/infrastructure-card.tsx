@@ -50,35 +50,83 @@ const PLATFORM_NAMES = {
 } as const;
 
 /**
- * Stacked bar segment for bot status visualization
+ * Bot activity status type
  */
-function StackedBarSegment({
-	value,
-	total,
-	color,
-	pulseAnimation,
-	label,
-}: {
-	value: number;
-	total: number;
-	color: string;
-	pulseAnimation?: boolean;
-	label: string;
-}) {
-	const percentage = total > 0 ? (value / total) * 100 : 0;
+type BotActivityStatus = "DEPLOYING" | "JOINING" | "IN_CALL";
 
-	if (percentage === 0) return null;
+/**
+ * Status to color mapping
+ */
+const STATUS_COLORS: Record<BotActivityStatus, string> = {
+	DEPLOYING: "bg-blue-500",
+	JOINING: "bg-amber-500",
+	IN_CALL: "bg-green-500",
+};
+
+/**
+ * Status pulse animation (transitional states pulse)
+ */
+const STATUS_PULSE: Record<BotActivityStatus, boolean> = {
+	DEPLOYING: true,
+	JOINING: true,
+	IN_CALL: false,
+};
+
+/**
+ * Activity bars visualization - inline vertical bars showing actual bot sequence
+ * Each bar represents one bot in its current status
+ */
+function ActivityBars({ sequence }: { sequence: BotActivityStatus[] }) {
+	const maxBars = 20;
+	const displaySequence = sequence.slice(0, maxBars);
+	const hasOverflow = sequence.length > maxBars;
+
+	if (sequence.length === 0) {
+		return (
+			<div className="flex items-center gap-0.5 h-4">
+				{Array.from({ length: 5 }).map((_, i) => (
+					<div
+						key={`empty-${i}`}
+						className="w-1 h-1.5 rounded-full bg-muted/40"
+					/>
+				))}
+				<span className="ml-2 text-xs text-muted-foreground/50 italic">
+					idle
+				</span>
+			</div>
+		);
+	}
 
 	return (
 		<div
-			className={cn(
-				"h-full transition-all duration-500 ease-out first:rounded-l-sm last:rounded-r-sm",
-				color,
-				pulseAnimation && "animate-pulse",
-			)}
-			style={{ width: `${percentage}%` }}
-			title={`${label}: ${value}`}
-		/>
+			className="flex items-center gap-0.5 h-4"
+			role="img"
+			aria-label={`${sequence.length} active bots`}
+		>
+			{displaySequence.map((status, i) => (
+				<div
+					key={`bar-${i}`}
+					className={cn(
+						"w-1 h-4 rounded-full transition-all duration-300",
+						STATUS_COLORS[status],
+						STATUS_PULSE[status] && "animate-pulse",
+					)}
+					style={{
+						animationDelay: STATUS_PULSE[status]
+							? `${(i % 5) * 100}ms`
+							: undefined,
+					}}
+					title={status.replace("_", " ")}
+				/>
+			))}
+
+			{/* Overflow indicator */}
+			{hasOverflow ? (
+				<span className="ml-1 text-[10px] text-muted-foreground/60 tabular-nums">
+					+{sequence.length - maxBars}
+				</span>
+			) : null}
+		</div>
 	);
 }
 
@@ -89,12 +137,12 @@ function StatusIndicator({
 	color,
 	count,
 	label,
-	pulseAnimation,
+	shouldPulse,
 }: {
 	color: string;
 	count: number;
 	label: string;
-	pulseAnimation?: boolean;
+	shouldPulse?: boolean;
 }) {
 	return (
 		<span className="flex items-center gap-1.5">
@@ -102,7 +150,7 @@ function StatusIndicator({
 				className={cn(
 					"w-2 h-2 rounded-full",
 					color,
-					pulseAnimation && count > 0 && "animate-pulse",
+					shouldPulse && count > 0 && "animate-pulse",
 					count === 0 && "opacity-40",
 				)}
 			/>
@@ -347,11 +395,13 @@ interface InfrastructureCardProps {
 		todayCompleted: number;
 		todayFailed: number;
 	};
+	botSequence: BotActivityStatus[];
 	platform: Platform;
 }
 
 function InfrastructureCard({
 	activityStats,
+	botSequence,
 	platform,
 }: InfrastructureCardProps) {
 	const [isPlatformExpanded, setIsPlatformExpanded] = useState(false);
@@ -365,9 +415,6 @@ function InfrastructureCard({
 		todayCompleted,
 		todayFailed,
 	} = activityStats;
-
-	// Total active bots for stacked bar (excluding completed/callEnded)
-	const activeTotal = deploying + joiningCall + inWaitingRoom + inCall;
 
 	return (
 		<StatCard className="min-h-[180px] relative overflow-hidden">
@@ -384,61 +431,33 @@ function InfrastructureCard({
 
 			{/* Content */}
 			<StatCardContent className="mb-0">
-				{/* Stacked Bar Visualization */}
-				<div className="mb-3">
-					<div
-						className="h-3 bg-muted/50 rounded-sm flex overflow-hidden"
-						role="img"
-						aria-label={`Bot activity: ${deploying} deploying, ${joiningCall + inWaitingRoom} joining, ${inCall} in call`}
-					>
-						{activeTotal > 0 ? (
-							<>
-								<StackedBarSegment
-									value={deploying}
-									total={activeTotal}
-									color="bg-blue-500"
-									pulseAnimation
-									label="Deploying"
-								/>
-								<StackedBarSegment
-									value={joiningCall + inWaitingRoom}
-									total={activeTotal}
-									color="bg-amber-500"
-									pulseAnimation
-									label="Joining"
-								/>
-								<StackedBarSegment
-									value={inCall}
-									total={activeTotal}
-									color="bg-green-500"
-									label="In Call"
-								/>
-							</>
-						) : null}
-					</div>
-				</div>
+				{/* Activity Bars + Status inline */}
+				<div className="flex items-center gap-4 mb-3">
+					{/* Vertical bars visualization - shows actual bot sequence */}
+					<ActivityBars sequence={botSequence} />
 
-				{/* Active Status Line */}
-				<div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs mb-3">
-					<StatusIndicator
-						color="bg-blue-500"
-						count={deploying}
-						label="deploying"
-						pulseAnimation
-					/>
-					<span className="text-muted-foreground/40">·</span>
-					<StatusIndicator
-						color="bg-amber-500"
-						count={joiningCall + inWaitingRoom}
-						label="joining"
-						pulseAnimation
-					/>
-					<span className="text-muted-foreground/40">·</span>
-					<StatusIndicator
-						color="bg-green-500"
-						count={inCall}
-						label="in call"
-					/>
+					{/* Status counts inline */}
+					<div className="flex items-center gap-x-2 text-xs">
+						<StatusIndicator
+							color="bg-blue-500"
+							count={deploying}
+							label="deploying"
+							shouldPulse
+						/>
+						<span className="text-muted-foreground/40">·</span>
+						<StatusIndicator
+							color="bg-amber-500"
+							count={joiningCall + inWaitingRoom}
+							label="joining"
+							shouldPulse
+						/>
+						<span className="text-muted-foreground/40">·</span>
+						<StatusIndicator
+							color="bg-green-500"
+							count={inCall}
+							label="in call"
+						/>
+					</div>
 				</div>
 
 				{/* Daily Summary */}
@@ -491,14 +510,24 @@ export function InfrastructureCardSkeleton() {
 
 			{/* Content */}
 			<StatCardContent className="mb-0">
-				{/* Stacked bar skeleton */}
-				<div className="h-3 bg-muted rounded-sm animate-pulse mb-3" />
-
-				{/* Stats skeleton */}
-				<div className="flex gap-4 mb-3">
-					<div className="h-3 w-20 bg-muted rounded animate-pulse" />
-					<div className="h-3 w-16 bg-muted rounded animate-pulse" />
-					<div className="h-3 w-16 bg-muted rounded animate-pulse" />
+				{/* Activity bars + stats skeleton */}
+				<div className="flex items-center gap-4 mb-3">
+					{/* Bars skeleton */}
+					<div className="flex items-center gap-0.5 h-4">
+						{Array.from({ length: 8 }).map((_, i) => (
+							<div
+								key={`skeleton-bar-${i}`}
+								className="w-1 h-4 rounded-full bg-muted animate-pulse"
+								style={{ animationDelay: `${i * 50}ms` }}
+							/>
+						))}
+					</div>
+					{/* Stats skeleton */}
+					<div className="flex gap-2">
+						<div className="h-3 w-16 bg-muted rounded animate-pulse" />
+						<div className="h-3 w-14 bg-muted rounded animate-pulse" />
+						<div className="h-3 w-14 bg-muted rounded animate-pulse" />
+					</div>
 				</div>
 
 				{/* Daily summary skeleton */}
@@ -557,21 +586,27 @@ export function InfrastructureCardLoader() {
 			refetchInterval: 5000,
 		});
 
+	const { data: botSequence, isLoading: sequenceLoading } =
+		api.infrastructure.getActiveBotSequence.useQuery(undefined, {
+			refetchInterval: 5000,
+		});
+
 	const platformQuery = api.infrastructure.getPlatform.useQuery(undefined, {
 		refetchInterval: 10000,
 	});
 
-	if (statsLoading || platformQuery.isLoading) {
+	if (statsLoading || sequenceLoading || platformQuery.isLoading) {
 		return <InfrastructureCardSkeleton />;
 	}
 
-	if (!activityStats || !platformQuery.data) {
+	if (!activityStats || !botSequence || !platformQuery.data) {
 		return <InfrastructureCardUnavailable />;
 	}
 
 	return (
 		<InfrastructureCard
 			activityStats={activityStats}
+			botSequence={botSequence}
 			platform={platformQuery.data}
 		/>
 	);
