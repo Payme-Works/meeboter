@@ -1,11 +1,20 @@
 import { TRPCError } from "@trpc/server";
-import { inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { db } from "@/server/database/db";
 import { botsTable } from "@/server/database/schema";
 import { services } from "../../services";
+
+/**
+ * Bot statuses that require graceful shutdown (bot is actively in/joining meeting)
+ */
+const ACTIVE_BOT_STATUSES = [
+	"IN_CALL",
+	"IN_WAITING_ROOM",
+	"JOINING_CALL",
+] as const;
 
 /**
  * K8s job status (UPPERCASE per PLATFORM_NOMENCLATURE.md)
@@ -290,9 +299,18 @@ export const k8sRouter = createTRPCRouter({
 		}),
 
 	/**
-	 * Deletes a K8s Job.
+	 * Gracefully stops a K8s Job.
+	 *
+	 * If a bot is associated with the job and is in an active state (IN_CALL,
+	 * IN_WAITING_ROOM, JOINING_CALL), sets the bot status to LEAVING to trigger
+	 * graceful shutdown via heartbeat. The bot will exit cleanly and the job
+	 * will complete naturally.
+	 *
+	 * If no bot is found or the bot is not in an active state, deletes the
+	 * K8s job directly.
+	 *
 	 * @param input - Object containing the job name
-	 * @param input.jobName - The K8s Job name to delete
+	 * @param input.jobName - The K8s Job name to stop
 	 */
 	deleteJob: protectedProcedure
 		.input(
@@ -310,15 +328,50 @@ export const k8sRouter = createTRPCRouter({
 				});
 			}
 
+			// Look up bot by platformIdentifier (job name)
+			const bot = await db
+				.select({ id: botsTable.id, status: botsTable.status })
+				.from(botsTable)
+				.where(
+					and(
+						eq(botsTable.platformIdentifier, input.jobName),
+						eq(botsTable.deploymentPlatform, "k8s"),
+					),
+				)
+				.limit(1)
+				.then((rows) => rows[0]);
+
+			// If bot found with active status, trigger graceful shutdown
+			if (
+				bot &&
+				ACTIVE_BOT_STATUSES.includes(
+					bot.status as (typeof ACTIVE_BOT_STATUSES)[number],
+				)
+			) {
+				await db
+					.update(botsTable)
+					.set({ status: "LEAVING" })
+					.where(eq(botsTable.id, bot.id));
+
+				// Fire and forget - bot will exit gracefully via heartbeat
+				return { success: true };
+			}
+
+			// No bot or not active - delete job directly
 			await services.k8s.stopBot(input.jobName);
 
 			return { success: true };
 		}),
 
 	/**
-	 * Deletes multiple K8s Jobs.
+	 * Gracefully stops multiple K8s Jobs.
+	 *
+	 * For each job, if a bot is associated and is in an active state,
+	 * sets the bot status to LEAVING to trigger graceful shutdown.
+	 * Jobs without bots or with inactive bots are deleted directly.
+	 *
 	 * @param input - Object containing array of job names
-	 * @param input.jobNames - Array of K8s Job names to delete
+	 * @param input.jobNames - Array of K8s Job names to stop
 	 */
 	deleteJobs: protectedProcedure
 		.input(
@@ -341,13 +394,50 @@ export const k8sRouter = createTRPCRouter({
 				});
 			}
 
+			// Look up all bots by platformIdentifier in a single query
+			const bots = await db
+				.select({
+					id: botsTable.id,
+					status: botsTable.status,
+					platformIdentifier: botsTable.platformIdentifier,
+				})
+				.from(botsTable)
+				.where(
+					and(
+						inArray(botsTable.platformIdentifier, input.jobNames),
+						eq(botsTable.deploymentPlatform, "k8s"),
+					),
+				);
+
+			// Create a map for quick lookup
+			const botByJobName = new Map(
+				bots.map((bot) => [bot.platformIdentifier, bot]),
+			);
+
 			let succeeded = 0;
 			let failed = 0;
 
 			await Promise.all(
 				input.jobNames.map(async (jobName) => {
 					try {
-						await services.k8s?.stopBot(jobName);
+						const bot = botByJobName.get(jobName);
+
+						// If bot found with active status, trigger graceful shutdown
+						if (
+							bot &&
+							ACTIVE_BOT_STATUSES.includes(
+								bot.status as (typeof ACTIVE_BOT_STATUSES)[number],
+							)
+						) {
+							await db
+								.update(botsTable)
+								.set({ status: "LEAVING" })
+								.where(eq(botsTable.id, bot.id));
+						} else {
+							// No bot or not active - delete job directly
+							await services.k8s?.stopBot(jobName);
+						}
+
 						succeeded++;
 					} catch {
 						failed++;
