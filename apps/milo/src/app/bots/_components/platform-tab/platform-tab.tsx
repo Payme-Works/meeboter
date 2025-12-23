@@ -341,7 +341,8 @@ function K8sPlatformView({
 
 					<PlatformHeaderStatus isActive={isActive} />
 				</PlatformHeader>
-				<div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+
+				<div className="flex flex-col items-center justify-center py-8 text-muted-foreground h-full">
 					<AlertCircle className="h-8 w-8 mb-2 opacity-50" />
 					<p className="text-sm">No job identifier available</p>
 				</div>
@@ -379,7 +380,8 @@ function K8sPlatformView({
 
 					<PlatformHeaderStatus isActive={isActive} />
 				</PlatformHeader>
-				<div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+
+				<div className="flex flex-col items-center justify-center py-8 text-muted-foreground h-full">
 					<XCircle className="h-8 w-8 mb-2 opacity-50" />
 					<p className="text-sm">Job not found: {platformIdentifier}</p>
 					<p className="text-xs mt-1">The job may have been cleaned up</p>

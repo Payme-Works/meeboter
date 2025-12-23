@@ -309,7 +309,7 @@ export function BotDialog({ botId, onClose }: BotDialogProps) {
 				{/* Tab Content */}
 				<div className="flex-1 overflow-y-auto">
 					{activeTab === "details" && (
-						<div className="p-6">
+						<div className="p-6 h-full">
 							{botError ? (
 								<ErrorAlert errorMessage={botError.message} />
 							) : (
