@@ -384,9 +384,10 @@ function K8sPlatformView({
 
 			{events.length > 0 ? (
 				<Card>
-					<CardHeader className="pb-2">
+					<CardHeader className="gap-0">
 						<CardTitle className="text-sm">Recent Events</CardTitle>
 					</CardHeader>
+
 					<CardContent>
 						<div className="space-y-2 max-h-48 overflow-y-auto">
 							{events.slice(0, 10).map((event, i) => (
