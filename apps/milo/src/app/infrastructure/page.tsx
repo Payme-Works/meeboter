@@ -301,7 +301,7 @@ export default function InfrastructurePage() {
 	};
 
 	return (
-		<div className="flex flex-col gap-6">
+		<div className="mx-auto container space-y-6 px-4">
 			<PageHeader>
 				<PageHeaderContent>
 					<div className="flex items-center gap-2">
