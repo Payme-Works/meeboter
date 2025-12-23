@@ -3,8 +3,8 @@ import type { Services } from "@/server/api/services";
 import type * as schema from "@/server/database/schema";
 
 import { BotHealthWorker } from "./bot-health-worker";
+import { BotRecoveryWorker } from "./bot-recovery-worker";
 import { PoolSlotSyncWorker } from "./pool-slot-sync-worker";
-import { SlotRecoveryWorker } from "./slot-recovery-worker";
 
 /** Default interval for all workers (5 minutes) */
 const DEFAULT_INTERVAL_MS = 5 * 60 * 1000;
@@ -14,7 +14,7 @@ const DEFAULT_INTERVAL_MS = 5 * 60 * 1000;
  * Allows access to specific workers for manual execution.
  */
 interface WorkerInstances {
-	slotRecovery: SlotRecoveryWorker;
+	botRecovery: BotRecoveryWorker;
 	botHealth: BotHealthWorker;
 	poolSlotSync: PoolSlotSyncWorker;
 }
@@ -34,7 +34,7 @@ export function startWorkers(
 	services: Services,
 ): WorkerInstances {
 	const workers: WorkerInstances = {
-		slotRecovery: new SlotRecoveryWorker(db, services, {
+		botRecovery: new BotRecoveryWorker(db, services, {
 			intervalMs: DEFAULT_INTERVAL_MS,
 			runOnStart: true,
 		}),

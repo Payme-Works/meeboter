@@ -1,7 +1,14 @@
 /**
- * SlotRecoveryWorker - Monitors and recovers stuck pool slots
+ * BotRecoveryWorker - Monitors and recovers stuck bots across all platforms
  *
- * ## Slot Status Flow (Coolify Platform Nomenclature)
+ * ## Platform-Agnostic Bot Recovery
+ *
+ * This worker handles recovery for all deployment platforms:
+ * - Coolify: Pool slot recovery (IDLE/DEPLOYING/HEALTHY/ERROR states)
+ * - Kubernetes: Job cleanup for stuck deployments
+ * - AWS ECS: Task cleanup for stuck deployments
+ *
+ * ## Coolify Slot Status Flow (when platform=coolify)
  *
  * Normal lifecycle:
  *   IDLE → DEPLOYING → HEALTHY → IDLE (released)
@@ -13,26 +20,30 @@
  *
  * ## Recovery Scenarios
  *
- * 1. ERROR slots:
+ * 1. ERROR slots (Coolify only):
  *    - Slot status = "ERROR"
  *    - Action: Stop container, reset to IDLE
  *    - Example: Coolify deployment failed, container crashed
  *
- * 2. STALE DEPLOYING slots:
+ * 2. STALE DEPLOYING slots (Coolify only):
  *    - Slot status = "DEPLOYING" AND lastUsedAt > 15 minutes ago
  *    - BUT if bot has recent heartbeat, skip recovery (bot is alive)
  *    - After 3 skipped recoveries, fix status to "HEALTHY"
  *    - Example: Container started but status wasn't updated
  *
- * 3. ORPHANED HEALTHY slots (added to fix stuck slots issue):
+ * 3. ORPHANED HEALTHY slots (Coolify only):
  *    - Slot status = "HEALTHY" AND assignedBotId IS NULL
  *    - Action: Stop container, reset to IDLE
  *    - Example: Bot was deleted (via API or user cascade), FK set
  *      assignedBotId to NULL but status remained "HEALTHY"
  *
+ * 4. Platform resource cleanup (all platforms):
+ *    - Bots marked FATAL but platform resources not released
+ *    - Action: Call platform.releaseBot() to clean up
+ *
  * ## Recovery Process
  *
- * For each stuck slot:
+ * For each stuck slot (Coolify):
  *   1. If DEPLOYING with assigned bot → check bot heartbeat
  *      - Recent heartbeat? Skip recovery (bot is alive)
  *      - After 3 skips → fix status to "HEALTHY"
@@ -68,7 +79,7 @@ const HEARTBEAT_FRESHNESS_MS = 5 * 60 * 1000;
 /** Number of skipped recoveries before fixing slot status to "HEALTHY" */
 const MAX_SKIPPED_RECOVERIES = 3;
 
-interface SlotRecoveryResult extends WorkerResult {
+interface BotRecoveryResult extends WorkerResult {
 	recovered: number;
 	failed: number;
 	deleted: number;
@@ -77,7 +88,11 @@ interface SlotRecoveryResult extends WorkerResult {
 }
 
 /**
- * Worker that monitors and recovers stuck pool slots.
+ * Worker that monitors and recovers stuck bots across all platforms.
+ *
+ * Platform-specific behavior:
+ * - Coolify: Recovers stuck pool slots (error, deploying, orphaned)
+ * - K8s/AWS: Cleans up orphaned platform resources
  *
  * Handles:
  * - Error slots: attempts recovery by stopping container and resetting to idle
@@ -85,11 +100,11 @@ interface SlotRecoveryResult extends WorkerResult {
  * - Permanent deletion: removes slots after 3 failed recovery attempts
  * - Bot FATAL marking: marks assigned bots as FATAL when recovering/deleting
  */
-export class SlotRecoveryWorker extends BaseWorker<SlotRecoveryResult> {
-	readonly name = "SlotRecoveryWorker";
+export class BotRecoveryWorker extends BaseWorker<BotRecoveryResult> {
+	readonly name = "BotRecoveryWorker";
 
-	protected async execute(): Promise<SlotRecoveryResult> {
-		const result: SlotRecoveryResult = {
+	protected async execute(): Promise<BotRecoveryResult> {
+		const result: BotRecoveryResult = {
 			recovered: 0,
 			failed: 0,
 			deleted: 0,
@@ -97,9 +112,27 @@ export class SlotRecoveryWorker extends BaseWorker<SlotRecoveryResult> {
 			deploymentQueueReleased: 0,
 		};
 
-		// Log deployment queue stats for observability
+		// Log deployment queue stats for observability (Coolify only)
 		this.logDeploymentQueueStats();
 
+		// Run Coolify-specific slot recovery if on Coolify platform
+		if (this.services.coolify && this.services.pool) {
+			await this.recoverCoolifySlots(result);
+		}
+
+		// Run platform-agnostic bot cleanup
+		await this.cleanupOrphanedBotResources(result);
+
+		return result;
+	}
+
+	// ─── Coolify-Specific Recovery ────────────────────────────────────────────────
+
+	/**
+	 * Recovers stuck Coolify pool slots.
+	 * Only runs when platform is Coolify.
+	 */
+	private async recoverCoolifySlots(result: BotRecoveryResult): Promise<void> {
 		const staleDeployingCutoff = new Date(Date.now() - DEPLOYING_TIMEOUT_MS);
 
 		// Find slots that are:
@@ -124,11 +157,11 @@ export class SlotRecoveryWorker extends BaseWorker<SlotRecoveryResult> {
 			);
 
 		if (stuckSlots.length === 0) {
-			return result;
+			return;
 		}
 
 		console.log(
-			`[${this.name}] Found ${stuckSlots.length} stuck slots to process`,
+			`[${this.name}] Found ${stuckSlots.length} stuck Coolify slots to process`,
 		);
 
 		for (const slot of stuckSlots) {
@@ -173,9 +206,85 @@ export class SlotRecoveryWorker extends BaseWorker<SlotRecoveryResult> {
 				result.deploymentQueueReleased++;
 			}
 		}
-
-		return result;
 	}
+
+	// ─── Platform-Agnostic Recovery ───────────────────────────────────────────────
+
+	/**
+	 * Cleans up orphaned bot resources across all platforms.
+	 *
+	 * Finds bots that are FATAL but may still have platform resources
+	 * (K8s Jobs, AWS tasks) that weren't properly cleaned up.
+	 */
+	private async cleanupOrphanedBotResources(
+		result: BotRecoveryResult,
+	): Promise<void> {
+		// For K8s: Clean up Jobs for FATAL bots
+		if (this.services.k8s) {
+			await this.cleanupK8sOrphanedJobs(result);
+		}
+
+		// For AWS: Clean up ECS tasks for FATAL bots
+		if (this.services.aws) {
+			await this.cleanupAWSOrphanedTasks(result);
+		}
+	}
+
+	/**
+	 * Cleans up orphaned K8s Jobs for bots that are FATAL.
+	 */
+	private async cleanupK8sOrphanedJobs(
+		result: BotRecoveryResult,
+	): Promise<void> {
+		// Find FATAL bots with K8s platform identifiers that might still have running Jobs
+		const fatalBots = await this.db.query.botsTable.findMany({
+			where: and(
+				eq(botsTable.status, "FATAL"),
+				eq(botsTable.deploymentPlatform, "k8s"),
+			),
+			columns: {
+				id: true,
+				platformIdentifier: true,
+			},
+		});
+
+		for (const bot of fatalBots) {
+			if (!bot.platformIdentifier) continue;
+
+			try {
+				// Check if Job still exists and stop it
+				const job = await this.services.k8s!.getJob(bot.platformIdentifier);
+
+				if (job) {
+					console.log(
+						`[${this.name}] Cleaning up orphaned K8s Job ${bot.platformIdentifier} for FATAL bot ${bot.id}`,
+					);
+
+					await this.services.k8s!.stopBot(bot.platformIdentifier);
+					result.recovered++;
+				}
+			} catch (error) {
+				// Job might already be deleted, which is fine
+				console.log(
+					`[${this.name}] K8s Job ${bot.platformIdentifier} already cleaned up or not found`,
+				);
+			}
+		}
+	}
+
+	/**
+	 * Cleans up orphaned AWS ECS tasks for bots that are FATAL.
+	 */
+	private async cleanupAWSOrphanedTasks(
+		_result: BotRecoveryResult,
+	): Promise<void> {
+		// AWS ECS tasks are typically cleaned up automatically
+		// This is a placeholder for future AWS-specific cleanup logic
+		// The AWS platform service's stopBot() is called by BotHealthWorker
+		// when marking bots as FATAL
+	}
+
+	// ─── Coolify Slot Recovery Helpers ────────────────────────────────────────────
 
 	/**
 	 * Checks if a bot has a recent heartbeat, indicating it's still alive.

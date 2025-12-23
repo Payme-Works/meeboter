@@ -37,11 +37,11 @@
  *
  * ## Relationship with Other Workers
  *
- * - SlotRecoveryWorker: Recovers stuck slots (error, deploying, orphaned busy)
+ * - BotRecoveryWorker: Recovers stuck slots/resources (all platforms)
  * - BotHealthWorker: Monitors running bot health
  * - PoolSlotSyncWorker: Infrastructure ↔ Database consistency
  *
- * @see SlotRecoveryWorker for slot state recovery
+ * @see BotRecoveryWorker for slot/resource recovery
  * @see BotHealthWorker for bot health monitoring
  */
 

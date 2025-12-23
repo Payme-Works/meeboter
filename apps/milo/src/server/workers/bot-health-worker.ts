@@ -16,7 +16,7 @@
  * 1. DEPLOYING status (platform-agnostic cleanup):
  *    - Bots stuck in DEPLOYING for >15 minutes without heartbeat
  *    - Handles K8s, AWS, and Coolify platforms uniformly
- *    - Complementary to SlotRecoveryWorker (which handles Coolify-specific slots)
+ *    - Complementary to BotRecoveryWorker (which handles platform resource cleanup)
  *
  * 2. ACTIVE statuses (container should be running):
  *    - JOINING_CALL: Bot is connecting to the meeting
@@ -46,7 +46,7 @@
  *
  * ## Relationship with Other Workers
  *
- * - SlotRecoveryWorker: Handles Coolify-specific slot state recovery
+ * - BotRecoveryWorker: Handles platform resource cleanup (all platforms)
  * - PoolSlotSyncWorker: Handles Coolify ↔ Database consistency
  * - BotHealthWorker: Handles bot health monitoring (platform-agnostic)
  */
