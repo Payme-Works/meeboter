@@ -432,12 +432,12 @@ function InfrastructureCard({
 			{/* Content */}
 			<StatCardContent className="mb-0">
 				{/* Activity Bars + Status inline */}
-				<div className="flex items-center gap-4 mb-3">
+				<div className="flex items-center gap-4 mb-3 overflow-x-auto scrollbar-hide">
 					{/* Vertical bars visualization - shows actual bot sequence */}
 					<ActivityBars sequence={botSequence} />
 
 					{/* Status counts inline */}
-					<div className="flex items-center gap-x-2 text-xs">
+					<div className="flex items-center gap-x-2 text-xs whitespace-nowrap">
 						<StatusIndicator
 							color="bg-blue-500"
 							count={deploying}

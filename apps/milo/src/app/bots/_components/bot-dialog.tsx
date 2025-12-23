@@ -112,7 +112,7 @@ const REFRESH_INTERVAL_MS = 5_000; // Auto-refresh every 5 seconds when dialog i
 
 export function BotDialog({ botId, onClose }: BotDialogProps) {
 	const [activeTab, setActiveTab] = useState<
-		"details" | "events" | "logs" | "screenshots" | "chat" | "platform"
+		"details" | "logs" | "screenshots" | "chat" | "platform"
 	>("details");
 
 	const {
@@ -226,7 +226,6 @@ export function BotDialog({ botId, onClose }: BotDialogProps) {
 
 	const tabs = [
 		{ id: "details" as const, label: "Overview", icon: Radio },
-		{ id: "events" as const, label: "Events", icon: Activity },
 		{ id: "logs" as const, label: "Logs", icon: Terminal },
 		...(hasPlatform
 			? [{ id: "platform" as const, label: "Platform", icon: Server }]
@@ -309,129 +308,140 @@ export function BotDialog({ botId, onClose }: BotDialogProps) {
 				{/* Tab Content */}
 				<div className="flex-1 overflow-y-auto">
 					{activeTab === "details" && (
-						<div className="p-6 h-full">
+						<div className="p-6 h-full space-y-6">
 							{botError ? (
 								<ErrorAlert errorMessage={botError.message} />
 							) : (
-								<div className="grid grid-cols-2 gap-6">
-									{/* Meeting Info Card */}
-									<div className="space-y-4">
-										<h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-											Meeting Information
-										</h3>
-										<div className="space-y-3">
-											<InfoRow
-												icon={Calendar}
-												label="Scheduled"
-												loading={isBotLoading}
-											>
-												{bot?.startTime
-													? format(new Date(bot.startTime), "PPP")
-													: "Not scheduled"}
-											</InfoRow>
+								<>
+									<div className="grid grid-cols-2 gap-6">
+										{/* Meeting Info Card */}
+										<div className="space-y-4">
+											<h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+												Meeting Information
+											</h3>
+											<div className="space-y-3">
+												<InfoRow
+													icon={Calendar}
+													label="Scheduled"
+													loading={isBotLoading}
+												>
+													{bot?.startTime
+														? format(new Date(bot.startTime), "PPP")
+														: "Not scheduled"}
+												</InfoRow>
 
-											<InfoRow icon={Clock} label="Time" loading={isBotLoading}>
-												{bot?.startTime && bot?.endTime
-													? `${format(new Date(bot.startTime), "p")} - ${format(new Date(bot.endTime), "p")}`
-													: "—"}
-											</InfoRow>
+												<InfoRow
+													icon={Clock}
+													label="Time"
+													loading={isBotLoading}
+												>
+													{bot?.startTime && bot?.endTime
+														? `${format(new Date(bot.startTime), "p")} - ${format(new Date(bot.endTime), "p")}`
+														: "—"}
+												</InfoRow>
 
-											<InfoRow
-												icon={Video}
-												label="Recording"
-												loading={isBotLoading}
-											>
-												<RecordingStatus
-													recording={bot?.recording}
-													recordingEnabled={bot?.recordingEnabled}
-												/>
-											</InfoRow>
+												<InfoRow
+													icon={Video}
+													label="Recording"
+													loading={isBotLoading}
+												>
+													<RecordingStatus
+														recording={bot?.recording}
+														recordingEnabled={bot?.recordingEnabled}
+													/>
+												</InfoRow>
+											</div>
+										</div>
+
+										{/* Bot Status Card */}
+										<div className="space-y-4">
+											<h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+												Bot Status
+											</h3>
+											<div className="space-y-3">
+												<InfoRow
+													icon={Radio}
+													label="Status"
+													loading={isBotLoading}
+												>
+													{bot?.status ? (
+														<Badge
+															variant="outline"
+															className={cn(
+																statusConfig.bgColor,
+																statusConfig.color,
+																"border-transparent",
+															)}
+														>
+															{formatStatus(bot.status)}
+														</Badge>
+													) : (
+														"—"
+													)}
+												</InfoRow>
+
+												<InfoRow
+													icon={Heart}
+													label="Last Heartbeat"
+													loading={isBotLoading}
+												>
+													{bot?.lastHeartbeat ? (
+														<span className="tabular-nums">
+															{formatDistanceToNow(
+																new Date(bot.lastHeartbeat),
+																{
+																	addSuffix: true,
+																},
+															)}
+														</span>
+													) : (
+														<span className="text-muted-foreground">
+															No heartbeat
+														</span>
+													)}
+												</InfoRow>
+
+												<InfoRow
+													icon={Activity}
+													label="Events"
+													loading={isEventsLoading}
+												>
+													<span className="tabular-nums">{events.length}</span>
+												</InfoRow>
+
+												<InfoRow
+													icon={Clock}
+													label="Created"
+													loading={isBotLoading}
+												>
+													{bot?.createdAt ? (
+														<span className="tabular-nums">
+															{formatDistanceToNow(new Date(bot.createdAt), {
+																addSuffix: true,
+															})}
+														</span>
+													) : (
+														"—"
+													)}
+												</InfoRow>
+											</div>
 										</div>
 									</div>
 
-									{/* Bot Status Card */}
+									{/* Events Section */}
 									<div className="space-y-4">
 										<h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-											Bot Status
+											Events
 										</h3>
-										<div className="space-y-3">
-											<InfoRow
-												icon={Radio}
-												label="Status"
-												loading={isBotLoading}
-											>
-												{bot?.status ? (
-													<Badge
-														variant="outline"
-														className={cn(
-															statusConfig.bgColor,
-															statusConfig.color,
-															"border-transparent",
-														)}
-													>
-														{formatStatus(bot.status)}
-													</Badge>
-												) : (
-													"—"
-												)}
-											</InfoRow>
-
-											<InfoRow
-												icon={Heart}
-												label="Last Heartbeat"
-												loading={isBotLoading}
-											>
-												{bot?.lastHeartbeat ? (
-													<span className="tabular-nums">
-														{formatDistanceToNow(new Date(bot.lastHeartbeat), {
-															addSuffix: true,
-														})}
-													</span>
-												) : (
-													<span className="text-muted-foreground">
-														No heartbeat
-													</span>
-												)}
-											</InfoRow>
-
-											<InfoRow
-												icon={Activity}
-												label="Events"
-												loading={isEventsLoading}
-											>
-												<span className="tabular-nums">{events.length}</span>
-											</InfoRow>
-
-											<InfoRow
-												icon={Clock}
-												label="Created"
-												loading={isBotLoading}
-											>
-												{bot?.createdAt ? (
-													<span className="tabular-nums">
-														{formatDistanceToNow(new Date(bot.createdAt), {
-															addSuffix: true,
-														})}
-													</span>
-												) : (
-													"—"
-												)}
-											</InfoRow>
-										</div>
+										<DataTable
+											columns={eventColumns}
+											data={events}
+											isLoading={isBotLoading || isEventsLoading}
+											errorMessage={eventsError?.message}
+										/>
 									</div>
-								</div>
+								</>
 							)}
-						</div>
-					)}
-
-					{activeTab === "events" && (
-						<div className="p-6">
-							<DataTable
-								columns={eventColumns}
-								data={events}
-								isLoading={isBotLoading || isEventsLoading}
-								errorMessage={eventsError?.message}
-							/>
 						</div>
 					)}
 

@@ -275,29 +275,6 @@ function PlatformHeaderTitle({ children }: { children: React.ReactNode }) {
 	);
 }
 
-function PlatformHeaderStatus({ isActive }: { isActive: boolean }) {
-	return (
-		<Badge
-			variant="outline"
-			className={cn(
-				"text-xs ml-auto",
-				isActive
-					? "bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-400 dark:border-green-800"
-					: "bg-muted text-muted-foreground",
-			)}
-		>
-			{isActive ? (
-				<>
-					<span className="h-1.5 w-1.5 rounded-full bg-green-500 mr-1.5 animate-pulse" />
-					Active
-				</>
-			) : (
-				"Inactive"
-			)}
-		</Badge>
-	);
-}
-
 interface K8sPlatformViewProps {
 	platformIdentifier: string | null;
 	isActive: boolean;
@@ -338,8 +315,6 @@ function K8sPlatformView({
 					</PlatformHeaderIcon>
 
 					<PlatformHeaderTitle>Kubernetes</PlatformHeaderTitle>
-
-					<PlatformHeaderStatus isActive={isActive} />
 				</PlatformHeader>
 
 				<div className="flex flex-col items-center justify-center py-8 text-muted-foreground h-full">
@@ -359,9 +334,8 @@ function K8sPlatformView({
 					</PlatformHeaderIcon>
 
 					<PlatformHeaderTitle>Kubernetes</PlatformHeaderTitle>
-
-					<PlatformHeaderStatus isActive={isActive} />
 				</PlatformHeader>
+
 				<Skeleton className="h-32 w-full" />
 				<Skeleton className="h-32 w-full" />
 			</div>
@@ -377,8 +351,6 @@ function K8sPlatformView({
 					</PlatformHeaderIcon>
 
 					<PlatformHeaderTitle>Kubernetes</PlatformHeaderTitle>
-
-					<PlatformHeaderStatus isActive={isActive} />
 				</PlatformHeader>
 
 				<div className="flex flex-col items-center justify-center py-8 text-muted-foreground h-full">
@@ -474,8 +446,6 @@ function K8sPlatformView({
 					</PlatformHeaderIcon>
 
 					<PlatformHeaderTitle>Kubernetes</PlatformHeaderTitle>
-
-					<PlatformHeaderStatus isActive={isActive} />
 				</PlatformHeader>
 
 				<Button
@@ -674,7 +644,7 @@ function K8sPlatformView({
 					</CardHeader>
 
 					<CardContent>
-						<div className="space-y-2 max-h-48 overflow-y-auto">
+						<div className="space-y-2">
 							{events.slice(0, 10).map((event, i) => (
 								<div
 									key={i}
@@ -795,8 +765,6 @@ function CoolifyPlatformView({
 				</PlatformHeaderIcon>
 
 				<PlatformHeaderTitle>Coolify</PlatformHeaderTitle>
-
-				<PlatformHeaderStatus isActive={isActive} />
 			</PlatformHeader>
 
 			<Card>
@@ -863,8 +831,6 @@ function AwsPlatformView({
 				</PlatformHeaderIcon>
 
 				<PlatformHeaderTitle>AWS ECS</PlatformHeaderTitle>
-
-				<PlatformHeaderStatus isActive={isActive} />
 			</PlatformHeader>
 
 			<Card>
@@ -923,8 +889,6 @@ function LocalPlatformView() {
 				</PlatformHeaderIcon>
 
 				<PlatformHeaderTitle>Local Development</PlatformHeaderTitle>
-
-				<PlatformHeaderStatus isActive={false} />
 			</PlatformHeader>
 
 			<Card>
