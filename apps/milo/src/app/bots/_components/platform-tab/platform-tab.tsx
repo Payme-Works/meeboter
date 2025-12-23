@@ -96,7 +96,7 @@ export function PlatformTab({
 
 function PlatformHeader({ children }: { children: React.ReactNode }) {
 	return (
-		<div className="flex items-center justify-between mb-6">
+		<div className="flex items-center justify-between">
 			<div className="flex items-center gap-3">{children}</div>
 		</div>
 	);
@@ -187,7 +187,7 @@ function K8sPlatformView({
 
 	if (isLoading) {
 		return (
-			<div className="p-6 space-y-4">
+			<div className="p-6 space-y-8">
 				<PlatformHeader>
 					<PlatformHeaderIcon>
 						<Container className="h-5 w-5 text-muted-foreground" />
@@ -279,7 +279,7 @@ function K8sPlatformView({
 	const restarts = containerStatus?.restartCount ?? 0;
 
 	return (
-		<div className="p-6 space-y-4">
+		<div className="p-6 space-y-8">
 			<div className="flex items-center justify-between">
 				<PlatformHeader>
 					<PlatformHeaderIcon>
@@ -290,6 +290,7 @@ function K8sPlatformView({
 
 					<PlatformHeaderStatus isActive={isActive} />
 				</PlatformHeader>
+
 				<Button
 					variant="ghost"
 					size="sm"
@@ -503,7 +504,7 @@ function CoolifyPlatformView({
 	isActive,
 }: CoolifyPlatformViewProps) {
 	return (
-		<div className="p-6 space-y-4">
+		<div className="p-6 space-y-8">
 			<PlatformHeader>
 				<PlatformHeaderIcon>
 					<Hexagon className="h-5 w-5 text-muted-foreground" />
@@ -571,7 +572,7 @@ function AwsPlatformView({
 	const taskId = taskPath[2] ?? platformIdentifier ?? "—";
 
 	return (
-		<div className="p-6 space-y-4">
+		<div className="p-6 space-y-8">
 			<PlatformHeader>
 				<PlatformHeaderIcon>
 					<Cloud className="h-5 w-5 text-muted-foreground" />
@@ -631,7 +632,7 @@ function AwsPlatformView({
 
 function LocalPlatformView() {
 	return (
-		<div className="p-6 space-y-4">
+		<div className="p-6 space-y-8">
 			<PlatformHeader>
 				<PlatformHeaderIcon>
 					<HardDrive className="h-5 w-5 text-muted-foreground" />
