@@ -272,11 +272,12 @@ DEPLOYMENT_PLATFORM="kubernetes"
 K8S_NAMESPACE="meeboter"
 K8S_KUBECONFIG="/path/to/kubeconfig"  # Optional, uses default if not set
 
-# Bot Resources (optimized for 80 concurrent bots)
+# Bot Resources (optimized for 80 concurrent bots with burst capacity)
+# Requests = guaranteed resources, Limits = burst capacity (overcommit OK)
 K8S_BOT_CPU_REQUEST="150m"
-K8S_BOT_CPU_LIMIT="250m"
+K8S_BOT_CPU_LIMIT="500m"
 K8S_BOT_MEMORY_REQUEST="512Mi"
-K8S_BOT_MEMORY_LIMIT="768Mi"
+K8S_BOT_MEMORY_LIMIT="1Gi"
 
 # Bot Configuration
 MILO_AUTH_TOKEN="your-milo-auth-token"
@@ -309,10 +310,10 @@ metadata:
 spec:
   hard:
     pods: "100"
-    requests.cpu: "14"
-    requests.memory: "45Gi"
-    limits.cpu: "22"
-    limits.memory: "65Gi"
+    requests.cpu: "14"        # 80 bots × 150m = 12 cores
+    requests.memory: "45Gi"   # 80 bots × 512Mi = 40Gi
+    limits.cpu: "45"          # Overcommit OK for burst
+    limits.memory: "85Gi"     # Overcommit OK for burst
 ```
 
 ### Capacity Planning

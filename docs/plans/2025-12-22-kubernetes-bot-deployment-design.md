@@ -80,10 +80,10 @@ This document describes the design for adding Kubernetes as a third deployment p
 
 | Resource | Request | Limit |
 |----------|---------|-------|
-| CPU | 150m (0.15 vCPU) | 250m (0.25 vCPU) |
-| Memory | 512Mi | 768Mi |
+| CPU | 150m (0.15 vCPU) | 500m (0.5 vCPU) |
+| Memory | 512Mi | 1Gi |
 
-> **Note**: These values are optimized for 80 concurrent bots on a single 24 CPU / 64GB node with overcommit.
+> **Note**: Requests are for scheduling (80 × 150m = 12 cores). Limits allow burst during video processing. Overcommit on limits is expected and safe for variable workloads. Each pod also gets 512Mi shared memory volume for Chromium.
 
 ### Capacity Estimation
 

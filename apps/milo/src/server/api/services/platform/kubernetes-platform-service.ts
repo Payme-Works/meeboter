@@ -651,6 +651,23 @@ export class KubernetesPlatformService
 										memory: this.config.memoryLimit,
 									},
 								},
+								// Mount shared memory for Chromium (default 64MB is too small)
+								volumeMounts: [
+									{
+										name: "shm",
+										mountPath: "/dev/shm",
+									},
+								],
+							},
+						],
+						// Shared memory volume for Chromium browser (256Mi-512Mi recommended)
+						volumes: [
+							{
+								name: "shm",
+								emptyDir: {
+									medium: "Memory",
+									sizeLimit: "512Mi",
+								},
 							},
 						],
 					},
