@@ -549,14 +549,15 @@ function K8sPlatformView({
 						</CardTitle>
 					</CardHeader>
 
-					<CardContent className="space-y-4">
+					<CardContent className="space-y-6">
 						{/* Live Usage Section */}
 						{cpuUsage || memoryUsage ? (
-							<div className="grid grid-cols-2 gap-4 p-3 bg-muted/50 rounded-lg">
+							<div className="grid grid-cols-2 gap-4 p-6 bg-muted/50 rounded-lg">
 								<div className="text-center">
 									<div className="text-xs text-muted-foreground mb-1">
 										CPU Usage
 									</div>
+
 									<div className="text-lg font-semibold font-mono text-blue-600 dark:text-blue-400">
 										{cpuUsage ? formatCpuUsage(cpuUsage) : "—"}
 										{(() => {
@@ -574,6 +575,7 @@ function K8sPlatformView({
 										})()}
 									</div>
 								</div>
+
 								<div className="text-center">
 									<div className="text-xs text-muted-foreground mb-1">
 										Memory Usage
@@ -599,12 +601,13 @@ function K8sPlatformView({
 						) : null}
 
 						{/* Static Requests/Limits */}
-						<div className="grid grid-cols-2 gap-4">
+						<div className="grid grid-cols-2 gap-10">
 							<div className="space-y-2 text-sm">
 								<div className="flex items-center gap-2 text-muted-foreground mb-2">
 									<Cpu className="h-3.5 w-3.5" />
 									<span className="font-medium">CPU</span>
 								</div>
+
 								<div className="flex justify-between">
 									<span className="text-muted-foreground">Request</span>
 									<span className="font-mono text-xs">{cpuRequest ?? "—"}</span>
@@ -614,6 +617,7 @@ function K8sPlatformView({
 									<span className="font-mono text-xs">{cpuLimit ?? "—"}</span>
 								</div>
 							</div>
+
 							<div className="space-y-2 text-sm">
 								<div className="flex items-center gap-2 text-muted-foreground mb-2">
 									<MemoryStick className="h-3.5 w-3.5" />
@@ -625,6 +629,7 @@ function K8sPlatformView({
 										{memoryRequest ?? "—"}
 									</span>
 								</div>
+
 								<div className="flex justify-between">
 									<span className="text-muted-foreground">Limit</span>
 									<span className="font-mono text-xs">

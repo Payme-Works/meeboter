@@ -126,7 +126,8 @@ function TerminalContent({
 }
 
 export function LogsTab({ botId, botStatus }: LogsTabProps) {
-	const [logs, setLogs] = useState<LogEntry[]>([]);
+	// Live logs accumulate incrementally and need state
+	const [liveLogs, setLiveLogs] = useState<LogEntry[]>([]);
 	const [searchQuery, setSearchQuery] = useState("");
 	const [levelFilter, setLevelFilter] = useState<string>("all");
 	const [isPaused, setIsPaused] = useState(false);
@@ -152,6 +153,7 @@ export function LogsTab({ botId, botStatus }: LogsTabProps) {
 	);
 
 	// Fetch historical logs for finished bots
+	// Use query data directly instead of copying to state to avoid stale data on remount
 	const { data: historicalLogsResponse, isLoading: isHistoricalLoading } =
 		api.bots.logs.getHistorical.useQuery(
 			{
@@ -163,10 +165,16 @@ export function LogsTab({ botId, botStatus }: LogsTabProps) {
 			},
 		);
 
-	// Update logs when new data arrives
+	// Historical logs come directly from the query (avoids stale state on tab switch)
+	const historicalLogs = historicalLogsResponse?.entries ?? [];
+
+	// Combined logs: use historical for inactive bots, live logs for active bots
+	const logs = isActive ? liveLogs : historicalLogs;
+
+	// Update live logs when new data arrives
 	useEffect(() => {
 		if (liveLogsResponse?.entries && liveLogsResponse.entries.length > 0) {
-			setLogs((prev) => {
+			setLiveLogs((prev) => {
 				const newLogs = [...prev, ...liveLogsResponse.entries];
 
 				// Keep only the last 2000 logs
@@ -182,13 +190,6 @@ export function LogsTab({ botId, botStatus }: LogsTabProps) {
 			}
 		}
 	}, [liveLogsResponse]);
-
-	// Load historical logs for finished bots
-	useEffect(() => {
-		if (historicalLogsResponse?.entries) {
-			setLogs(historicalLogsResponse.entries);
-		}
-	}, [historicalLogsResponse]);
 
 	// Handle scroll to detect manual scrolling
 	const handleScroll = useCallback(() => {
