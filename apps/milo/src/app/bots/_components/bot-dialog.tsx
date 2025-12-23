@@ -145,14 +145,13 @@ export function BotDialog({ botId, onClose }: BotDialogProps) {
 
 	// ─── Prefetch Logs Tab Data ───────────────────────────────────────────────────
 	// Prefetch historical logs to avoid layout shift when switching to logs tab
-	// (Live logs use cursor-based fetching which can't be prefetched effectively)
-	const isActive = Boolean(
-		bot?.status && !["DONE", "FATAL"].includes(bot.status),
-	);
-
-	api.bots.logs.getHistorical.useQuery(
+	// Uses infinite query to match LogsTab pattern and enable full log loading
+	api.bots.logs.getHistorical.useInfiniteQuery(
 		{ botId: String(botId), limit: 500 },
-		{ enabled: !!botId && !isActive },
+		{
+			enabled: !!botId,
+			getNextPageParam: (lastPage) => lastPage.nextCursor,
+		},
 	);
 
 	// ─── Prefetch Platform Tab Data ───────────────────────────────────────────────

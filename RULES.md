@@ -296,7 +296,15 @@ z.record(z.string(), z.string())  // NOT z.record(z.string())
 - **NEVER use nested ternary expressions** - Use if-else or helper functions
 - **ALWAYS implement type-safe code** - Prioritize type safety in all implementations
 - **Use ternary for conditional JSX rendering** - Use `{condition ? (<Component />) : null}` instead of `{condition && <Component />)}`
-- **CRITICAL: NEVER use "Details", "Info", or "Data" suffixes** in variable names, types, or function names
+
+### Naming Conventions (CRITICAL) - See `rules/NAMING_CONVENTIONS.md`
+- **No redundant suffixes** - NEVER use "Details", "Info", "Data", "Response", "List" suffixes
+- **No redundant type suffixes** - Don't repeat units in names when documented (use `timeout` not `timeoutMs` if JSDoc says "in milliseconds")
+- **Boolean prefixes required** - ALWAYS use `is`, `has`, `should`, `can`, `will` prefixes for booleans
+- **Enums UPPERCASE** - All enum values must be UPPERCASE (`"ACTIVE"` not `"active"`)
+- **Request/Response for use cases** - Domain layer interfaces use `Request`/`Response` suffixes
+- **Input/Output for tRPC** - tRPC schemas use `Input`/`Output` suffixes
+- **Dialog/Sheet naming** - Action-first for CRUD (`CreateBotDialog`), entity-first for view (`BotDialog` not `BotDetailsDialog`)
 
 ## File Structure & Organization
 

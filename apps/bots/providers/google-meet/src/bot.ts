@@ -1,5 +1,6 @@
 import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import * as fs from "node:fs";
+import * as fsPromises from "node:fs/promises";
 import path from "node:path";
 import { setTimeout } from "node:timers/promises";
 import type { AppRouter } from "@meeboter/milo";
@@ -104,6 +105,7 @@ export class GoogleMeetBot extends Bot {
 	private removalDetector: GoogleMeetRemovalDetector | null = null;
 
 	private uploadScreenshot: UploadScreenshotUseCase | null = null;
+	private s3Ready: Promise<void> | null = null;
 
 	constructor(
 		config: BotConfig,
@@ -117,8 +119,8 @@ export class GoogleMeetBot extends Bot {
 		this.meetingUrl = config.meeting.meetingUrl ?? "";
 		this.chatEnabled = true; // Chat is always enabled
 
-		// Initialize S3 storage lazily via dynamic import (Bun-specific API)
-		this.initializeS3Storage();
+		// Initialize S3 via dynamic import (Bun-specific API)
+		this.s3Ready = this.initializeS3();
 
 		this.browserArgs = [
 			"--incognito",
@@ -147,40 +149,54 @@ export class GoogleMeetBot extends Bot {
 	}
 
 	/**
-	 * Initialize S3 storage provider via dynamic import.
-	 * Uses Bun-specific S3Client, so we import dynamically to avoid
+	 * Initialize S3 provider via dynamic import.
+	 * Uses Bun-specific S3Client, imported dynamically to avoid
 	 * breaking Node.js-based test runners like Playwright.
 	 */
-	private initializeS3Storage(): void {
+	private async initializeS3(): Promise<void> {
 		const s3Endpoint = env.S3_ENDPOINT;
 		const s3AccessKey = env.S3_ACCESS_KEY;
 		const s3SecretKey = env.S3_SECRET_KEY;
 		const s3BucketName = env.S3_BUCKET_NAME;
 
-		if (s3Endpoint && s3AccessKey && s3SecretKey && s3BucketName) {
-			import("../../../src/services/storage/s3-provider")
-				.then(({ S3StorageProvider }) => {
-					const storageService: StorageService = new S3StorageProvider({
-						endpoint: s3Endpoint,
-						region: env.S3_REGION,
-						accessKeyId: s3AccessKey,
-						secretAccessKey: s3SecretKey,
-						bucketName: s3BucketName,
-					});
+		if (!s3Endpoint || !s3AccessKey || !s3SecretKey || !s3BucketName) {
+			this.logger.debug(
+				"S3 storage not configured, screenshots will be local only",
+			);
 
-					this.uploadScreenshot = new UploadScreenshotUseCase(storageService);
-				})
-				.catch((error) => {
-					this.logger.warn("S3 storage not available", {
-						error: error instanceof Error ? error.message : String(error),
-					});
-				});
+			return;
+		}
+
+		try {
+			const { S3StorageProvider } = await import(
+				"../../../src/services/storage/s3-provider"
+			);
+
+			const storageService: StorageService = new S3StorageProvider({
+				endpoint: s3Endpoint,
+				region: env.S3_REGION,
+				accessKeyId: s3AccessKey,
+				secretAccessKey: s3SecretKey,
+				bucketName: s3BucketName,
+			});
+
+			this.uploadScreenshot = new UploadScreenshotUseCase(storageService);
+			this.logger.debug("S3 storage initialized successfully");
+		} catch (error) {
+			this.logger.warn("S3 storage initialization failed", {
+				error: error instanceof Error ? error.message : String(error),
+			});
 		}
 	}
 
 	// --- Lifecycle ---
 
 	async run(): Promise<void> {
+		// Ensure S3 is ready before proceeding
+		if (this.s3Ready) {
+			await this.s3Ready;
+		}
+
 		await this.joinCall();
 		await this.monitorCall();
 	}
@@ -1427,54 +1443,133 @@ export class GoogleMeetBot extends Bot {
 
 	// --- Screenshot ---
 
+	/**
+	 * Timeout in milliseconds for Playwright screenshot capture.
+	 */
+	private static readonly SCREENSHOT_TIMEOUT = 5000;
+
 	async screenshot(
 		filename = "screenshot.png",
 		trigger?: string,
 		type: "error" | "fatal" | "manual" | "state_change" = "manual",
 	): Promise<string | null> {
 		if (!this.page) {
-			throw new Error("Page not initialized");
+			this.logger.warn("Screenshot failed: Page not initialized", {
+				filename,
+				trigger,
+			});
+
+			return null;
 		}
 
+		// Include bot ID in filename to avoid collisions between concurrent bots
+		const uniqueFilename = `bot-${this.settings.id}-${filename}`;
+		const screenshotPath = `/tmp/${uniqueFilename}`;
+
+		// Step 1: Capture screenshot from Playwright
 		try {
-			const screenshotPath = `/tmp/${filename}`;
-			await this.page.screenshot({ path: screenshotPath, type: "png" });
+			await this.page.screenshot({
+				path: screenshotPath,
+				type: "png",
+				timeout: GoogleMeetBot.SCREENSHOT_TIMEOUT,
+			});
+		} catch (err) {
+			const error = err instanceof Error ? err : new Error(String(err));
 
-			if (this.uploadScreenshot) {
-				const data = fs.readFileSync(screenshotPath);
+			this.logger.error("Screenshot capture failed (Playwright)", error, {
+				filename: uniqueFilename,
+				trigger,
+				isTimeout: error.message.includes("Timeout"),
+				isPageClosed:
+					error.message.includes("closed") ||
+					error.message.includes("Target page"),
+			});
 
-				const result = await this.uploadScreenshot.execute({
+			return null;
+		}
+
+		// Step 2: Read file and upload to S3 (if configured)
+		if (this.uploadScreenshot) {
+			let data: Buffer;
+
+			try {
+				data = await fsPromises.readFile(screenshotPath);
+			} catch (err) {
+				const error = err instanceof Error ? err : new Error(String(err));
+
+				this.logger.error("Screenshot file read failed", error, {
+					path: screenshotPath,
+					isNotFound: error.message.includes("ENOENT"),
+					isPermission: error.message.includes("EACCES"),
+				});
+
+				return null;
+			}
+
+			// Step 3: Upload to S3
+			let result: Awaited<ReturnType<UploadScreenshotUseCase["execute"]>>;
+
+			try {
+				result = await this.uploadScreenshot.execute({
 					botId: this.settings.id,
 					data,
 					type,
 					state: this.emitter.getState(),
 					trigger,
 				});
+			} catch (err) {
+				const error = err instanceof Error ? err : new Error(String(err));
 
-				fs.unlinkSync(screenshotPath);
-				this.logger.debug("Screenshot uploaded to S3", { key: result.key });
+				this.logger.error("Screenshot S3 upload failed", error, {
+					filename: uniqueFilename,
+					trigger,
+					isTimeout: error.message.includes("timeout"),
+					isNetwork:
+						error.message.includes("ECONNREFUSED") ||
+						error.message.includes("ETIMEDOUT"),
+				});
 
+				// Clean up local file even on S3 failure
 				try {
-					await this.trpc.bots.addScreenshot.mutate({
-						id: String(this.settings.id),
-						screenshot: result,
-					});
-				} catch (dbError) {
-					this.logger.warn("Failed to persist screenshot to database", {
-						error: dbError instanceof Error ? dbError.message : String(dbError),
-					});
+					await fsPromises.unlink(screenshotPath);
+				} catch {
+					// Ignore cleanup errors
 				}
 
-				return result.key;
+				return null;
 			}
 
-			this.logger.debug("Screenshot saved locally", { path: screenshotPath });
+			// Step 4: Clean up local file
+			try {
+				await fsPromises.unlink(screenshotPath);
+			} catch (error) {
+				// Non-critical: log but don't fail
+				this.logger.trace("Screenshot file cleanup failed", {
+					error: error instanceof Error ? error.message : String(error),
+					path: screenshotPath,
+				});
+			}
 
-			return screenshotPath;
-		} catch (error) {
-			this.logger.error("Error taking screenshot", error as Error);
+			this.logger.debug("Screenshot uploaded to S3", { key: result.key });
 
-			return null;
+			// Step 5: Persist to database (non-blocking, fire-and-forget pattern)
+			this.trpc.bots.addScreenshot
+				.mutate({
+					id: String(this.settings.id),
+					screenshot: result,
+				})
+				.catch((dbError) => {
+					this.logger.warn("Failed to persist screenshot to database", {
+						error: dbError instanceof Error ? dbError.message : String(dbError),
+						key: result.key,
+					});
+				});
+
+			return result.key;
 		}
+
+		this.logger.debug("Screenshot saved locally", { path: screenshotPath });
+
+		return screenshotPath;
 	}
 }

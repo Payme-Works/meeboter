@@ -139,6 +139,40 @@ function PlatformMetrics({ metrics }) { ... }
 | `useInfrastructureData()` | `useInfrastructure()` |
 | `KubernetesJobDetails` | `KubernetesJob` |
 | `UserSubscriptionInfo` | `UserSubscription` |
+| `} catch (error) { const errorObj = ...` | `} catch (err) { const error = ...` |
+| `errorMessage` | inline `error.message` |
+
+## Error Variable Naming
+
+When catching errors, use `err` for the raw caught value and `error` for the normalized Error object:
+
+```typescript
+// ✅ CORRECT: catch as err, normalize to error
+} catch (err) {
+  const error = err instanceof Error ? err : new Error(String(err));
+
+  this.logger.error("Operation failed", error, {
+    isTimeout: error.message.includes("timeout"),
+    isNotFound: error.message.includes("ENOENT"),
+  });
+}
+
+// ❌ WRONG: Redundant suffixes
+} catch (error) {
+  const errorObj = error instanceof Error ? error : new Error(String(error));
+  const errorMessage = errorObj.message;  // Unnecessary intermediate variable
+
+  this.logger.error("Operation failed", errorObj, {
+    isTimeout: errorMessage.includes("timeout"),
+  });
+}
+```
+
+**Key points:**
+- Catch as `err` (the raw unknown value)
+- Normalize to `error` (the guaranteed Error object)
+- Inline `error.message` instead of creating a separate variable
+- Only create intermediate variables when the value is used 3+ times
 
 ## Interface Naming: Request/Response vs Input/Output
 

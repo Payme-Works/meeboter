@@ -1,7 +1,15 @@
 "use client";
 
-import { Check, Copy, Download, Pause, Play, Search } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+	Check,
+	Copy,
+	Download,
+	Loader2,
+	Pause,
+	Play,
+	Search,
+} from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -53,6 +61,8 @@ const LEVEL_BG_COLORS: Record<string, string> = {
 
 interface TerminalContentProps {
 	isLoading: boolean;
+	isFetchingMore: boolean;
+	hasMoreLogs: boolean;
 	filteredLogs: LogEntry[];
 	totalLogs: number;
 	showTimestamps: boolean;
@@ -61,6 +71,8 @@ interface TerminalContentProps {
 
 function TerminalContent({
 	isLoading,
+	isFetchingMore,
+	hasMoreLogs,
 	filteredLogs,
 	totalLogs,
 	showTimestamps,
@@ -84,6 +96,19 @@ function TerminalContent({
 
 	return (
 		<div className="p-2 space-y-0.5 min-w-max">
+			{/* Loading indicator at top when fetching more */}
+			{isFetchingMore ? (
+				<div className="flex items-center justify-center gap-2 py-2 text-zinc-500">
+					<Loader2 className="h-4 w-4 animate-spin" />
+					<span>Loading more logs...</span>
+				</div>
+			) : null}
+			{/* Scroll hint when more logs available */}
+			{!isFetchingMore && hasMoreLogs ? (
+				<div className="flex items-center justify-center py-1 text-zinc-600 text-[10px]">
+					↑ Scroll up to load more
+				</div>
+			) : null}
 			{filteredLogs.map((log) => (
 				<div
 					key={log.id}
@@ -152,24 +177,48 @@ export function LogsTab({ botId, botStatus }: LogsTabProps) {
 		},
 	);
 
-	// Fetch historical logs for finished bots
-	// Use query data directly instead of copying to state to avoid stale data on remount
-	const { data: historicalLogsResponse, isLoading: isHistoricalLoading } =
-		api.bots.logs.getHistorical.useQuery(
-			{
-				botId: String(botId),
-				limit: 500,
-			},
-			{
-				enabled: !isActive,
-			},
+	// Fetch historical logs using infinite query
+	// Loads on-demand when user scrolls to top
+	const {
+		data: historicalLogsPages,
+		isLoading: isHistoricalLoading,
+		hasNextPage,
+		fetchNextPage,
+		isFetchingNextPage,
+	} = api.bots.logs.getHistorical.useInfiniteQuery(
+		{
+			botId: String(botId),
+			limit: 500,
+		},
+		{
+			getNextPageParam: (lastPage) => lastPage.nextCursor,
+		},
+	);
+
+	// Flatten all pages into a single array of historical logs
+	const historicalLogs = useMemo(() => {
+		if (!historicalLogsPages?.pages) return [];
+
+		return historicalLogsPages.pages.flatMap((page) => page.entries);
+	}, [historicalLogsPages?.pages]);
+
+	// Combined logs: merge historical + live logs, avoiding duplicates
+	const logs = useMemo(() => {
+		// Create a Set of historical log IDs for fast lookup
+		const historicalIds = new Set(historicalLogs.map((log) => log.id));
+
+		// Filter live logs to exclude any that exist in historical
+		const uniqueLiveLogs = liveLogs.filter((log) => !historicalIds.has(log.id));
+
+		// Combine: historical first (older), then unique live logs (newer)
+		const combined = [...historicalLogs, ...uniqueLiveLogs];
+
+		// Sort by timestamp to ensure correct order
+		return combined.sort(
+			(a, b) =>
+				new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
 		);
-
-	// Historical logs come directly from the query (avoids stale state on tab switch)
-	const historicalLogs = historicalLogsResponse?.entries ?? [];
-
-	// Combined logs: use historical for inactive bots, live logs for active bots
-	const logs = isActive ? liveLogs : historicalLogs;
+	}, [historicalLogs, liveLogs]);
 
 	// Update live logs when new data arrives
 	useEffect(() => {
@@ -191,15 +240,21 @@ export function LogsTab({ botId, botStatus }: LogsTabProps) {
 		}
 	}, [liveLogsResponse]);
 
-	// Handle scroll to detect manual scrolling
+	// Handle scroll to detect manual scrolling and trigger infinite loading
 	const handleScroll = useCallback(() => {
 		if (!terminalRef.current) return;
 
 		const { scrollTop, scrollHeight, clientHeight } = terminalRef.current;
 		const isAtBottom = scrollHeight - scrollTop - clientHeight < 50;
+		const isAtTop = scrollTop < 50;
 
 		setAutoScroll(isAtBottom);
-	}, []);
+
+		// Load more historical logs when scrolling to top
+		if (isAtTop && hasNextPage && !isFetchingNextPage) {
+			void fetchNextPage();
+		}
+	}, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
 	// Filter logs based on search and level
 	const filteredLogs = logs.filter((log) => {
@@ -214,14 +269,14 @@ export function LogsTab({ botId, botStatus }: LogsTabProps) {
 		return matchesSearch && matchesLevel;
 	});
 
-	// Auto-scroll to bottom when filtered logs change
+	// Auto-scroll to bottom when filtered logs change (only for live logs)
 	const logCount = filteredLogs.length;
 
 	useEffect(() => {
-		if (autoScroll && terminalRef.current && logCount > 0) {
+		if (isActive && autoScroll && terminalRef.current && logCount > 0) {
 			terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
 		}
-	}, [logCount, autoScroll]);
+	}, [logCount, autoScroll, isActive]);
 
 	// Format logs as text content
 	const formatLogsAsText = () => {
@@ -366,6 +421,8 @@ export function LogsTab({ botId, botStatus }: LogsTabProps) {
 			>
 				<TerminalContent
 					isLoading={isLoading || isHistoricalLoading}
+					isFetchingMore={isFetchingNextPage}
+					hasMoreLogs={hasNextPage ?? false}
 					filteredLogs={filteredLogs}
 					totalLogs={logs.length}
 					showTimestamps={showTimestamps}
@@ -387,13 +444,23 @@ export function LogsTab({ botId, botStatus }: LogsTabProps) {
 							{isPaused ? "Paused" : "Live"}
 						</span>
 					) : (
-						"Historical"
+						<span className="flex items-center gap-1">
+							{isFetchingNextPage ? (
+								<>
+									<Loader2 className="h-3 w-3 animate-spin" />
+									Loading more...
+								</>
+							) : (
+								"Historical"
+							)}
+						</span>
 					)}
 				</span>
 
 				<span>
 					{filteredLogs.length.toLocaleString()} entries
 					{logs.length !== filteredLogs.length ? ` (${logs.length} total)` : ""}
+					{hasNextPage ? " (more available)" : ""}
 				</span>
 
 				{!autoScroll && logs.length > 0 ? (

@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import * as fsPromises from "node:fs/promises";
 import path from "node:path";
 import type { Transform } from "node:stream";
 import { setTimeout } from "node:timers/promises";
@@ -39,6 +40,7 @@ export class MicrosoftTeamsBot extends Bot {
 	private contentType: string;
 	private meetingUrl: string;
 	private uploadScreenshot: UploadScreenshotUseCase | null = null;
+	private s3Ready: Promise<void> | null = null;
 	private removalDetector: MicrosoftTeamsRemovalDetector | null = null;
 
 	browser!: Browser;
@@ -60,37 +62,48 @@ export class MicrosoftTeamsBot extends Bot {
 		this.contentType = "video/webm";
 		this.meetingUrl = `https://teams.microsoft.com/v2/?meetingjoin=true#/l/meetup-join/19:meeting_${this.settings.meeting.meetingId}@thread.v2/0?context=%7b%22Tid%22%3a%22${this.settings.meeting.tenantId}%22%2c%22Oid%22%3a%22${this.settings.meeting.organizerId}%22%7d&anon=true`;
 
-		// Initialize S3 storage lazily via dynamic import (Bun-specific API)
-		this.initializeS3Storage();
+		// Initialize S3 storage via dynamic import (Bun-specific API)
+		// Store the promise so we can await it before taking screenshots
+		this.s3Ready = this.initializeS3();
 	}
 
 	/**
 	 * Initialize S3 storage provider via dynamic import.
+	 * Returns a Promise that resolves when S3 is ready.
 	 */
-	private initializeS3Storage(): void {
+	private async initializeS3(): Promise<void> {
 		const s3Endpoint = env.S3_ENDPOINT;
 		const s3AccessKey = env.S3_ACCESS_KEY;
 		const s3SecretKey = env.S3_SECRET_KEY;
 		const s3BucketName = env.S3_BUCKET_NAME;
 
-		if (s3Endpoint && s3AccessKey && s3SecretKey && s3BucketName) {
-			import("../../../src/services/storage/s3-provider")
-				.then(({ S3StorageProvider }) => {
-					const storageService: StorageService = new S3StorageProvider({
-						endpoint: s3Endpoint,
-						region: env.S3_REGION,
-						accessKeyId: s3AccessKey,
-						secretAccessKey: s3SecretKey,
-						bucketName: s3BucketName,
-					});
+		if (!s3Endpoint || !s3AccessKey || !s3SecretKey || !s3BucketName) {
+			this.logger.debug(
+				"S3 storage not configured, screenshots will be local only",
+			);
 
-					this.uploadScreenshot = new UploadScreenshotUseCase(storageService);
-				})
-				.catch((error) => {
-					this.logger.warn("S3 storage not available", {
-						error: error instanceof Error ? error.message : String(error),
-					});
-				});
+			return;
+		}
+
+		try {
+			const { S3StorageProvider } = await import(
+				"../../../src/services/storage/s3-provider"
+			);
+
+			const storageService: StorageService = new S3StorageProvider({
+				endpoint: s3Endpoint,
+				region: env.S3_REGION,
+				accessKeyId: s3AccessKey,
+				secretAccessKey: s3SecretKey,
+				bucketName: s3BucketName,
+			});
+
+			this.uploadScreenshot = new UploadScreenshotUseCase(storageService);
+			this.logger.debug("S3 storage initialized successfully");
+		} catch (error) {
+			this.logger.warn("S3 storage initialization failed", {
+				error: error instanceof Error ? error.message : String(error),
+			});
 		}
 	}
 
@@ -100,6 +113,11 @@ export class MicrosoftTeamsBot extends Bot {
 	 * Main entry point: join meeting and monitor until exit.
 	 */
 	async run(): Promise<void> {
+		// Ensure S3 storage is initialized before proceeding
+		if (this.s3Ready) {
+			await this.s3Ready;
+		}
+
 		await this.joinCall();
 		await this.monitorCall();
 	}
@@ -584,6 +602,11 @@ export class MicrosoftTeamsBot extends Bot {
 	}
 
 	/**
+	 * Timeout in milliseconds for Puppeteer screenshot capture.
+	 */
+	private static readonly SCREENSHOT_TIMEOUT = 5000;
+
+	/**
 	 * Take a screenshot, upload to S3, and persist to database.
 	 * @param filename - Local filename for the screenshot
 	 * @param trigger - Optional trigger description for S3 metadata
@@ -595,53 +618,124 @@ export class MicrosoftTeamsBot extends Bot {
 		type: "error" | "fatal" | "manual" | "state_change" = "manual",
 	): Promise<string | null> {
 		if (!this.page || !this.browser) {
-			throw new Error("Browser/page not initialized");
-		}
-
-		try {
-			const screenshotPath = `/tmp/${filename}`;
-
-			await this.page.screenshot({
-				path: screenshotPath,
-				type: "png",
+			this.logger.warn("Screenshot failed: Browser/page not initialized", {
+				filename,
+				trigger,
 			});
 
-			if (this.uploadScreenshot) {
-				const data = fs.readFileSync(screenshotPath);
+			return null;
+		}
 
-				const result = await this.uploadScreenshot.execute({
+		// Include bot ID in filename to avoid collisions between concurrent bots
+		const uniqueFilename = `bot-${this.settings.id}-${filename}`;
+		const screenshotPath = `/tmp/${uniqueFilename}`;
+
+		// Step 1: Capture screenshot from Puppeteer
+		try {
+			await withTimeout(
+				this.page.screenshot({
+					path: screenshotPath,
+					type: "png",
+				}),
+				MicrosoftTeamsBot.SCREENSHOT_TIMEOUT,
+				"Screenshot capture timed out",
+			);
+		} catch (err) {
+			const error = err instanceof Error ? err : new Error(String(err));
+
+			this.logger.error("Screenshot capture failed (Puppeteer)", error, {
+				filename: uniqueFilename,
+				trigger,
+				isTimeout: error.message.includes("timed out"),
+				isPageClosed:
+					error.message.includes("closed") ||
+					error.message.includes("Target page"),
+			});
+
+			return null;
+		}
+
+		// Step 2: Read file and upload to S3 (if configured)
+		if (this.uploadScreenshot) {
+			let data: Buffer;
+
+			try {
+				data = await fsPromises.readFile(screenshotPath);
+			} catch (err) {
+				const error = err instanceof Error ? err : new Error(String(err));
+
+				this.logger.error("Screenshot file read failed", error, {
+					path: screenshotPath,
+					isNotFound: error.message.includes("ENOENT"),
+					isPermission: error.message.includes("EACCES"),
+				});
+
+				return null;
+			}
+
+			// Step 3: Upload to S3
+			let result: Awaited<ReturnType<UploadScreenshotUseCase["execute"]>>;
+
+			try {
+				result = await this.uploadScreenshot.execute({
 					botId: this.settings.id,
 					data,
 					type,
 					state: this.emitter.getState(),
 					trigger,
 				});
+			} catch (err) {
+				const error = err instanceof Error ? err : new Error(String(err));
 
-				fs.unlinkSync(screenshotPath);
+				this.logger.error("Screenshot S3 upload failed", error, {
+					filename: uniqueFilename,
+					trigger,
+					isTimeout: error.message.includes("timeout"),
+					isNetwork:
+						error.message.includes("ECONNREFUSED") ||
+						error.message.includes("ETIMEDOUT"),
+				});
 
-				this.logger.debug("Screenshot uploaded to S3", { key: result.key });
-
+				// Clean up local file even on S3 failure
 				try {
-					await this.trpc.bots.addScreenshot.mutate({
-						id: String(this.settings.id),
-						screenshot: result,
-					});
-				} catch (dbError) {
-					this.logger.warn("Failed to persist screenshot to database", {
-						error: dbError instanceof Error ? dbError.message : String(dbError),
-					});
+					await fsPromises.unlink(screenshotPath);
+				} catch {
+					// Ignore cleanup errors
 				}
 
-				return result.key;
+				return null;
 			}
 
-			this.logger.debug("Screenshot saved locally", { path: screenshotPath });
+			// Step 4: Clean up local file
+			try {
+				await fsPromises.unlink(screenshotPath);
+			} catch (error) {
+				this.logger.trace("Screenshot file cleanup failed", {
+					error: error instanceof Error ? error.message : String(error),
+					path: screenshotPath,
+				});
+			}
 
-			return screenshotPath;
-		} catch (error) {
-			this.logger.error("Error taking screenshot", error as Error);
+			this.logger.debug("Screenshot uploaded to S3", { key: result.key });
 
-			return null;
+			// Step 5: Persist to database (non-blocking, fire-and-forget pattern)
+			this.trpc.bots.addScreenshot
+				.mutate({
+					id: String(this.settings.id),
+					screenshot: result,
+				})
+				.catch((dbError) => {
+					this.logger.warn("Failed to persist screenshot to database", {
+						error: dbError instanceof Error ? dbError.message : String(dbError),
+						key: result.key,
+					});
+				});
+
+			return result.key;
 		}
+
+		this.logger.debug("Screenshot saved locally", { path: screenshotPath });
+
+		return screenshotPath;
 	}
 }
