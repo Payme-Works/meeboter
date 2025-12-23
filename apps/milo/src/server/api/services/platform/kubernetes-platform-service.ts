@@ -614,6 +614,8 @@ export class KubernetesPlatformService
 					app: "meeboter-bot",
 					platform: botConfig.meeting.platform ?? "unknown",
 					botId: botConfig.id.toString(),
+					// Kueue queue assignment - controls staged deployment
+					"kueue.x-k8s.io/queue-name": "bot-queue",
 				},
 			},
 			spec: {
