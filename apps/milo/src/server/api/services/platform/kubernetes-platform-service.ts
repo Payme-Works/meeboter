@@ -473,18 +473,32 @@ export class KubernetesPlatformService implements PlatformService {
 	}
 
 	/**
-	 * Checks if an error is a Kubernetes 404 Not Found error
+	 * Checks if an error is a Kubernetes 404 Not Found error.
+	 * The @kubernetes/client-node library uses 'code' property for HTTP status.
 	 */
 	private isNotFoundError(error: unknown): boolean {
-		if (error && typeof error === "object" && "statusCode" in error) {
-			return (error as { statusCode: number }).statusCode === 404;
-		}
+		if (error && typeof error === "object") {
+			// @kubernetes/client-node uses 'code' property for HTTP status
+			if ("code" in error && (error as { code: number }).code === 404) {
+				return true;
+			}
 
-		if (error && typeof error === "object" && "response" in error) {
-			const response = (error as { response: { statusCode?: number } })
-				.response;
+			// Also check 'statusCode' for backwards compatibility
+			if (
+				"statusCode" in error &&
+				(error as { statusCode: number }).statusCode === 404
+			) {
+				return true;
+			}
 
-			return response?.statusCode === 404;
+			// Check nested response object
+			if ("response" in error) {
+				const response = (
+					error as { response: { statusCode?: number; code?: number } }
+				).response;
+
+				return response?.statusCode === 404 || response?.code === 404;
+			}
 		}
 
 		return false;
