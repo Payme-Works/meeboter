@@ -1430,6 +1430,7 @@ export class GoogleMeetBot extends Bot {
 	async screenshot(
 		filename = "screenshot.png",
 		trigger?: string,
+		type: "error" | "fatal" | "manual" | "state_change" = "manual",
 	): Promise<string | null> {
 		if (!this.page) {
 			throw new Error("Page not initialized");
@@ -1445,7 +1446,7 @@ export class GoogleMeetBot extends Bot {
 				const result = await this.uploadScreenshot.execute({
 					botId: this.settings.id,
 					data,
-					type: "manual",
+					type,
 					state: this.emitter.getState(),
 					trigger,
 				});

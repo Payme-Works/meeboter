@@ -16,7 +16,6 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { formatPlatformName } from "@/utils/platform";
 import { parseAsInteger, useQueryState } from "nuqs";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -46,6 +45,7 @@ import {
 import { useSession } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 import { api } from "@/trpc/react";
+import { formatPlatformName } from "@/utils/platform";
 import { BotActionsDropdown } from "./_components/bot-actions-dropdown";
 import { BotDialog } from "./_components/bot-dialog";
 import { BroadcastCenterDialog } from "./_components/broadcast-center-dialog";

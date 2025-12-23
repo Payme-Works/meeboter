@@ -73,6 +73,7 @@ export abstract class Bot {
 	abstract screenshot(
 		filename?: string,
 		trigger?: string,
+		type?: "error" | "fatal" | "manual" | "state_change",
 	): Promise<string | null>;
 
 	/**

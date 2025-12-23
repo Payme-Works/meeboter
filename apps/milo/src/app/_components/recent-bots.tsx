@@ -8,8 +8,8 @@ import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatPlatformName } from "@/utils/platform";
 import { api } from "@/trpc/react";
+import { formatPlatformName } from "@/utils/platform";
 import { BotDialog } from "../bots/_components/bot-dialog";
 import { CancelDeploymentDialog } from "../bots/_components/cancel-deployment-dialog";
 import { RemoveFromCallDialog } from "../bots/_components/remove-from-call-dialog";
@@ -190,8 +190,7 @@ export function RecentBots() {
 											</div>
 
 											<div className="text-xs text-muted-foreground mt-0.5">
-												{formatPlatformName(platform)}{" "}
-												&middot;{" "}
+												{formatPlatformName(platform)} &middot;{" "}
 												{bot.createdAt
 													? formatDistanceToNow(new Date(bot.createdAt), {
 															addSuffix: true,

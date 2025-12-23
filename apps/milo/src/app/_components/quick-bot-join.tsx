@@ -19,8 +19,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatPlatformName } from "@/utils/platform";
 import { api } from "@/trpc/react";
+import { formatPlatformName } from "@/utils/platform";
 import { getRandomBrazilianNames } from "@/utils/random-names";
 
 const quickBotSchema = z.object({

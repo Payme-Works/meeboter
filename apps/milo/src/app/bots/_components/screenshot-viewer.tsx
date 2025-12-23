@@ -10,7 +10,7 @@ import {
 	RefreshCw,
 } from "lucide-react";
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
@@ -101,6 +101,20 @@ export function ScreenshotViewer({
 }: ScreenshotViewerProps) {
 	// Select first screenshot by default
 	const [selectedIndex, setSelectedIndex] = useState(0);
+	const thumbnailRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
+
+	// Auto-scroll to selected thumbnail
+	useEffect(() => {
+		const thumbnail = thumbnailRefs.current.get(selectedIndex);
+
+		if (thumbnail) {
+			thumbnail.scrollIntoView({
+				behavior: "smooth",
+				block: "nearest",
+				inline: "center",
+			});
+		}
+	}, [selectedIndex]);
 
 	if (isLoading) {
 		return (
@@ -109,7 +123,7 @@ export function ScreenshotViewer({
 					{[...Array(4)].map((_, i) => (
 						<Skeleton
 							key={`skeleton-${i}`}
-							className="h-24 w-36 rounded-lg flex-shrink-0"
+							className="h-24 w-36 rounded-lg shrink-0"
 						/>
 					))}
 				</div>
@@ -268,14 +282,19 @@ export function ScreenshotViewer({
 							return (
 								<button
 									key={`${screenshot.key}-${screenshot.capturedAt}`}
+									ref={(el) => {
+										if (el) {
+											thumbnailRefs.current.set(index, el);
+										} else {
+											thumbnailRefs.current.delete(index);
+										}
+									}}
 									type="button"
 									onClick={() => setSelectedIndex(index)}
 									className={cn(
-										"relative flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all duration-150 hover:ring-2 hover:ring-primary/50 focus:outline-none focus:ring-2 focus:ring-primary",
+										"relative shrink-0 rounded-lg overflow-hidden border-2 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-primary",
 										"w-28 h-20",
-										isSelected
-											? "ring-2 ring-primary border-primary"
-											: config.bgColor,
+										isSelected ? "border-primary" : "border-transparent",
 									)}
 								>
 									{/* Thumbnail with presigned URL */}
@@ -288,7 +307,7 @@ export function ScreenshotViewer({
 									/>
 
 									{/* Overlay with metadata */}
-									<div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+									<div className="absolute inset-0 bg-linear-to-t from-white/90 via-white/50 to-transparent" />
 
 									{/* Type badge */}
 									<div className="absolute top-1 left-1">
@@ -306,7 +325,7 @@ export function ScreenshotViewer({
 
 									{/* Time */}
 									<div className="absolute bottom-1 left-1 right-1">
-										<span className="text-[9px] text-white/90 font-medium truncate block">
+										<span className="text-[9px] text-black/80 font-medium truncate block">
 											{formatDistanceToNow(new Date(screenshot.capturedAt), {
 												addSuffix: true,
 											})}

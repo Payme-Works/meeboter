@@ -539,6 +539,7 @@ export class ZoomBot extends Bot {
 	async screenshot(
 		filename: string = "screenshot.png",
 		trigger?: string,
+		type: "error" | "fatal" | "manual" | "state_change" = "manual",
 	): Promise<string | null> {
 		if (!this.page || !this.browser) {
 			throw new Error("Browser/page not initialized");
@@ -558,7 +559,7 @@ export class ZoomBot extends Bot {
 				const result = await this.uploadScreenshot.execute({
 					botId: this.settings.id,
 					data,
-					type: "manual",
+					type,
 					state: this.emitter.getState(),
 					trigger,
 				});

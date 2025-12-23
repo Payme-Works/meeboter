@@ -213,7 +213,11 @@ export const main = async () => {
 					`Status change detected: ${eventType}, capturing screenshot`,
 				);
 
-				bot.screenshot(`state-change-${eventType}.png`, eventType);
+				bot.screenshot(
+					`state-change-${eventType}.png`,
+					eventType,
+					"state_change",
+				);
 			};
 
 			emitter.on("event", screenshotHandler);
