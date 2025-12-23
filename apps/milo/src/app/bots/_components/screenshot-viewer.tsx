@@ -8,18 +8,11 @@ import {
 	ChevronRight,
 	ImageIcon,
 	RefreshCw,
-	X,
 } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-	Dialog,
-	DialogContent,
-	DialogHeader,
-	DialogTitle,
-} from "@/components/ui/dialog";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -106,7 +99,8 @@ export function ScreenshotViewer({
 	isRefetching,
 	onRefresh,
 }: ScreenshotViewerProps) {
-	const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+	// Select first screenshot by default
+	const [selectedIndex, setSelectedIndex] = useState(0);
 
 	if (isLoading) {
 		return (
@@ -149,166 +143,78 @@ export function ScreenshotViewer({
 		);
 	}
 
-	const selectedScreenshot =
-		selectedIndex !== null ? screenshots[selectedIndex] : null;
+	const selectedScreenshot = screenshots[selectedIndex];
 
 	const handlePrevious = () => {
-		if (selectedIndex !== null && selectedIndex > 0) {
+		if (selectedIndex > 0) {
 			setSelectedIndex(selectedIndex - 1);
 		}
 	};
 
 	const handleNext = () => {
-		if (selectedIndex !== null && selectedIndex < screenshots.length - 1) {
+		if (selectedIndex < screenshots.length - 1) {
 			setSelectedIndex(selectedIndex + 1);
 		}
 	};
 
 	return (
-		<>
-			<div className="space-y-3">
-				<div className="flex items-center justify-between">
-					<div className="flex items-center gap-2">
-						<h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-							Screenshots ({screenshots.length})
-						</h4>
-						{isRefetching ? (
-							<RefreshCw className="h-3 w-3 text-muted-foreground animate-spin" />
-						) : null}
-					</div>
-					{onRefresh ? (
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={onRefresh}
-							disabled={isRefetching}
-							className="h-7 px-2 text-xs"
-						>
-							<RefreshCw
-								className={cn("h-3 w-3 mr-1", isRefetching && "animate-spin")}
-							/>
-							Refresh
-						</Button>
-					) : null}
-				</div>
+		<div className="flex flex-col h-full">
+			{/* Full-size viewer (above carousel) */}
+			{selectedScreenshot ? (
+				<div className="flex-1 min-h-0 flex flex-col">
+					{/* Header with metadata */}
+					<div className="flex items-center justify-between px-2 py-2 border-b">
+						<div className="flex items-center gap-2">
+							<Badge
+								variant="outline"
+								className={cn(
+									"text-xs",
+									TYPE_CONFIG[selectedScreenshot.type].bgColor,
+									TYPE_CONFIG[selectedScreenshot.type].color,
+								)}
+							>
+								{selectedScreenshot.type.toUpperCase()}
+							</Badge>
 
-				<ScrollArea className="w-full whitespace-nowrap">
-					<div className="flex gap-3 pb-3">
-						{screenshots.map((screenshot, index) => {
-							const config = TYPE_CONFIG[screenshot.type];
-							const Icon = config.icon;
-
-							return (
-								<button
-									key={`${screenshot.key}-${screenshot.capturedAt}`}
-									type="button"
-									onClick={() => setSelectedIndex(index)}
-									className={cn(
-										"relative flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all duration-150 hover:ring-2 hover:ring-primary/50 focus:outline-none focus:ring-2 focus:ring-primary",
-										"w-36 h-24",
-										config.bgColor,
-									)}
-								>
-									{/* Thumbnail with presigned URL */}
-									<ScreenshotImage
-										s3Key={screenshot.key}
-										alt={`Screenshot ${index + 1}`}
-										fill
-										className="object-cover"
-										sizes="144px"
-									/>
-
-									{/* Overlay with metadata */}
-									<div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
-
-									{/* Type badge */}
-									<div className="absolute top-1.5 left-1.5">
-										<div
-											className={cn(
-												"flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium",
-												"bg-white/90 dark:bg-black/90",
-												config.color,
-											)}
-										>
-											<Icon className="h-2.5 w-2.5" />
-
-											{screenshot.type.toUpperCase()}
-										</div>
-									</div>
-
-									{/* Time */}
-									<div className="absolute bottom-1.5 left-1.5 right-1.5">
-										<span className="text-[10px] text-white/90 font-medium truncate block">
-											{formatDistanceToNow(new Date(screenshot.capturedAt), {
-												addSuffix: true,
-											})}
-										</span>
-									</div>
-								</button>
-							);
-						})}
-					</div>
-					<ScrollBar orientation="horizontal" />
-				</ScrollArea>
-			</div>
-
-			{/* Full-size viewer dialog */}
-			<Dialog
-				open={selectedIndex !== null}
-				onOpenChange={() => setSelectedIndex(null)}
-			>
-				<DialogContent
-					className="max-w-5xl p-0 gap-0 overflow-hidden"
-					aria-describedby={undefined}
-					disableCloseButton
-				>
-					<DialogHeader className="px-4 py-3 border-b">
-						<div className="flex items-center justify-between">
-							<DialogTitle className="text-sm font-medium flex items-center gap-2">
-								{selectedScreenshot ? (
-									<>
-										<Badge
-											variant="outline"
-											className={cn(
-												"text-xs",
-												TYPE_CONFIG[selectedScreenshot.type].bgColor,
-												TYPE_CONFIG[selectedScreenshot.type].color,
-											)}
-										>
-											{selectedScreenshot.type.toUpperCase()}
-										</Badge>
-
-										<span className="text-muted-foreground">
-											{selectedScreenshot.state}
-										</span>
-										{selectedScreenshot.trigger ? (
-											<span className="text-xs text-muted-foreground/70 truncate max-w-[300px]">
-												{selectedScreenshot.trigger}
-											</span>
-										) : null}
-									</>
-								) : null}
-							</DialogTitle>
-
-							<div className="flex items-center gap-2">
-								<span className="text-xs text-muted-foreground tabular-nums">
-									{selectedIndex !== null ? selectedIndex + 1 : 0} /{" "}
-									{screenshots.length}
+							<span className="text-sm text-muted-foreground">
+								{selectedScreenshot.state}
+							</span>
+							{selectedScreenshot.trigger ? (
+								<span className="text-xs text-muted-foreground/70 truncate max-w-[300px]">
+									{selectedScreenshot.trigger}
 								</span>
+							) : null}
+						</div>
 
+						<div className="flex items-center gap-2">
+							<span className="text-xs text-muted-foreground tabular-nums">
+								{selectedIndex + 1} / {screenshots.length}
+							</span>
+							{isRefetching ? (
+								<RefreshCw className="h-3 w-3 text-muted-foreground animate-spin" />
+							) : null}
+							{onRefresh ? (
 								<Button
 									variant="ghost"
-									size="icon"
-									className="h-8 w-8"
-									onClick={() => setSelectedIndex(null)}
+									size="sm"
+									onClick={onRefresh}
+									disabled={isRefetching}
+									className="h-7 px-2 text-xs"
 								>
-									<X className="h-4 w-4" />
+									<RefreshCw
+										className={cn(
+											"h-3 w-3 mr-1",
+											isRefetching && "animate-spin",
+										)}
+									/>
+									Refresh
 								</Button>
-							</div>
+							) : null}
 						</div>
-					</DialogHeader>
+					</div>
 
-					<div className="relative bg-muted/50">
+					{/* Image viewer with navigation */}
+					<div className="relative flex-1 min-h-0 bg-muted/50">
 						{/* Navigation buttons */}
 						<Button
 							variant="ghost"
@@ -330,29 +236,89 @@ export function ScreenshotViewer({
 							<ChevronRight className="h-5 w-5" />
 						</Button>
 
-						{/* Full-size image with presigned URL */}
-						{selectedScreenshot ? (
-							<div className="relative w-full aspect-video">
-								<ScreenshotImage
-									s3Key={selectedScreenshot.key}
-									alt={`Screenshot ${(selectedIndex ?? 0) + 1}`}
-									fill
-									className="object-contain"
-									sizes="(max-width: 1280px) 100vw, 1280px"
-									priority
-								/>
-							</div>
-						) : null}
+						{/* Full-size image */}
+						<div className="relative w-full h-full">
+							<ScreenshotImage
+								s3Key={selectedScreenshot.key}
+								alt={`Screenshot ${selectedIndex + 1}`}
+								fill
+								className="object-contain"
+								sizes="(max-width: 1280px) 100vw, 800px"
+								priority
+							/>
+						</div>
 					</div>
 
 					{/* Footer with timestamp */}
-					{selectedScreenshot ? (
-						<div className="px-4 py-2 border-t text-xs text-muted-foreground">
-							Captured {format(new Date(selectedScreenshot.capturedAt), "PPpp")}
-						</div>
-					) : null}
-				</DialogContent>
-			</Dialog>
-		</>
+					<div className="px-2 py-1.5 border-t text-xs text-muted-foreground">
+						Captured {format(new Date(selectedScreenshot.capturedAt), "PPpp")}
+					</div>
+				</div>
+			) : null}
+
+			{/* Horizontal thumbnail carousel */}
+			<div className="border-t pt-3 px-2">
+				<ScrollArea className="w-full whitespace-nowrap">
+					<div className="flex gap-2 pb-2">
+						{screenshots.map((screenshot, index) => {
+							const config = TYPE_CONFIG[screenshot.type];
+							const Icon = config.icon;
+							const isSelected = selectedIndex === index;
+
+							return (
+								<button
+									key={`${screenshot.key}-${screenshot.capturedAt}`}
+									type="button"
+									onClick={() => setSelectedIndex(index)}
+									className={cn(
+										"relative flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all duration-150 hover:ring-2 hover:ring-primary/50 focus:outline-none focus:ring-2 focus:ring-primary",
+										"w-28 h-20",
+										isSelected
+											? "ring-2 ring-primary border-primary"
+											: config.bgColor,
+									)}
+								>
+									{/* Thumbnail with presigned URL */}
+									<ScreenshotImage
+										s3Key={screenshot.key}
+										alt={`Screenshot ${index + 1}`}
+										fill
+										className="object-cover"
+										sizes="112px"
+									/>
+
+									{/* Overlay with metadata */}
+									<div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+
+									{/* Type badge */}
+									<div className="absolute top-1 left-1">
+										<div
+											className={cn(
+												"flex items-center gap-0.5 px-1 py-0.5 rounded text-[9px] font-medium",
+												"bg-white/90 dark:bg-black/90",
+												config.color,
+											)}
+										>
+											<Icon className="h-2 w-2" />
+											{screenshot.type.toUpperCase()}
+										</div>
+									</div>
+
+									{/* Time */}
+									<div className="absolute bottom-1 left-1 right-1">
+										<span className="text-[9px] text-white/90 font-medium truncate block">
+											{formatDistanceToNow(new Date(screenshot.capturedAt), {
+												addSuffix: true,
+											})}
+										</span>
+									</div>
+								</button>
+							);
+						})}
+					</div>
+					<ScrollBar orientation="horizontal" />
+				</ScrollArea>
+			</div>
+		</div>
 	);
 }

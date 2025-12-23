@@ -452,7 +452,7 @@ export function BotDialog({ botId, onClose }: BotDialogProps) {
 					) : null}
 
 					{activeTab === "screenshots" && (
-						<div className="p-6">
+						<div className="h-full p-3">
 							<ScreenshotViewer
 								screenshots={bot?.screenshots ?? []}
 								isLoading={botLoading}

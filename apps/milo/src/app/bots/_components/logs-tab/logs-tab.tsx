@@ -268,7 +268,7 @@ export function LogsTab({ botId, botStatus }: LogsTabProps) {
 	};
 
 	return (
-		<div className="flex flex-col h-[500px]">
+		<div className="flex flex-col h-full">
 			{/* Toolbar */}
 			<div className="flex items-center gap-2 p-3 border-b bg-muted/30">
 				<div className="relative flex-1 max-w-sm">

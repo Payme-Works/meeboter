@@ -574,17 +574,9 @@ function K8sPlatformView({
 						<CardTitle className="text-sm flex items-center gap-2">
 							<Cpu className="h-4 w-4" />
 							Resources
-							{cpuUsage || memoryUsage ? (
-								<Badge
-									variant="outline"
-									className="ml-auto bg-green-50 text-green-700 border-transparent dark:bg-green-950 dark:text-green-400 text-[10px]"
-								>
-									<span className="h-1.5 w-1.5 rounded-full bg-green-500 mr-1 animate-pulse" />
-									Live
-								</Badge>
-							) : null}
 						</CardTitle>
 					</CardHeader>
+
 					<CardContent className="space-y-4">
 						{/* Live Usage Section */}
 						{cpuUsage || memoryUsage ? (
