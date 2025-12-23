@@ -83,7 +83,10 @@ export const env = createEnv({
 	 */
 	client: {
 		NEXT_PUBLIC_APP_ORIGIN_URL: z.url(),
-		NEXT_PUBLIC_DEPLOYMENT_PLATFORM: z.enum(["coolify", "aws", "k8s", "local"]),
+		// Note: Must be set at BUILD TIME since NEXT_PUBLIC_ vars are inlined into client bundle
+		NEXT_PUBLIC_DEPLOYMENT_PLATFORM: z
+			.enum(["coolify", "aws", "k8s", "local"])
+			.default("local"),
 	},
 
 	/**
