@@ -24,7 +24,7 @@ export type K8sBotStatus = "PENDING" | "ACTIVE" | "SUCCEEDED" | "FAILED";
 /**
  * Configuration for Kubernetes platform
  */
-export interface KubernetesPlatformConfig {
+interface KubernetesPlatformConfig {
 	/** Namespace for bot Jobs */
 	namespace: string;
 
@@ -56,7 +56,7 @@ export interface KubernetesPlatformConfig {
 /**
  * Environment configuration passed to bot containers
  */
-export interface KubernetesBotEnvConfig {
+interface KubernetesBotEnvConfig {
 	miloUrl: string;
 	miloAuthToken: string;
 	s3Endpoint: string;
@@ -70,7 +70,7 @@ export interface KubernetesBotEnvConfig {
  * Extended Job information including pods and events.
  * Uses plain objects instead of K8s class instances for proper JSON serialization.
  */
-export interface KubernetesJob {
+interface KubernetesJob {
 	job: Record<string, unknown>;
 	pods: Record<string, unknown>[];
 	events: Record<string, unknown>[];
@@ -104,7 +104,7 @@ function toPlainObjectArray(obj: unknown[]): Record<string, unknown>[] {
 /**
  * Pod metrics from Kubernetes Metrics API
  */
-export interface PodMetrics {
+interface PodMetrics {
 	podName: string;
 	containers: Array<{
 		name: string;

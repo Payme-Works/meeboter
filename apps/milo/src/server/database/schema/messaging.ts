@@ -114,21 +114,7 @@ export const botChatMessagesTable = pgTable(
 );
 
 /**
- * Validation schema for creating new bot chat messages
- */
-export const insertBotChatMessageSchema = createInsertSchema(
-	botChatMessagesTable,
-).omit({
-	id: true,
-	sentAt: true,
-});
-
-/**
  * Validation schema for bot chat message selection queries
  */
 export const selectBotChatMessageSchema =
 	createSelectSchema(botChatMessagesTable);
-
-export type SelectBotChatMessageType = z.infer<
-	typeof selectBotChatMessageSchema
->;

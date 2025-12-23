@@ -16,7 +16,8 @@ import { usersTable } from "./users";
 /**
  * Enum defining available subscription types for users
  */
-export const subscriptionEnum = z.enum(["PRO", "PAY_AS_YOU_GO", "CUSTOM"]);
+const subscriptionEnum = z.enum(["PRO", "PAY_AS_YOU_GO", "CUSTOM"]);
+
 export type Subscription = z.infer<typeof subscriptionEnum>;
 
 /**
@@ -45,16 +46,6 @@ export const subscriptionsTable = pgTable("subscription", {
 	/** When this subscription record was created */
 	createdAt: timestamp("created_at").notNull().defaultNow(),
 });
-
-/**
- * Validation schema for creating new subscriptions
- */
-export const insertSubscriptionSchema = createInsertSchema(subscriptionsTable);
-
-/**
- * Validation schema for subscription selection queries
- */
-export const selectSubscriptionSchema = createSelectSchema(subscriptionsTable);
 
 /**
  * Database implementation for user API keys
@@ -126,17 +117,6 @@ export const apiRequestLogsTable = pgTable("api_request_logs", {
 	duration: integer("duration").notNull(),
 	/** When this request was made */
 	createdAt: timestamp("created_at").defaultNow(),
-});
-
-/**
- * Validation schema for creating new API request logs
- * Excludes auto-generated fields
- */
-export const insertApiRequestLogSchema = createInsertSchema(
-	apiRequestLogsTable,
-).omit({
-	id: true,
-	createdAt: true,
 });
 
 /**

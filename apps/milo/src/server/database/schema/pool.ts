@@ -18,7 +18,8 @@ import { botsTable } from "./bots";
  * @see rules/PLATFORM_NOMENCLATURE.md
  */
 export const poolSlotStatus = z.enum(["IDLE", "DEPLOYING", "HEALTHY", "ERROR"]);
-export type PoolSlotStatus = z.infer<typeof poolSlotStatus>;
+
+type PoolSlotStatus = z.infer<typeof poolSlotStatus>;
 
 /**
  * Database implementation for bot pool slots
@@ -62,7 +63,8 @@ export const botPoolSlotsTable = pgTable(
 /**
  * Validation schema for bot pool slot selection queries
  */
-export const selectBotPoolSlotSchema = createSelectSchema(botPoolSlotsTable);
+const selectBotPoolSlotSchema = createSelectSchema(botPoolSlotsTable);
+
 export type SelectBotPoolSlotType = z.infer<typeof selectBotPoolSlotSchema>;
 
 /**
@@ -93,9 +95,3 @@ export const botPoolQueueTable = pgTable(
 		),
 	],
 );
-
-/**
- * Validation schema for bot pool queue selection queries
- */
-export const selectBotPoolQueueSchema = createSelectSchema(botPoolQueueTable);
-export type SelectBotPoolQueueType = z.infer<typeof selectBotPoolQueueSchema>;

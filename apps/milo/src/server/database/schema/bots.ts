@@ -23,12 +23,13 @@ export const speakerTimeframeSchema = z.object({
 	start: z.number(),
 	end: z.number(),
 });
-export type SpeakerTimeframe = z.infer<typeof speakerTimeframeSchema>;
+
+type SpeakerTimeframe = z.infer<typeof speakerTimeframeSchema>;
 
 /**
  * Log levels for bot instance logs
  */
-export const logLevelSchema = z.enum([
+const logLevelSchema = z.enum([
 	"TRACE",
 	"DEBUG",
 	"INFO",
@@ -36,7 +37,6 @@ export const logLevelSchema = z.enum([
 	"ERROR",
 	"FATAL",
 ]);
-export type LogLevel = z.infer<typeof logLevelSchema>;
 
 /**
  * Schema for structured log entries from bot instances
@@ -116,13 +116,13 @@ const automaticLeaveSchema = z.object({
 	inactivityTimeout: z.number(),
 });
 
-export type AutomaticLeave = z.infer<typeof automaticLeaveSchema>;
+type AutomaticLeave = z.infer<typeof automaticLeaveSchema>;
 
 /**
  * Schema for meeting configuration
  * Contains platform-specific details needed to join meetings
  */
-export const meetingSchema = z.object({
+const meetingSchema = z.object({
 	meetingId: z.string().optional().describe("Meeting ID"),
 	meetingPassword: z.string().optional().describe("Meeting password"),
 	meetingUrl: z.string().optional().describe("Meeting URL"),
@@ -135,6 +135,7 @@ export const meetingSchema = z.object({
 		.optional()
 		.describe("Platform"),
 });
+
 export type Meeting = z.infer<typeof meetingSchema>;
 
 /**
@@ -216,9 +217,9 @@ export const EVENT_DESCRIPTIONS = {
 /**
  * Event type codes for bot events and status changes
  */
-export const eventCode = z.enum(allEventCodes).describe("Event type code");
+const eventCode = z.enum(allEventCodes).describe("Event type code");
 
-export type EventCode = z.infer<typeof eventCode>;
+type EventCode = z.infer<typeof eventCode>;
 
 /**
  * Database implementation for meeting bots
@@ -333,7 +334,6 @@ export const insertBotSchema = z.object({
 		.optional()
 		.describe("URL to receive bot event notifications"),
 });
-export type InsertBotType = z.infer<typeof insertBotSchema>;
 
 /**
  * Validation schema for bot selection queries
@@ -369,15 +369,6 @@ export const botConfigSchema = z.object({
 export type BotConfig = z.infer<typeof botConfigSchema>;
 
 /**
- * Schema for bot deployment requests
- * Includes bot ID and complete configuration
- */
-export const deployBotInputSchema = z.object({
-	id: z.number(),
-	botConfig: botConfigSchema,
-});
-
-/**
  * Schema for participant join event data
  */
 const participantJoinData = z.object({
@@ -409,13 +400,14 @@ const statusData = z.object({
 /**
  * Union type for all possible event data structures
  */
-export const eventData = z.union([
+const eventData = z.union([
 	participantJoinData,
 	participantLeaveData,
 	logData,
 	statusData,
 ]);
-export type EventData = z.infer<typeof eventData>;
+
+type EventData = z.infer<typeof eventData>;
 
 /**
  * Database implementation for bot events
@@ -470,5 +462,3 @@ export const selectEventSchema = createSelectSchema(events).extend({
 	data: eventData.nullable(),
 	eventType: eventCode,
 });
-
-export type SelectEventType = z.infer<typeof selectEventSchema>;
