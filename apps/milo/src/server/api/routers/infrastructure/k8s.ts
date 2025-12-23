@@ -246,4 +246,46 @@ export const k8sRouter = createTRPCRouter({
 
 			return { logs };
 		}),
+
+	/**
+	 * Gets real-time CPU and memory usage for a pod.
+	 * Requires metrics-server to be installed on the K8s cluster.
+	 * @param input - Object containing the job name
+	 * @param input.jobName - The K8s Job name
+	 * @returns Pod metrics including CPU and memory usage, or null if unavailable
+	 */
+	getPodMetrics: protectedProcedure
+		.input(
+			z.object({
+				jobName: z.string(),
+			}),
+		)
+		.output(
+			z
+				.object({
+					podName: z.string(),
+					containers: z.array(
+						z.object({
+							name: z.string(),
+							usage: z.object({
+								cpu: z.string(),
+								memory: z.string(),
+							}),
+						}),
+					),
+					timestamp: z.string(),
+				})
+				.nullable(),
+		)
+		.query(async ({ input }) => {
+			if (!services.k8s) {
+				throw new TRPCError({
+					code: "NOT_IMPLEMENTED",
+					message:
+						"K8s operations are only available when using Kubernetes platform",
+				});
+			}
+
+			return await services.k8s.getPodMetrics(input.jobName);
+		}),
 });

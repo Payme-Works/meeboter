@@ -2,6 +2,7 @@ import {
 	BatchV1Api,
 	CoreV1Api,
 	KubeConfig,
+	Metrics,
 	type V1EnvVar,
 	type V1Job,
 } from "@kubernetes/client-node";
@@ -100,6 +101,21 @@ function toPlainObjectArray(obj: unknown[]): Record<string, unknown>[] {
  *
  * Similar to AWS ECS - ephemeral, no pool concept.
  */
+/**
+ * Pod metrics from Kubernetes Metrics API
+ */
+export interface PodMetrics {
+	podName: string;
+	containers: Array<{
+		name: string;
+		usage: {
+			cpu: string;
+			memory: string;
+		};
+	}>;
+	timestamp: string;
+}
+
 export class KubernetesPlatformService
 	implements PlatformService<K8sBotStatus>
 {
@@ -107,6 +123,7 @@ export class KubernetesPlatformService
 
 	private batchApi: BatchV1Api;
 	private coreApi: CoreV1Api;
+	private metricsClient: Metrics;
 
 	constructor(
 		private readonly config: KubernetesPlatformConfig,
@@ -126,6 +143,7 @@ export class KubernetesPlatformService
 
 		this.batchApi = kc.makeApiClient(BatchV1Api);
 		this.coreApi = kc.makeApiClient(CoreV1Api);
+		this.metricsClient = new Metrics(kc);
 	}
 
 	async deployBot(
@@ -373,6 +391,64 @@ export class KubernetesPlatformService
 				error instanceof Error ? error.message : "Unknown error";
 
 			return `Failed to get logs: ${errorMessage}`;
+		}
+	}
+
+	/**
+	 * Gets real-time CPU and memory usage for a pod
+	 * Requires metrics-server to be installed on the cluster
+	 */
+	async getPodMetrics(jobName: string): Promise<PodMetrics | null> {
+		try {
+			// First get the pod name from the job
+			const podList = await this.coreApi.listNamespacedPod({
+				namespace: this.config.namespace,
+				labelSelector: `job-name=${jobName}`,
+			});
+
+			if (podList.items.length === 0) {
+				return null;
+			}
+
+			const podName = podList.items[0].metadata?.name;
+
+			if (!podName) {
+				return null;
+			}
+
+			// Get metrics for all pods in namespace, then filter by pod name
+			const metricsList = await this.metricsClient.getPodMetrics(
+				this.config.namespace,
+			);
+
+			// Find the specific pod's metrics
+			const podMetrics = metricsList.items.find(
+				(item) => item.metadata?.name === podName,
+			);
+
+			if (!podMetrics) {
+				return null;
+			}
+
+			return {
+				podName,
+				containers: (podMetrics.containers ?? []).map((container) => ({
+					name: container.name,
+					usage: {
+						cpu: container.usage?.cpu ?? "0",
+						memory: container.usage?.memory ?? "0",
+					},
+				})),
+				timestamp: podMetrics.timestamp ?? new Date().toISOString(),
+			};
+		} catch (error) {
+			// Metrics API might not be available (metrics-server not installed)
+			console.error(
+				`[KubernetesPlatform] Failed to get pod metrics for ${jobName}:`,
+				error instanceof Error ? error.message : error,
+			);
+
+			return null;
 		}
 	}
 

@@ -8,9 +8,11 @@ import {
 	Clock,
 	Cloud,
 	Container,
+	Cpu,
 	HardDrive,
 	Hexagon,
 	Loader2,
+	MemoryStick,
 	RefreshCw,
 	Server,
 	XCircle,
@@ -165,6 +167,15 @@ function K8sPlatformView({
 		},
 	);
 
+	// Real-time metrics (only fetch when active)
+	const { data: metricsData } = api.infrastructure.k8s.getPodMetrics.useQuery(
+		{ jobName: platformIdentifier ?? "" },
+		{
+			enabled: !!platformIdentifier && isActive,
+			refetchInterval: isActive ? 5000 : false, // Refresh every 5s when active
+		},
+	);
+
 	if (!platformIdentifier) {
 		return (
 			<div className="p-6">
@@ -238,7 +249,15 @@ function K8sPlatformView({
 				restartCount?: number;
 			}>;
 		};
-		spec?: { nodeName?: string };
+		spec?: {
+			nodeName?: string;
+			containers?: Array<{
+				resources?: {
+					requests?: { cpu?: string; memory?: string };
+					limits?: { cpu?: string; memory?: string };
+				};
+			}>;
+		};
 	}>;
 
 	const events = jobData.events as Array<{
@@ -277,6 +296,19 @@ function K8sPlatformView({
 	const containerState = getContainerState();
 
 	const restarts = containerStatus?.restartCount ?? 0;
+
+	// Extract resource requests and limits from pod spec
+	const containerResources = pod?.spec?.containers?.[0]?.resources;
+	const cpuRequest = containerResources?.requests?.cpu;
+	const cpuLimit = containerResources?.limits?.cpu;
+	const memoryRequest = containerResources?.requests?.memory;
+	const memoryLimit = containerResources?.limits?.memory;
+	const hasResources = cpuRequest || cpuLimit || memoryRequest || memoryLimit;
+
+	// Extract live metrics
+	const liveMetrics = metricsData?.containers?.[0]?.usage;
+	const cpuUsage = liveMetrics?.cpu;
+	const memoryUsage = liveMetrics?.memory;
 
 	return (
 		<div className="p-6 space-y-8">
@@ -382,6 +414,85 @@ function K8sPlatformView({
 					</Card>
 				) : null}
 			</div>
+
+			{hasResources || cpuUsage || memoryUsage ? (
+				<Card className="gap-1.5">
+					<CardHeader className="pb-2">
+						<CardTitle className="text-sm flex items-center gap-2">
+							<Cpu className="h-4 w-4" />
+							Resources
+							{cpuUsage || memoryUsage ? (
+								<Badge
+									variant="outline"
+									className="ml-auto bg-green-50 text-green-700 border-transparent dark:bg-green-950 dark:text-green-400 text-[10px]"
+								>
+									<span className="h-1.5 w-1.5 rounded-full bg-green-500 mr-1 animate-pulse" />
+									Live
+								</Badge>
+							) : null}
+						</CardTitle>
+					</CardHeader>
+					<CardContent className="space-y-4">
+						{/* Live Usage Section */}
+						{cpuUsage || memoryUsage ? (
+							<div className="grid grid-cols-2 gap-4 p-3 bg-muted/50 rounded-lg">
+								<div className="text-center">
+									<div className="text-xs text-muted-foreground mb-1">
+										CPU Usage
+									</div>
+									<div className="text-lg font-semibold font-mono text-blue-600 dark:text-blue-400">
+										{cpuUsage ?? "—"}
+									</div>
+								</div>
+								<div className="text-center">
+									<div className="text-xs text-muted-foreground mb-1">
+										Memory Usage
+									</div>
+									<div className="text-lg font-semibold font-mono text-purple-600 dark:text-purple-400">
+										{memoryUsage ?? "—"}
+									</div>
+								</div>
+							</div>
+						) : null}
+
+						{/* Static Requests/Limits */}
+						<div className="grid grid-cols-2 gap-4">
+							<div className="space-y-2 text-sm">
+								<div className="flex items-center gap-2 text-muted-foreground mb-2">
+									<Cpu className="h-3.5 w-3.5" />
+									<span className="font-medium">CPU</span>
+								</div>
+								<div className="flex justify-between">
+									<span className="text-muted-foreground">Request</span>
+									<span className="font-mono text-xs">{cpuRequest ?? "—"}</span>
+								</div>
+								<div className="flex justify-between">
+									<span className="text-muted-foreground">Limit</span>
+									<span className="font-mono text-xs">{cpuLimit ?? "—"}</span>
+								</div>
+							</div>
+							<div className="space-y-2 text-sm">
+								<div className="flex items-center gap-2 text-muted-foreground mb-2">
+									<MemoryStick className="h-3.5 w-3.5" />
+									<span className="font-medium">Memory</span>
+								</div>
+								<div className="flex justify-between">
+									<span className="text-muted-foreground">Request</span>
+									<span className="font-mono text-xs">
+										{memoryRequest ?? "—"}
+									</span>
+								</div>
+								<div className="flex justify-between">
+									<span className="text-muted-foreground">Limit</span>
+									<span className="font-mono text-xs">
+										{memoryLimit ?? "—"}
+									</span>
+								</div>
+							</div>
+						</div>
+					</CardContent>
+				</Card>
+			) : null}
 
 			{events.length > 0 ? (
 				<Card className="gap-0">

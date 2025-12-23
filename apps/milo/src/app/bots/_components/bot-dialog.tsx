@@ -245,7 +245,7 @@ export function BotDialog({ botId, onClose }: BotDialogProps) {
 
 	return (
 		<Dialog open={!!botId} onOpenChange={onClose}>
-			<DialogContent className="sm:max-w-4xl p-0 gap-0 overflow-hidden border-0 [&>button]:text-white">
+			<DialogContent className="sm:max-w-4xl h-[696px] p-0 gap-0 overflow-hidden border-0 flex flex-col [&>button]:text-white">
 				{/* Header */}
 				<div className="bg-linear-to-r from-zinc-900 to-zinc-800 px-6 py-5 border-b border-zinc-700">
 					<DialogHeader className="space-y-3">
@@ -308,7 +308,7 @@ export function BotDialog({ botId, onClose }: BotDialogProps) {
 				</div>
 
 				{/* Tab Content */}
-				<div className="max-h-[60vh] overflow-y-auto">
+				<div className="flex-1 overflow-y-auto">
 					{activeTab === "details" && (
 						<div className="p-6">
 							{botError ? (
