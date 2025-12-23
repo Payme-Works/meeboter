@@ -308,7 +308,7 @@ function K8sPlatformView({
 
 	if (!platformIdentifier) {
 		return (
-			<div className="p-6">
+			<div className="p-6 h-full">
 				<PlatformHeader>
 					<PlatformHeaderIcon>
 						<Container className="h-5 w-5 text-muted-foreground" />
@@ -344,7 +344,7 @@ function K8sPlatformView({
 
 	if (!k8sJob) {
 		return (
-			<div className="p-6">
+			<div className="p-6 h-full">
 				<PlatformHeader>
 					<PlatformHeaderIcon>
 						<Container className="h-5 w-5 text-muted-foreground" />
