@@ -715,9 +715,9 @@ export class KubernetesPlatformService
 							{
 								name: "bot",
 								image,
-								// Use cached image if available to avoid 2GB+ pull on every deployment
-								// Only pull if image doesn't exist on node
-								imagePullPolicy: "IfNotPresent",
+								// Always check registry for latest image
+								// K8s will only download if digest has changed
+								imagePullPolicy: "Always",
 								env: this.buildEnvironmentVariables(botConfig),
 								resources: {
 									requests: {
