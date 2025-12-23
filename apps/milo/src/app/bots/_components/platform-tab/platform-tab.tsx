@@ -316,7 +316,7 @@ function K8sPlatformView({
 		{ jobName: platformIdentifier ?? "" },
 		{
 			enabled: !!platformIdentifier,
-			refetchInterval: isActive ? 10000 : false,
+			refetchInterval: isActive ? 5000 : false,
 		},
 	);
 
