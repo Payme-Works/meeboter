@@ -37,14 +37,14 @@ function PlatformIcon({
 	platform: Platform;
 	className?: string;
 }) {
-	const icons = {
+	const icons: Record<Platform, typeof Server> = {
 		k8s: Container,
 		aws: Cloud,
 		coolify: Hexagon,
 		local: Server,
 	};
 
-	const Icon = icons[platform];
+	const Icon = icons[platform] ?? Server;
 
 	return <Icon className={className} />;
 }
@@ -307,11 +307,11 @@ export default function InfrastructurePage() {
 						<PageHeaderTitle>Infrastructure</PageHeaderTitle>
 						<PlatformIcon platform={platform} className="h-5 w-5" />
 						<span className="text-sm text-muted-foreground">
-							{PLATFORM_NAMES[platform]}
+							{PLATFORM_NAMES[platform] ?? "Unknown"}
 						</span>
 					</div>
 					<PageHeaderDescription>
-						{PLATFORM_DESCRIPTIONS[platform]}
+						{PLATFORM_DESCRIPTIONS[platform] ?? "Infrastructure monitoring"}
 					</PageHeaderDescription>
 				</PageHeaderContent>
 				<PageHeaderActions>
