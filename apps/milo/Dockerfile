@@ -28,8 +28,7 @@ RUN bun install --ignore-scripts
 COPY --from=pruner /app/out/full/ .
 
 # NEXT_PUBLIC_ vars must be available at build time for Next.js to inline them
-# Production deploys bots to Kubernetes
-ARG NEXT_PUBLIC_DEPLOYMENT_PLATFORM=k8s
+ARG NEXT_PUBLIC_DEPLOYMENT_PLATFORM
 ENV NEXT_PUBLIC_DEPLOYMENT_PLATFORM=$NEXT_PUBLIC_DEPLOYMENT_PLATFORM
 
 RUN bun turbo build --filter=@meeboter/milo && \
