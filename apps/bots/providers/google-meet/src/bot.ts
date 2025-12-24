@@ -1408,8 +1408,10 @@ export class GoogleMeetBot extends Bot {
 
 	/**
 	 * Timeout in milliseconds for Playwright screenshot capture.
+	 * Set to 15s to accommodate resource-constrained K8s environments
+	 * where Google Meet's complex DOM can cause slow renders.
 	 */
-	private static readonly SCREENSHOT_TIMEOUT = 5000;
+	private static readonly SCREENSHOT_TIMEOUT = 15000;
 
 	/**
 	 * Public screenshot method that serializes requests through a queue.
