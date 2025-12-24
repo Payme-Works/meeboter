@@ -25,16 +25,49 @@ export class BotEventEmitter extends EventEmitter {
 	private readonly botId: number;
 	private readonly trpc: TrpcClient;
 
+	/** Bound handler for internal event processing (preserved across reset) */
+	private readonly boundEventHandler: (
+		eventCode: EventCode,
+		data?: Record<string, unknown>,
+	) => void;
+
 	constructor(options: BotEventEmitterOptions) {
 		super();
 
 		this.botId = options.botId;
 		this.trpc = options.trpc;
 
-		// Listen to our own events and handle backend reporting
-		this.on("event", (eventCode: EventCode, data?: Record<string, unknown>) => {
+		// Create bound handler so we can identify it during reset
+		this.boundEventHandler = (
+			eventCode: EventCode,
+			data?: Record<string, unknown>,
+		) => {
 			this.handleEvent(eventCode, data);
-		});
+		};
+
+		// Listen to our own events and handle backend reporting
+		this.on("event", this.boundEventHandler);
+	}
+
+	/**
+	 * Resets the emitter state for a new bot attempt.
+	 * Removes all external listeners while preserving internal event handler.
+	 */
+	reset(): void {
+		// Reset state to initial
+		this.state = "INITIALIZING";
+
+		// Remove all listeners except our internal handler
+		const eventListeners = this.listeners("event");
+
+		for (const listener of eventListeners) {
+			if (listener !== this.boundEventHandler) {
+				this.off("event", listener as (...args: unknown[]) => void);
+			}
+		}
+
+		// Remove all stateChange listeners (these are all external)
+		this.removeAllListeners("stateChange");
 	}
 
 	/**

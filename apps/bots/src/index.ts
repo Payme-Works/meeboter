@@ -196,6 +196,9 @@ export const main = async () => {
 	// Run bot with automatic restart on failure
 	const result = await withAutoRestart(
 		async () => {
+			// Reset emitter state and clear external listeners from previous attempt
+			emitter.reset();
+
 			logger.info("Creating platform-specific bot instance...", {
 				platform: botConfig.meeting.platform,
 			});
