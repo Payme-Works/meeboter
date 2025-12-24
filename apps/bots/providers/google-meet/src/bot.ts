@@ -105,6 +105,12 @@ export class GoogleMeetBot extends Bot {
 
 	private uploadScreenshot: UploadScreenshotUseCase | null = null;
 
+	/**
+	 * Serializes screenshot requests to prevent concurrent Playwright operations.
+	 * Stores the promise of the current screenshot operation.
+	 */
+	private screenshotQueue: Promise<string | null> = Promise.resolve(null);
+
 	constructor(
 		config: BotConfig,
 		emitter: BotEventEmitter,
@@ -1405,13 +1411,38 @@ export class GoogleMeetBot extends Bot {
 	 */
 	private static readonly SCREENSHOT_TIMEOUT = 5000;
 
+	/**
+	 * Public screenshot method that serializes requests through a queue.
+	 * This prevents concurrent Playwright screenshot operations which can timeout
+	 * when the page is busy with navigation or other operations.
+	 */
 	async screenshot(
 		filename = "screenshot.png",
 		trigger?: string,
 		type: "error" | "fatal" | "manual" | "state_change" = "manual",
 	): Promise<string | null> {
+		// Chain onto the queue to serialize screenshot requests
+		const screenshotPromise = this.screenshotQueue.then(() =>
+			this.captureScreenshotInternal(filename, trigger, type),
+		);
+
+		// Update queue with this operation (don't propagate errors to next screenshot)
+		this.screenshotQueue = screenshotPromise.catch(() => null);
+
+		return screenshotPromise;
+	}
+
+	/**
+	 * Internal screenshot implementation. Called through the queue to prevent
+	 * concurrent Playwright operations.
+	 */
+	private async captureScreenshotInternal(
+		filename: string,
+		trigger?: string,
+		type: "error" | "fatal" | "manual" | "state_change" = "manual",
+	): Promise<string | null> {
 		if (!this.page) {
-			this.logger.warn("Screenshot failed: Page not initialized", {
+			this.logger.warn("Screenshot skipped: Page not initialized", {
 				filename,
 				trigger,
 			});
@@ -1423,6 +1454,29 @@ export class GoogleMeetBot extends Bot {
 		const uniqueFilename = `bot-${this.settings.id}-${filename}`;
 		const screenshotPath = `/tmp/${uniqueFilename}`;
 
+		// Check if page is in a usable state
+		let pageUrl: string;
+
+		try {
+			pageUrl = this.page.url();
+		} catch {
+			this.logger.warn("Screenshot skipped: Page not accessible", {
+				filename: uniqueFilename,
+				trigger,
+			});
+
+			return null;
+		}
+
+		this.logger.trace("Screenshot capture starting", {
+			filename: uniqueFilename,
+			trigger,
+			type,
+			pageUrl,
+		});
+
+		const startTime = Date.now();
+
 		// Step 1: Capture screenshot from Playwright
 		try {
 			await this.page.screenshot({
@@ -1432,18 +1486,23 @@ export class GoogleMeetBot extends Bot {
 			});
 		} catch (err) {
 			const error = err instanceof Error ? err : new Error(String(err));
+			const elapsedMs = Date.now() - startTime;
 
 			this.logger.error("Screenshot capture failed (Playwright)", error, {
 				filename: uniqueFilename,
 				trigger,
+				elapsedMs,
 				isTimeout: error.message.includes("Timeout"),
 				isPageClosed:
 					error.message.includes("closed") ||
 					error.message.includes("Target page"),
+				pageUrl,
 			});
 
 			return null;
 		}
+
+		const captureMs = Date.now() - startTime;
 
 		// Step 2: Read file and upload to Milo (if configured)
 		if (this.uploadScreenshot) {
@@ -1507,14 +1566,21 @@ export class GoogleMeetBot extends Bot {
 				});
 			}
 
+			const totalMs = Date.now() - startTime;
+
 			this.logger.debug("Screenshot uploaded and compressed", {
 				key: result.key,
+				captureMs,
+				totalMs,
 			});
 
 			return result.key;
 		}
 
-		this.logger.debug("Screenshot saved locally", { path: screenshotPath });
+		this.logger.debug("Screenshot saved locally", {
+			path: screenshotPath,
+			captureMs,
+		});
 
 		return screenshotPath;
 	}

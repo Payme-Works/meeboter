@@ -210,16 +210,25 @@ export const main = async () => {
 			currentBot = bot;
 
 			// Register status change listener for screenshot capture
+			// Screenshots are queued internally to prevent concurrent Playwright operations
 			const screenshotHandler = (eventType: EventCode) => {
 				logger.debug(
 					`Status change detected: ${eventType}, capturing screenshot`,
 				);
 
-				bot.screenshot(
-					`state-change-${eventType}.png`,
-					eventType,
-					"state_change",
-				);
+				bot
+					.screenshot(
+						`state-change-${eventType}.png`,
+						eventType,
+						"state_change",
+					)
+					.catch((error) => {
+						// Log but don't propagate - screenshots are best-effort
+						logger.warn("State change screenshot failed", {
+							eventType,
+							error: error instanceof Error ? error.message : String(error),
+						});
+					});
 			};
 
 			emitter.on("event", screenshotHandler);
