@@ -70,11 +70,22 @@ interface PlatformConfig {
  * - Deployment failure (platform returns error)
  *
  * When all platforms are exhausted, bots are added to a global queue with timeout.
+ *
+ * Uses in-memory reservation tracking to prevent race conditions when multiple
+ * bots deploy simultaneously. Reservations are held during the deployment window
+ * between capacity check and database update.
  */
 export class HybridPlatformService {
 	private readonly platforms: Map<DeploymentPlatform, PlatformConfig>;
 	private readonly priorityOrder: DeploymentPlatform[];
 	private readonly globalQueueTimeout: number;
+
+	/**
+	 * Tracks pending deployments per platform to prevent race conditions.
+	 * Incremented before deployment, decremented after database is updated.
+	 */
+	private readonly pendingDeployments: Map<DeploymentPlatform, number> =
+		new Map();
 
 	constructor(
 		private readonly db: PostgresJsDatabase<typeof schema>,
@@ -154,6 +165,10 @@ export class HybridPlatformService {
 	/**
 	 * Deploys a bot using the first available platform in priority order
 	 *
+	 * Uses reservation system to prevent race conditions when multiple bots
+	 * deploy simultaneously. Reservations ensure capacity checks account for
+	 * in-flight deployments that haven't yet updated the database.
+	 *
 	 * @throws HybridDeployError if all platforms fail and queuing fails
 	 */
 	async deployBot(botConfig: BotConfig): Promise<HybridDeployResult> {
@@ -165,43 +180,58 @@ export class HybridPlatformService {
 
 			if (!config) continue;
 
-			// Check capacity
-			const currentCount = await this.getActiveBotCount(platform);
+			// Reserve slot BEFORE checking capacity to prevent race conditions
+			// This ensures concurrent deployments see each other's reservations
+			this.reserveSlot(platform);
 
-			if (currentCount >= config.limit) {
-				console.log(
-					`[HybridPlatformService] Platform '${platform}' at capacity (${currentCount}/${config.limit}), trying next`,
-				);
+			try {
+				// Check capacity (now includes our reservation + other pending)
+				const currentCount = await this.getActiveBotCount(platform);
 
-				continue;
-			}
-
-			attemptedPlatforms.push(platform);
-
-			// Try to deploy
-			const result = await this.tryDeployOnPlatform(
-				platform,
-				config.service,
-				botConfig,
-			);
-
-			if (result) {
-				// Defensive check: ensure identifier is present
-				if (!result.identifier) {
-					console.error(
-						`[HybridPlatformService] Platform '${platform}' returned success but identifier is missing for bot ${botConfig.id}`,
-						{ result },
+				if (currentCount > config.limit) {
+					// Over capacity (our reservation pushed it over), try next platform
+					console.log(
+						`[HybridPlatformService] Platform '${platform}' at capacity (${currentCount}/${config.limit}), trying next`,
 					);
 
-					// Treat as deployment failure, try next platform
 					continue;
 				}
 
-				return {
+				attemptedPlatforms.push(platform);
+
+				// Try to deploy
+				const result = await this.tryDeployOnPlatform(
 					platform,
-					platformIdentifier: result.identifier,
-					slotName: result.slotName,
-				};
+					config.service,
+					botConfig,
+				);
+
+				if (result) {
+					// Defensive check: ensure identifier is present
+					if (!result.identifier) {
+						console.error(
+							`[HybridPlatformService] Platform '${platform}' returned success but identifier is missing for bot ${botConfig.id}`,
+							{ result },
+						);
+
+						// Treat as deployment failure, try next platform
+						continue;
+					}
+
+					// Success! Return result (reservation released in finally)
+					return {
+						platform,
+						platformIdentifier: result.identifier,
+						slotName: result.slotName,
+					};
+				}
+
+				// Deployment failed, continue to try next platform
+			} finally {
+				// Always release reservation after attempt
+				// On success: DB is updated, so reservation no longer needed
+				// On failure: Slot is no longer in use
+				this.releaseSlot(platform);
 			}
 		}
 
@@ -303,83 +333,90 @@ export class HybridPlatformService {
 
 			if (!config) continue;
 
-			const currentCount = await this.getActiveBotCount(platform);
+			// Reserve slot before checking capacity
+			this.reserveSlot(platform);
 
-			if (currentCount >= config.limit) {
-				continue;
-			}
+			try {
+				const currentCount = await this.getActiveBotCount(platform);
 
-			// Mark as processing
-			await this.db
-				.update(deploymentQueueTable)
-				.set({ status: "PROCESSING" })
-				.where(eq(deploymentQueueTable.id, nextInQueue.id));
-
-			// Get bot config
-			const bot = await this.db
-				.select()
-				.from(botsTable)
-				.where(eq(botsTable.id, nextInQueue.botId))
-				.then((rows) => rows[0]);
-
-			if (!bot) {
-				await this.db
-					.delete(deploymentQueueTable)
-					.where(eq(deploymentQueueTable.id, nextInQueue.id));
-
-				continue;
-			}
-
-			const botConfig: BotConfig = {
-				id: bot.id,
-				userId: bot.userId,
-				meeting: bot.meeting,
-				startTime: bot.startTime,
-				endTime: bot.endTime,
-				displayName: bot.displayName,
-				imageUrl: bot.imageUrl ?? undefined,
-				recordingEnabled: bot.recordingEnabled,
-				automaticLeave: bot.automaticLeave,
-				callbackUrl: bot.callbackUrl ?? undefined,
-			};
-
-			const result = await this.tryDeployOnPlatform(
-				platform,
-				config.service,
-				botConfig,
-			);
-
-			if (result) {
-				// Defensive check: ensure identifier is present
-				if (!result.identifier) {
-					console.error(
-						`[HybridPlatformService] Platform '${platform}' returned success but identifier is missing for queued bot ${bot.id}`,
-						{ result },
-					);
-
-					// Treat as deployment failure, try next platform
+				if (currentCount > config.limit) {
 					continue;
 				}
 
-				// Update bot with platform info
+				// Mark as processing
 				await this.db
-					.update(botsTable)
-					.set({
-						deploymentPlatform: platform,
-						platformIdentifier: result.identifier,
-					})
-					.where(eq(botsTable.id, bot.id));
-
-				// Remove from queue
-				await this.db
-					.delete(deploymentQueueTable)
+					.update(deploymentQueueTable)
+					.set({ status: "PROCESSING" })
 					.where(eq(deploymentQueueTable.id, nextInQueue.id));
 
-				console.log(
-					`[HybridPlatformService] Deployed queued bot ${bot.id} on '${platform}' [${result.identifier}]`,
+				// Get bot config
+				const bot = await this.db
+					.select()
+					.from(botsTable)
+					.where(eq(botsTable.id, nextInQueue.botId))
+					.then((rows) => rows[0]);
+
+				if (!bot) {
+					await this.db
+						.delete(deploymentQueueTable)
+						.where(eq(deploymentQueueTable.id, nextInQueue.id));
+
+					continue;
+				}
+
+				const botConfig: BotConfig = {
+					id: bot.id,
+					userId: bot.userId,
+					meeting: bot.meeting,
+					startTime: bot.startTime,
+					endTime: bot.endTime,
+					displayName: bot.displayName,
+					imageUrl: bot.imageUrl ?? undefined,
+					recordingEnabled: bot.recordingEnabled,
+					automaticLeave: bot.automaticLeave,
+					callbackUrl: bot.callbackUrl ?? undefined,
+				};
+
+				const result = await this.tryDeployOnPlatform(
+					platform,
+					config.service,
+					botConfig,
 				);
 
-				return;
+				if (result) {
+					// Defensive check: ensure identifier is present
+					if (!result.identifier) {
+						console.error(
+							`[HybridPlatformService] Platform '${platform}' returned success but identifier is missing for queued bot ${bot.id}`,
+							{ result },
+						);
+
+						// Treat as deployment failure, try next platform
+						continue;
+					}
+
+					// Update bot with platform info
+					await this.db
+						.update(botsTable)
+						.set({
+							deploymentPlatform: platform,
+							platformIdentifier: result.identifier,
+						})
+						.where(eq(botsTable.id, bot.id));
+
+					// Remove from queue
+					await this.db
+						.delete(deploymentQueueTable)
+						.where(eq(deploymentQueueTable.id, nextInQueue.id));
+
+					console.log(
+						`[HybridPlatformService] Deployed queued bot ${bot.id} on '${platform}' [${result.identifier}]`,
+					);
+
+					return;
+				}
+			} finally {
+				this.releaseSlot(platform);
 			}
 		}
 
@@ -528,7 +565,32 @@ export class HybridPlatformService {
 				),
 			);
 
-		return result[0]?.count ?? 0;
+		const dbCount = result[0]?.count ?? 0;
+		const pendingCount = this.pendingDeployments.get(platform) ?? 0;
+
+		return dbCount + pendingCount;
+	}
+
+	/**
+	 * Reserves a deployment slot for a platform.
+	 * Must be called before attempting deployment to prevent race conditions.
+	 */
+	private reserveSlot(platform: DeploymentPlatform): void {
+		const current = this.pendingDeployments.get(platform) ?? 0;
+
+		this.pendingDeployments.set(platform, current + 1);
+	}
+
+	/**
+	 * Releases a previously reserved deployment slot.
+	 * Must be called after deployment completes (success or failure).
+	 */
+	private releaseSlot(platform: DeploymentPlatform): void {
+		const current = this.pendingDeployments.get(platform) ?? 0;
+
+		if (current > 0) {
+			this.pendingDeployments.set(platform, current - 1);
+		}
 	}
 
 	/**
