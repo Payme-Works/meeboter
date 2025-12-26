@@ -1,0 +1,10 @@
+# ─── Project Configuration ────────────────────────────────────────────────────
+# These have defaults in variables.tf, override only if needed
+
+# project_name = "meeboter"  # Default: "meeboter"
+# aws_profile  = "meeboter"  # Default: "meeboter"
+# aws_region   = "us-east-2" # Default: "us-east-2"
+
+# ─── GitHub Container Registry (Required) ─────────────────────────────────────
+
+ghcr_org = "your-github-org"

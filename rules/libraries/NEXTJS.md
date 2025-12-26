@@ -311,11 +311,11 @@ export function Counter() {
 
 ```bash
 # ✅ CORRECT: Rename the existing variable
-NEXT_PUBLIC_DEPLOYMENT_PLATFORM=coolify
+NEXT_PUBLIC_API_URL=https://api.example.com
 
 # ❌ WRONG: Creating a duplicate that references another
-DEPLOYMENT_PLATFORM=coolify
-NEXT_PUBLIC_DEPLOYMENT_PLATFORM=${DEPLOYMENT_PLATFORM}
+API_URL=https://api.example.com
+NEXT_PUBLIC_API_URL=${API_URL}
 ```
 
 ### Why This Matters
@@ -331,10 +331,10 @@ When you need to expose a server-only env var to the client:
 
 ```bash
 # Before (server-only)
-DEPLOYMENT_PLATFORM=coolify
+API_URL=https://api.example.com
 
 # After (client-accessible)
-NEXT_PUBLIC_DEPLOYMENT_PLATFORM=coolify
+NEXT_PUBLIC_API_URL=https://api.example.com
 ```
 
 Update all server-side references to use the new name:
@@ -343,7 +343,7 @@ Update all server-side references to use the new name:
 // env.ts
 export const env = createEnv({
   client: {
-    NEXT_PUBLIC_DEPLOYMENT_PLATFORM: z.enum(["coolify", "k8s", "aws", "local"]),
+    NEXT_PUBLIC_API_URL: z.string().url(),
   },
   // Remove from server section
 });

@@ -4,7 +4,7 @@ This guide covers deploying Meeboter bots using Coolify (pool-based), AWS ECS (t
 
 ## Platform Selection
 
-Meeboter supports three deployment platforms:
+Meeboter supports three deployment platforms with hybrid fallback:
 
 | Platform | Model | Best For |
 |----------|-------|----------|
@@ -12,24 +12,34 @@ Meeboter supports three deployment platforms:
 | **AWS ECS** | Task-based | Cloud-native, auto-scaling, pay-per-use |
 | **Kubernetes** | Pod-based | Enterprise, multi-cloud, existing K8s infrastructure |
 
-### Auto-Detection
+### Platform Priority (Hybrid Deployment)
 
-By default (`DEPLOYMENT_PLATFORM=auto`), Meeboter detects the platform based on available environment variables:
-
-1. If `COOLIFY_API_URL` and `COOLIFY_API_TOKEN` are set → Uses Coolify
-2. If `AWS_REGION` and `ECS_CLUSTER` are set → Uses AWS ECS
-3. If `KUBE_NAMESPACE` is set → Uses Kubernetes
-4. If multiple are configured → Explicit selection recommended
-
-### Explicit Selection
-
-Set `DEPLOYMENT_PLATFORM` to explicitly choose:
+Use `PLATFORM_PRIORITY` to configure platform fallback order:
 
 ```bash
-DEPLOYMENT_PLATFORM="coolify"    # Force Coolify platform
-DEPLOYMENT_PLATFORM="aws"        # Force AWS ECS platform
-DEPLOYMENT_PLATFORM="kubernetes" # Force Kubernetes platform
-DEPLOYMENT_PLATFORM="auto"       # Auto-detect (default)
+# Single platform
+PLATFORM_PRIORITY="k8s"
+
+# Hybrid: try K8s first, fall back to AWS if at capacity
+PLATFORM_PRIORITY="k8s,aws"
+
+# Full fallback chain
+PLATFORM_PRIORITY="k8s,aws,coolify"
+
+# Local development
+PLATFORM_PRIORITY="local"
+```
+
+When a platform reaches its bot limit, the next platform in the chain is used.
+
+### Global Queue Configuration
+
+```bash
+# Maximum time a bot can wait in the global queue
+GLOBAL_QUEUE_TIMEOUT_MS="600000"  # 10 minutes (default)
+
+# Maximum concurrent deployments across all platforms
+DEPLOYMENT_QUEUE_MAX_CONCURRENT="4"
 ```
 
 ---
@@ -59,8 +69,8 @@ Coolify deployment uses a pre-provisioned pool of bot containers. When a meeting
 ### Environment Variables
 
 ```bash
-# Platform Selection
-DEPLOYMENT_PLATFORM="coolify"
+# Platform Selection (or use PLATFORM_PRIORITY for hybrid)
+PLATFORM_PRIORITY="coolify"   # Or "k8s,coolify" for fallback chain
 
 # Coolify API Configuration
 COOLIFY_API_URL="https://coolify.example.com/api/v1"
@@ -72,8 +82,12 @@ COOLIFY_SERVER_UUID="your-server-uuid"
 COOLIFY_ENVIRONMENT_NAME="production"
 COOLIFY_DESTINATION_UUID="your-destination-uuid"
 
-# Bot Images (GitHub Container Registry)
-GHCR_ORG="your-github-org"
+# Capacity Limits
+COOLIFY_BOT_LIMIT="20"              # Max concurrent bots
+COOLIFY_QUEUE_TIMEOUT_MS="300000"   # Queue timeout (5 min)
+
+# Bot Images
+GHCR_ORG="Payme-Works"
 MILO_AUTH_TOKEN="your-milo-auth-token"
 ```
 
@@ -130,109 +144,93 @@ AWS ECS deployment creates ephemeral Fargate tasks for each meeting. Tasks are c
 
 ### Prerequisites
 
-1. **AWS Account**: With ECS, ECR, and VPC configured
-2. **ECS Cluster**: Fargate-enabled cluster
-3. **Task Definitions**: One per meeting platform (Zoom, Teams, Meet)
-4. **IAM Roles**: Task execution role with ECR pull permissions
-5. **VPC Configuration**: Subnets and security groups
+1. **AWS Account**: With ECS and VPC configured
+2. **ECS Cluster**: Fargate-enabled cluster (provision with `bun terraform/setup-aws.ts`)
+3. **Task Definitions**: Created by terraform, one per platform
+4. **IAM Roles**: Created by terraform with GHCR pull permissions
+5. **VPC Configuration**: Public subnets (no NAT gateway needed)
+
+### Infrastructure Setup
+
+```bash
+# Provision AWS infrastructure (interactive)
+bun terraform/setup-aws.ts --interactive
+
+# Or with flags
+bun terraform/setup-aws.ts --profile meeboter --region us-east-2
+```
 
 ### Environment Variables
 
 ```bash
 # Platform Selection
-DEPLOYMENT_PLATFORM="aws"
+PLATFORM_PRIORITY="aws"             # Or "k8s,aws,coolify" for fallback chain
 
-# AWS Configuration
-AWS_REGION="us-east-1"
-AWS_ACCESS_KEY_ID="your-access-key"        # Or use IAM roles
-AWS_SECRET_ACCESS_KEY="your-secret-key"    # Or use IAM roles
+# AWS Region
+AWS_REGION="us-east-2"
 
-# ECS Configuration
-ECS_CLUSTER="meeboter-cluster"
-ECS_SUBNETS="subnet-xxx,subnet-yyy"
-ECS_SECURITY_GROUPS="sg-xxx"
-ECS_ASSIGN_PUBLIC_IP="true"
+# AWS ECS Cluster & Network (from terraform output)
+AWS_ECS_CLUSTER="meeboter-bots"
+AWS_ECS_SUBNETS="subnet-xxx,subnet-yyy"
+AWS_ECS_SECURITY_GROUPS="sg-xxx"
+AWS_ECS_ASSIGN_PUBLIC_IP="true"
 
-# Task Definitions (family:revision or just family for latest)
-ECS_TASK_DEF_ZOOM="meeboter-zoom-bot:1"
-ECS_TASK_DEF_MICROSOFT_TEAMS="meeboter-microsoft-teams-bot:1"
-ECS_TASK_DEF_GOOGLE_MEET="meeboter-google-meet-bot:1"
+# AWS ECS Task Definitions (family name, uses latest revision)
+AWS_ECS_TASK_DEF_GOOGLE_MEET="meeboter-google-meet-bot"
+AWS_ECS_TASK_DEF_MICROSOFT_TEAMS="meeboter-microsoft-teams-bot"
+AWS_ECS_TASK_DEF_ZOOM="meeboter-zoom-bot"
 
-# Bot Configuration
+# AWS Capacity Limits
+AWS_BOT_LIMIT="50"
+AWS_QUEUE_TIMEOUT_MS="30000"
+
+# Bot Authentication
 MILO_AUTH_TOKEN="your-milo-auth-token"
 ```
 
-### Task Definition Setup
+### Task Definitions
 
-Create ECS task definitions for each meeting platform. Example for Zoom:
+Task definitions are created by terraform. The terraform module creates:
 
-```json
-{
-  "family": "meeboter-zoom-bot",
-  "networkMode": "awsvpc",
-  "requiresCompatibilities": ["FARGATE"],
-  "cpu": "1024",
-  "memory": "2048",
-  "executionRoleArn": "arn:aws:iam::ACCOUNT:role/ecsTaskExecutionRole",
-  "containerDefinitions": [
-    {
-      "name": "zoom-bot",
-      "image": "ghcr.io/your-org/meeboter-zoom-bot:latest",
-      "essential": true,
-      "environment": [
-        {"name": "BOT_TYPE", "value": "zoom"}
-      ],
-      "logConfiguration": {
-        "logDriver": "awslogs",
-        "options": {
-          "awslogs-group": "/ecs/meeboter-zoom-bot",
-          "awslogs-region": "us-east-1",
-          "awslogs-stream-prefix": "ecs"
-        }
-      }
-    }
-  ]
-}
-```
+| Task Definition | Container Name | Image |
+|-----------------|----------------|-------|
+| `meeboter-google-meet-bot` | `google-meet-bot` | `ghcr.io/Payme-Works/meeboter-google-meet-bot:latest` |
+| `meeboter-microsoft-teams-bot` | `microsoft-teams-bot` | `ghcr.io/Payme-Works/meeboter-microsoft-teams-bot:latest` |
+| `meeboter-zoom-bot` | `zoom-bot` | `ghcr.io/Payme-Works/meeboter-zoom-bot:latest` |
+
+All tasks use:
+- **CPU**: 1024 (1 vCPU)
+- **Memory**: 2048 MB
+- **Network**: awsvpc with public IP
+- **Logs**: CloudWatch `/ecs/meeboter-bots`
 
 ### VPC and Security Group Configuration
 
-**Subnets**: Use private subnets with NAT gateway, or public subnets with auto-assign public IP enabled.
+Terraform creates a VPC with **public subnets only** (no NAT gateway for cost savings):
 
-**Security Group Rules**:
+- 2 public subnets across availability zones
+- Internet gateway for outbound traffic
+- Security group with outbound-only rules
+
+**Security Group Rules** (created by terraform):
 ```
 Outbound:
 - All traffic to 0.0.0.0/0 (for meeting connections)
 
 Inbound:
-- None required (bots initiate all connections)
+- None (bots initiate all connections)
 ```
 
-### IAM Permissions
+### IAM Roles
 
-The Meeboter API needs permissions to manage ECS tasks:
+Terraform creates two IAM roles:
 
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": [
-        "ecs:RunTask",
-        "ecs:StopTask",
-        "ecs:DescribeTasks"
-      ],
-      "Resource": "*"
-    },
-    {
-      "Effect": "Allow",
-      "Action": "iam:PassRole",
-      "Resource": "arn:aws:iam::ACCOUNT:role/ecsTaskExecutionRole"
-    }
-  ]
-}
-```
+1. **Task Execution Role** (`meeboter-bots-task-execution`):
+   - Pull images from GHCR
+   - Write logs to CloudWatch
+
+2. **Task Role** (`meeboter-bots-task`):
+   - Bot container permissions (currently minimal)
 
 ---
 
@@ -265,23 +263,32 @@ Kubernetes deployment uses Kubernetes Jobs to create ephemeral pods for each mee
 ### Environment Variables
 
 ```bash
-# Platform Selection
-DEPLOYMENT_PLATFORM="kubernetes"
+# Platform Selection (or use PLATFORM_PRIORITY for hybrid)
+PLATFORM_PRIORITY="k8s"   # Or "k8s,aws,coolify" for fallback chain
 
 # Kubernetes Configuration
 K8S_NAMESPACE="meeboter"
-K8S_KUBECONFIG="/path/to/kubeconfig"  # Optional, uses default if not set
+K8S_KUBECONFIG="/path/to/kubeconfig"  # Optional, uses in-cluster config if not set
 
-# Bot Resources (optimized for 80 concurrent bots with burst capacity)
-# Requests = guaranteed resources, Limits = burst capacity (overcommit OK)
-K8S_BOT_CPU_REQUEST="150m"
-K8S_BOT_CPU_LIMIT="500m"
-K8S_BOT_MEMORY_REQUEST="512Mi"
-K8S_BOT_MEMORY_LIMIT="1Gi"
+# Container Images
+K8S_IMAGE_REGISTRY="ghcr.io/Payme-Works"  # Optional, defaults to GHCR_ORG
+K8S_IMAGE_TAG="latest"
+
+# Bot Resources (defaults shown)
+K8S_BOT_CPU_REQUEST="500m"
+K8S_BOT_CPU_LIMIT="1000m"
+K8S_BOT_MEMORY_REQUEST="1Gi"
+K8S_BOT_MEMORY_LIMIT="2Gi"
+
+# Image Pull Lock (prevents concurrent pulls of same image)
+K8S_IMAGE_PULL_LOCK_ENABLED="true"
+
+# Capacity Limits
+K8S_BOT_LIMIT="80"                  # Max concurrent bots
+K8S_QUEUE_TIMEOUT_MS="60000"        # Queue timeout
 
 # Bot Configuration
 MILO_AUTH_TOKEN="your-milo-auth-token"
-MILO_URL="https://meeboter.yourdomain.com"
 ```
 
 ### Cluster Setup
@@ -334,23 +341,33 @@ spec:
 
 ## Bot Image Configuration
 
-All platforms require bot container images. Meeboter supports:
+All platforms use container images from GHCR:
 
-- **Zoom Bot**: `ghcr.io/{org}/meeboter-zoom-bot:{tag}`
-- **Microsoft Teams Bot**: `ghcr.io/{org}/meeboter-microsoft-teams-bot:{tag}`
-- **Meet Bot**: `ghcr.io/{org}/meeboter-google-meet-bot:{tag}`
+| Bot | Image |
+|-----|-------|
+| Google Meet | `ghcr.io/Payme-Works/meeboter-google-meet-bot:latest` |
+| Microsoft Teams | `ghcr.io/Payme-Works/meeboter-microsoft-teams-bot:latest` |
+| Zoom | `ghcr.io/Payme-Works/meeboter-zoom-bot:latest` |
+
+Images are built automatically via GitHub Actions on push to `main`.
 
 ### Environment Variables Passed to Bots
 
+Platform services pass these environment variables to bot containers at runtime:
+
 | Variable | Description |
 |----------|-------------|
-| `BOT_ID` | Unique bot identifier |
-| `MEETING_URL` | Meeting URL to join |
-| `MEETING_PLATFORM` | Platform type (zoom, teams, meet) |
-| `BOT_NAME` | Display name in meeting |
-| `API_CALLBACK_URL` | Meeboter API callback endpoint |
-| `MILO_AUTH_TOKEN` | Authentication token for Milo API calls |
-| `RECORDING_MODE` | Recording configuration |
+| `BOT_ID` | Bot identifier (fetches config from Milo API) |
+| `MILO_URL` | Milo API URL for tRPC calls |
+| `MILO_AUTH_TOKEN` | Authentication token for Milo API |
+| `S3_ENDPOINT` | S3-compatible storage endpoint |
+| `S3_ACCESS_KEY` | Storage access key |
+| `S3_SECRET_KEY` | Storage secret key |
+| `S3_BUCKET_NAME` | Bucket for recordings |
+| `S3_REGION` | Storage region |
+| `NODE_ENV` | Always `production` |
+
+Bots fetch their full configuration (meeting URL, display name, etc.) from Milo API using `BOT_ID`.
 
 ---
 
@@ -441,10 +458,10 @@ Bots send heartbeats every 30 seconds. If no heartbeat is received for 5 minutes
 
 ## Migration Between Platforms
 
-To switch from Coolify to AWS ECS (or vice versa):
+To switch platforms or change priority order:
 
 1. **Stop all active bots**: Ensure no meetings are in progress
-2. **Update environment variables**: Change `DEPLOYMENT_PLATFORM` and related config
+2. **Update environment variables**: Change `PLATFORM_PRIORITY` and related config
 3. **Restart Meeboter API**: Apply new configuration
 4. **Verify deployment**: Create a test bot to confirm new platform works
 

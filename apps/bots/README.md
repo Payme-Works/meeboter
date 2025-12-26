@@ -44,23 +44,30 @@ Refer to the `.env.example` file for the required environment variables. Duplica
 
 ### How Configuration Works
 
-Bots fetch their configuration dynamically from the Milo API using `POOL_SLOT_UUID`. This pattern avoids issues with stale environment variables in containerized deployments.
+Bots fetch their configuration dynamically from the Milo API. The identifier used depends on the deployment platform:
+
+| Platform | Identifier | API Endpoint |
+|----------|------------|--------------|
+| Kubernetes/AWS ECS | `BOT_ID` | `bots.getConfig` |
+| Coolify (pool-based) | `POOL_SLOT_UUID` | `bots.pool.getSlot` |
 
 **Startup flow:**
-1. Bot container starts with `POOL_SLOT_UUID` and `MILO_URL` environment variables
-2. Bot calls `getPoolSlot` API endpoint to fetch configuration (meeting details, timeouts, recording settings)
-3. Bot uses `MILO_URL` env var for all tRPC API calls
+1. Bot container starts with identifier (`BOT_ID` or `POOL_SLOT_UUID`) and `MILO_URL`
+2. Bot calls appropriate API endpoint to fetch configuration
+3. Bot uses fetched config for meeting details, timeouts, recording settings
 
 This ensures:
 - No stale configuration from cached container builds
 - Dynamic configuration without container rebuilds
-- Consistent behavior across Coolify, AWS ECS, and local development
+- Consistent behavior across all deployment platforms
 
 ### Required Environment Variables
 
 ```bash
-# Pool slot identifier (used to fetch bot config from API)
-POOL_SLOT_UUID="your-pool-slot-uuid"
+# Bot identification (one required)
+BOT_ID="123"                        # For K8s/AWS ECS
+# OR
+POOL_SLOT_UUID="coolify-uuid"       # For Coolify pool
 
 # Milo API URL for all tRPC calls
 MILO_URL="https://meeboter.yourdomain.com"

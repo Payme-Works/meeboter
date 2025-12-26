@@ -1,361 +1,106 @@
-# Meeboter Terraform Infrastructure
+# Meeboter AWS Bot Infrastructure
 
-This directory contains the Terraform infrastructure configuration for the Meeboter project, supporting multiple environments (development, staging, production) with shared resources architecture.
+Terraform configuration for deploying meeting bots on AWS ECS Fargate.
 
-## 📁 Directory Structure
+## Directory Structure
 
 ```
 terraform/
-├── README.md                   # This documentation
-├── init.sh                     # Initialize all terraform resources
-├── apply.sh                    # Deploy infrastructure (shared + environment)
-├── shared/                     # Shared resources across environments
-│   ├── README.md              # Shared resources documentation
-│   ├── scripts/
-│   │   ├── init.sh           # Initialize shared resources only
-│   │   └── apply.sh          # Deploy shared resources only
-│   ├── main.tf               # Shared provider configuration
-│   ├── variables.tf          # Shared input variables
-│   ├── outputs.tf            # Shared resource outputs
-│   ├── route53.tf            # Route53 hosted zone
-│   ├── certificate.tf        # Wildcard SSL certificate
-│   └── github-oidc.tf        # GitHub Actions OIDC provider
-├── main.tf                    # Main provider & backend config
-├── variables.tf               # Environment variables
-├── output.tf                  # Environment outputs
-├── shared-resources.tf        # References to shared resources
-├── vpc.tf                     # VPC and networking
-├── alb.tf                     # Application Load Balancer
-├── dns.tf                     # Environment DNS records
-├── rds.tf                     # PostgreSQL database
-├── s3.tf                      # S3 buckets
-├── ec2.tf                     # ECS EC2 instances
-├── ecs.tf                     # ECS cluster and services
-├── ecr.tf                     # Container registries
-├── github-oidc.tf             # GitHub Actions IAM roles
-└── terraform.tfvars.example   # Example variables file
+├── setup-aws.ts           # TypeScript setup script
+├── bots/                   # AWS ECS infrastructure for bots
+│   ├── main.tf            # Provider and backend config
+│   ├── variables.tf       # Input variables (with defaults)
+│   ├── terraform.tfvars   # Your configuration (gitignored)
+│   ├── ecs.tf             # ECS cluster + task definitions
+│   ├── vpc.tf             # VPC with public subnets
+│   ├── security.tf        # Security groups
+│   ├── iam.tf             # IAM roles
+│   ├── logs.tf            # CloudWatch logs
+│   └── outputs.tf         # Milo configuration output
+└── archive/               # Old full-stack configs (reference only)
 ```
 
-## 🚀 Quick Start
+## Architecture
+
+- ECS Fargate cluster with Spot + Standard capacity (70/30 split)
+- Public subnets only (no NAT gateway for cost savings)
+- Ephemeral tasks via RunTask API (no persistent services)
+- CloudWatch logs with 3-day retention
+- Container images from GHCR (GitHub Container Registry)
+
+### Cost Optimization
+
+- $0 fixed monthly cost (no NAT, no persistent services)
+- ~$0.02/bot-hour using Fargate Spot
+
+## Quick Start
 
 ### Prerequisites
 
-1. **AWS CLI configured** with the `meeboter` profile:
+1. AWS CLI configured with `meeboter` profile
+2. Terraform >= 1.0 installed
+3. Bun runtime installed
 
-   ```bash
-   aws configure --profile meeboter
-   ```
-
-2. **Terraform installed** (>= 1.0):
-
-   ```bash
-   terraform version
-   ```
-
-3. **Domain ownership**: You must own `meeboter.andredezzy.com` and be able to configure its nameservers
-
-### Initial Setup (Recommended)
+### Setup
 
 ```bash
-# 1. Clone and navigate to terraform directory
-cd terraform/
+# Interactive mode (recommended)
+bun terraform/setup-aws.ts --interactive
 
-# 2. Copy and configure variables (optional - has sensible defaults)
+# Or with flags
+bun terraform/setup-aws.ts --profile meeboter --region us-east-2
+```
+
+### Manual Setup
+
+```bash
+cd terraform/bots
+
+# Create tfvars
 cp terraform.tfvars.example terraform.tfvars
-# Edit terraform.tfvars with your specific values if needed
+# Edit terraform.tfvars with your ghcr_org
 
-# 3. Initialize everything (shared + environment resources)
-./init.sh
+# Initialize
+terraform init
 
-# 4. Deploy infrastructure to development environment
-./apply.sh development
+# Plan and apply
+terraform plan -out=tfplan
+terraform apply tfplan
 ```
 
-### Alternative Setup (Manual)
+## Configuration
 
-```bash
-# 1. Initialize shared resources first
-cd shared/
-./scripts/init.sh
-./scripts/apply.sh
-cd ..
+### Variables
 
-# 2. Initialize environment resources
-./init.sh
+| Variable       | Default      | Required | Description                    |
+| -------------- | ------------ | -------- | ------------------------------ |
+| `project_name` | `meeboter`   | No       | Project name for resource tags |
+| `aws_profile`  | `meeboter`   | No       | AWS CLI profile                |
+| `aws_region`   | `us-east-2`  | No       | AWS region                     |
+| `ghcr_org`     | -            | Yes      | GitHub Container Registry org  |
 
-# 3. Deploy to specific environment
-./apply.sh development
-```
-
-## 🏗️ Architecture Overview
-
-### Shared Resources (Single Instance)
-
-- **Route53 Hosted Zone**: `meeboter.andredezzy.com`
-- **ACM Certificate**: Wildcard `*.meeboter.andredezzy.com`
-- **GitHub OIDC Provider**: For GitHub Actions authentication
-
-### Environment-Specific Resources
-
-- **VPC**: Isolated network per environment
-- **ALB**: Load balancer with HTTPS termination
-- **ECS Cluster**: Container orchestration
-- **RDS**: PostgreSQL database
-- **ECR**: Container image repositories
-- **S3**: Bot data storage
-- **DNS**: Environment subdomain (e.g., `development.meeboter.andredezzy.com`)
-
-## 🌍 Environment Management
-
-### Available Environments
-
-- **development**: `development.meeboter.andredezzy.com`
-- **staging**: `staging.meeboter.andredezzy.com`
-- **production**: `meeboter.andredezzy.com`
-
-### Workspace Usage
-
-**Shared Resources**: Always use `default` workspace
-
-```bash
-cd shared/
-terraform workspace show  # Always shows 'default'
-```
-
-**Environment Resources**: Use environment-specific workspaces
-
-```bash
-terraform workspace list
-terraform workspace select development
-terraform workspace select staging
-terraform workspace select production
-```
-
-## 🛠️ Scripts & Commands
-
-### Initialization Scripts
-
-| Script                     | Purpose                | Usage                              |
-| -------------------------- | ---------------------- | ---------------------------------- |
-| `./init.sh`                | Initialize everything  | `./init.sh [upgrade\|reconfigure]` |
-| `./shared/scripts/init.sh` | Initialize shared only | Run from terraform/ or shared/     |
-
-### Deployment Scripts
-
-| Script                      | Purpose            | Usage                                           |
-| --------------------------- | ------------------ | ----------------------------------------------- |
-| `./apply.sh`                | Deploy everything  | `./apply.sh [development\|staging\|production]` |
-| `./shared/scripts/apply.sh` | Deploy shared only | Run from terraform/ or shared/                  |
-
-### Common Commands
-
-```bash
-# Initialize with provider upgrades
-./init.sh upgrade
-
-# Initialize with backend reconfiguration
-./init.sh reconfigure
-
-# Deploy to specific environment
-./apply.sh development
-./apply.sh staging
-./apply.sh production
-
-# Manual terraform operations
-terraform workspace select development
-terraform plan
-terraform apply
-terraform destroy
-
-# Check current workspace
-terraform workspace show
-
-# List all workspaces
-terraform workspace list
-```
-
-## 📋 Configuration
-
-### Required Variables
-
-Create `terraform.tfvars` with:
+### terraform.tfvars
 
 ```hcl
-# Domain configuration
-domain_name = "meeboter.andredezzy.com"
-
-# Database configuration
-db_instance_class = "db.t3.micro"  # or db.t3.small for production
-
-# GitHub repository (for OIDC)
-github_repository = "your-org/your-repo"
+ghcr_org = "your-github-org"
 ```
 
-### Environment Variables
+## Outputs
 
-Set these for deployment:
+After applying, the script outputs Milo environment configuration:
 
 ```bash
-export AWS_PROFILE=meeboter
-export AWS_REGION=us-east-2
+terraform output -raw milo_env_config
 ```
 
-## 🔧 Advanced Usage
+This provides the environment variables needed for Milo to deploy bots to AWS.
 
-### Working with Shared Resources Only
+## Task Definitions
 
-```bash
-# Navigate to shared directory
-cd shared/
+Three task definitions are created for each bot platform:
 
-# Initialize shared resources
-./scripts/init.sh
-
-# Deploy shared resources
-./scripts/apply.sh
-
-# Check shared outputs
-terraform output
-```
-
-### Working with Environment Resources Only
-
-```bash
-# Ensure shared resources are deployed first
-cd shared/ && ./scripts/apply.sh && cd ..
-
-# Select target environment
-terraform workspace select development
-
-# Plan changes
-terraform plan
-
-# Apply changes
-terraform apply
-```
-
-### Creating New Environments
-
-```bash
-# Create new workspace
-terraform workspace new staging
-
-# Deploy to new environment
-./apply.sh staging
-```
-
-## 🔍 Troubleshooting
-
-### Common Issues
-
-**1. GitHub OIDC Provider Already Exists**
-
-```
-Error: EntityAlreadyExists: Provider with url https://token.actions.githubusercontent.com already exists.
-```
-
-_Solution_: The provider is now managed in shared resources. No manual import needed.
-
-**2. Certificate Validation Timeout**
-
-```
-Error: timeout while waiting for state to become 'ISSUED'
-```
-
-_Solution_: Check that your domain's nameservers are set to AWS Route53 nameservers.
-
-**3. Workspace Confusion**
-
-```
-Error: Workspaces not supported
-```
-
-_Solution_: Ensure you're in the right directory. Shared resources always use default workspace.
-
-**4. State Lock Issues**
-
-```
-Error: Error acquiring the state lock
-```
-
-_Solution_: Wait for concurrent operations to finish, or force unlock if needed:
-
-```bash
-terraform force-unlock LOCK-ID
-```
-
-### Debug Commands
-
-```bash
-# Check AWS credentials
-aws sts get-caller-identity --profile meeboter
-
-# Verify S3 backend
-aws s3 ls s3://tf-state-meeboter --profile meeboter
-
-# Check terraform state
-terraform state list
-terraform show
-
-# Validate configuration
-terraform validate
-
-# Check formatting
-terraform fmt -check -diff
-```
-
-## 📊 Monitoring & Outputs
-
-### Environment Outputs
-
-After deployment, check these outputs:
-
-```bash
-terraform output
-
-# Key outputs:
-# - ecr_server_repository_url: Docker registry for server
-# - database_url: PostgreSQL connection string (sensitive)
-# - github_actions_role_arn: IAM role for GitHub Actions
-```
-
-### Shared Resource Outputs
-
-```bash
-cd shared/
-terraform output
-
-# Key outputs:
-# - hosted_zone_id: Route53 zone for DNS records
-# - certificate_arn: SSL certificate ARN
-# - github_oidc_provider_arn: OIDC provider ARN
-# - hosted_zone_name_servers: DNS nameservers to configure
-```
-
-## 🔒 Security Best Practices
-
-1. **State File Security**: Terraform state is stored in encrypted S3 bucket
-2. **IAM Least Privilege**: Each service has minimal required permissions
-3. **HTTPS Enforcement**: All traffic redirected from HTTP to HTTPS
-4. **Database Security**: RDS in private subnets with security groups
-5. **Container Security**: ECR repositories with lifecycle policies
-
-## 📚 Additional Resources
-
-- [Terraform Documentation](https://www.terraform.io/docs)
-- [AWS Provider Documentation](https://registry.terraform.io/providers/hashicorp/aws)
-- [Meeboter Project README](../README.md)
-- [Shared Resources Documentation](./shared/README.md)
-
-## 🆘 Support
-
-For issues or questions:
-
-1. Check this documentation first
-2. Review terraform state: `terraform state list`
-3. Check AWS Console for resource status
-4. Review logs and error messages carefully
-
----
-
-**Note**: Always deploy shared resources before environment resources. The main `./apply.sh` script handles this automatically.
+| Bot              | Image                                   | Resources        |
+| ---------------- | --------------------------------------- | ---------------- |
+| Google Meet      | `ghcr.io/{org}/meeboter-google-meet-bot`      | 1 vCPU, 2GB RAM  |
+| Microsoft Teams  | `ghcr.io/{org}/meeboter-microsoft-teams-bot`  | 1 vCPU, 2GB RAM  |
+| Zoom             | `ghcr.io/{org}/meeboter-zoom-bot`             | 1 vCPU, 2GB RAM  |

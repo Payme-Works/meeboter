@@ -76,7 +76,12 @@ lerna-debug.log*
 .terraform
 .infracost
 *.tfvars
+!*.tfvars.example
 *.tfplan
+tfplan
+*.tfstate
+*.tfstate.backup
+.terraform.lock.hcl
 
 # Lab assets
 apps/lab/assets

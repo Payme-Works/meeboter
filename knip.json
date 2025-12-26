@@ -2,8 +2,9 @@
 	"$schema": "https://unpkg.com/knip@5/schema.json",
 	"workspaces": {
 		".": {
-			"entry": ["scripts/*.ts"],
-			"project": ["scripts/**/*.ts"]
+			"entry": ["scripts/*.ts", "terraform/*.ts"],
+			"project": ["scripts/**/*.ts", "terraform/*.ts"],
+			"ignoreBinaries": ["which", "terraform"]
 		},
 		"apps/bots": {
 			"entry": ["src/index.ts", "src/**/*.test.ts"],

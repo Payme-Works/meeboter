@@ -99,11 +99,14 @@ export class BotDeploymentService {
 
 	/**
 	 * Deploys a bot via the hybrid platform service
+	 *
+	 * HybridPlatformService throws HybridDeployError on failure,
+	 * so we catch it here and set the bot status to FATAL
 	 */
 	private async deployViaPlatform(
 		botId: number,
 		config: BotConfig,
-		queueTimeoutMs: number,
+		_queueTimeoutMs: number,
 	): Promise<DeployBotResult> {
 		try {
 			// Set status to DEPLOYING before starting deployment
@@ -112,17 +115,8 @@ export class BotDeploymentService {
 				.set({ status: "DEPLOYING" })
 				.where(eq(botsTable.id, botId));
 
-			// Deploy via the hybrid platform service
-			const deployResult = await this.hybridPlatform.deployBot(
-				config,
-				queueTimeoutMs,
-			);
-
-			if (!deployResult.success) {
-				throw new BotDeploymentError(
-					deployResult.error ?? "Platform deployment failed",
-				);
-			}
+			// Deploy via the hybrid platform service (throws on failure)
+			const deployResult = await this.hybridPlatform.deployBot(config);
 
 			// If queued, return queue info (bot remains in DEPLOYING status)
 			if (deployResult.queued) {

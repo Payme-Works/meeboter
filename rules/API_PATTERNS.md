@@ -60,17 +60,16 @@ export const k8sRouter = router({
 
 ### Frontend Usage
 
+The frontend queries all enabled platforms and displays them in the infrastructure UI:
+
 ```typescript
-import { env } from "@/env";
+// Query all platform-specific endpoints
+const coolifyStats = api.infrastructure.coolify.getStats.useQuery();
+const k8sStats = api.infrastructure.k8s.getStats.useQuery();
+const awsStats = api.infrastructure.aws.getStats.useQuery();
 
-const platform = env.NEXT_PUBLIC_DEPLOYMENT_PLATFORM;
-
-// Query the correct platform-specific endpoint
-const { data: stats } = platform === "coolify"
-  ? api.infrastructure.coolify.getStats.useQuery()
-  : platform === "k8s"
-  ? api.infrastructure.k8s.getStats.useQuery()
-  : api.infrastructure.aws.getStats.useQuery();
+// Display enabled platforms based on query results
+// Backend determines which platforms are active via PLATFORM_PRIORITY env var
 ```
 
 ### Key Principles

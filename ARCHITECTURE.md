@@ -133,12 +133,13 @@ Coolify deployment uses a **pre-provisioned pool** of bot containers. When a mee
 **Environment Variables:**
 
 ```bash
-DEPLOYMENT_PLATFORM="coolify"
+PLATFORM_PRIORITY="coolify"
 COOLIFY_API_URL="https://coolify.example.com/api/v1"
 COOLIFY_API_TOKEN="your-api-token"
 COOLIFY_PROJECT_UUID="project-uuid"
 COOLIFY_SERVER_UUID="server-uuid"
 COOLIFY_DESTINATION_UUID="destination-uuid"
+COOLIFY_BOT_LIMIT="20"
 ```
 
 ---
@@ -152,7 +153,7 @@ AWS ECS deployment creates **ephemeral Fargate tasks** for each meeting. Tasks a
 |                          AWS Cloud                                    |
 |                                                                       |
 |  +------------------------+     +----------------------------------+  |
-|  | Meeboter API           |     |         ECS Cluster              |  |
+|  | Meeboter API (Coolify) |     |         ECS Cluster              |  |
 |  |                        |     |                                  |  |
 |  |  +------------------+  |     |  Meeting 1 --> [Task A] --> Done |  |
 |  |  | ECS Task Manager |--------->Meeting 2 --> [Task B] --> Done |  |
@@ -160,9 +161,7 @@ AWS ECS deployment creates **ephemeral Fargate tasks** for each meeting. Tasks a
 |  |                        |     |                                  |  |
 |  +------------------------+     +----------------------------------+  |
 |                                                                       |
-|  +------------------------+     +----------------------------------+  |
-|  | RDS PostgreSQL        |     |    ECR (Container Registry)      |  |
-|  +------------------------+     +----------------------------------+  |
+|  Images from GHCR (ghcr.io/Payme-Works/meeboter-*)                   |
 +-----------------------------------------------------------------------+
 ```
 
@@ -170,7 +169,7 @@ AWS ECS deployment creates **ephemeral Fargate tasks** for each meeting. Tasks a
 
 1. Bot request received
 2. ECS task created with bot config as environment variables
-3. Fargate pulls image from ECR, runs container
+3. Fargate pulls image from GHCR, runs container
 4. Bot joins meeting, reports status via API
 5. Meeting ends: task terminates, resources released
 6. Pay only for actual runtime
@@ -185,15 +184,19 @@ AWS ECS deployment creates **ephemeral Fargate tasks** for each meeting. Tasks a
 **Environment Variables:**
 
 ```bash
-DEPLOYMENT_PLATFORM="aws"
-AWS_REGION="us-east-1"
-ECS_CLUSTER="meeboter-cluster"
-ECS_SUBNETS="subnet-xxx,subnet-yyy"
-ECS_SECURITY_GROUPS="sg-xxx"
-ECS_TASK_DEF_GOOGLE_MEET="meeboter-google-meet-bot:1"
-ECS_TASK_DEF_MICROSOFT_TEAMS="meeboter-microsoft-teams-bot:1"
-ECS_TASK_DEF_ZOOM="meeboter-zoom-bot:1"
+PLATFORM_PRIORITY="aws"
+AWS_REGION="us-east-2"
+AWS_ECS_CLUSTER="meeboter-bots"
+AWS_ECS_SUBNETS="subnet-xxx,subnet-yyy"
+AWS_ECS_SECURITY_GROUPS="sg-xxx"
+AWS_ECS_ASSIGN_PUBLIC_IP="true"
+AWS_ECS_TASK_DEF_GOOGLE_MEET="meeboter-google-meet-bot"
+AWS_ECS_TASK_DEF_MICROSOFT_TEAMS="meeboter-microsoft-teams-bot"
+AWS_ECS_TASK_DEF_ZOOM="meeboter-zoom-bot"
+AWS_BOT_LIMIT="50"
 ```
+
+> Run `bun terraform/setup-aws.ts` to provision AWS infrastructure and get these values.
 
 ---
 
@@ -239,13 +242,16 @@ Kubernetes deployment uses **Jobs** to create ephemeral pods for each meeting. S
 **Environment Variables:**
 
 ```bash
-DEPLOYMENT_PLATFORM="kubernetes"
-KUBE_NAMESPACE="meeboter"
-KUBE_CONFIG_PATH="/path/to/kubeconfig"  # Optional
-KUBE_CPU_REQUEST="250m"
-KUBE_CPU_LIMIT="500m"
-KUBE_MEMORY_REQUEST="768Mi"
-KUBE_MEMORY_LIMIT="1Gi"
+PLATFORM_PRIORITY="k8s"
+K8S_NAMESPACE="meeboter"
+K8S_KUBECONFIG="/path/to/kubeconfig"  # Optional
+K8S_IMAGE_REGISTRY="ghcr.io/Payme-Works"
+K8S_IMAGE_TAG="latest"
+K8S_BOT_CPU_REQUEST="500m"
+K8S_BOT_CPU_LIMIT="1000m"
+K8S_BOT_MEMORY_REQUEST="1Gi"
+K8S_BOT_MEMORY_LIMIT="2Gi"
+K8S_BOT_LIMIT="80"
 ```
 
 ---
@@ -262,6 +268,31 @@ KUBE_MEMORY_LIMIT="1Gi"
 | **Best For** | Self-hosted | Cloud-native | Multi-cloud |
 
 *AWS ECS limited by account quotas and budget
+
+---
+
+### Cost Estimation
+
+| Deployment | Monthly Cost | Includes |
+|------------|--------------|----------|
+| **Coolify (Self-hosted)** | ~$20-50/mo | VPS/bare-metal, fixed capacity |
+| **Kubernetes (K3s)** | ~$50-200/mo | Cluster hosting, fixed capacity |
+| **AWS ECS (Fargate)** | ~$100-500/mo | Pay-per-use, scales with demand |
+
+**Coolify (Pool-Based)**
+- Fixed monthly cost for server/VPS
+- Most cost-efficient at scale with consistent workload
+- Example: Hetzner dedicated server (~$50/mo) can handle 20+ concurrent bots
+
+**Kubernetes (Pod-Based)**
+- Fixed cluster cost plus potential node auto-scaling
+- Cost-efficient when you have existing K8s infrastructure
+- Example: K3s on single node (~$50/mo) can handle 40-80 concurrent bots
+
+**AWS ECS (Task-Based)**
+- Pay only for actual bot runtime (vCPU-seconds + memory-seconds)
+- Best for unpredictable or spiky workloads
+- Example: 1000 bot-hours/month ≈ $50-100 (1 vCPU, 2GB RAM)
 
 ---
 
@@ -305,6 +336,8 @@ The `@meeboter/bots` package implements platform-specific meeting bots using a *
 | **S3 Service** | Upload recordings and screenshots to S3-compatible storage |
 
 ### Docker Images
+
+Images are published to GHCR at `ghcr.io/Payme-Works/meeboter-{platform}`:
 
 | Image | Base | Size |
 |-------|------|------|

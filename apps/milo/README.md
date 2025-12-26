@@ -233,8 +233,11 @@ See `.env.example` for required configuration. Key variables:
 | Variable | Purpose |
 |----------|---------|
 | `DATABASE_URL` | PostgreSQL connection string |
-| `DEPLOYMENT_PLATFORM` | `coolify`, `aws`, or `auto` |
+| `PLATFORM_PRIORITY` | Comma-separated platform order: `k8s,aws,coolify` |
 | `COOLIFY_API_URL` | Coolify API endpoint |
 | `COOLIFY_API_TOKEN` | Coolify authentication token |
+| `K8S_NAMESPACE` | Kubernetes namespace for bots |
+| `AWS_ECS_CLUSTER` | AWS ECS cluster name |
 | `MILO_AUTH_TOKEN` | Token for bot-to-API authentication |
 | `S3_*` | Object storage configuration |
+| `GHCR_ORG` | GitHub Container Registry org (`Payme-Works`) |

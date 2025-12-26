@@ -51,13 +51,15 @@ All Dockerfiles are configured for automatic platform detection and will build n
 
 ## Bot Configuration
 
-Bots fetch their configuration from the Milo API on startup using `POOL_SLOT_UUID`. This design avoids issues with stale environment variables in containerized deployments.
+Bots fetch their configuration from the Milo API on startup. The identifier depends on the deployment platform.
 
 ### Required Environment Variables
 
 ```bash
-# Pool slot identifier (used to fetch bot config from API)
-POOL_SLOT_UUID="coolify-service-uuid"
+# Bot identification (one required)
+BOT_ID="123"                        # For K8s/AWS ECS ephemeral deployments
+# OR
+POOL_SLOT_UUID="coolify-uuid"       # For Coolify pool-based deployments
 
 # Milo API URL for all tRPC calls
 MILO_URL="https://meeboter.yourdomain.com"
@@ -78,14 +80,15 @@ NODE_ENV="production"
 
 ### How It Works
 
-1. Bot container starts with `POOL_SLOT_UUID` and `MILO_URL` environment variables
-2. Bot calls `getPoolSlot` API endpoint to fetch configuration (meeting details, timeouts, recording settings)
-3. Bot uses `MILO_URL` env var for all tRPC API calls
+| Platform | Identifier | API Endpoint |
+|----------|------------|--------------|
+| Kubernetes/AWS ECS | `BOT_ID` | `bots.getConfig` |
+| Coolify (pool-based) | `POOL_SLOT_UUID` | `bots.pool.getSlot` |
 
 This pattern ensures:
 - No stale configuration from cached container builds
 - Dynamic configuration without container rebuilds
-- Consistent behavior across Coolify, AWS ECS, and local development
+- Consistent behavior across all deployment platforms
 
 ## Troubleshooting
 

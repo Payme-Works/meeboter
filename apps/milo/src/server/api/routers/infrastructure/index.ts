@@ -354,7 +354,7 @@ async function getPlatformInfo(
 			const metrics = services.aws
 				? await services.aws.getClusterMetrics()
 				: {
-						cluster: env.ECS_CLUSTER ?? "N/A",
+						cluster: env.AWS_ECS_CLUSTER ?? "N/A",
 						region: env.AWS_REGION ?? "N/A",
 						PROVISIONING: 0,
 						RUNNING: 0,

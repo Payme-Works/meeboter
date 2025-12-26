@@ -14,14 +14,17 @@ export const env = createEnv({
 	 * Validated at runtime when the app starts.
 	 */
 	server: {
+		// ─── Core ────────────────────────────────────────────────────────────
 		NODE_ENV: z
 			.enum(["development", "test", "production"])
 			.default("development"),
 
+		// ─── Authentication ──────────────────────────────────────────────────
 		AUTH_SECRET: z.string(),
 		AUTH_GITHUB_ID: z.string(),
 		AUTH_GITHUB_SECRET: z.string(),
 
+		// ─── Database ────────────────────────────────────────────────────────
 		DATABASE_URL: z.string().regex(/^postgres(ql)?:\/\//, {
 			message: "DATABASE_URL must start with postgresql:// or postgres://",
 		}),
@@ -30,45 +33,18 @@ export const env = createEnv({
 			.default("true")
 			.transform((val) => val === "true"),
 
-		// Coolify API Configuration
-		COOLIFY_API_URL: z.url(),
-		COOLIFY_API_TOKEN: z.string(),
-		COOLIFY_PROJECT_UUID: z.string(),
-		COOLIFY_SERVER_UUID: z.string(),
-		COOLIFY_ENVIRONMENT_NAME: z.string().default("production"),
-		COOLIFY_DESTINATION_UUID: z.string(),
-
-		// GitHub Container Registry
+		// ─── Application ─────────────────────────────────────────────────────
+		MILO_AUTH_TOKEN: z.string(),
 		GHCR_ORG: z.string(),
 
-		// S3-Compatible Storage (MinIO or AWS S3)
+		// ─── Storage (S3-Compatible) ─────────────────────────────────────────
 		S3_ENDPOINT: z.url(),
 		S3_ACCESS_KEY: z.string(),
 		S3_SECRET_KEY: z.string(),
 		S3_BUCKET_NAME: z.string(),
 		S3_REGION: z.string().default("us-east-1"),
 
-		MILO_AUTH_TOKEN: z.string(),
-
-		// Deployment Queue Configuration
-		DEPLOYMENT_QUEUE_MAX_CONCURRENT: z.coerce.number().int().min(1).default(4),
-
-		// AWS ECS Configuration (required when aws in PLATFORM_PRIORITY)
-		AWS_REGION: z.string().optional(),
-		ECS_CLUSTER: z.string().optional(),
-		ECS_SUBNETS: z.string().optional(),
-		ECS_SECURITY_GROUPS: z.string().optional(),
-		ECS_TASK_DEF_ZOOM: z.string().optional(),
-		ECS_TASK_DEF_MICROSOFT_TEAMS: z.string().optional(),
-		ECS_TASK_DEF_GOOGLE_MEET: z.string().optional(),
-		ECS_ASSIGN_PUBLIC_IP: z
-			.enum(["true", "false"])
-			.default("true")
-			.transform((val) => val === "true"),
-		AWS_BOT_LIMIT: z.coerce.number().int().positive().optional(),
-		AWS_QUEUE_TIMEOUT_MS: z.coerce.number().int().positive().default(30000),
-
-		// Hybrid Platform Configuration
+		// ─── Platform Selection ──────────────────────────────────────────────
 		PLATFORM_PRIORITY: z
 			.string()
 			.min(1, "PLATFORM_PRIORITY is required")
@@ -79,8 +55,15 @@ export const env = createEnv({
 					.map((p) => p.trim() as "k8s" | "aws" | "coolify" | "local"),
 			),
 		GLOBAL_QUEUE_TIMEOUT_MS: z.coerce.number().int().positive().default(600000),
+		DEPLOYMENT_QUEUE_MAX_CONCURRENT: z.coerce.number().int().min(1).default(4),
 
-		// Coolify Bot Limit and Queue Timeout
+		// ─── Coolify Platform ────────────────────────────────────────────────
+		COOLIFY_API_URL: z.url(),
+		COOLIFY_API_TOKEN: z.string(),
+		COOLIFY_PROJECT_UUID: z.string(),
+		COOLIFY_SERVER_UUID: z.string(),
+		COOLIFY_ENVIRONMENT_NAME: z.string().default("production"),
+		COOLIFY_DESTINATION_UUID: z.string(),
 		COOLIFY_BOT_LIMIT: z.coerce.number().int().positive().optional(),
 		COOLIFY_QUEUE_TIMEOUT_MS: z.coerce
 			.number()
@@ -88,11 +71,26 @@ export const env = createEnv({
 			.positive()
 			.default(300000),
 
-		// Kubernetes Configuration (required when k8s in PLATFORM_PRIORITY)
+		// ─── AWS ECS Platform ────────────────────────────────────────────────
+		AWS_REGION: z.string().optional(),
+		AWS_ECS_CLUSTER: z.string().optional(),
+		AWS_ECS_SUBNETS: z.string().optional(),
+		AWS_ECS_SECURITY_GROUPS: z.string().optional(),
+		AWS_ECS_TASK_DEF_GOOGLE_MEET: z.string().optional(),
+		AWS_ECS_TASK_DEF_MICROSOFT_TEAMS: z.string().optional(),
+		AWS_ECS_TASK_DEF_ZOOM: z.string().optional(),
+		AWS_ECS_ASSIGN_PUBLIC_IP: z
+			.enum(["true", "false"])
+			.default("true")
+			.transform((val) => val === "true"),
+		AWS_BOT_LIMIT: z.coerce.number().int().positive().optional(),
+		AWS_QUEUE_TIMEOUT_MS: z.coerce.number().int().positive().default(30000),
+
+		// ─── Kubernetes Platform ─────────────────────────────────────────────
 		K8S_NAMESPACE: z.string().default("meeboter"),
+		K8S_KUBECONFIG: z.string().optional(),
 		K8S_IMAGE_REGISTRY: z.string().optional(),
 		K8S_IMAGE_TAG: z.string().default("latest"),
-		K8S_KUBECONFIG: z.string().optional(),
 		K8S_BOT_CPU_REQUEST: z.string().default("500m"),
 		K8S_BOT_CPU_LIMIT: z.string().default("1000m"),
 		K8S_BOT_MEMORY_REQUEST: z.string().default("1Gi"),
@@ -117,65 +115,64 @@ export const env = createEnv({
 	 * Manual destructuring required for Next.js edge runtimes and client-side.
 	 */
 	runtimeEnv: {
+		// ─── Core ────────────────────────────────────────────────────────────
+		NODE_ENV: process.env.NODE_ENV,
+
+		// ─── Authentication ──────────────────────────────────────────────────
 		AUTH_SECRET: process.env.AUTH_SECRET,
 		AUTH_GITHUB_ID: process.env.AUTH_GITHUB_ID,
 		AUTH_GITHUB_SECRET: process.env.AUTH_GITHUB_SECRET,
 
+		// ─── Database ────────────────────────────────────────────────────────
 		DATABASE_URL: process.env.DATABASE_URL,
 		DATABASE_SSL: process.env.DATABASE_SSL,
-		NODE_ENV: process.env.NODE_ENV,
 
-		// Coolify
-		COOLIFY_API_URL: process.env.COOLIFY_API_URL,
-		COOLIFY_API_TOKEN: process.env.COOLIFY_API_TOKEN,
-		COOLIFY_PROJECT_UUID: process.env.COOLIFY_PROJECT_UUID,
-		COOLIFY_SERVER_UUID: process.env.COOLIFY_SERVER_UUID,
-		COOLIFY_ENVIRONMENT_NAME: process.env.COOLIFY_ENVIRONMENT_NAME,
-		COOLIFY_DESTINATION_UUID: process.env.COOLIFY_DESTINATION_UUID,
-
-		// GHCR
+		// ─── Application ─────────────────────────────────────────────────────
+		NEXT_PUBLIC_APP_ORIGIN_URL: process.env.NEXT_PUBLIC_APP_ORIGIN_URL,
+		MILO_AUTH_TOKEN: process.env.MILO_AUTH_TOKEN,
 		GHCR_ORG: process.env.GHCR_ORG,
 
-		// S3-Compatible Storage
+		// ─── Storage (S3-Compatible) ─────────────────────────────────────────
 		S3_ENDPOINT: process.env.S3_ENDPOINT,
 		S3_ACCESS_KEY: process.env.S3_ACCESS_KEY,
 		S3_SECRET_KEY: process.env.S3_SECRET_KEY,
 		S3_BUCKET_NAME: process.env.S3_BUCKET_NAME,
 		S3_REGION: process.env.S3_REGION,
 
-		MILO_AUTH_TOKEN: process.env.MILO_AUTH_TOKEN,
-
-		NEXT_PUBLIC_APP_ORIGIN_URL: process.env.NEXT_PUBLIC_APP_ORIGIN_URL,
-
-		// Hybrid Platform Configuration
+		// ─── Platform Selection ──────────────────────────────────────────────
 		PLATFORM_PRIORITY: process.env.PLATFORM_PRIORITY,
 		GLOBAL_QUEUE_TIMEOUT_MS: process.env.GLOBAL_QUEUE_TIMEOUT_MS,
-
-		// Deployment Queue
 		DEPLOYMENT_QUEUE_MAX_CONCURRENT:
 			process.env.DEPLOYMENT_QUEUE_MAX_CONCURRENT,
 
-		// AWS ECS
-		AWS_REGION: process.env.AWS_REGION,
-		ECS_CLUSTER: process.env.ECS_CLUSTER,
-		ECS_SUBNETS: process.env.ECS_SUBNETS,
-		ECS_SECURITY_GROUPS: process.env.ECS_SECURITY_GROUPS,
-		ECS_TASK_DEF_ZOOM: process.env.ECS_TASK_DEF_ZOOM,
-		ECS_TASK_DEF_MICROSOFT_TEAMS: process.env.ECS_TASK_DEF_MICROSOFT_TEAMS,
-		ECS_TASK_DEF_GOOGLE_MEET: process.env.ECS_TASK_DEF_GOOGLE_MEET,
-		ECS_ASSIGN_PUBLIC_IP: process.env.ECS_ASSIGN_PUBLIC_IP,
-		AWS_BOT_LIMIT: process.env.AWS_BOT_LIMIT,
-		AWS_QUEUE_TIMEOUT_MS: process.env.AWS_QUEUE_TIMEOUT_MS,
-
-		// Coolify Limits
+		// ─── Coolify Platform ────────────────────────────────────────────────
+		COOLIFY_API_URL: process.env.COOLIFY_API_URL,
+		COOLIFY_API_TOKEN: process.env.COOLIFY_API_TOKEN,
+		COOLIFY_PROJECT_UUID: process.env.COOLIFY_PROJECT_UUID,
+		COOLIFY_SERVER_UUID: process.env.COOLIFY_SERVER_UUID,
+		COOLIFY_ENVIRONMENT_NAME: process.env.COOLIFY_ENVIRONMENT_NAME,
+		COOLIFY_DESTINATION_UUID: process.env.COOLIFY_DESTINATION_UUID,
 		COOLIFY_BOT_LIMIT: process.env.COOLIFY_BOT_LIMIT,
 		COOLIFY_QUEUE_TIMEOUT_MS: process.env.COOLIFY_QUEUE_TIMEOUT_MS,
 
-		// Kubernetes
+		// ─── AWS ECS Platform ────────────────────────────────────────────────
+		AWS_REGION: process.env.AWS_REGION,
+		AWS_ECS_CLUSTER: process.env.AWS_ECS_CLUSTER,
+		AWS_ECS_SUBNETS: process.env.AWS_ECS_SUBNETS,
+		AWS_ECS_SECURITY_GROUPS: process.env.AWS_ECS_SECURITY_GROUPS,
+		AWS_ECS_TASK_DEF_GOOGLE_MEET: process.env.AWS_ECS_TASK_DEF_GOOGLE_MEET,
+		AWS_ECS_TASK_DEF_MICROSOFT_TEAMS:
+			process.env.AWS_ECS_TASK_DEF_MICROSOFT_TEAMS,
+		AWS_ECS_TASK_DEF_ZOOM: process.env.AWS_ECS_TASK_DEF_ZOOM,
+		AWS_ECS_ASSIGN_PUBLIC_IP: process.env.AWS_ECS_ASSIGN_PUBLIC_IP,
+		AWS_BOT_LIMIT: process.env.AWS_BOT_LIMIT,
+		AWS_QUEUE_TIMEOUT_MS: process.env.AWS_QUEUE_TIMEOUT_MS,
+
+		// ─── Kubernetes Platform ─────────────────────────────────────────────
 		K8S_NAMESPACE: process.env.K8S_NAMESPACE,
+		K8S_KUBECONFIG: process.env.K8S_KUBECONFIG,
 		K8S_IMAGE_REGISTRY: process.env.K8S_IMAGE_REGISTRY,
 		K8S_IMAGE_TAG: process.env.K8S_IMAGE_TAG,
-		K8S_KUBECONFIG: process.env.K8S_KUBECONFIG,
 		K8S_BOT_CPU_REQUEST: process.env.K8S_BOT_CPU_REQUEST,
 		K8S_BOT_CPU_LIMIT: process.env.K8S_BOT_CPU_LIMIT,
 		K8S_BOT_MEMORY_REQUEST: process.env.K8S_BOT_MEMORY_REQUEST,

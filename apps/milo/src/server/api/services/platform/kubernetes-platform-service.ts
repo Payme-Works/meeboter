@@ -11,9 +11,10 @@ import { env } from "@/env";
 import type { BotConfig } from "@/server/database/schema";
 import type { ImagePullLockService } from "../image-pull-lock-service";
 import { K8sStatusMapper } from "./mappers/k8s-status-mapper";
-import type {
-	PlatformDeployWithQueueResult,
-	PlatformService,
+import {
+	PlatformDeployError,
+	type PlatformDeployResult,
+	type PlatformService,
 } from "./platform-service";
 
 /**
@@ -146,9 +147,7 @@ export class KubernetesPlatformService
 		this.metricsClient = new Metrics(kc);
 	}
 
-	async deployBot(
-		botConfig: BotConfig,
-	): Promise<PlatformDeployWithQueueResult> {
+	async deployBot(botConfig: BotConfig): Promise<PlatformDeployResult> {
 		const jobName = this.buildJobName(botConfig.id);
 		const job = this.buildJobSpec(botConfig, jobName);
 
@@ -167,7 +166,7 @@ export class KubernetesPlatformService
 		botId: number,
 		jobName: string,
 		job: V1Job,
-	): Promise<PlatformDeployWithQueueResult> {
+	): Promise<PlatformDeployResult> {
 		try {
 			await this.batchApi.createNamespacedJob({
 				namespace: this.config.namespace,
@@ -178,23 +177,20 @@ export class KubernetesPlatformService
 				`[KubernetesPlatform] Bot ${botId} deployed as job ${jobName} (lock disabled)`,
 			);
 
-			return {
-				success: true,
-				identifier: jobName,
-			};
+			return { identifier: jobName };
 		} catch (error) {
-			const errorMessage =
-				error instanceof Error ? error.message : "Unknown error";
+			const cause = error instanceof Error ? error : undefined;
 
 			console.error(
 				`[KubernetesPlatform] Failed to deploy bot ${botId}:`,
 				error,
 			);
 
-			return {
-				success: false,
-				error: `Kubernetes Job creation failed: ${errorMessage}`,
-			};
+			throw new PlatformDeployError(
+				`Kubernetes Job creation failed: ${cause?.message ?? "Unknown error"}`,
+				"k8s",
+				cause,
+			);
 		}
 	}
 
@@ -208,7 +204,7 @@ export class KubernetesPlatformService
 		botConfig: BotConfig,
 		jobName: string,
 		job: V1Job,
-	): Promise<PlatformDeployWithQueueResult> {
+	): Promise<PlatformDeployResult> {
 		const platform = botConfig.meeting.platform ?? "unknown";
 
 		// Acquire image pull lock to coordinate first deployment
@@ -241,23 +237,20 @@ export class KubernetesPlatformService
 				);
 			}
 
-			return {
-				success: true,
-				identifier: jobName,
-			};
+			return { identifier: jobName };
 		} catch (error) {
-			const errorMessage =
-				error instanceof Error ? error.message : "Unknown error";
+			const cause = error instanceof Error ? error : undefined;
 
 			console.error(
 				`[KubernetesPlatform] Failed to deploy bot ${botConfig.id}:`,
 				error,
 			);
 
-			return {
-				success: false,
-				error: `Kubernetes Job creation failed: ${errorMessage}`,
-			};
+			throw new PlatformDeployError(
+				`Kubernetes Job creation failed: ${cause?.message ?? "Unknown error"}`,
+				"k8s",
+				cause,
+			);
 		} finally {
 			releaseLock();
 		}

@@ -8,9 +8,10 @@ import {
 
 import type { BotConfig } from "@/server/database/schema";
 import { AWSStatusMapper } from "./mappers/aws-status-mapper";
-import type {
-	PlatformDeployWithQueueResult,
-	PlatformService,
+import {
+	PlatformDeployError,
+	type PlatformDeployResult,
+	type PlatformService,
 } from "./platform-service";
 
 /**
@@ -71,11 +72,8 @@ export class AWSPlatformService implements PlatformService<AWSBotStatus> {
 		private readonly botEnvConfig: AWSBotEnvConfig,
 	) {}
 
-	async deployBot(
-		botConfig: BotConfig,
-	): Promise<PlatformDeployWithQueueResult> {
+	async deployBot(botConfig: BotConfig): Promise<PlatformDeployResult> {
 		const taskDefinition = this.getTaskDefinition(botConfig.meeting.platform);
-
 		const containerName = this.getContainerName(botConfig.meeting.platform);
 
 		try {
@@ -107,33 +105,35 @@ export class AWSPlatformService implements PlatformService<AWSBotStatus> {
 			const task = result.tasks?.[0];
 
 			if (!task?.taskArn) {
-				return {
-					success: false,
-					error: "Failed to start ECS task: no task ARN returned",
-				};
+				throw new PlatformDeployError(
+					"Failed to start ECS task: no task ARN returned",
+					"aws",
+				);
 			}
 
 			console.log(
 				`[AWSPlatform] Bot ${botConfig.id} deployed as task ${task.taskArn}`,
 			);
 
-			return {
-				success: true,
-				identifier: task.taskArn,
-			};
+			return { identifier: task.taskArn };
 		} catch (error) {
-			const errorMessage =
-				error instanceof Error ? error.message : "Unknown error";
+			// Re-throw if already a PlatformDeployError
+			if (error instanceof PlatformDeployError) {
+				throw error;
+			}
+
+			const cause = error instanceof Error ? error : undefined;
 
 			console.error(
 				`[AWSPlatform] Failed to deploy bot ${botConfig.id}:`,
 				error,
 			);
 
-			return {
-				success: false,
-				error: `ECS RunTask failed: ${errorMessage}`,
-			};
+			throw new PlatformDeployError(
+				`ECS RunTask failed: ${cause?.message ?? "Unknown error"}`,
+				"aws",
+				cause,
+			);
 		}
 	}
 

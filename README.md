@@ -154,7 +154,8 @@ meeboter/
 │           ├── google-meet/
 │           ├── microsoft-teams/
 │           └── zoom/
-├── terraform/          # AWS IaC
+├── terraform/
+│   └── bots/           # AWS ECS infrastructure
 └── docs/
 ```
 
