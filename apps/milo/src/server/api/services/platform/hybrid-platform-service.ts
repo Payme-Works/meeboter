@@ -82,9 +82,16 @@ export class HybridPlatformService {
 
 	/**
 	 * Tracks pending deployments per platform to prevent race conditions.
-	 * Incremented before deployment, decremented after database is updated.
+	 * Incremented when slot is acquired, decremented after deployment completes.
 	 */
 	private readonly pendingDeployments: Map<DeploymentPlatform, number> =
+		new Map();
+
+	/**
+	 * Serializes capacity checks per platform to prevent thundering herd.
+	 * Each platform's slot acquisition is queued to ensure atomic check+reserve.
+	 */
+	private readonly capacityQueues: Map<DeploymentPlatform, Promise<void>> =
 		new Map();
 
 	constructor(
@@ -165,9 +172,9 @@ export class HybridPlatformService {
 	/**
 	 * Deploys a bot using the first available platform in priority order
 	 *
-	 * Uses reservation system to prevent race conditions when multiple bots
-	 * deploy simultaneously. Reservations ensure capacity checks account for
-	 * in-flight deployments that haven't yet updated the database.
+	 * Uses serialized slot acquisition to prevent race conditions when multiple
+	 * bots deploy simultaneously. Each platform's capacity check is queued to
+	 * ensure atomic check+reserve operations.
 	 *
 	 * @throws HybridDeployError if all platforms fail and queuing fails
 	 */
@@ -180,26 +187,21 @@ export class HybridPlatformService {
 
 			if (!config) continue;
 
-			// Reserve slot BEFORE checking capacity to prevent race conditions
-			// This ensures concurrent deployments see each other's reservations
-			this.reserveSlot(platform);
+			// Try to acquire a slot (serialized check + reserve)
+			const acquired = await this.tryAcquireSlot(platform, config.limit);
 
+			if (!acquired) {
+				console.log(
+					`[HybridPlatformService] Platform '${platform}' at capacity, trying next`,
+				);
+
+				continue;
+			}
+
+			// Got a slot, try to deploy
 			try {
-				// Check capacity (now includes our reservation + other pending)
-				const currentCount = await this.getActiveBotCount(platform);
-
-				if (currentCount > config.limit) {
-					// Over capacity (our reservation pushed it over), try next platform
-					console.log(
-						`[HybridPlatformService] Platform '${platform}' at capacity (${currentCount}/${config.limit}), trying next`,
-					);
-
-					continue;
-				}
-
 				attemptedPlatforms.push(platform);
 
-				// Try to deploy
 				const result = await this.tryDeployOnPlatform(
 					platform,
 					config.service,
@@ -218,7 +220,7 @@ export class HybridPlatformService {
 						continue;
 					}
 
-					// Success! Return result (reservation released in finally)
+					// Success! Return result (slot released in finally)
 					return {
 						platform,
 						platformIdentifier: result.identifier,
@@ -228,8 +230,8 @@ export class HybridPlatformService {
 
 				// Deployment failed, continue to try next platform
 			} finally {
-				// Always release reservation after attempt
-				// On success: DB is updated, so reservation no longer needed
+				// Always release slot after attempt
+				// On success: DB is updated, so pending slot no longer needed
 				// On failure: Slot is no longer in use
 				this.releaseSlot(platform);
 			}
@@ -333,16 +335,14 @@ export class HybridPlatformService {
 
 			if (!config) continue;
 
-			// Reserve slot before checking capacity
-			this.reserveSlot(platform);
+			// Try to acquire a slot (serialized check + reserve)
+			const acquired = await this.tryAcquireSlot(platform, config.limit);
+
+			if (!acquired) {
+				continue;
+			}
 
 			try {
-				const currentCount = await this.getActiveBotCount(platform);
-
-				if (currentCount > config.limit) {
-					continue;
-				}
-
 				// Mark as processing
 				await this.db
 					.update(deploymentQueueTable)
@@ -572,17 +572,51 @@ export class HybridPlatformService {
 	}
 
 	/**
-	 * Reserves a deployment slot for a platform.
-	 * Must be called before attempting deployment to prevent race conditions.
+	 * Attempts to acquire a deployment slot for a platform.
+	 *
+	 * Uses a queue to serialize capacity checks, ensuring that concurrent
+	 * requests don't all check before any reserve. This prevents the
+	 * "thundering herd" problem where 50 requests all see capacity available.
+	 *
+	 * @returns true if slot was acquired, false if at capacity
 	 */
-	private reserveSlot(platform: DeploymentPlatform): void {
-		const current = this.pendingDeployments.get(platform) ?? 0;
+	private async tryAcquireSlot(
+		platform: DeploymentPlatform,
+		limit: number,
+	): Promise<boolean> {
+		// Chain onto existing queue for this platform
+		const existingQueue =
+			this.capacityQueues.get(platform) ?? Promise.resolve();
 
-		this.pendingDeployments.set(platform, current + 1);
+		// Create our check as a chained promise
+		const checkPromise = existingQueue.then(async () => {
+			const dbCount = await this.getDbBotCount(platform);
+			const pending = this.pendingDeployments.get(platform) ?? 0;
+
+			if (dbCount + pending >= limit) {
+				return false;
+			}
+
+			// Got a slot, increment pending
+			this.pendingDeployments.set(platform, pending + 1);
+
+			return true;
+		});
+
+		// Update the queue (ignore the boolean result for queue chaining)
+		this.capacityQueues.set(
+			platform,
+			checkPromise.then(
+				() => {},
+				() => {},
+			),
+		);
+
+		return checkPromise;
 	}
 
 	/**
-	 * Releases a previously reserved deployment slot.
+	 * Releases a previously acquired deployment slot.
 	 * Must be called after deployment completes (success or failure).
 	 */
 	private releaseSlot(platform: DeploymentPlatform): void {
@@ -591,6 +625,24 @@ export class HybridPlatformService {
 		if (current > 0) {
 			this.pendingDeployments.set(platform, current - 1);
 		}
+	}
+
+	/**
+	 * Gets the database count of active bots (without pending reservations).
+	 * Used internally by tryAcquireSlot for atomic check+reserve.
+	 */
+	private async getDbBotCount(platform: DeploymentPlatform): Promise<number> {
+		const result = await this.db
+			.select({ count: count() })
+			.from(botsTable)
+			.where(
+				and(
+					eq(botsTable.deploymentPlatform, platform),
+					inArray(botsTable.status, [...ACTIVE_BOT_STATUSES]),
+				),
+			);
+
+		return result[0]?.count ?? 0;
 	}
 
 	/**
