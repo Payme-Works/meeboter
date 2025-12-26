@@ -146,6 +146,15 @@ export class BotDeploymentService {
 			// Deployed successfully, update platform info
 			// Status stays as DEPLOYING, the bot itself will update to JOINING_CALL
 			// when it actually starts attempting to join the meeting
+
+			// Defensive check: warn if platform is set but identifier is missing
+			if (deployResult.platform && !deployResult.platformIdentifier) {
+				console.error(
+					`[BotDeploymentService] WARNING: Bot ${botId} deployed on '${deployResult.platform}' but platformIdentifier is missing!`,
+					{ deployResult },
+				);
+			}
+
 			const result = await this.db
 				.update(botsTable)
 				.set({
@@ -167,8 +176,12 @@ export class BotDeploymentService {
 				? ` (slot: ${deployResult.slotName})`
 				: "";
 
+			const identifierLabel = deployResult.platformIdentifier
+				? ` [${deployResult.platformIdentifier}]`
+				: "";
+
 			console.log(
-				`[BotDeploymentService] Bot ${botId} deployed via ${deployResult.platform}${slotLabel}`,
+				`[BotDeploymentService] Bot ${botId} deployed via ${deployResult.platform}${identifierLabel}${slotLabel}`,
 			);
 
 			return {

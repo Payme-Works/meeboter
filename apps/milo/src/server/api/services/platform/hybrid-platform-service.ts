@@ -186,6 +186,17 @@ export class HybridPlatformService {
 			);
 
 			if (result) {
+				// Defensive check: ensure identifier is present
+				if (!result.identifier) {
+					console.error(
+						`[HybridPlatformService] Platform '${platform}' returned success but identifier is missing for bot ${botConfig.id}`,
+						{ result },
+					);
+
+					// Treat as deployment failure, try next platform
+					continue;
+				}
+
 				return {
 					platform,
 					platformIdentifier: result.identifier,
@@ -339,6 +350,17 @@ export class HybridPlatformService {
 			);
 
 			if (result) {
+				// Defensive check: ensure identifier is present
+				if (!result.identifier) {
+					console.error(
+						`[HybridPlatformService] Platform '${platform}' returned success but identifier is missing for queued bot ${bot.id}`,
+						{ result },
+					);
+
+					// Treat as deployment failure, try next platform
+					continue;
+				}
+
 				// Update bot with platform info
 				await this.db
 					.update(botsTable)
@@ -354,7 +376,7 @@ export class HybridPlatformService {
 					.where(eq(deploymentQueueTable.id, nextInQueue.id));
 
 				console.log(
-					`[HybridPlatformService] Deployed queued bot ${bot.id} on '${platform}'`,
+					`[HybridPlatformService] Deployed queued bot ${bot.id} on '${platform}' [${result.identifier}]`,
 				);
 
 				return;
