@@ -95,3 +95,48 @@ export const botPoolQueueTable = pgTable(
 		),
 	],
 );
+
+// ─── Global Deployment Queue ────────────────────────────────────────────────
+
+/**
+ * Deployment queue status codes
+ */
+const deploymentQueueStatus = z.enum(["WAITING", "PROCESSING", "EXPIRED"]);
+
+type DeploymentQueueStatus = z.infer<typeof deploymentQueueStatus>;
+
+/**
+ * Global deployment queue for hybrid infrastructure
+ * Holds bots waiting when all platforms are at capacity
+ */
+export const deploymentQueueTable = pgTable(
+	"deployment_queue",
+	{
+		/** Unique identifier for the queue entry */
+		id: serial("id").primaryKey(),
+		/** Reference to the bot waiting for deployment */
+		botId: integer("bot_id")
+			.references(() => botsTable.id, { onDelete: "cascade" })
+			.notNull()
+			.unique(),
+		/** Priority level (lower = higher priority) */
+		priority: integer("priority").notNull().default(0),
+		/** When the request was queued */
+		queuedAt: timestamp("queued_at").notNull().defaultNow(),
+		/** When the request should timeout */
+		timeoutAt: timestamp("timeout_at").notNull(),
+		/** Current status of the queue entry */
+		status: varchar("status", { length: 20 })
+			.$type<DeploymentQueueStatus>()
+			.notNull()
+			.default("WAITING"),
+	},
+	(table) => [
+		index("deployment_queue_bot_id_idx").on(table.botId),
+		index("deployment_queue_status_idx").on(table.status),
+		index("deployment_queue_priority_queued_at_idx").on(
+			table.priority,
+			table.queuedAt,
+		),
+	],
+);

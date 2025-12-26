@@ -1,3 +1,5 @@
+import { ECSClient } from "@aws-sdk/client-ecs";
+
 import { env } from "@/env";
 import { db } from "@/server/database/db";
 import { BotDeploymentService } from "./bot-deployment-service";
@@ -5,113 +7,206 @@ import { BotPoolService } from "./bot-pool-service";
 import { CoolifyService } from "./coolify-service";
 import { DeploymentQueueService } from "./deployment-queue-service";
 import { ImagePullLockService } from "./image-pull-lock-service";
-import { createPlatformService, getPlatformType } from "./platform";
-import type { AWSPlatformService } from "./platform/aws-platform-service";
+import {
+	type AWSBotEnvConfig,
+	type AWSPlatformConfig,
+	AWSPlatformService,
+} from "./platform/aws-platform-service";
+import { CoolifyPlatformService } from "./platform/coolify-platform-service";
+import {
+	type DeploymentPlatform,
+	HybridPlatformService,
+} from "./platform/hybrid-platform-service";
 import {
 	createKubernetesPlatformService,
 	type KubernetesPlatformService,
 } from "./platform/kubernetes-platform-service";
-import { createAWSPlatformService } from "./platform/platform-factory";
 import type { PlatformService } from "./platform/platform-service";
+
+// ─── Types ──────────────────────────────────────────────────────────────────
 
 /**
  * Service container for dependency injection
  */
 export interface Services {
-	platform: PlatformService;
+	hybrid: HybridPlatformService;
 	deployment: BotDeploymentService;
 
 	/**
 	 * Coolify-specific services for admin operations
-	 * Only available when platform is 'coolify'
+	 * Only available when coolify is in PLATFORM_PRIORITY
 	 */
 	coolify?: CoolifyService;
 	pool?: BotPoolService;
 
 	/**
 	 * Deployment queue for limiting concurrent Coolify deployments
-	 * Only available when platform is 'coolify'
+	 * Only available when coolify is in PLATFORM_PRIORITY
 	 */
 	deploymentQueue?: DeploymentQueueService;
 
 	/**
 	 * Kubernetes-specific service for admin operations
-	 * Only available when platform is 'k8s'
+	 * Only available when k8s is in PLATFORM_PRIORITY
 	 */
 	k8s?: KubernetesPlatformService;
 
 	/**
 	 * AWS-specific service for admin operations
-	 * Only available when platform is 'aws'
+	 * Only available when aws is in PLATFORM_PRIORITY
 	 */
 	aws?: AWSPlatformService;
 }
 
+// ─── Platform Service Factories ─────────────────────────────────────────────
+
+function createCoolifyPlatformService(): {
+	service: CoolifyPlatformService;
+	coolify: CoolifyService;
+	pool: BotPoolService;
+	deploymentQueue: DeploymentQueueService;
+} {
+	const imagePullLock = new ImagePullLockService();
+	const deploymentQueue = new DeploymentQueueService();
+
+	const coolify = new CoolifyService(
+		{
+			apiUrl: env.COOLIFY_API_URL,
+			apiToken: env.COOLIFY_API_TOKEN,
+			projectUuid: env.COOLIFY_PROJECT_UUID,
+			serverUuid: env.COOLIFY_SERVER_UUID,
+			environmentName: env.COOLIFY_ENVIRONMENT_NAME,
+			destinationUuid: env.COOLIFY_DESTINATION_UUID,
+		},
+		{
+			miloUrl: env.NEXT_PUBLIC_APP_ORIGIN_URL,
+			miloAuthToken: env.MILO_AUTH_TOKEN,
+			s3Endpoint: env.S3_ENDPOINT,
+			s3AccessKey: env.S3_ACCESS_KEY,
+			s3SecretKey: env.S3_SECRET_KEY,
+			s3BucketName: env.S3_BUCKET_NAME,
+			s3Region: env.S3_REGION,
+		},
+		{
+			ghcrOrg: env.GHCR_ORG,
+		},
+		imagePullLock,
+	);
+
+	const pool = new BotPoolService(db, coolify, deploymentQueue);
+	const service = new CoolifyPlatformService(pool, coolify);
+
+	return { service, coolify, pool, deploymentQueue };
+}
+
+function createAWSPlatformService(): AWSPlatformService | undefined {
+	if (!env.AWS_REGION || !env.AWS_BOT_LIMIT) {
+		return undefined;
+	}
+
+	const ecsClient = new ECSClient({ region: env.AWS_REGION });
+
+	const config: AWSPlatformConfig = {
+		cluster: env.ECS_CLUSTER ?? "",
+		subnets: (env.ECS_SUBNETS ?? "").split(",").filter(Boolean),
+		securityGroups: (env.ECS_SECURITY_GROUPS ?? "").split(",").filter(Boolean),
+		taskDefinitions: {
+			zoom: env.ECS_TASK_DEF_ZOOM ?? "",
+			"microsoft-teams": env.ECS_TASK_DEF_MICROSOFT_TEAMS ?? "",
+			"google-meet": env.ECS_TASK_DEF_GOOGLE_MEET ?? "",
+		},
+		assignPublicIp: env.ECS_ASSIGN_PUBLIC_IP,
+	};
+
+	const botEnvConfig: AWSBotEnvConfig = {
+		miloUrl: env.NEXT_PUBLIC_APP_ORIGIN_URL,
+		miloAuthToken: env.MILO_AUTH_TOKEN ?? "",
+		s3Endpoint: env.S3_ENDPOINT,
+		s3AccessKey: env.S3_ACCESS_KEY,
+		s3SecretKey: env.S3_SECRET_KEY,
+		s3BucketName: env.S3_BUCKET_NAME,
+		s3Region: env.S3_REGION,
+	};
+
+	return new AWSPlatformService(ecsClient, config, botEnvConfig);
+}
+
+function createK8sPlatformService(): KubernetesPlatformService | undefined {
+	if (!env.K8S_BOT_LIMIT) {
+		return undefined;
+	}
+
+	const imagePullLock = new ImagePullLockService();
+
+	return createKubernetesPlatformService(imagePullLock);
+}
+
+// ─── Service Creation ───────────────────────────────────────────────────────
+
 /**
  * Creates all services with their dependencies wired up
  *
- * Uses the platform factory to create the appropriate platform service
- * based on the DEPLOYMENT_PLATFORM environment variable.
+ * Uses HybridPlatformService to coordinate across multiple platforms
+ * based on PLATFORM_PRIORITY environment variable.
  */
 function createServices(): Services {
-	const platform = createPlatformService();
-	const deployment = new BotDeploymentService(db, platform);
+	const platformServices: {
+		k8s?: PlatformService;
+		aws?: PlatformService;
+		coolify?: PlatformService;
+	} = {};
 
-	const services: Services = { platform, deployment };
+	const services: Partial<Services> = {};
 
-	// For Coolify platform, also expose the underlying services
-	// for admin/monitoring operations (pool stats, slot recovery)
-	if (getPlatformType() === "coolify") {
-		const imagePullLock = new ImagePullLockService();
-		const deploymentQueue = new DeploymentQueueService();
+	// Get enabled platforms from priority list
+	// During build phase, env vars are skipped, so use empty array
+	const platformPriority = env.PLATFORM_PRIORITY ?? [];
 
-		const coolify = new CoolifyService(
-			{
-				apiUrl: env.COOLIFY_API_URL,
-				apiToken: env.COOLIFY_API_TOKEN,
-				projectUuid: env.COOLIFY_PROJECT_UUID,
-				serverUuid: env.COOLIFY_SERVER_UUID,
-				environmentName: env.COOLIFY_ENVIRONMENT_NAME,
-				destinationUuid: env.COOLIFY_DESTINATION_UUID,
-			},
-			{
-				miloUrl: env.NEXT_PUBLIC_APP_ORIGIN_URL,
-				miloAuthToken: env.MILO_AUTH_TOKEN,
-				s3Endpoint: env.S3_ENDPOINT,
-				s3AccessKey: env.S3_ACCESS_KEY,
-				s3SecretKey: env.S3_SECRET_KEY,
-				s3BucketName: env.S3_BUCKET_NAME,
-				s3Region: env.S3_REGION,
-			},
-			{
-				ghcrOrg: env.GHCR_ORG,
-			},
-			imagePullLock,
-		);
+	const enabledPlatforms = platformPriority.filter(
+		(p): p is DeploymentPlatform => p !== "local",
+	);
 
-		const pool = new BotPoolService(db, coolify, deploymentQueue);
+	// Create platform services based on priority
+	for (const platform of enabledPlatforms) {
+		if (platform === "k8s") {
+			const k8sService = createK8sPlatformService();
 
-		services.coolify = coolify;
-		services.pool = pool;
-		services.deploymentQueue = deploymentQueue;
+			if (k8sService) {
+				platformServices.k8s = k8sService;
+				services.k8s = k8sService;
+			}
+		}
+
+		if (platform === "aws") {
+			const awsService = createAWSPlatformService();
+
+			if (awsService) {
+				platformServices.aws = awsService;
+				services.aws = awsService;
+			}
+		}
+
+		if (platform === "coolify") {
+			const coolifyResult = createCoolifyPlatformService();
+			platformServices.coolify = coolifyResult.service;
+			services.coolify = coolifyResult.coolify;
+			services.pool = coolifyResult.pool;
+			services.deploymentQueue = coolifyResult.deploymentQueue;
+		}
 	}
 
-	// For Kubernetes platform, expose the underlying service
-	// for admin/monitoring operations (job details, events, metrics)
-	if (getPlatformType() === "k8s") {
-		const imagePullLock = new ImagePullLockService();
+	// Create hybrid platform service
+	const hybrid = new HybridPlatformService(db, platformServices);
+	const deployment = new BotDeploymentService(db, hybrid);
 
-		services.k8s = createKubernetesPlatformService(imagePullLock);
-	}
-
-	// For AWS platform, expose the underlying service
-	// for admin/monitoring operations (task counts, metrics)
-	if (getPlatformType() === "aws") {
-		services.aws = createAWSPlatformService();
-	}
-
-	return services;
+	return {
+		hybrid,
+		deployment,
+		...services,
+	} as Services;
 }
+
+// ─── Singleton Export ───────────────────────────────────────────────────────
 
 /**
  * Singleton service container
@@ -120,8 +215,3 @@ function createServices(): Services {
  * across the application.
  */
 export const services = createServices();
-// Bot deployment service exports
-// Bot pool service exports (used by Coolify platform)
-// Coolify service exports (used by Coolify platform)
-// Deployment queue service exports (limits concurrent Coolify deployments)
-// Platform abstraction exports

@@ -397,12 +397,16 @@ interface InfrastructureCardProps {
 	};
 	botSequence: BotActivityStatus[];
 	platform: Platform;
+	platforms: Platform[];
+	queueDepth: number;
 }
 
 function InfrastructureCard({
 	activityStats,
 	botSequence,
 	platform,
+	platforms,
+	queueDepth,
 }: InfrastructureCardProps) {
 	const [isPlatformExpanded, setIsPlatformExpanded] = useState(false);
 
@@ -416,6 +420,8 @@ function InfrastructureCard({
 		todayFailed,
 	} = activityStats;
 
+	const isMultiPlatform = platforms.length > 1;
+
 	return (
 		<StatCard className="min-h-[180px] relative overflow-hidden">
 			{/* Live indicator */}
@@ -427,6 +433,16 @@ function InfrastructureCard({
 					<PlatformIcon platform={platform.platform} className="h-5 w-5" />
 				</StatCardIcon>
 				<StatCardTitle>Infrastructure</StatCardTitle>
+				{isMultiPlatform ? (
+					<span className="text-xs text-muted-foreground">
+						{platforms.length} platforms
+					</span>
+				) : null}
+				{queueDepth > 0 ? (
+					<span className="ml-auto mr-6 px-1.5 py-0.5 text-xs font-medium bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded">
+						{queueDepth} queued
+					</span>
+				) : null}
 			</StatCardHeader>
 
 			{/* Content */}
@@ -483,12 +499,66 @@ function InfrastructureCard({
 					<span>failed</span>
 				</div>
 
-				{/* Platform Section (Collapsible) */}
-				<PlatformSection
-					platform={platform}
-					isExpanded={isPlatformExpanded}
-					onToggle={() => setIsPlatformExpanded(!isPlatformExpanded)}
-				/>
+				{/* Platform Section (Collapsible) - shows all platforms for multi-platform */}
+				{isMultiPlatform ? (
+					<div className="border-t border-border/50 mt-3 pt-3">
+						<button
+							onClick={() => setIsPlatformExpanded(!isPlatformExpanded)}
+							className="w-full flex items-center justify-between text-xs text-muted-foreground hover:text-foreground transition-colors group"
+							type="button"
+						>
+							<span className="flex items-center gap-1.5">
+								<ChevronDown
+									className={cn(
+										"h-3 w-3 transition-transform duration-200",
+										isPlatformExpanded && "rotate-180",
+									)}
+								/>
+								<span>Platforms</span>
+							</span>
+							<span className="flex items-center gap-1">
+								{platforms.map((p) => (
+									<span
+										key={p.platform}
+										className="px-1.5 py-0.5 rounded bg-muted/50 flex items-center gap-1"
+									>
+										<PlatformIcon platform={p.platform} className="h-3 w-3" />
+									</span>
+								))}
+							</span>
+						</button>
+
+						<div
+							className={cn(
+								"overflow-hidden transition-all duration-200",
+								isPlatformExpanded
+									? "max-h-96 mt-2 opacity-100"
+									: "max-h-0 opacity-0",
+							)}
+						>
+							<div className="space-y-2">
+								{platforms.map((p) => (
+									<div
+										key={p.platform}
+										className="p-2.5 rounded bg-muted/30 border border-border/30"
+									>
+										<div className="flex items-center gap-1.5 mb-1.5 text-xs font-medium">
+											<PlatformIcon platform={p.platform} className="h-3 w-3" />
+											<span>{PLATFORM_NAMES[p.platform]}</span>
+										</div>
+										<PlatformMetricsContent platform={p} />
+									</div>
+								))}
+							</div>
+						</div>
+					</div>
+				) : (
+					<PlatformSection
+						platform={platform}
+						isExpanded={isPlatformExpanded}
+						onToggle={() => setIsPlatformExpanded(!isPlatformExpanded)}
+					/>
+				)}
 			</StatCardContent>
 
 			{/* Footer */}
@@ -591,23 +661,37 @@ export function InfrastructureCardLoader() {
 			refetchInterval: 5000,
 		});
 
-	const platformQuery = api.infrastructure.getPlatform.useQuery(undefined, {
+	// Use getPlatforms (plural) for hybrid support, fall back to getPlatform
+	const platformsQuery = api.infrastructure.getPlatforms.useQuery(undefined, {
 		refetchInterval: 10000,
 	});
 
-	if (isStatsLoading || isSequenceLoading || platformQuery.isLoading) {
+	// Get queue stats for hybrid infrastructure
+	const queueStatsQuery = api.infrastructure.getQueueStats.useQuery(undefined, {
+		refetchInterval: 5000,
+	});
+
+	if (isStatsLoading || isSequenceLoading || platformsQuery.isLoading) {
 		return <InfrastructureCardSkeleton />;
 	}
 
-	if (!activityStats || !botSequence || !platformQuery.data) {
+	if (!activityStats || !botSequence || !platformsQuery.data) {
 		return <InfrastructureCardUnavailable />;
 	}
+
+	// Use first platform for the card header icon
+	const primaryPlatform = platformsQuery.data[0] ?? {
+		platform: "local" as const,
+		message: "Local development mode",
+	};
 
 	return (
 		<InfrastructureCard
 			activityStats={activityStats}
 			botSequence={botSequence}
-			platform={platformQuery.data}
+			platform={primaryPlatform}
+			platforms={platformsQuery.data}
+			queueDepth={queueStatsQuery.data?.total ?? 0}
 		/>
 	);
 }

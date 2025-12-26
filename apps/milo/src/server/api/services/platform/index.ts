@@ -1,2 +1,4 @@
-export { createPlatformService, getPlatformType } from "./platform-factory";
-export type { PlatformService } from "./platform-service";
+export {
+	type DeploymentPlatform,
+	HybridPlatformService,
+} from "./hybrid-platform-service";

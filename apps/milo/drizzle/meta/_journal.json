@@ -134,6 +134,13 @@
 			"when": 1766588737702,
 			"tag": "0018_uppercase_slot_status",
 			"breakpoints": true
+		},
+		{
+			"idx": 19,
+			"version": "7",
+			"when": 1766675137702,
+			"tag": "0019_hybrid_platform_support",
+			"breakpoints": true
 		}
 	]
 }

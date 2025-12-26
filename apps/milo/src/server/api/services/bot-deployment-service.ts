@@ -3,7 +3,7 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 
 import type * as schema from "@/server/database/schema";
 import { type BotConfig, botsTable } from "@/server/database/schema";
-import type { PlatformService } from "./platform";
+import type { HybridPlatformService } from "./platform";
 
 /**
  * Custom error for bot deployment failures
@@ -23,19 +23,19 @@ interface DeployBotResult {
 	queued: boolean;
 	queuePosition?: number;
 	estimatedWaitMs?: number;
+	platform?: string;
 }
 
 /**
  * Service for orchestrating bot deployments
  *
- * Handles the high-level deployment flow: decides between local dev
- * or production platform deployment, coordinates with PlatformService,
- * and manages bot status updates.
+ * Handles the high-level deployment flow using HybridPlatformService
+ * to coordinate across multiple deployment platforms.
  */
 export class BotDeploymentService {
 	constructor(
 		private readonly db: PostgresJsDatabase<typeof schema>,
-		private readonly platform: PlatformService,
+		private readonly hybridPlatform: HybridPlatformService,
 	) {}
 
 	/**
@@ -80,8 +80,7 @@ export class BotDeploymentService {
 	 * Releases a bot's platform resources and processes any queued bots
 	 */
 	async release(botId: number): Promise<void> {
-		await this.platform.releaseBot(botId);
-		await this.platform.processQueue();
+		await this.hybridPlatform.releaseBot(botId);
 	}
 
 	/**
@@ -99,7 +98,7 @@ export class BotDeploymentService {
 	}
 
 	/**
-	 * Deploys a bot via the configured platform (local, Coolify, or AWS)
+	 * Deploys a bot via the hybrid platform service
 	 */
 	private async deployViaPlatform(
 		botId: number,
@@ -113,8 +112,8 @@ export class BotDeploymentService {
 				.set({ status: "DEPLOYING" })
 				.where(eq(botsTable.id, botId));
 
-			// Deploy via the platform service
-			const deployResult = await this.platform.deployBot(
+			// Deploy via the hybrid platform service
+			const deployResult = await this.hybridPlatform.deployBot(
 				config,
 				queueTimeoutMs,
 			);
@@ -150,14 +149,14 @@ export class BotDeploymentService {
 				};
 			}
 
-			// Deployed successfully, update platform info and clear any previous deployment error
+			// Deployed successfully, update platform info
 			// Status stays as DEPLOYING, the bot itself will update to JOINING_CALL
 			// when it actually starts attempting to join the meeting
 			const result = await this.db
 				.update(botsTable)
 				.set({
-					deploymentPlatform: this.platform.platformName,
-					platformIdentifier: deployResult.identifier ?? null,
+					deploymentPlatform: deployResult.platform ?? null,
+					platformIdentifier: deployResult.platformIdentifier ?? null,
 				})
 				.where(eq(botsTable.id, botId))
 				.returning();
@@ -175,10 +174,14 @@ export class BotDeploymentService {
 				: "";
 
 			console.log(
-				`[BotDeploymentService] Bot ${botId} deployed via ${this.platform.platformName}${slotLabel}`,
+				`[BotDeploymentService] Bot ${botId} deployed via ${deployResult.platform}${slotLabel}`,
 			);
 
-			return { bot: deployedBot, queued: false };
+			return {
+				bot: deployedBot,
+				queued: false,
+				platform: deployResult.platform,
+			};
 		} catch (error) {
 			await this.db
 				.update(botsTable)

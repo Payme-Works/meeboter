@@ -6,11 +6,15 @@ import { formatDistanceToNow } from "date-fns";
 import {
 	Ban,
 	Circle,
+	Cloud,
+	Container,
 	ExternalLink,
+	Hexagon,
 	MessageSquare,
 	PhoneOff,
 	RefreshCw,
 	Rocket,
+	Server,
 	Video,
 	X,
 } from "lucide-react";
@@ -52,6 +56,26 @@ import { BroadcastCenterDialog } from "./_components/broadcast-center-dialog";
 import { CancelDeploymentDialog } from "./_components/cancel-deployment-dialog";
 import { MultiBotJoinDialog } from "./_components/multi-bot-join-dialog";
 import { RemoveFromCallDialog } from "./_components/remove-from-call-dialog";
+
+// ─── Platform Configuration ───────────────────────────────────────────────────
+
+const PLATFORM_ICONS = {
+	k8s: Container,
+	aws: Cloud,
+	coolify: Hexagon,
+	local: Server,
+} as const;
+
+const DEPLOYMENT_PLATFORM_NAMES = {
+	k8s: "K8s",
+	aws: "AWS",
+	coolify: "Coolify",
+	local: "Local",
+} as const;
+
+type DeploymentPlatform = keyof typeof PLATFORM_ICONS;
+
+// ─── Status Configuration ─────────────────────────────────────────────────────
 
 const STATUS_CONFIG: Record<
 	string,
@@ -403,6 +427,28 @@ export default function BotsPage() {
 							</span>
 							{formatStatus(status)}
 						</Badge>
+					);
+				},
+			},
+			{
+				accessorKey: "deploymentPlatform",
+				header: "Infra",
+				cell: ({ row }) => {
+					const platform = row.original
+						.deploymentPlatform as DeploymentPlatform | null;
+
+					if (!platform) {
+						return <span className="text-muted-foreground/50">—</span>;
+					}
+
+					const Icon = PLATFORM_ICONS[platform];
+					const name = DEPLOYMENT_PLATFORM_NAMES[platform];
+
+					return (
+						<div className="flex items-center gap-1.5">
+							<Icon className="h-3.5 w-3.5 text-muted-foreground" />
+							<span className="text-muted-foreground text-sm">{name}</span>
+						</div>
 					);
 				},
 			},

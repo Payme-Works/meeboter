@@ -146,7 +146,7 @@ export class BotHealthWorker extends BaseWorker<BotHealthResult> {
 				// Release platform resources if assigned
 				if (bot.applicationUuid) {
 					try {
-						await this.services.platform.releaseBot(bot.id);
+						await this.services.hybrid.releaseBot(bot.id);
 						result.resourcesReleased++;
 
 						console.log(

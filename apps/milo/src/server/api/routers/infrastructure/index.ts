@@ -6,6 +6,7 @@ import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { db } from "@/server/database/db";
 import { botsTable } from "@/server/database/schema";
 import { services } from "../../services";
+import type { DeploymentPlatform } from "../../services/platform";
 import { awsRouter } from "./aws";
 import { coolifyRouter } from "./coolify";
 import { k8sRouter } from "./k8s";
@@ -70,6 +71,41 @@ const platformInfoSchema = z.discriminatedUnion("platform", [
 		message: z.string(),
 	}),
 ]);
+
+// ─── Hybrid Infrastructure Schemas ──────────────────────────────────────────
+
+/**
+ * Platform capacity schema for hybrid infrastructure
+ */
+const platformCapacitySchema = z.object({
+	platform: z.enum(["k8s", "aws", "coolify"]),
+	used: z.number(),
+	limit: z.number(),
+	queueTimeout: z.number(),
+	isEnabled: z.boolean(),
+});
+
+/**
+ * Queued bot schema for global queue display
+ */
+const queuedBotSchema = z.object({
+	id: z.number(),
+	botId: z.number(),
+	botName: z.string().nullable(),
+	meetingPlatform: z.string(),
+	queuedAt: z.date(),
+	timeoutAt: z.date(),
+	position: z.number(),
+});
+
+/**
+ * Queue statistics schema
+ */
+const queueStatsSchema = z.object({
+	total: z.number(),
+	oldest: z.date().nullable(),
+	avgWaitMs: z.number(),
+});
 
 // ─── Main Infrastructure Router ──────────────────────────────────────────────
 
@@ -204,93 +240,164 @@ export const infrastructureRouter = createTRPCRouter({
 		}),
 
 	/**
-	 * Get platform-specific info for dashboard card
-	 * Returns platform info based on DEPLOYMENT_PLATFORM
+	 * Get platform-specific info for dashboard card (single platform)
+	 * @deprecated Use getPlatforms for multi-platform support
 	 */
 	getPlatform: protectedProcedure
 		.input(z.void())
 		.output(platformInfoSchema)
 		.query(async () => {
-			const platform = env.DEPLOYMENT_PLATFORM;
+			const enabledPlatforms = services.hybrid.getEnabledPlatforms();
+			const platform = enabledPlatforms[0];
 
-			switch (platform) {
-				case "k8s": {
-					const metrics = services.k8s
-						? await services.k8s.getClusterMetrics()
-						: {
-								namespace: "N/A",
-								PENDING: 0,
-								ACTIVE: 0,
-								SUCCEEDED: 0,
-								FAILED: 0,
-								total: 0,
-							};
+			if (!platform) {
+				return {
+					platform: "local" as const,
+					message: "Running in local development mode",
+				};
+			}
 
-					return {
-						platform: "k8s" as const,
-						namespace: metrics.namespace,
-						PENDING: metrics.PENDING,
-						ACTIVE: metrics.ACTIVE,
-						SUCCEEDED: metrics.SUCCEEDED,
-						FAILED: metrics.FAILED,
-					};
-				}
+			return await getPlatformInfo(platform);
+		}),
 
-				case "aws": {
-					const metrics = services.aws
-						? await services.aws.getClusterMetrics()
-						: {
-								cluster: env.ECS_CLUSTER ?? "N/A",
-								region: env.AWS_REGION ?? "N/A",
-								PROVISIONING: 0,
-								RUNNING: 0,
-								STOPPED: 0,
-								FAILED: 0,
-								total: 0,
-							};
+	/**
+	 * Get all active platforms with their info for dashboard card
+	 * Returns array of platform info for multi-platform display
+	 */
+	getPlatforms: protectedProcedure
+		.input(z.void())
+		.output(z.array(platformInfoSchema))
+		.query(async () => {
+			const enabledPlatforms = services.hybrid.getEnabledPlatforms();
 
-					return {
-						platform: "aws" as const,
-						cluster: metrics.cluster,
-						region: metrics.region,
-						PROVISIONING: metrics.PROVISIONING,
-						RUNNING: metrics.RUNNING,
-						STOPPED: metrics.STOPPED,
-						FAILED: metrics.FAILED,
-					};
-				}
-
-				case "coolify": {
-					const poolStats = services.pool
-						? await services.pool.getPoolStats()
-						: {
-								total: 0,
-								IDLE: 0,
-								DEPLOYING: 0,
-								HEALTHY: 0,
-								ERROR: 0,
-								maxSize: 100,
-							};
-
-					const queueStats = services.pool
-						? await services.pool.getQueueStats()
-						: { length: 0, oldestQueuedAt: null, avgWaitMs: 0 };
-
-					return {
-						platform: "coolify" as const,
-						queueDepth: queueStats.length,
-						IDLE: poolStats.IDLE,
-						DEPLOYING: poolStats.DEPLOYING,
-						HEALTHY: poolStats.HEALTHY,
-						ERROR: poolStats.ERROR,
-					};
-				}
-
-				default:
-					return {
+			if (enabledPlatforms.length === 0) {
+				return [
+					{
 						platform: "local" as const,
 						message: "Running in local development mode",
-					};
+					},
+				];
 			}
+
+			const platformInfos = await Promise.all(
+				enabledPlatforms.map((platform) => getPlatformInfo(platform)),
+			);
+
+			return platformInfos;
+		}),
+
+	/**
+	 * Get capacity stats for all enabled platforms
+	 * Used for hybrid infrastructure monitoring
+	 */
+	getActivePlatforms: protectedProcedure
+		.input(z.void())
+		.output(z.array(platformCapacitySchema))
+		.query(async () => {
+			return await services.hybrid.getCapacityStats();
+		}),
+
+	/**
+	 * Get global queue statistics
+	 * Shows queue depth and wait times
+	 */
+	getQueueStats: protectedProcedure
+		.input(z.void())
+		.output(queueStatsSchema)
+		.query(async () => {
+			return await services.hybrid.getQueueStats();
+		}),
+
+	/**
+	 * Get all bots currently in the global deployment queue
+	 */
+	getQueuedBots: protectedProcedure
+		.input(z.void())
+		.output(z.array(queuedBotSchema))
+		.query(async () => {
+			return await services.hybrid.getQueuedBots();
 		}),
 });
+
+// ─── Helper Functions ───────────────────────────────────────────────────────
+
+/**
+ * Get platform-specific info for a single platform
+ */
+async function getPlatformInfo(
+	platform: DeploymentPlatform,
+): Promise<z.infer<typeof platformInfoSchema>> {
+	switch (platform) {
+		case "k8s": {
+			const metrics = services.k8s
+				? await services.k8s.getClusterMetrics()
+				: {
+						namespace: "N/A",
+						PENDING: 0,
+						ACTIVE: 0,
+						SUCCEEDED: 0,
+						FAILED: 0,
+						total: 0,
+					};
+
+			return {
+				platform: "k8s" as const,
+				namespace: metrics.namespace,
+				PENDING: metrics.PENDING,
+				ACTIVE: metrics.ACTIVE,
+				SUCCEEDED: metrics.SUCCEEDED,
+				FAILED: metrics.FAILED,
+			};
+		}
+
+		case "aws": {
+			const metrics = services.aws
+				? await services.aws.getClusterMetrics()
+				: {
+						cluster: env.ECS_CLUSTER ?? "N/A",
+						region: env.AWS_REGION ?? "N/A",
+						PROVISIONING: 0,
+						RUNNING: 0,
+						STOPPED: 0,
+						FAILED: 0,
+						total: 0,
+					};
+
+			return {
+				platform: "aws" as const,
+				cluster: metrics.cluster,
+				region: metrics.region,
+				PROVISIONING: metrics.PROVISIONING,
+				RUNNING: metrics.RUNNING,
+				STOPPED: metrics.STOPPED,
+				FAILED: metrics.FAILED,
+			};
+		}
+
+		case "coolify": {
+			const poolStats = services.pool
+				? await services.pool.getPoolStats()
+				: {
+						total: 0,
+						IDLE: 0,
+						DEPLOYING: 0,
+						HEALTHY: 0,
+						ERROR: 0,
+						maxSize: 100,
+					};
+
+			const queueStats = services.pool
+				? await services.pool.getQueueStats()
+				: { length: 0, oldestQueuedAt: null, avgWaitMs: 0 };
+
+			return {
+				platform: "coolify" as const,
+				queueDepth: queueStats.length,
+				IDLE: poolStats.IDLE,
+				DEPLOYING: poolStats.DEPLOYING,
+				HEALTHY: poolStats.HEALTHY,
+				ERROR: poolStats.ERROR,
+			};
+		}
+	}
+}

@@ -53,7 +53,7 @@ export const env = createEnv({
 		// Deployment Queue Configuration
 		DEPLOYMENT_QUEUE_MAX_CONCURRENT: z.coerce.number().int().min(1).default(4),
 
-		// AWS ECS Configuration (required when DEPLOYMENT_PLATFORM=aws)
+		// AWS ECS Configuration (required when aws in PLATFORM_PRIORITY)
 		AWS_REGION: z.string().optional(),
 		ECS_CLUSTER: z.string().optional(),
 		ECS_SUBNETS: z.string().optional(),
@@ -65,13 +65,30 @@ export const env = createEnv({
 			.enum(["true", "false"])
 			.default("true")
 			.transform((val) => val === "true"),
+		AWS_BOT_LIMIT: z.coerce.number().int().positive().optional(),
+		AWS_QUEUE_TIMEOUT_MS: z.coerce.number().int().positive().default(30000),
 
-		// Deployment Platform (runtime env var for server-side reading)
-		DEPLOYMENT_PLATFORM: z
-			.enum(["coolify", "aws", "k8s", "local"])
-			.default("local"),
+		// Hybrid Platform Configuration
+		PLATFORM_PRIORITY: z
+			.string()
+			.min(1, "PLATFORM_PRIORITY is required")
+			.default("local")
+			.transform((s) =>
+				s
+					.split(",")
+					.map((p) => p.trim() as "k8s" | "aws" | "coolify" | "local"),
+			),
+		GLOBAL_QUEUE_TIMEOUT_MS: z.coerce.number().int().positive().default(600000),
 
-		// Kubernetes Configuration (required when DEPLOYMENT_PLATFORM=k8s)
+		// Coolify Bot Limit and Queue Timeout
+		COOLIFY_BOT_LIMIT: z.coerce.number().int().positive().optional(),
+		COOLIFY_QUEUE_TIMEOUT_MS: z.coerce
+			.number()
+			.int()
+			.positive()
+			.default(300000),
+
+		// Kubernetes Configuration (required when k8s in PLATFORM_PRIORITY)
 		K8S_NAMESPACE: z.string().default("meeboter"),
 		K8S_IMAGE_REGISTRY: z.string().optional(),
 		K8S_IMAGE_TAG: z.string().default("latest"),
@@ -84,6 +101,8 @@ export const env = createEnv({
 			.enum(["true", "false"])
 			.default("true")
 			.transform((val) => val === "true"),
+		K8S_BOT_LIMIT: z.coerce.number().int().positive().optional(),
+		K8S_QUEUE_TIMEOUT_MS: z.coerce.number().int().positive().default(60000),
 	},
 
 	/**
@@ -128,8 +147,9 @@ export const env = createEnv({
 
 		NEXT_PUBLIC_APP_ORIGIN_URL: process.env.NEXT_PUBLIC_APP_ORIGIN_URL,
 
-		// Deployment Platform
-		DEPLOYMENT_PLATFORM: process.env.DEPLOYMENT_PLATFORM,
+		// Hybrid Platform Configuration
+		PLATFORM_PRIORITY: process.env.PLATFORM_PRIORITY,
+		GLOBAL_QUEUE_TIMEOUT_MS: process.env.GLOBAL_QUEUE_TIMEOUT_MS,
 
 		// Deployment Queue
 		DEPLOYMENT_QUEUE_MAX_CONCURRENT:
@@ -144,6 +164,12 @@ export const env = createEnv({
 		ECS_TASK_DEF_MICROSOFT_TEAMS: process.env.ECS_TASK_DEF_MICROSOFT_TEAMS,
 		ECS_TASK_DEF_GOOGLE_MEET: process.env.ECS_TASK_DEF_GOOGLE_MEET,
 		ECS_ASSIGN_PUBLIC_IP: process.env.ECS_ASSIGN_PUBLIC_IP,
+		AWS_BOT_LIMIT: process.env.AWS_BOT_LIMIT,
+		AWS_QUEUE_TIMEOUT_MS: process.env.AWS_QUEUE_TIMEOUT_MS,
+
+		// Coolify Limits
+		COOLIFY_BOT_LIMIT: process.env.COOLIFY_BOT_LIMIT,
+		COOLIFY_QUEUE_TIMEOUT_MS: process.env.COOLIFY_QUEUE_TIMEOUT_MS,
 
 		// Kubernetes
 		K8S_NAMESPACE: process.env.K8S_NAMESPACE,
@@ -155,6 +181,8 @@ export const env = createEnv({
 		K8S_BOT_MEMORY_REQUEST: process.env.K8S_BOT_MEMORY_REQUEST,
 		K8S_BOT_MEMORY_LIMIT: process.env.K8S_BOT_MEMORY_LIMIT,
 		K8S_IMAGE_PULL_LOCK_ENABLED: process.env.K8S_IMAGE_PULL_LOCK_ENABLED,
+		K8S_BOT_LIMIT: process.env.K8S_BOT_LIMIT,
+		K8S_QUEUE_TIMEOUT_MS: process.env.K8S_QUEUE_TIMEOUT_MS,
 	},
 
 	/**
