@@ -280,7 +280,17 @@ export class AWSPlatformService implements PlatformService<AWSBotStatus> {
 				total: taskArns.length,
 			};
 		} catch (error) {
-			console.error("[AWSPlatform] Failed to get cluster metrics:", error);
+			// Log credential errors concisely without full stack trace
+			const isCredentialError =
+				error instanceof Error && error.name === "CredentialsProviderError";
+
+			if (isCredentialError) {
+				console.warn(
+					"[AWSPlatform] AWS credentials not configured, skipping cluster metrics",
+				);
+			} else {
+				console.error("[AWSPlatform] Failed to get cluster metrics:", error);
+			}
 
 			return {
 				cluster: this.config.cluster,
