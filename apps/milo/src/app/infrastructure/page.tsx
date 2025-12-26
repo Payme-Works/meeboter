@@ -10,6 +10,7 @@ import {
 } from "@/components/page-header";
 import { env } from "@/env";
 import { api, HydrateClient } from "@/trpc/server";
+import { parsePlatformPriority } from "@/utils/platform";
 
 import { DeploymentQueueSection } from "./_components/deployment-queue-table";
 import { InfrastructureHeaderActions } from "./_components/infrastructure-header-actions";
@@ -56,14 +57,12 @@ function PlatformIcon({
 	return <Icon className={className} />;
 }
 
-// ─── Helper Functions ─────────────────────────────────────────────────────────
-
 /**
  * Get enabled platforms from PLATFORM_PRIORITY env var
  * Filters out 'local' as it's only for development
  */
 function getEnabledPlatforms(): Platform[] {
-	const priority = env.PLATFORM_PRIORITY;
+	const priority = parsePlatformPriority(env.PLATFORM_PRIORITY);
 	const platforms: Platform[] = [];
 
 	for (const p of priority) {

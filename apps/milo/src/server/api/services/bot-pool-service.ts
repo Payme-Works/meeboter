@@ -113,14 +113,20 @@ interface QueueStats {
 }
 
 /**
- * Result of attempting to deploy a bot through the pool
+ * Error thrown when pool slot acquisition fails
  */
-interface DeployResult {
-	success: boolean;
-	slot?: PoolSlot;
-	queuePosition?: number;
-	estimatedWaitMs?: number;
-	ERROR?: string;
+class PoolSlotError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = "PoolSlotError";
+	}
+}
+
+/**
+ * Result of acquiring a slot from the pool (returned on success, throws on failure)
+ */
+interface SlotAcquireResult {
+	slot: PoolSlot;
 }
 
 /**
@@ -486,14 +492,33 @@ export class BotPoolService {
 			`[BotPoolService] Starting deployment for ${slot.slotName} (${platform}:${imageTag})`,
 		);
 
-		const result = await this.coolify.startWithLockAndRetry(
-			slot.applicationUuid,
-			platform,
-			imageTag,
-		);
+		try {
+			await this.coolify.startWithLockAndRetry(
+				slot.applicationUuid,
+				platform,
+				imageTag,
+			);
 
-		if (!result.success) {
-			const errorMessage = result.error ?? "Container failed to start";
+			// Container is running, transition from DEPLOYING to HEALTHY
+			await this.db
+				.update(botPoolSlotsTable)
+				.set({ status: "HEALTHY" })
+				.where(eq(botPoolSlotsTable.id, slot.id));
+
+			logSlotTransition({
+				slotId: slot.id,
+				slotName: slot.slotName,
+				coolifyUuid: slot.applicationUuid,
+				previousState: "DEPLOYING",
+				newState: "HEALTHY",
+				botId,
+				reason: "Container running",
+			});
+
+			await this.updateSlotDescription(slot.applicationUuid, "HEALTHY", botId);
+		} catch (error) {
+			const errorMessage =
+				error instanceof Error ? error.message : "Container failed to start";
 
 			await this.db
 				.update(botPoolSlotsTable)
@@ -519,27 +544,7 @@ export class BotPoolService {
 				undefined,
 				errorMessage,
 			);
-
-			return;
 		}
-
-		// Container is running, transition from DEPLOYING to HEALTHY
-		await this.db
-			.update(botPoolSlotsTable)
-			.set({ status: "HEALTHY" })
-			.where(eq(botPoolSlotsTable.id, slot.id));
-
-		logSlotTransition({
-			slotId: slot.id,
-			slotName: slot.slotName,
-			coolifyUuid: slot.applicationUuid,
-			previousState: "DEPLOYING",
-			newState: "HEALTHY",
-			botId,
-			reason: "Container running",
-		});
-
-		await this.updateSlotDescription(slot.applicationUuid, "HEALTHY", botId);
 	}
 
 	/**
@@ -788,21 +793,20 @@ export class BotPoolService {
 
 	/**
 	 * Waits for a slot to become available, polling the queue
+	 *
+	 * @throws PoolSlotError if bot not in queue or timeout expires
 	 */
 	async waitForSlot(
 		botId: number,
 		botConfig: BotConfig,
-	): Promise<DeployResult> {
+	): Promise<SlotAcquireResult> {
 		const entry = await this.db
 			.select()
 			.from(botPoolQueueTable)
 			.where(eq(botPoolQueueTable.botId, botId));
 
 		if (!entry[0]) {
-			return {
-				success: false,
-				ERROR: "Bot not found in queue",
-			};
+			throw new PoolSlotError("Bot not found in queue");
 		}
 
 		const timeoutAt = entry[0].timeoutAt;
@@ -827,10 +831,7 @@ export class BotPoolService {
 					await this.configureAndStartSlot(slot, botConfig);
 				}
 
-				return {
-					success: true,
-					slot,
-				};
+				return { slot };
 			}
 
 			await new Promise((resolve) =>
@@ -847,10 +848,7 @@ export class BotPoolService {
 			})
 			.where(eq(botsTable.id, botId));
 
-		return {
-			success: false,
-			ERROR: "Queue timeout - no pool slot became available",
-		};
+		throw new PoolSlotError("Queue timeout - no pool slot became available");
 	}
 
 	/**

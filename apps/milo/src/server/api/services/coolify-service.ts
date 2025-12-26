@@ -42,12 +42,10 @@ interface BotImage {
 }
 
 /**
- * Deployment status result
+ * Deployment status (returned on success, throws on failure)
  */
-interface DeploymentStatusResult {
-	success: boolean;
+interface DeploymentStatus {
 	status: string;
-	error?: string;
 }
 
 /**
@@ -598,12 +596,14 @@ export class CoolifyService {
 	 * This approach uses Coolify's deployment status as the source of truth,
 	 * rather than checking container status which can be unreliable during
 	 * deployment transitions.
+	 *
+	 * @throws CoolifyDeploymentError on failure, cancellation, or timeout
 	 */
 	async waitForDeployment(
 		applicationUuid: string,
 		timeoutMs: number = 30 * 60 * 1000,
 		pollIntervalMs: number = 5 * 1000,
-	): Promise<DeploymentStatusResult> {
+	): Promise<DeploymentStatus> {
 		const startTime = Date.now();
 		let currentInterval = pollIntervalMs;
 		let consecutiveErrors = 0;
@@ -639,10 +639,7 @@ export class CoolifyService {
 							`[CoolifyService] Container ${applicationUuid} is ${containerStatus}, treating as successful deployment`,
 						);
 
-						return {
-							success: true,
-							status: containerStatus,
-						};
+						return { status: containerStatus };
 					}
 
 					// Container not ready yet, continue waiting with jitter
@@ -659,33 +656,31 @@ export class CoolifyService {
 
 				// Deployment completed successfully
 				if (deploymentStatus === "finished") {
-					return {
-						success: true,
-						status: deployment.status,
-					};
+					return { status: deployment.status };
 				}
 
 				// Deployment failed (image pull error, config issue, container crash, etc.)
 				if (deploymentStatus === "failed") {
-					return {
-						success: false,
-						status: deployment.status,
-						error: `Coolify deployment failed (deployment UUID: ${deployment.uuid})`,
-					};
+					throw new CoolifyDeploymentError(
+						`Coolify deployment failed (deployment UUID: ${deployment.uuid})`,
+					);
 				}
 
 				// Deployment was cancelled by user via Coolify UI
 				if (deploymentStatus === "cancelled-by-user") {
-					return {
-						success: false,
-						status: deployment.status,
-						error: `Coolify deployment cancelled by user (deployment UUID: ${deployment.uuid})`,
-					};
+					throw new CoolifyDeploymentError(
+						`Coolify deployment cancelled by user (deployment UUID: ${deployment.uuid})`,
+					);
 				}
 
 				// Deployment still in progress (queued or in_progress), continue polling with jitter
 				await this.sleepWithJitter(currentInterval);
 			} catch (error) {
+				// Re-throw CoolifyDeploymentError immediately
+				if (error instanceof CoolifyDeploymentError) {
+					throw error;
+				}
+
 				consecutiveErrors++;
 
 				// Detect rate limiting (429) and back off more aggressively
@@ -719,11 +714,9 @@ export class CoolifyService {
 			}
 		}
 
-		return {
-			success: false,
-			status: "timeout",
-			error: `Deployment timed out after ${timeoutMs / 1000} seconds`,
-		};
+		throw new CoolifyDeploymentError(
+			`Deployment timed out after ${timeoutMs / 1000} seconds`,
+		);
 	}
 
 	/**
@@ -748,14 +741,14 @@ export class CoolifyService {
 	 * @param platform - Platform name for lock key (e.g., "google-meet")
 	 * @param imageTag - Docker image tag for lock key
 	 * @param maxRetries - Maximum retry attempts (default: 3)
-	 * @returns Promise that resolves when deployment succeeds
+	 * @throws CoolifyDeploymentError if all retry attempts fail
 	 */
 	async startWithLockAndRetry(
 		applicationUuid: string,
 		platform: string,
 		imageTag: string,
 		maxRetries: number = 3,
-	): Promise<DeploymentStatusResult> {
+	): Promise<DeploymentStatus> {
 		// Acquire lock (serializes deployments per platform/image)
 		const { release: releaseLock, didWait } =
 			await this.imagePullLock.acquireLock(platform, imageTag);
@@ -770,7 +763,7 @@ export class CoolifyService {
 
 			// Wait for deployment with retries
 			let attempt = 0;
-			let lastError: string | undefined;
+			let lastError: Error | undefined;
 
 			while (attempt <= maxRetries) {
 				attempt++;
@@ -779,42 +772,41 @@ export class CoolifyService {
 					`[CoolifyService] Waiting for deployment ${applicationUuid} (attempt ${attempt}/${maxRetries + 1})...`,
 				);
 
-				const result = await this.waitForDeployment(applicationUuid);
+				try {
+					const result = await this.waitForDeployment(applicationUuid);
 
-				if (result.success) {
 					console.log(
 						`[CoolifyService] Deployment succeeded for ${applicationUuid}`,
 					);
 
 					return result;
-				}
+				} catch (error) {
+					lastError =
+						error instanceof Error ? error : new Error("Unknown error");
 
-				lastError = result.error ?? "Deployment failed";
+					if (attempt <= maxRetries) {
+						console.log(
+							`[CoolifyService] Deployment failed for ${applicationUuid}, retrying (${attempt}/${maxRetries})... Error: ${lastError.message}`,
+						);
 
-				if (attempt <= maxRetries) {
-					console.log(
-						`[CoolifyService] Deployment failed for ${applicationUuid}, retrying (${attempt}/${maxRetries})... Error: ${lastError}`,
-					);
+						// Wait before retry with exponential backoff
+						const backoffMs = Math.min(1000 * 2 ** attempt, 30000);
+						await new Promise((resolve) => setTimeout(resolve, backoffMs));
 
-					// Wait before retry with exponential backoff
-					const backoffMs = Math.min(1000 * 2 ** attempt, 30000);
-					await new Promise((resolve) => setTimeout(resolve, backoffMs));
-
-					// Trigger a new deployment
-					await this.startApplication(applicationUuid);
+						// Trigger a new deployment
+						await this.startApplication(applicationUuid);
+					}
 				}
 			}
 
 			// All retries exhausted
 			console.error(
-				`[CoolifyService] Deployment failed for ${applicationUuid} after ${attempt} attempts: ${lastError}`,
+				`[CoolifyService] Deployment failed for ${applicationUuid} after ${attempt} attempts: ${lastError?.message}`,
 			);
 
-			return {
-				success: false,
-				status: "failed",
-				error: `Deployment failed after ${attempt} attempts: ${lastError}`,
-			};
+			throw new CoolifyDeploymentError(
+				`Deployment failed after ${attempt} attempts: ${lastError?.message ?? "Unknown error"}`,
+			);
 		} finally {
 			releaseLock();
 
@@ -826,6 +818,8 @@ export class CoolifyService {
 
 	/**
 	 * Deploys a bot with retry logic
+	 *
+	 * @throws CoolifyDeploymentError if all retry attempts fail
 	 */
 	async deployWithRetry(
 		botId: number,
@@ -834,7 +828,7 @@ export class CoolifyService {
 		maxRetries: number = 3,
 	): Promise<string> {
 		let applicationUuid: string | null = null;
-		let lastError: string | null = null;
+		let lastError: Error | null = null;
 
 		for (let attempt = 1; attempt <= maxRetries; attempt++) {
 			console.log(
@@ -860,21 +854,18 @@ export class CoolifyService {
 					await this.restartApplication(applicationUuid);
 				}
 
-				const result = await this.waitForDeployment(applicationUuid);
+				await this.waitForDeployment(applicationUuid);
 
-				if (result.success) {
-					console.log(
-						`[CoolifyService] Bot ${botId} deployed successfully on attempt ${attempt}`,
-					);
+				console.log(
+					`[CoolifyService] Bot ${botId} deployed successfully on attempt ${attempt}`,
+				);
 
-					return applicationUuid;
-				}
-
-				lastError =
-					result.error ?? `Deployment failed with status: ${result.status}`;
+				return applicationUuid;
+			} catch (error) {
+				lastError = error instanceof Error ? error : new Error("Unknown error");
 
 				console.warn(
-					`[CoolifyService] Deployment attempt ${attempt} failed: ${lastError}`,
+					`[CoolifyService] Deployment attempt ${attempt} failed: ${lastError.message}`,
 				);
 
 				if (attempt < maxRetries) {
@@ -884,18 +875,6 @@ export class CoolifyService {
 						`[CoolifyService] Waiting ${backoffMs}ms before retry...`,
 					);
 
-					await new Promise((resolve) => setTimeout(resolve, backoffMs));
-				}
-			} catch (error) {
-				lastError = error instanceof Error ? error.message : "Unknown error";
-
-				console.error(
-					`[CoolifyService] Deployment attempt ${attempt} error:`,
-					error,
-				);
-
-				if (attempt < maxRetries) {
-					const backoffMs = Math.min(1000 * 2 ** attempt, 30000);
 					await new Promise((resolve) => setTimeout(resolve, backoffMs));
 				}
 			}
@@ -917,7 +896,7 @@ export class CoolifyService {
 		}
 
 		throw new CoolifyDeploymentError(
-			`Bot deployment failed after ${maxRetries} attempts: ${lastError}`,
+			`Bot deployment failed after ${maxRetries} attempts: ${lastError?.message ?? "Unknown error"}`,
 		);
 	}
 }

@@ -1,14 +1,12 @@
 import type { BotConfig } from "@/server/database/schema";
 
 /**
- * Result of attempting to deploy through a platform that supports queuing
+ * Result of a successful platform deployment
+ * Failures throw PlatformDeployError instead of returning success: false
  */
-export interface PlatformDeployWithQueueResult {
-	/** Whether deployment was successful or bot was queued */
-	success: boolean;
-
-	/** Platform-specific identifier if deployed */
-	identifier?: string;
+export interface PlatformDeployResult {
+	/** Platform-specific identifier (job name, task ARN, slot UUID) */
+	identifier: string;
 
 	/** Slot name if deployed (Coolify only) */
 	slotName?: string;
@@ -21,9 +19,20 @@ export interface PlatformDeployWithQueueResult {
 
 	/** Estimated wait time in milliseconds if queued */
 	estimatedWaitMs?: number;
+}
 
-	/** Error message if failed */
-	error?: string;
+/**
+ * Error thrown when platform deployment fails
+ */
+export class PlatformDeployError extends Error {
+	constructor(
+		message: string,
+		public readonly platform: string,
+		public readonly cause?: Error,
+	) {
+		super(message);
+		this.name = "PlatformDeployError";
+	}
 }
 
 /**
@@ -52,15 +61,17 @@ export interface PlatformService<TStatus extends string = string> {
 	 *
 	 * For Coolify: Acquires a pool slot, configures, and starts the container
 	 * For AWS: Runs a new ECS task with the bot configuration
+	 * For K8s: Creates a Job with the bot configuration
 	 *
 	 * @param botConfig - Full bot configuration from database
 	 * @param queueTimeoutMs - How long to wait in queue if resources exhausted (Coolify only)
-	 * @returns Deploy result with identifier and queue info if applicable
+	 * @returns Deploy result with identifier
+	 * @throws PlatformDeployError if deployment fails
 	 */
 	deployBot(
 		botConfig: BotConfig,
 		queueTimeoutMs?: number,
-	): Promise<PlatformDeployWithQueueResult>;
+	): Promise<PlatformDeployResult>;
 
 	/**
 	 * Stops a running bot

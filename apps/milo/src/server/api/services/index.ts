@@ -2,6 +2,7 @@ import { ECSClient } from "@aws-sdk/client-ecs";
 
 import { env } from "@/env";
 import { db } from "@/server/database/db";
+import { parsePlatformPriority } from "@/utils/platform";
 import { BotDeploymentService } from "./bot-deployment-service";
 import { BotPoolService } from "./bot-pool-service";
 import { CoolifyService } from "./coolify-service";
@@ -107,15 +108,17 @@ function createAWSPlatformService(): AWSPlatformService | undefined {
 	const ecsClient = new ECSClient({ region: env.AWS_REGION });
 
 	const config: AWSPlatformConfig = {
-		cluster: env.ECS_CLUSTER ?? "",
-		subnets: (env.ECS_SUBNETS ?? "").split(",").filter(Boolean),
-		securityGroups: (env.ECS_SECURITY_GROUPS ?? "").split(",").filter(Boolean),
+		cluster: env.AWS_ECS_CLUSTER ?? "",
+		subnets: (env.AWS_ECS_SUBNETS ?? "").split(",").filter(Boolean),
+		securityGroups: (env.AWS_ECS_SECURITY_GROUPS ?? "")
+			.split(",")
+			.filter(Boolean),
 		taskDefinitions: {
-			zoom: env.ECS_TASK_DEF_ZOOM ?? "",
-			"microsoft-teams": env.ECS_TASK_DEF_MICROSOFT_TEAMS ?? "",
-			"google-meet": env.ECS_TASK_DEF_GOOGLE_MEET ?? "",
+			zoom: env.AWS_ECS_TASK_DEF_ZOOM ?? "",
+			"microsoft-teams": env.AWS_ECS_TASK_DEF_MICROSOFT_TEAMS ?? "",
+			"google-meet": env.AWS_ECS_TASK_DEF_GOOGLE_MEET ?? "",
 		},
-		assignPublicIp: env.ECS_ASSIGN_PUBLIC_IP,
+		assignPublicIp: env.AWS_ECS_ASSIGN_PUBLIC_IP,
 	};
 
 	const botEnvConfig: AWSBotEnvConfig = {
@@ -159,8 +162,9 @@ function createServices(): Services {
 	const services: Partial<Services> = {};
 
 	// Get enabled platforms from priority list
-	// During build phase, env vars are skipped, so use empty array
-	const platformPriority = env.PLATFORM_PRIORITY ?? [];
+	// During build phase, env vars are skipped and not transformed,
+	// so PLATFORM_PRIORITY might be a raw string or undefined
+	const platformPriority = parsePlatformPriority(env.PLATFORM_PRIORITY);
 
 	const enabledPlatforms = platformPriority.filter(
 		(p): p is DeploymentPlatform => p !== "local",

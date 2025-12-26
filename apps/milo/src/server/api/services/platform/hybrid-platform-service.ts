@@ -8,10 +8,8 @@ import {
 	botsTable,
 	deploymentQueueTable,
 } from "@/server/database/schema";
-import type {
-	PlatformDeployWithQueueResult,
-	PlatformService,
-} from "./platform-service";
+import { parsePlatformPriority } from "@/utils/platform";
+import type { PlatformDeployResult, PlatformService } from "./platform-service";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -34,15 +32,16 @@ interface PlatformCapacity {
 	isEnabled: boolean;
 }
 
+/**
+ * Result of a successful hybrid deployment
+ */
 interface HybridDeployResult {
-	success: boolean;
 	platform?: DeploymentPlatform;
 	platformIdentifier?: string;
 	slotName?: string;
 	queued?: boolean;
 	queuePosition?: number;
 	estimatedWaitMs?: number;
-	error?: string;
 }
 
 interface QueuedBot {
@@ -90,8 +89,9 @@ export class HybridPlatformService {
 		this.globalQueueTimeout = env.GLOBAL_QUEUE_TIMEOUT_MS ?? 600000;
 
 		// Build platform configurations from env
-		// During build phase, env vars are skipped, so use empty array
-		const platformPriority = env.PLATFORM_PRIORITY ?? [];
+		// During build phase, env vars are skipped and not transformed,
+		// so PLATFORM_PRIORITY might be a raw string or undefined
+		const platformPriority = parsePlatformPriority(env.PLATFORM_PRIORITY);
 
 		for (const platformName of platformPriority) {
 			if (platformName === "local") {
@@ -127,7 +127,17 @@ export class HybridPlatformService {
 			this.priorityOrder.push(platform);
 		}
 
-		if (this.priorityOrder.length === 0 && platformPriority.length > 0) {
+		// During build phase, platforms might be configured but limits not available
+		// Only throw error at runtime when env validation is actually performed
+		const isBuildPhase =
+			process.env.NEXT_PHASE === "phase-production-build" ||
+			process.env.CI === "true";
+
+		if (
+			this.priorityOrder.length === 0 &&
+			platformPriority.length > 0 &&
+			!isBuildPhase
+		) {
 			throw new Error(
 				"[HybridPlatformService] No valid platforms configured. " +
 					"Ensure PLATFORM_PRIORITY contains valid platforms with limits set.",
@@ -143,11 +153,12 @@ export class HybridPlatformService {
 
 	/**
 	 * Deploys a bot using the first available platform in priority order
+	 *
+	 * @throws HybridDeployError if all platforms fail and queuing fails
 	 */
-	async deployBot(
-		botConfig: BotConfig,
-		_queueTimeoutMs?: number,
-	): Promise<HybridDeployResult> {
+	async deployBot(botConfig: BotConfig): Promise<HybridDeployResult> {
+		const attemptedPlatforms: DeploymentPlatform[] = [];
+
 		// Try each platform in priority order
 		for (const platform of this.priorityOrder) {
 			const config = this.platforms.get(platform);
@@ -165,6 +176,8 @@ export class HybridPlatformService {
 				continue;
 			}
 
+			attemptedPlatforms.push(platform);
+
 			// Try to deploy
 			const result = await this.tryDeployOnPlatform(
 				platform,
@@ -172,20 +185,17 @@ export class HybridPlatformService {
 				botConfig,
 			);
 
-			if (result.success) {
+			if (result) {
 				return {
-					...result,
 					platform,
+					platformIdentifier: result.identifier,
+					slotName: result.slotName,
 				};
 			}
-
-			console.log(
-				`[HybridPlatformService] Deployment failed on '${platform}': ${result.error}, trying next`,
-			);
 		}
 
 		// All platforms exhausted, add to global queue
-		return await this.addToGlobalQueue(botConfig.id);
+		return this.addToGlobalQueue(botConfig.id);
 	}
 
 	/**
@@ -328,13 +338,13 @@ export class HybridPlatformService {
 				botConfig,
 			);
 
-			if (result.success) {
+			if (result) {
 				// Update bot with platform info
 				await this.db
 					.update(botsTable)
 					.set({
 						deploymentPlatform: platform,
-						platformIdentifier: result.identifier ?? null,
+						platformIdentifier: result.identifier,
 					})
 					.where(eq(botsTable.id, bot.id));
 
@@ -499,33 +509,32 @@ export class HybridPlatformService {
 		return result[0]?.count ?? 0;
 	}
 
+	/**
+	 * Attempts to deploy on a specific platform
+	 *
+	 * @returns Deploy result on success, null on failure (allows fallback to next platform)
+	 */
 	private async tryDeployOnPlatform(
 		platform: DeploymentPlatform,
 		service: PlatformService,
 		botConfig: BotConfig,
-	): Promise<PlatformDeployWithQueueResult> {
+	): Promise<PlatformDeployResult | null> {
 		try {
-			const result = await service.deployBot(botConfig, 0); // No per-platform queue timeout
+			const result = await service.deployBot(botConfig);
 
-			if (result.success) {
-				console.log(
-					`[HybridPlatformService] Successfully deployed bot ${botConfig.id} on '${platform}'`,
-				);
-			}
+			console.log(
+				`[HybridPlatformService] Successfully deployed bot ${botConfig.id} on '${platform}'`,
+			);
 
 			return result;
 		} catch (error) {
 			const message = error instanceof Error ? error.message : "Unknown error";
 
-			console.error(
-				`[HybridPlatformService] Error deploying bot ${botConfig.id} on '${platform}':`,
-				message,
+			console.log(
+				`[HybridPlatformService] Deployment failed on '${platform}': ${message}, trying next`,
 			);
 
-			return {
-				success: false,
-				error: message,
-			};
+			return null;
 		}
 	}
 
@@ -543,7 +552,6 @@ export class HybridPlatformService {
 			const position = await this.getQueuePosition(botId);
 
 			return {
-				success: true,
 				queued: true,
 				queuePosition: position,
 				estimatedWaitMs: this.estimateWaitTime(position),
@@ -565,7 +573,6 @@ export class HybridPlatformService {
 		);
 
 		return {
-			success: true,
 			queued: true,
 			queuePosition: position,
 			estimatedWaitMs: this.estimateWaitTime(position),
