@@ -258,10 +258,17 @@ export class KubernetesPlatformService
 
 	async stopBot(identifier: string): Promise<void> {
 		try {
+			// First, explicitly delete pods associated with the job
+			// This is a workaround for @kubernetes/client-node bug where
+			// propagationPolicy doesn't reliably cascade to pods
+			await this.deleteJobPods(identifier);
+
+			// Then delete the job itself
 			await this.batchApi.deleteNamespacedJob({
 				name: identifier,
 				namespace: this.config.namespace,
-				propagationPolicy: "Foreground",
+				gracePeriodSeconds: 0,
+				propagationPolicy: "Background",
 			});
 
 			console.log(`[KubernetesPlatform] Stopped job ${identifier}`);
@@ -279,6 +286,41 @@ export class KubernetesPlatformService
 			);
 
 			throw error;
+		}
+	}
+
+	/**
+	 * Deletes all pods associated with a job
+	 * Workaround for propagationPolicy not working reliably
+	 */
+	private async deleteJobPods(jobName: string): Promise<void> {
+		try {
+			const podList = await this.coreApi.listNamespacedPod({
+				namespace: this.config.namespace,
+				labelSelector: `job-name=${jobName}`,
+			});
+
+			for (const pod of podList.items) {
+				const podName = pod.metadata?.name;
+
+				if (podName) {
+					await this.coreApi.deleteNamespacedPod({
+						name: podName,
+						namespace: this.config.namespace,
+						gracePeriodSeconds: 0,
+					});
+
+					console.log(
+						`[KubernetesPlatform] Deleted pod ${podName} for job ${jobName}`,
+					);
+				}
+			}
+		} catch (error) {
+			// Log but don't fail - job deletion will still proceed
+			console.warn(
+				`[KubernetesPlatform] Failed to delete pods for job ${jobName}:`,
+				error instanceof Error ? error.message : error,
+			);
 		}
 	}
 
