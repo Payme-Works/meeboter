@@ -107,6 +107,58 @@ const queueStatsSchema = z.object({
 	avgWaitMs: z.number(),
 });
 
+// ─── Cost Estimation Constants ────────────────────────────────────────────────
+
+/**
+ * Pricing constants based on AWS Fargate ARM64 (us-east-2) with 90% Spot blend.
+ * @see ARCHITECTURE.md for detailed cost analysis
+ */
+const PRICING = {
+	// AWS Fargate ARM64 blended rate (90% Spot / 10% On-Demand)
+	AWS_VCPU_PER_HOUR: 0.01426,
+	AWS_GB_PER_HOUR: 0.00143,
+
+	// K8s uses same cloud-equivalent rates for comparison
+	K8S_VCPU_PER_HOUR: 0.01426,
+	K8S_GB_PER_HOUR: 0.00143,
+
+	// Coolify flat rate (based on ~$90/mo for ~45,000 bot-hours)
+	COOLIFY_PER_HOUR: 0.002,
+
+	// Default resource allocation per bot (when actual resources unknown)
+	DEFAULT_VCPU: 0.5,
+	DEFAULT_GB: 1,
+} as const;
+
+/**
+ * Platform cost stats schema
+ */
+const platformCostSchema = z.object({
+	platform: z.enum(["k8s", "aws", "coolify"]),
+	activeBots: z.number(),
+	currentHourlyCost: z.number(),
+	last24hCost: z.number(),
+	last7dCost: z.number(),
+	last30dCost: z.number(),
+	projectedMonthlyCost: z.number(),
+});
+
+/**
+ * Total cost stats schema
+ */
+const costStatsSchema = z.object({
+	// Summary totals
+	totalActiveBots: z.number(),
+	totalCurrentHourlyCost: z.number(),
+	totalLast24hCost: z.number(),
+	totalLast7dCost: z.number(),
+	totalLast30dCost: z.number(),
+	totalProjectedMonthlyCost: z.number(),
+
+	// Per-platform breakdown
+	platforms: z.array(platformCostSchema),
+});
+
 // ─── Main Infrastructure Router ──────────────────────────────────────────────
 
 /**
@@ -316,6 +368,174 @@ export const infrastructureRouter = createTRPCRouter({
 		.output(z.array(queuedBotSchema))
 		.query(async () => {
 			return await services.hybrid.getQueuedBots();
+		}),
+
+	/**
+	 * Get cost statistics for infrastructure monitoring
+	 * Includes current, historical (24h/7d/30d), and projected monthly costs
+	 */
+	getCostStats: protectedProcedure
+		.input(z.void())
+		.output(costStatsSchema)
+		.query(async () => {
+			const enabledPlatforms = services.hybrid.getEnabledPlatforms();
+
+			// Define time boundaries
+			const now = new Date();
+			const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+			const last7d = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+			const last30d = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+			// Active bot statuses (currently incurring costs)
+			const activeStatuses = [
+				"DEPLOYING",
+				"JOINING_CALL",
+				"IN_WAITING_ROOM",
+				"IN_CALL",
+				"LEAVING",
+			];
+
+			// Query active bots by platform
+			const activeBotsByPlatform = await db
+				.select({
+					platform: botsTable.deploymentPlatform,
+					count: sql<number>`count(*)`,
+				})
+				.from(botsTable)
+				.where(
+					sql`${botsTable.status} IN (${sql.join(
+						activeStatuses.map((s) => sql`${s}`),
+						sql`, `,
+					)})`,
+				)
+				.groupBy(botsTable.deploymentPlatform);
+
+			// Query historical bot hours by platform and time range
+			// For simplicity, estimate 30 minutes average per bot session
+			const AVG_SESSION_HOURS = 0.5;
+
+			const historicalBots24h = await db
+				.select({
+					platform: botsTable.deploymentPlatform,
+					count: sql<number>`count(*)`,
+				})
+				.from(botsTable)
+				.where(gte(botsTable.createdAt, last24h))
+				.groupBy(botsTable.deploymentPlatform);
+
+			const historicalBots7d = await db
+				.select({
+					platform: botsTable.deploymentPlatform,
+					count: sql<number>`count(*)`,
+				})
+				.from(botsTable)
+				.where(gte(botsTable.createdAt, last7d))
+				.groupBy(botsTable.deploymentPlatform);
+
+			const historicalBots30d = await db
+				.select({
+					platform: botsTable.deploymentPlatform,
+					count: sql<number>`count(*)`,
+				})
+				.from(botsTable)
+				.where(gte(botsTable.createdAt, last30d))
+				.groupBy(botsTable.deploymentPlatform);
+
+			// Calculate hourly cost per bot per platform
+			const getHourlyCost = (platform: string | null): number => {
+				switch (platform) {
+					case "aws":
+						return (
+							PRICING.DEFAULT_VCPU * PRICING.AWS_VCPU_PER_HOUR +
+							PRICING.DEFAULT_GB * PRICING.AWS_GB_PER_HOUR
+						);
+					case "k8s":
+						return (
+							PRICING.DEFAULT_VCPU * PRICING.K8S_VCPU_PER_HOUR +
+							PRICING.DEFAULT_GB * PRICING.K8S_GB_PER_HOUR
+						);
+					case "coolify":
+						return PRICING.COOLIFY_PER_HOUR;
+					default:
+						return 0;
+				}
+			};
+
+			// Build per-platform stats
+			const platformStats: z.infer<typeof platformCostSchema>[] = [];
+
+			for (const platform of enabledPlatforms) {
+				const activeCount =
+					Number(
+						activeBotsByPlatform.find((p) => p.platform === platform)?.count,
+					) || 0;
+
+				const count24h =
+					Number(
+						historicalBots24h.find((p) => p.platform === platform)?.count,
+					) || 0;
+
+				const count7d =
+					Number(
+						historicalBots7d.find((p) => p.platform === platform)?.count,
+					) || 0;
+
+				const count30d =
+					Number(
+						historicalBots30d.find((p) => p.platform === platform)?.count,
+					) || 0;
+
+				const hourlyCostPerBot = getHourlyCost(platform);
+
+				// Current hourly cost = active bots * hourly rate
+				const currentHourlyCost = activeCount * hourlyCostPerBot;
+
+				// Historical costs = bot count * avg session hours * hourly rate
+				const last24hCost = count24h * AVG_SESSION_HOURS * hourlyCostPerBot;
+				const last7dCost = count7d * AVG_SESSION_HOURS * hourlyCostPerBot;
+				const last30dCost = count30d * AVG_SESSION_HOURS * hourlyCostPerBot;
+
+				// Projected monthly = extrapolate from last 7 days
+				// (30/7) * last7dCost ≈ 4.29x
+				const projectedMonthlyCost = (30 / 7) * last7dCost;
+
+				platformStats.push({
+					platform,
+					activeBots: activeCount,
+					currentHourlyCost,
+					last24hCost,
+					last7dCost,
+					last30dCost,
+					projectedMonthlyCost,
+				});
+			}
+
+			// Calculate totals
+			const totals = platformStats.reduce(
+				(acc, p) => ({
+					totalActiveBots: acc.totalActiveBots + p.activeBots,
+					totalCurrentHourlyCost:
+						acc.totalCurrentHourlyCost + p.currentHourlyCost,
+					totalLast24hCost: acc.totalLast24hCost + p.last24hCost,
+					totalLast7dCost: acc.totalLast7dCost + p.last7dCost,
+					totalLast30dCost: acc.totalLast30dCost + p.last30dCost,
+					totalProjectedMonthlyCost:
+						acc.totalProjectedMonthlyCost + p.projectedMonthlyCost,
+				}),
+				{
+					totalActiveBots: 0,
+					totalCurrentHourlyCost: 0,
+					totalLast24hCost: 0,
+					totalLast7dCost: 0,
+					totalLast30dCost: 0,
+					totalProjectedMonthlyCost: 0,
+				},
+			);
+
+			return {
+				...totals,
+				platforms: platformStats,
+			};
 		}),
 });
 

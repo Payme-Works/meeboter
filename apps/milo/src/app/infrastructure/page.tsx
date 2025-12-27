@@ -12,6 +12,7 @@ import { env } from "@/env";
 import { api, HydrateClient } from "@/trpc/server";
 import { parsePlatformPriority } from "@/utils/platform";
 
+import { CostSummary } from "./_components/cost-summary";
 import { DeploymentQueueSection } from "./_components/deployment-queue-table";
 import { InfrastructureHeaderActions } from "./_components/infrastructure-header-actions";
 import {
@@ -131,6 +132,7 @@ export default async function InfrastructurePage({
 	void api.infrastructure.getActivePlatforms.prefetch();
 	void api.infrastructure.getQueueStats.prefetch();
 	void api.infrastructure.getQueuedBots.prefetch();
+	void api.infrastructure.getCostStats.prefetch();
 
 	const isMultiPlatform = enabledPlatforms.length > 1;
 
@@ -168,6 +170,9 @@ export default async function InfrastructurePage({
 						<InfrastructureHeaderActions />
 					</PageHeaderActions>
 				</PageHeader>
+
+				{/* Cost Overview */}
+				<CostSummary />
 
 				{/* Platform stats - stacked for multi-platform */}
 				{enabledPlatforms.map((platform) => (
