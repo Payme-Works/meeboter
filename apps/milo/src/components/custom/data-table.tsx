@@ -227,82 +227,88 @@ export function DataTable<TData extends RowData, TValue>({
 	return (
 		<div>
 			{isLoading ? (
-				<TableSkeleton />
+				<TableSkeleton rows={pagination.pageSize} />
 			) : errorMessage ? (
 				<ErrorAlert errorMessage={errorMessage} />
 			) : (
 				<>
 					<div
-						className="border overflow-x-auto"
-						style={{ minHeight: tableMinHeight }}
+						className="border rounded-md overflow-hidden"
+						style={{
+							height: tableMinHeight,
+							minHeight: tableMinHeight,
+							maxHeight: tableMinHeight,
+						}}
 					>
-						<Table className="min-w-[640px]">
-							<TableHeader>
-								{table &&
-									columns &&
-									table.getHeaderGroups().map((headerGroup) => (
-										<TableRow key={headerGroup.id}>
-											{headerGroup.headers.map((header) => {
-												return (
-													<TableHead key={header.id}>
-														{header.isPlaceholder
-															? null
-															: flexRender(
-																	header.column.columnDef.header,
-																	header.getContext(),
-																)}
-													</TableHead>
-												);
-											})}
+						<div className="overflow-x-auto overflow-y-hidden h-full">
+							<Table className="min-w-[640px]">
+								<TableHeader>
+									{table &&
+										columns &&
+										table.getHeaderGroups().map((headerGroup) => (
+											<TableRow key={headerGroup.id}>
+												{headerGroup.headers.map((header) => {
+													return (
+														<TableHead key={header.id}>
+															{header.isPlaceholder
+																? null
+																: flexRender(
+																		header.column.columnDef.header,
+																		header.getContext(),
+																	)}
+														</TableHead>
+													);
+												})}
+											</TableRow>
+										))}
+								</TableHeader>
+								<TableBody>
+									{table && columns && table.getRowModel().rows?.length ? (
+										table.getRowModel().rows.map((row) => (
+											<TableRow
+												key={row.id}
+												data-state={row.getIsSelected() && "selected"}
+												className={
+													onRowClick
+														? "cursor-pointer hover:bg-muted/50 transition-colors"
+														: undefined
+												}
+												onClick={(e) => {
+													if (!onRowClick) return;
+
+													const target = e.target as HTMLElement;
+
+													const interactiveElements =
+														"button, a, input, [role=checkbox], [role=button], [data-no-row-click]";
+
+													if (target.closest(interactiveElements)) return;
+
+													onRowClick(row.original);
+												}}
+											>
+												{row.getVisibleCells().map((cell) => (
+													<TableCell key={cell.id}>
+														{flexRender(
+															cell.column.columnDef.cell,
+															cell.getContext(),
+														)}
+													</TableCell>
+												))}
+											</TableRow>
+										))
+									) : (
+										<TableRow>
+											<TableCell
+												colSpan={columns?.length ?? 1}
+												className="h-24 text-center"
+											>
+												No records found.
+											</TableCell>
 										</TableRow>
-									))}
-							</TableHeader>
-							<TableBody>
-								{table && columns && table.getRowModel().rows?.length ? (
-									table.getRowModel().rows.map((row) => (
-										<TableRow
-											key={row.id}
-											data-state={row.getIsSelected() && "selected"}
-											className={
-												onRowClick
-													? "cursor-pointer hover:bg-muted/50 transition-colors"
-													: undefined
-											}
-											onClick={(e) => {
-												if (!onRowClick) return;
-
-												const target = e.target as HTMLElement;
-
-												const interactiveElements =
-													"button, a, input, [role=checkbox], [role=button], [data-no-row-click]";
-
-												if (target.closest(interactiveElements)) return;
-
-												onRowClick(row.original);
-											}}
-										>
-											{row.getVisibleCells().map((cell) => (
-												<TableCell key={cell.id}>
-													{flexRender(
-														cell.column.columnDef.cell,
-														cell.getContext(),
-													)}
-												</TableCell>
-											))}
-										</TableRow>
-									))
-								) : (
-									<TableRow>
-										<TableCell
-											colSpan={columns?.length ?? 1}
-											className="h-24 text-center"
-										>
-											No records found.
-										</TableCell>
-									</TableRow>
-								)}
-							</TableBody>
-						</Table>
+									)}
+								</TableBody>
+							</Table>
+						</div>
 					</div>
 					<div className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
 						<div className="text-sm text-muted-foreground">

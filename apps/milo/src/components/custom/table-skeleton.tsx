@@ -8,10 +8,26 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 
-export default function TableSkeleton() {
+interface TableSkeletonProps {
+	rows?: number;
+}
+
+export default function TableSkeleton({ rows = 10 }: TableSkeletonProps) {
+	// Match DataTable height calculation for consistent layout
+	const headerHeight = 41;
+	const rowHeight = 37;
+	const tableHeight = headerHeight + rowHeight * rows;
+
 	return (
 		<div>
-			<div className="border">
+			<div
+				className="border rounded-md overflow-hidden"
+				style={{
+					height: tableHeight,
+					minHeight: tableHeight,
+					maxHeight: tableHeight,
+				}}
+			>
 				<Table>
 					<TableHeader>
 						<TableRow>
@@ -31,7 +47,7 @@ export default function TableSkeleton() {
 					</TableHeader>
 
 					<TableBody>
-						{Array.from({ length: 5 }, (_, i) => (
+						{Array.from({ length: rows }, (_, i) => (
 							<TableRow key={i}>
 								<TableCell>
 									<Skeleton className="h-4 w-28" />

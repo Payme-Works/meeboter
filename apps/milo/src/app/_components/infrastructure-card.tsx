@@ -74,38 +74,68 @@ const STATUS_PULSE: Record<BotActivityStatus, boolean> = {
 
 /**
  * Activity bars visualization - inline vertical bars showing actual bot sequence
- * Each bar represents one bot in its current status
+ * Each bar represents one bot in its current status.
+ * Responsive: bars scale based on bot count, no empty placeholders.
  */
 function ActivityBars({ sequence }: { sequence: BotActivityStatus[] }) {
 	const maxBars = 100;
 	const displaySequence = sequence.slice(0, maxBars);
 	const hasOverflow = sequence.length > maxBars;
 
+	// Empty state - show subtle placeholder bars
 	if (sequence.length === 0) {
 		return (
-			<div className="flex items-center justify-between h-5 w-full">
-				{Array.from({ length: maxBars }).map((_, i) => (
-					<div
-						key={`empty-${i}`}
-						className="w-0.5 h-2 rounded-full bg-muted/30"
-					/>
-				))}
+			<div className="flex items-center justify-center h-5 w-full">
+				<div className="flex items-center gap-1">
+					{Array.from({ length: 5 }).map((_, i) => (
+						<div
+							key={`empty-${i}`}
+							className="w-0.5 h-2 rounded-full bg-muted/30"
+						/>
+					))}
+				</div>
 			</div>
 		);
 	}
 
+	// Calculate dynamic gap based on bot count for visual density
+	// Few bots = more spacing, many bots = tighter packing
+	const getGapClass = (count: number) => {
+		if (count <= 5) return "gap-3";
+
+		if (count <= 15) return "gap-2";
+
+		if (count <= 30) return "gap-1.5";
+
+		if (count <= 50) return "gap-1";
+
+		return "gap-0.5";
+	};
+
+	// Bar width scales inversely with count
+	const getBarWidth = (count: number) => {
+		if (count <= 10) return "w-1";
+
+		if (count <= 30) return "w-0.5";
+
+		return "w-px";
+	};
+
 	return (
 		<div
-			className="flex items-center justify-between h-5 w-full"
+			className={cn(
+				"flex items-center justify-center h-5 w-full",
+				getGapClass(displaySequence.length),
+			)}
 			role="img"
 			aria-label={`${sequence.length} active bots`}
 		>
-			{/* Active bars with fixed width */}
 			{displaySequence.map((status, i) => (
 				<div
 					key={`bar-${i}`}
 					className={cn(
-						"w-0.5 h-5 rounded-full transition-all duration-300",
+						"h-5 rounded-full transition-all duration-300 shrink-0",
+						getBarWidth(displaySequence.length),
 						STATUS_COLORS[status],
 						STATUS_PULSE[status] && "animate-pulse",
 					)}
@@ -115,14 +145,6 @@ function ActivityBars({ sequence }: { sequence: BotActivityStatus[] }) {
 							: undefined,
 					}}
 					title={status.replace("_", " ")}
-				/>
-			))}
-
-			{/* Empty slots to fill remaining space */}
-			{Array.from({ length: maxBars - displaySequence.length }).map((_, i) => (
-				<div
-					key={`empty-${i}`}
-					className="w-0.5 h-2 rounded-full bg-muted/30"
 				/>
 			))}
 
