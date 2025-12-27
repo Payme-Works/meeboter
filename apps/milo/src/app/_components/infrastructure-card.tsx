@@ -83,17 +83,16 @@ function ActivityBars({ sequence }: { sequence: BotActivityStatus[] }) {
 	const hasOverflow = sequence.length > maxBars;
 
 	// Empty state - show subtle placeholder bars
+	// Uses same spacing as active state (gap-3 for ≤5 items, w-1 bar width)
 	if (sequence.length === 0) {
 		return (
-			<div className="flex items-center justify-center h-5 w-full">
-				<div className="flex items-center gap-1">
-					{Array.from({ length: 5 }).map((_, i) => (
-						<div
-							key={`empty-${i}`}
-							className="w-0.5 h-2 rounded-full bg-muted/30"
-						/>
-					))}
-				</div>
+			<div className="flex items-center justify-center h-5 w-full gap-3">
+				{Array.from({ length: 5 }).map((_, i) => (
+					<div
+						key={`empty-${i}`}
+						className="w-1 h-5 rounded-full bg-muted/30"
+					/>
+				))}
 			</div>
 		);
 	}
