@@ -27,15 +27,15 @@ Adapt AWS infrastructure for bot-only deployments. Milo stays on Coolify, bots u
 We use three optimizations to minimize costs:
 
 1. **ARM64 (Graviton2)** - 20% cheaper than x86_64
-2. **Fargate Spot** - Up to 70% cheaper than on-demand (90% Spot / 10% On-Demand blend)
+2. **Fargate Spot** - Up to 70% cheaper than on-demand (95% Spot / 5% On-Demand blend)
 3. **Right-sized resources** - 0.5 vCPU, 2 GB (sufficient for Playwright)
 
 ### AWS Fargate ARM64 Pricing (us-east-2)
 
-| Resource | On-Demand | Spot (~65% off) | Blended (90% Spot) |
+| Resource | On-Demand | Spot (~65% off) | Blended (95% Spot) |
 |----------|-----------|-----------------|-------------------|
-| vCPU | $0.03238/hour | $0.01133/hour | $0.01344/hour |
-| Memory | $0.00356/GB-hour | $0.00125/GB-hour | $0.00148/GB-hour |
+| vCPU | $0.03238/hour | $0.01133/hour | $0.01238/hour |
+| Memory | $0.00356/GB-hour | $0.00125/GB-hour | $0.00137/GB-hour |
 
 ### Task Resources
 
@@ -45,14 +45,14 @@ We use three optimizations to minimize costs:
 | Memory | 2 GB |
 | Architecture | ARM64 (Graviton2) |
 
-### Per Bot Cost Calculation (ARM64 + 90% Spot)
+### Per Bot Cost Calculation (ARM64 + 95% Spot)
 
 ```
-vCPU cost   = 0.5 vCPU × $0.01344/vCPU-hour = $0.00672/hour
-Memory cost = 2 GB × $0.00148/GB-hour       = $0.00296/hour
+vCPU cost   = 0.5 vCPU × $0.01238/vCPU-hour = $0.00619/hour
+Memory cost = 2 GB × $0.00137/GB-hour       = $0.00274/hour
 ─────────────────────────────────────────────────────────────
-Total per bot                               = $0.00968/hour
-                                            = $0.00484/30min
+Total per bot                               = $0.00893/hour
+                                            = $0.00447/30min
 ```
 
 ### Fixed Monthly Costs
@@ -71,21 +71,21 @@ Total per bot                               = $0.00968/hour
 
 | Duration | ARM64 + Spot | x86_64 On-Demand | Savings |
 |----------|--------------|------------------|---------|
-| 15 min | $0.0024 | $0.0073 | 67% |
-| 30 min | $0.0048 | $0.0146 | 67% |
-| 1 hour | $0.0097 | $0.0291 | 67% |
-| 2 hours | $0.0194 | $0.0583 | 67% |
+| 15 min | $0.0022 | $0.0073 | 69% |
+| 30 min | $0.0045 | $0.0146 | 69% |
+| 1 hour | $0.0089 | $0.0291 | 69% |
+| 2 hours | $0.0179 | $0.0583 | 69% |
 
 ### Usage-Based Cost Examples
 
 | Daily Volume | Avg Duration | Daily Cost | Monthly Cost | vs x86 On-Demand |
 |--------------|--------------|------------|--------------|------------------|
-| 100 bots | 30 min | $0.48 | ~$15 | -$29/mo |
-| 500 bots | 30 min | $2.42 | ~$73 | -$146/mo |
-| 1000 bots | 30 min | $4.84 | ~$145 | -$292/mo |
-| 500 bots | 1 hour | $4.84 | ~$145 | -$292/mo |
+| 100 bots | 30 min | $0.45 | ~$13 | -$30/mo |
+| 500 bots | 30 min | $2.23 | ~$67 | -$151/mo |
+| 1000 bots | 30 min | $4.47 | ~$134 | -$303/mo |
+| 500 bots | 1 hour | $4.47 | ~$134 | -$303/mo |
 
-**Cost per meeting: ~$0.005** (at 30 min average duration with ARM64 + Spot)
+**Cost per meeting: ~$0.0045** (at 30 min average duration with ARM64 + 95% Spot)
 
 ## Architecture
 

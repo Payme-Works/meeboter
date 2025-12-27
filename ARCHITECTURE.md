@@ -279,7 +279,7 @@ K8S_BOT_LIMIT="80"
 | **Kubernetes (K3s)** | ~$60-120/mo | Existing K8s, multi-cloud |
 | **AWS ECS (Fargate)** | ~$70-130/mo | Auto-scaling, pay-per-use |
 
-> AWS costs optimized with ARM64 + 90% Fargate Spot (~67% savings vs x86 on-demand)
+> AWS costs optimized with ARM64 + 95% Fargate Spot (~69% savings vs x86 on-demand)
 
 ---
 
@@ -291,19 +291,19 @@ Our AWS infrastructure is optimized for cost with these configurations:
 
 | Optimization | Savings | Implementation |
 |--------------|---------|----------------|
-| 90% Fargate Spot | ~70% compute savings | Capacity provider weights |
+| 95% Fargate Spot | ~70% compute savings | Capacity provider weights |
 | ARM64 Graviton | ~20% cheaper than x86 | Task runtime platform |
 | 0.5 vCPU tasks | 50% vs 1 vCPU | Right-sized for browser automation |
 | No NAT Gateway | ~$32/mo saved | Public subnets with IGW |
-| Container Insights off | ~$3/container saved | Cluster setting disabled |
+| Container Insights | Temporarily enabled | Gathering metrics for memory optimization |
 | 1-day log retention | Minimal log costs | CloudWatch configuration |
 
 #### Fargate Pricing (us-east-2, ARM64)
 
-| Resource | On-Demand | Spot (~65% off) | Blended (90% Spot) |
+| Resource | On-Demand | Spot (~65% off) | Blended (95% Spot) |
 |----------|-----------|-----------------|-------------------|
-| vCPU/hour | $0.03238 | $0.01133 | $0.01344 |
-| GB RAM/hour | $0.00356 | $0.00125 | $0.00148 |
+| vCPU/hour | $0.03238 | $0.01133 | $0.01238 |
+| GB RAM/hour | $0.00356 | $0.00125 | $0.00137 |
 
 #### Per-Task Hourly Cost (0.5 vCPU + 2 GB RAM)
 
@@ -312,16 +312,16 @@ Our AWS infrastructure is optimized for cost with these configurations:
 | x86 On-Demand | $0.02024 | $0.00889 | $0.02913 |
 | ARM64 On-Demand | $0.01619 | $0.00712 | $0.02331 |
 | ARM64 Spot | $0.00567 | $0.00250 | $0.00817 |
-| **ARM64 Blended (90/10)** | $0.00672 | $0.00296 | **$0.00968** |
+| **ARM64 Blended (95/5)** | $0.00619 | $0.00274 | **$0.00893** |
 
-#### Monthly Cost by Usage (500 bots/day, ARM64 + 90% Spot)
+#### Monthly Cost by Usage (500 bots/day, ARM64 + 95% Spot)
 
 | Meeting Duration | Bot-Hours/Day | Bot-Hours/Month | Compute Cost |
 |------------------|---------------|-----------------|--------------|
-| 30 min (short) | 250 | 7,500 | **~$73** |
-| 45 min (average) | 375 | 11,250 | **~$109** |
-| 60 min (standard) | 500 | 15,000 | **~$145** |
-| 90 min (extended) | 750 | 22,500 | **~$218** |
+| 30 min (short) | 250 | 7,500 | **~$67** |
+| 45 min (average) | 375 | 11,250 | **~$100** |
+| 60 min (standard) | 500 | 15,000 | **~$134** |
+| 90 min (extended) | 750 | 22,500 | **~$201** |
 
 #### Additional AWS Costs
 
@@ -333,17 +333,17 @@ Our AWS infrastructure is optimized for cost with these configurations:
 | Data Transfer | ~$0.09/GB | Outbound to internet |
 | **Fixed Overhead** | **~$3/month** | Minimal baseline |
 
-#### Scaling Projections (ARM64 + 90% Spot)
+#### Scaling Projections (ARM64 + 95% Spot)
 
 | Daily Bots | Avg Duration | Monthly Bot-Hours | Est. Cost |
 |------------|--------------|-------------------|-----------|
-| 100 | 45 min | 2,250 | ~$25 |
-| 500 | 45 min | 11,250 | ~$112 |
-| 1,000 | 45 min | 22,500 | ~$221 |
-| 2,000 | 45 min | 45,000 | ~$439 |
-| 5,000 | 45 min | 112,500 | ~$1,092 |
+| 100 | 45 min | 2,250 | ~$20 |
+| 500 | 45 min | 11,250 | ~$100 |
+| 1,000 | 45 min | 22,500 | ~$201 |
+| 2,000 | 45 min | 45,000 | ~$402 |
+| 5,000 | 45 min | 112,500 | ~$1,005 |
 
-> Cost per bot-hour: ~$0.00968 (67% cheaper than x86 on-demand at $0.02913)
+> Cost per bot-hour: ~$0.00893 (69% cheaper than x86 on-demand at $0.02913)
 
 ---
 
@@ -416,7 +416,7 @@ Pod-based deployment on managed or self-hosted K8s.
 | **K8s (K3s)** | ~$60-120 | ~$0.005-0.011 | Portable, existing infra |
 | **AWS ECS** | ~$110-130 | ~$0.010 | Auto-scale, no ops |
 
-> AWS ECS uses ARM64 + 90% Fargate Spot for optimal pricing
+> AWS ECS uses ARM64 + 95% Fargate Spot for optimal pricing
 
 #### Break-Even Analysis
 
