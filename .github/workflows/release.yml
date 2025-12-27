@@ -107,7 +107,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: apps/bots/base/Dockerfile
+          file: apps/bots/providers/Dockerfile
           platforms: linux/${{ matrix.platform.arch }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=bot-base-${{ matrix.platform.arch }}
