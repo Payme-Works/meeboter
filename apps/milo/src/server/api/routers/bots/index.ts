@@ -481,9 +481,15 @@ export const botsRouter = createTRPCRouter({
 						status: typeof input.status;
 						recording?: string;
 						speakerTimeframes?: typeof input.speakerTimeframes;
+						endTime?: Date;
 					} = {
 						status: input.status,
 					};
+
+					// Set endTime when bot reaches terminal state
+					if (input.status === "DONE" || input.status === "FATAL") {
+						updateData.endTime = new Date();
+					}
 
 					// Include recording data if status is DONE
 					if (input.status === "DONE") {
