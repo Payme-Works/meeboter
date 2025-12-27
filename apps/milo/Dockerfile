@@ -21,14 +21,18 @@ WORKDIR /app
 COPY --from=pruner /app/out/json/ .
 # Copy the original lockfile from monorepo root as a reference
 COPY --from=pruner /app/bun.lock ./bun.lock
-# Install dependencies (no --frozen-lockfile since pruned workspace differs from full monorepo)
-RUN bun install --ignore-scripts
+# Install dependencies with cache mount for faster rebuilds
+RUN --mount=type=cache,target=/root/.bun/install/cache \
+    bun install --ignore-scripts
 
 # Build the project and bundle migration script
 COPY --from=pruner /app/out/full/ .
 
-RUN bun turbo build --filter=@meeboter/milo && \
-    bun build apps/milo/drizzle-migrate.ts --outfile apps/milo/drizzle-migrate.js --target bun
+# Use cache mount for turbo and run builds in parallel
+RUN --mount=type=cache,target=/app/.turbo \
+    bun turbo build --filter=@meeboter/milo & \
+    bun build apps/milo/drizzle-migrate.ts --outfile apps/milo/drizzle-migrate.js --target bun & \
+    wait
 
 # ─── Runner: Final production image ─────────────────────────────────
 

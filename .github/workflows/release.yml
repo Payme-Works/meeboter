@@ -201,29 +201,111 @@ jobs:
           docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
             $(printf '${{ env.REGISTRY }}/${{ steps.vars.outputs.image_prefix }}-bot-base@sha256:%s ' *)
 
+  # ─── Build Milo (runs in parallel with base image) ─────────────────────────
+  build-milo:
+    strategy:
+      fail-fast: true
+      matrix:
+        platform:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+
+    runs-on: ${{ matrix.platform.runner }}
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Check if should release
+        id: should_release
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_VALUE: ${{ github.event.inputs.release_milo }}
+        run: |
+          if [ "$EVENT_NAME" == "workflow_dispatch" ]; then
+            echo "release=$INPUT_VALUE" >> $GITHUB_OUTPUT
+          else
+            echo "release=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Set image prefix (lowercase)
+        id: vars
+        run: echo "image_prefix=${GITHUB_REPOSITORY_OWNER,,}/meeboter" >> $GITHUB_OUTPUT
+
+      - name: Checkout repository
+        if: steps.should_release.outputs.release == 'true'
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        if: steps.should_release.outputs.release == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        if: steps.should_release.outputs.release == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        if: steps.should_release.outputs.release == 'true'
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ steps.vars.outputs.image_prefix }}-milo
+          tags: |
+            type=sha,prefix=
+            type=raw,value=latest
+            type=ref,event=branch
+
+      - name: Build and push by digest
+        if: steps.should_release.outputs.release == 'true'
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/milo/Dockerfile
+          platforms: linux/${{ matrix.platform.arch }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=milo-${{ matrix.platform.arch }}
+          cache-to: type=gha,mode=max,scope=milo-${{ matrix.platform.arch }}
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ steps.vars.outputs.image_prefix }}-milo,push-by-digest=true,name-canonical=true,push=true
+
+      - name: Export digest
+        if: steps.should_release.outputs.release == 'true'
+        run: |
+          mkdir -p /tmp/digests/milo
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/milo/${digest#sha256:}"
+
+      - name: Upload digest
+        if: steps.should_release.outputs.release == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-milo-${{ matrix.platform.arch }}
+          path: /tmp/digests/milo/*
+          if-no-files-found: error
+          retention-days: 1
+
   # ─── Build Bot Images (using base image) ────────────────────────────────────
-  build:
+  build-bots:
     needs: merge-base
     strategy:
       fail-fast: true
       matrix:
         image:
-          - name: milo
-            dockerfile: apps/milo/Dockerfile
-            input_check: release_milo
-            uses_base: false
           - name: google-meet-bot
             dockerfile: apps/bots/providers/google-meet/Dockerfile
             input_check: release_google_meet_bot
-            uses_base: true
           - name: microsoft-teams-bot
             dockerfile: apps/bots/providers/microsoft-teams/Dockerfile
             input_check: release_microsoft_teams_bot
-            uses_base: true
           - name: zoom-bot
             dockerfile: apps/bots/providers/zoom/Dockerfile
             input_check: release_zoom_bot
-            uses_base: true
         platform:
           - arch: amd64
             runner: ubuntu-latest
@@ -310,9 +392,85 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-  # ─── Merge Platform Images into Multi-arch Manifest ─────────────────────────
-  merge:
-    needs: build
+  # ─── Merge Milo Multi-arch Manifest ─────────────────────────────────────────
+  merge-milo:
+    needs: build-milo
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Check if should release
+        id: should_release
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_VALUE: ${{ github.event.inputs.release_milo }}
+        run: |
+          if [ "$EVENT_NAME" == "workflow_dispatch" ]; then
+            echo "release=$INPUT_VALUE" >> $GITHUB_OUTPUT
+          else
+            echo "release=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Set image prefix (lowercase)
+        id: vars
+        run: echo "image_prefix=${GITHUB_REPOSITORY_OWNER,,}/meeboter" >> $GITHUB_OUTPUT
+
+      - name: Download amd64 digest
+        if: steps.should_release.outputs.release == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: digests-milo-amd64
+          path: /tmp/digests/milo
+
+      - name: Download arm64 digest
+        if: steps.should_release.outputs.release == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: digests-milo-arm64
+          path: /tmp/digests/milo
+
+      - name: Set up Docker Buildx
+        if: steps.should_release.outputs.release == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        if: steps.should_release.outputs.release == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        if: steps.should_release.outputs.release == 'true'
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ steps.vars.outputs.image_prefix }}-milo
+          tags: |
+            type=sha,prefix=
+            type=raw,value=latest
+            type=ref,event=branch
+
+      - name: Create multi-arch manifest and push
+        if: steps.should_release.outputs.release == 'true'
+        working-directory: /tmp/digests/milo
+        env:
+          DOCKER_METADATA_OUTPUT_JSON: ${{ steps.meta.outputs.json }}
+        run: |
+          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf '${{ env.REGISTRY }}/${{ steps.vars.outputs.image_prefix }}-milo@sha256:%s ' *)
+
+      - name: Inspect image
+        if: steps.should_release.outputs.release == 'true'
+        run: |
+          docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ steps.vars.outputs.image_prefix }}-milo:latest
+
+  # ─── Merge Bot Multi-arch Manifests ────────────────────────────────────────
+  merge-bots:
+    needs: build-bots
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -321,8 +479,6 @@ jobs:
     strategy:
       matrix:
         image:
-          - name: milo
-            input_check: release_milo
           - name: google-meet-bot
             input_check: release_google_meet_bot
           - name: microsoft-teams-bot
@@ -400,7 +556,7 @@ jobs:
 
   # ─── Release Summary ────────────────────────────────────────────────────────
   release-summary:
-    needs: merge
+    needs: [merge-milo, merge-bots]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/bare-metal'
 
