@@ -273,11 +273,13 @@ K8S_BOT_LIMIT="80"
 
 ### Cost Estimation
 
-| Deployment | Monthly Cost | Best For |
-|------------|--------------|----------|
-| **Coolify (Self-hosted)** | ~$20-80/mo | Predictable workloads, self-hosted |
-| **Kubernetes (K3s)** | ~$50-200/mo | Existing K8s, multi-cloud |
-| **AWS ECS (Fargate)** | ~$80-500/mo | Auto-scaling, pay-per-use |
+| Deployment | Monthly Cost (500 bots/day) | Best For |
+|------------|----------------------------|----------|
+| **Coolify (Self-hosted)** | ~$80-90/mo | Predictable workloads, self-hosted |
+| **Kubernetes (K3s)** | ~$60-120/mo | Existing K8s, multi-cloud |
+| **AWS ECS (Fargate)** | ~$70-130/mo | Auto-scaling, pay-per-use |
+
+> AWS costs optimized with ARM64 + 90% Fargate Spot (~67% savings vs x86 on-demand)
 
 ---
 
@@ -298,27 +300,28 @@ Our AWS infrastructure is optimized for cost with these configurations:
 
 #### Fargate Pricing (us-east-2, ARM64)
 
-| Resource | On-Demand | Spot (~70% off) |
-|----------|-----------|-----------------|
-| vCPU/hour | $0.03238 | ~$0.00971 |
-| GB RAM/hour | $0.00356 | ~$0.00107 |
+| Resource | On-Demand | Spot (~65% off) | Blended (90% Spot) |
+|----------|-----------|-----------------|-------------------|
+| vCPU/hour | $0.03238 | $0.01133 | $0.01344 |
+| GB RAM/hour | $0.00356 | $0.00125 | $0.00148 |
 
 #### Per-Task Hourly Cost (0.5 vCPU + 2 GB RAM)
 
-| Launch Type | Calculation | Cost/Hour |
-|-------------|-------------|-----------|
-| On-Demand | (0.5 × $0.03238) + (2 × $0.00356) | $0.02331 |
-| Spot | (0.5 × $0.00971) + (2 × $0.00107) | $0.00700 |
-| **Blended (90/10)** | (0.9 × $0.00700) + (0.1 × $0.02331) | **$0.00863** |
+| Launch Type | vCPU Cost | Memory Cost | Total/Hour |
+|-------------|-----------|-------------|------------|
+| x86 On-Demand | $0.02024 | $0.00889 | $0.02913 |
+| ARM64 On-Demand | $0.01619 | $0.00712 | $0.02331 |
+| ARM64 Spot | $0.00567 | $0.00250 | $0.00817 |
+| **ARM64 Blended (90/10)** | $0.00672 | $0.00296 | **$0.00968** |
 
-#### Monthly Cost by Usage (500 bots/day)
+#### Monthly Cost by Usage (500 bots/day, ARM64 + 90% Spot)
 
 | Meeting Duration | Bot-Hours/Day | Bot-Hours/Month | Compute Cost |
 |------------------|---------------|-----------------|--------------|
-| 30 min (short) | 250 | 7,500 | **~$65** |
-| 45 min (average) | 375 | 11,250 | **~$97** |
-| 60 min (standard) | 500 | 15,000 | **~$130** |
-| 90 min (extended) | 750 | 22,500 | **~$194** |
+| 30 min (short) | 250 | 7,500 | **~$73** |
+| 45 min (average) | 375 | 11,250 | **~$109** |
+| 60 min (standard) | 500 | 15,000 | **~$145** |
+| 90 min (extended) | 750 | 22,500 | **~$218** |
 
 #### Additional AWS Costs
 
@@ -330,15 +333,17 @@ Our AWS infrastructure is optimized for cost with these configurations:
 | Data Transfer | ~$0.09/GB | Outbound to internet |
 | **Fixed Overhead** | **~$3/month** | Minimal baseline |
 
-#### Scaling Projections
+#### Scaling Projections (ARM64 + 90% Spot)
 
 | Daily Bots | Avg Duration | Monthly Bot-Hours | Est. Cost |
 |------------|--------------|-------------------|-----------|
-| 100 | 45 min | 2,250 | ~$22 |
-| 500 | 45 min | 11,250 | ~$100 |
-| 1,000 | 45 min | 22,500 | ~$197 |
-| 2,000 | 45 min | 45,000 | ~$391 |
-| 5,000 | 45 min | 112,500 | ~$973 |
+| 100 | 45 min | 2,250 | ~$25 |
+| 500 | 45 min | 11,250 | ~$112 |
+| 1,000 | 45 min | 22,500 | ~$221 |
+| 2,000 | 45 min | 45,000 | ~$439 |
+| 5,000 | 45 min | 112,500 | ~$1,092 |
+
+> Cost per bot-hour: ~$0.00968 (67% cheaper than x86 on-demand at $0.02913)
 
 ---
 
@@ -407,17 +412,19 @@ Pod-based deployment on managed or self-hosted K8s.
 
 | Platform | Monthly Cost | Cost/Bot-Hour | Pros |
 |----------|--------------|---------------|------|
-| **Coolify** | ~$80-90 | ~$0.007 | Lowest cost, full control |
+| **Coolify** | ~$80-90 | ~$0.007 | Fixed cost, full control |
 | **K8s (K3s)** | ~$60-120 | ~$0.005-0.011 | Portable, existing infra |
-| **AWS ECS** | ~$100-130 | ~$0.009 | Auto-scale, no ops |
+| **AWS ECS** | ~$110-130 | ~$0.010 | Auto-scale, no ops |
+
+> AWS ECS uses ARM64 + 90% Fargate Spot for optimal pricing
 
 #### Break-Even Analysis
 
 | Scenario | Coolify Wins | AWS Wins |
 |----------|--------------|----------|
-| < 5,000 bot-hours/mo | ❌ AWS cheaper | ✅ Pay-per-use |
-| 5,000-15,000 bot-hours/mo | ≈ Similar | ≈ Similar |
-| > 15,000 bot-hours/mo | ✅ Fixed cost | ❌ Linear scaling |
+| < 8,000 bot-hours/mo | ❌ AWS cheaper | ✅ Pay-per-use |
+| 8,000-12,000 bot-hours/mo | ≈ Similar | ≈ Similar |
+| > 12,000 bot-hours/mo | ✅ Fixed cost | ❌ Linear scaling |
 
 ---
 

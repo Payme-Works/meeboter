@@ -5,7 +5,7 @@ resource "aws_ecs_cluster" "this" {
 
   setting {
     name  = "containerInsights"
-    value = "disabled" # Cost optimization
+    value = "enabled" # Temporarily enabled to gather memory/CPU metrics for optimization
   }
 
   tags = local.common_tags
@@ -17,17 +17,17 @@ resource "aws_ecs_cluster_capacity_providers" "this" {
   cluster_name       = aws_ecs_cluster.this.name
   capacity_providers = ["FARGATE", "FARGATE_SPOT"]
 
-  # Cost optimization: 90% Spot for significant savings (~$78/month at 500 bots/day)
+  # Cost optimization: 95% Spot for maximum savings (~$71/month at 500 bots/day)
   # Meeting bots are interruption-tolerant since they can rejoin if terminated
   default_capacity_provider_strategy {
     capacity_provider = "FARGATE_SPOT"
-    weight            = 90
+    weight            = 95
     base              = 0
   }
 
   default_capacity_provider_strategy {
     capacity_provider = "FARGATE"
-    weight            = 10
+    weight            = 5
     base              = 1
   }
 }

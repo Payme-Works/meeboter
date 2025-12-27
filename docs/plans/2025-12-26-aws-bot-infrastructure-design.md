@@ -16,11 +16,44 @@ Adapt AWS infrastructure for bot-only deployments. Milo stays on Coolify, bots u
 | Execution model | Ephemeral tasks via RunTask API | Matches existing AWSPlatformService |
 | Networking | Public subnets only (no NAT) | Saves ~$30-45/month |
 | Compute | Fargate Spot with Standard fallback | ~70% cost savings |
-| Task resources | 1 vCPU, 2GB per bot | Headroom for Playwright + recording |
+| Task resources | 0.5 vCPU, 2GB per bot | Sufficient for Playwright + recording |
 | Log retention | 3 days | Minimal cost, sufficient for debugging |
 | Script naming | `scripts/setup-aws.ts` | TypeScript, consistent with codebase |
 
 ## Cost Analysis
+
+### Cost Optimization Strategy
+
+We use three optimizations to minimize costs:
+
+1. **ARM64 (Graviton2)** - 20% cheaper than x86_64
+2. **Fargate Spot** - Up to 70% cheaper than on-demand (90% Spot / 10% On-Demand blend)
+3. **Right-sized resources** - 0.5 vCPU, 2 GB (sufficient for Playwright)
+
+### AWS Fargate ARM64 Pricing (us-east-2)
+
+| Resource | On-Demand | Spot (~65% off) | Blended (90% Spot) |
+|----------|-----------|-----------------|-------------------|
+| vCPU | $0.03238/hour | $0.01133/hour | $0.01344/hour |
+| Memory | $0.00356/GB-hour | $0.00125/GB-hour | $0.00148/GB-hour |
+
+### Task Resources
+
+| Resource | Value |
+|----------|-------|
+| CPU | 0.5 vCPU (512 units) |
+| Memory | 2 GB |
+| Architecture | ARM64 (Graviton2) |
+
+### Per Bot Cost Calculation (ARM64 + 90% Spot)
+
+```
+vCPU cost   = 0.5 vCPU × $0.01344/vCPU-hour = $0.00672/hour
+Memory cost = 2 GB × $0.00148/GB-hour       = $0.00296/hour
+─────────────────────────────────────────────────────────────
+Total per bot                               = $0.00968/hour
+                                            = $0.00484/30min
+```
 
 ### Fixed Monthly Costs
 
@@ -30,17 +63,29 @@ Adapt AWS infrastructure for bot-only deployments. Milo stays on Coolify, bots u
 | ECS Cluster | $0 |
 | Task Definitions | $0 |
 | Security Groups | $0 |
-| **Total Fixed** | **$0/month** |
+| CloudWatch Logs (3-day retention) | ~$1-5 |
+| Secrets Manager | ~$0.40 |
+| **Total Fixed** | **~$2-6/month** |
 
 ### Variable Costs (Per Bot Run)
 
-| Duration | Fargate Spot (~70% of runs) | Standard Fallback |
-|----------|----------------------------|-------------------|
-| 30 min | ~$0.008 | ~$0.025 |
-| 1 hour | ~$0.015 | ~$0.05 |
-| 2 hours | ~$0.03 | ~$0.10 |
+| Duration | ARM64 + Spot | x86_64 On-Demand | Savings |
+|----------|--------------|------------------|---------|
+| 15 min | $0.0024 | $0.0073 | 67% |
+| 30 min | $0.0048 | $0.0146 | 67% |
+| 1 hour | $0.0097 | $0.0291 | 67% |
+| 2 hours | $0.0194 | $0.0583 | 67% |
 
-**Average cost per bot-hour: ~$0.02** (assuming 70% Spot success rate)
+### Usage-Based Cost Examples
+
+| Daily Volume | Avg Duration | Daily Cost | Monthly Cost | vs x86 On-Demand |
+|--------------|--------------|------------|--------------|------------------|
+| 100 bots | 30 min | $0.48 | ~$15 | -$29/mo |
+| 500 bots | 30 min | $2.42 | ~$73 | -$146/mo |
+| 1000 bots | 30 min | $4.84 | ~$145 | -$292/mo |
+| 500 bots | 1 hour | $4.84 | ~$145 | -$292/mo |
+
+**Cost per meeting: ~$0.005** (at 30 min average duration with ARM64 + Spot)
 
 ## Architecture
 

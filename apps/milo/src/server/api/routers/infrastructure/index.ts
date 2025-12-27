@@ -110,24 +110,44 @@ const queueStatsSchema = z.object({
 // ─── Cost Estimation Constants ────────────────────────────────────────────────
 
 /**
- * Pricing constants based on AWS Fargate ARM64 (us-east-2) with 90% Spot blend.
- * @see ARCHITECTURE.md for detailed cost analysis
+ * Pricing constants based on AWS Fargate ARM64 (Graviton2) with 90% Spot blend.
+ * @see docs/plans/2025-12-26-aws-bot-infrastructure-design.md for detailed cost analysis
+ *
+ * ARM64 on-demand pricing (us-east-2):
+ * - vCPU: $0.03238/hour (20% cheaper than x86_64)
+ * - Memory: $0.00356/GB-hour (20% cheaper than x86_64)
+ *
+ * Spot discount: ~65% average (can be up to 70%)
+ * Blended rate with 90% Spot / 10% On-Demand:
+ * - vCPU: 0.9 × $0.01133 + 0.1 × $0.03238 = $0.01344/hour
+ * - Memory: 0.9 × $0.00125 + 0.1 × $0.00356 = $0.00148/hour
+ *
+ * Per bot cost calculation (0.5 vCPU, 2 GB):
+ * - vCPU: 0.5 × $0.01344 = $0.00672/hour
+ * - Memory: 2 × $0.00148 = $0.00296/hour
+ * - Total: $0.00968/hour = $0.00484/30min
+ *
+ * Usage example (500 bots/day × 30min each):
+ * - Daily: 500 × $0.00484 = $2.42
+ * - Monthly: $2.42 × 30 = ~$73
+ *
+ * Savings vs x86_64 on-demand: ~67% ($219 → $73/month)
  */
 const PRICING = {
-	// AWS Fargate ARM64 blended rate (90% Spot / 10% On-Demand)
-	AWS_VCPU_PER_HOUR: 0.01426,
+	// AWS Fargate ARM64 blended rate (95% Spot / 5% On-Demand, us-east-2)
+	AWS_VCPU_PER_HOUR: 0.013,
 	AWS_GB_PER_HOUR: 0.00143,
 
 	// K8s uses same cloud-equivalent rates for comparison
-	K8S_VCPU_PER_HOUR: 0.01426,
+	K8S_VCPU_PER_HOUR: 0.013,
 	K8S_GB_PER_HOUR: 0.00143,
 
 	// Coolify flat rate (based on ~$90/mo for ~45,000 bot-hours)
 	COOLIFY_PER_HOUR: 0.002,
 
-	// Default resource allocation per bot (when actual resources unknown)
+	// Default resource allocation per bot (matches ECS task definition)
 	DEFAULT_VCPU: 0.5,
-	DEFAULT_GB: 1,
+	DEFAULT_GB: 2,
 } as const;
 
 /**

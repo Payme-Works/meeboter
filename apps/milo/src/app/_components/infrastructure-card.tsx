@@ -77,11 +77,7 @@ const STATUS_PULSE: Record<BotActivityStatus, boolean> = {
  * Each bar represents one bot in its current status.
  * Consistent sizing: all bars use same gap (0.5) and width (w-1).
  */
-function ActivityBars({
-	sequence,
-}: {
-	sequence: BotActivityStatus[];
-}) {
+function ActivityBars({ sequence }: { sequence: BotActivityStatus[] }) {
 	const maxBars = 100;
 	const displaySequence = sequence.slice(0, maxBars);
 	const hasOverflow = sequence.length > maxBars;
