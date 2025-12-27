@@ -217,11 +217,9 @@ export function DataTable<TData extends RowData, TValue>({
 		}
 	}, [table, onTableReady]);
 
-	// Fixed height calculation to prevent layout shift during pagination
-	// Header: h-10 (40px) + 1px border = 41px
-	// Row: p-2 padding (16px) + content (~36px for badges/icons) + 1px border ≈ 53px
-	const headerHeight = 41;
-	const rowHeight = 53;
+	// Fixed height: h-12 (48px) for rows, h-10 (40px) for header (matches TableRow/TableHead CSS)
+	const headerHeight = 40;
+	const rowHeight = 48;
 	const tableMinHeight = headerHeight + rowHeight * pagination.pageSize;
 
 	return (

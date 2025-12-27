@@ -467,6 +467,7 @@ export function BotDialog({ botId, onClose }: BotDialogProps) {
 							}
 							platformIdentifier={bot?.platformIdentifier ?? null}
 							botStatus={bot?.status}
+							botCreatedAt={bot?.createdAt}
 						/>
 					) : null}
 

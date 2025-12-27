@@ -1,10 +1,12 @@
 version: 0.1
 
 projects:
-  - path: terraform
-    name: terraform
-    skip_autodetect: true
+  # Active ECS Fargate infrastructure for meeting bots
+  - path: terraform/bots
+    name: meeboter-bots
     dependency_paths:
-      - terraform/**
-      - terraform/terraform.tfvars
+      - terraform/bots/**/*.tf
+      - terraform/bots/terraform.tfvars
     usage_file: terraform/infracost-usage.yml
+    terraform_var_files:
+      - terraform.tfvars

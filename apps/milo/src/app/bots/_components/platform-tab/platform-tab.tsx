@@ -9,6 +9,7 @@ import {
 	Cloud,
 	Container,
 	Cpu,
+	DollarSign,
 	HardDrive,
 	Hexagon,
 	Loader2,
@@ -178,12 +179,167 @@ function calculatePercentage(
 	return Math.round((usageVal / limitVal) * 100);
 }
 
+// ─── Cost Estimation ─────────────────────────────────────────────────────────
+
+/**
+ * Pricing constants based on AWS Fargate ARM64 (us-east-2) with 90% Spot blend.
+ * @see ARCHITECTURE.md for detailed cost analysis
+ */
+const PRICING = {
+	// AWS Fargate ARM64 blended rate (90% Spot / 10% On-Demand)
+	AWS_VCPU_PER_HOUR: 0.01426,
+	AWS_GB_PER_HOUR: 0.00143,
+
+	// K8s uses same cloud-equivalent rates for comparison
+	K8S_VCPU_PER_HOUR: 0.01426,
+	K8S_GB_PER_HOUR: 0.00143,
+
+	// Coolify flat rate (based on ~$90/mo for ~45,000 bot-hours)
+	COOLIFY_PER_HOUR: 0.002,
+} as const;
+
+/**
+ * Calculates hourly cost based on CPU and memory resources.
+ * @param vcpu - vCPU units (1 = 1 vCPU, 0.5 = 0.5 vCPU)
+ * @param memoryGb - Memory in GB
+ * @param platform - Deployment platform for pricing selection
+ */
+function calculateHourlyCost(
+	vcpu: number,
+	memoryGb: number,
+	platform: "aws" | "k8s" | "coolify",
+): number {
+	if (platform === "coolify") {
+		return PRICING.COOLIFY_PER_HOUR;
+	}
+
+	const cpuRate =
+		platform === "aws" ? PRICING.AWS_VCPU_PER_HOUR : PRICING.K8S_VCPU_PER_HOUR;
+
+	const memRate =
+		platform === "aws" ? PRICING.AWS_GB_PER_HOUR : PRICING.K8S_GB_PER_HOUR;
+
+	return vcpu * cpuRate + memoryGb * memRate;
+}
+
+/**
+ * Calculates session cost based on duration.
+ * @param hourlyCost - Cost per hour
+ * @param startTime - Session start time
+ */
+function calculateSessionCost(hourlyCost: number, startTime: Date): number {
+	const durationMs = Date.now() - startTime.getTime();
+	const durationHours = durationMs / (1000 * 60 * 60);
+
+	return hourlyCost * durationHours;
+}
+
+/**
+ * Formats cost with appropriate decimal places.
+ * Shows more decimals for small amounts.
+ */
+function formatCost(cost: number): string {
+	if (cost < 0.01) {
+		return `$${cost.toFixed(4)}`;
+	}
+
+	if (cost < 1) {
+		return `$${cost.toFixed(3)}`;
+	}
+
+	return `$${cost.toFixed(2)}`;
+}
+
+/**
+ * Formats duration from start time to now.
+ */
+function formatDuration(startTime: Date): string {
+	const durationMs = Date.now() - startTime.getTime();
+	const totalMinutes = Math.floor(durationMs / (1000 * 60));
+	const hours = Math.floor(totalMinutes / 60);
+	const minutes = totalMinutes % 60;
+
+	if (hours > 0) {
+		return `${hours}h ${minutes}m`;
+	}
+
+	return `${minutes}m`;
+}
+
+/**
+ * Parses ECS CPU units to vCPU (1024 units = 1 vCPU)
+ */
+function parseEcsCpuToVcpu(cpu: string | null | undefined): number {
+	if (!cpu) return 0;
+
+	const units = Number.parseInt(cpu, 10);
+
+	return Number.isNaN(units) ? 0 : units / 1024;
+}
+
+/**
+ * Parses ECS memory in MiB to GB
+ */
+function parseEcsMemoryToGb(memory: string | null | undefined): number {
+	if (!memory) return 0;
+
+	const mib = Number.parseInt(memory, 10);
+
+	return Number.isNaN(mib) ? 0 : mib / 1024;
+}
+
+/**
+ * Parses K8s CPU to vCPU (handles millicores and cores)
+ */
+function parseK8sCpuToVcpu(cpu: string | null | undefined): number {
+	if (!cpu) return 0;
+
+	if (cpu.endsWith("m")) {
+		const millicores = Number.parseInt(cpu.slice(0, -1), 10);
+
+		return Number.isNaN(millicores) ? 0 : millicores / 1000;
+	}
+
+	const cores = Number.parseFloat(cpu);
+
+	return Number.isNaN(cores) ? 0 : cores;
+}
+
+/**
+ * Parses K8s memory to GB (handles Ki, Mi, Gi)
+ */
+function parseK8sMemoryToGb(memory: string | null | undefined): number {
+	if (!memory) return 0;
+
+	if (memory.endsWith("Gi")) {
+		return Number.parseInt(memory.slice(0, -2), 10) || 0;
+	}
+
+	if (memory.endsWith("Mi")) {
+		const mi = Number.parseInt(memory.slice(0, -2), 10);
+
+		return Number.isNaN(mi) ? 0 : mi / 1024;
+	}
+
+	if (memory.endsWith("Ki")) {
+		const ki = Number.parseInt(memory.slice(0, -2), 10);
+
+		return Number.isNaN(ki) ? 0 : ki / (1024 * 1024);
+	}
+
+	// Raw bytes
+	const bytes = Number.parseInt(memory, 10);
+
+	return Number.isNaN(bytes) ? 0 : bytes / (1024 * 1024 * 1024);
+}
+
 type DeploymentPlatform = "k8s" | "coolify" | "aws" | "local" | null;
 
 interface PlatformTabProps {
 	deploymentPlatform: DeploymentPlatform;
 	platformIdentifier: string | null;
 	botStatus?: string;
+	botCreatedAt?: Date | null;
 }
 
 const ACTIVE_STATUSES = [
@@ -198,6 +354,7 @@ export function PlatformTab({
 	deploymentPlatform,
 	platformIdentifier,
 	botStatus,
+	botCreatedAt,
 }: PlatformTabProps) {
 	const isActive = botStatus ? ACTIVE_STATUSES.includes(botStatus) : false;
 
@@ -226,6 +383,7 @@ export function PlatformTab({
 				<CoolifyPlatformView
 					platformIdentifier={platformIdentifier}
 					isActive={isActive}
+					botCreatedAt={botCreatedAt}
 				/>
 			);
 		case "aws":
@@ -272,6 +430,69 @@ function PlatformHeaderTitle({ children }: { children: React.ReactNode }) {
 
 			<p className="text-xs text-muted-foreground">Deployment Platform</p>
 		</div>
+	);
+}
+
+// ─── Estimated Cost Card ─────────────────────────────────────────────────────
+
+interface EstimatedCostCardProps {
+	hourlyCost: number;
+	startTime: Date | null;
+	resourceSummary: string;
+	isActive: boolean;
+}
+
+function EstimatedCostCard({
+	hourlyCost,
+	startTime,
+	resourceSummary,
+	isActive,
+}: EstimatedCostCardProps) {
+	const sessionCost =
+		startTime && isActive ? calculateSessionCost(hourlyCost, startTime) : null;
+
+	const duration = startTime && isActive ? formatDuration(startTime) : null;
+
+	return (
+		<Card className="gap-1.5">
+			<CardHeader className="pb-2">
+				<CardTitle className="text-sm flex items-center gap-2">
+					<DollarSign className="h-4 w-4" />
+					Estimated Cost
+				</CardTitle>
+			</CardHeader>
+
+			<CardContent>
+				<div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
+					<div className="text-center">
+						<div className="text-xs text-muted-foreground mb-1">
+							Hourly Rate
+						</div>
+						<div className="text-lg font-semibold font-mono text-emerald-600 dark:text-emerald-400">
+							{formatCost(hourlyCost)}/hr
+						</div>
+					</div>
+
+					<div className="text-center">
+						<div className="text-xs text-muted-foreground mb-1">
+							Session Cost
+						</div>
+						<div className="text-lg font-semibold font-mono text-emerald-600 dark:text-emerald-400">
+							{sessionCost !== null ? formatCost(sessionCost) : "—"}
+							{duration ? (
+								<span className="text-sm font-normal text-muted-foreground ml-1">
+									({duration})
+								</span>
+							) : null}
+						</div>
+					</div>
+				</div>
+
+				<p className="text-xs text-muted-foreground text-center mt-3">
+					{resourceSummary}
+				</p>
+			</CardContent>
+		</Card>
 	);
 }
 
@@ -436,6 +657,17 @@ function K8sPlatformView({
 	const liveMetrics = podMetrics?.containers?.[0]?.usage;
 	const cpuUsage = liveMetrics?.cpu;
 	const memoryUsage = liveMetrics?.memory;
+
+	// Cost estimation (use limits, fallback to requests)
+	const vcpu = parseK8sCpuToVcpu(cpuLimit ?? cpuRequest);
+	const memoryGb = parseK8sMemoryToGb(memoryLimit ?? memoryRequest);
+	const hourlyCost = calculateHourlyCost(vcpu, memoryGb, "k8s");
+
+	const startTime = job.metadata?.creationTimestamp
+		? new Date(job.metadata.creationTimestamp)
+		: null;
+
+	const canShowCost = vcpu > 0 || memoryGb > 0;
 
 	return (
 		<div className="p-6 space-y-8">
@@ -642,6 +874,15 @@ function K8sPlatformView({
 				</Card>
 			) : null}
 
+			{canShowCost ? (
+				<EstimatedCostCard
+					hourlyCost={hourlyCost}
+					startTime={startTime}
+					resourceSummary={`Based on ${vcpu.toFixed(2)} vCPU + ${memoryGb.toFixed(1)} GB • Kubernetes`}
+					isActive={isActive}
+				/>
+			) : null}
+
 			{events.length > 0 ? (
 				<Card className="gap-0">
 					<CardHeader className="pb-2">
@@ -756,12 +997,16 @@ function PodPhaseBadge({ phase }: { phase: string }) {
 interface CoolifyPlatformViewProps {
 	platformIdentifier: string | null;
 	isActive: boolean;
+	botCreatedAt?: Date | null;
 }
 
 function CoolifyPlatformView({
 	platformIdentifier,
 	isActive,
+	botCreatedAt,
 }: CoolifyPlatformViewProps) {
+	const hourlyCost = PRICING.COOLIFY_PER_HOUR;
+
 	return (
 		<div className="p-6 space-y-8">
 			<PlatformHeader>
@@ -802,10 +1047,12 @@ function CoolifyPlatformView({
 				</CardContent>
 			</Card>
 
-			<div className="text-xs text-muted-foreground text-center py-4">
-				Coolify manages bot containers through a pool of pre-warmed slots for
-				fast deployment.
-			</div>
+			<EstimatedCostCard
+				hourlyCost={hourlyCost}
+				startTime={botCreatedAt ?? null}
+				resourceSummary="Pool-based estimate • Coolify self-hosted"
+				isActive={isActive}
+			/>
 		</div>
 	);
 }
@@ -921,6 +1168,13 @@ function AwsPlatformView({
 	const cpu = ecsTask?.cpu;
 	const memory = ecsTask?.memory;
 	const container = ecsTask?.containers?.[0];
+
+	// Cost estimation
+	const vcpu = parseEcsCpuToVcpu(cpu);
+	const memoryGb = parseEcsMemoryToGb(memory);
+	const hourlyCost = calculateHourlyCost(vcpu, memoryGb, "aws");
+	const startTime = ecsTask?.createdAt ?? null;
+	const canShowCost = vcpu > 0 || memoryGb > 0;
 
 	return (
 		<div className="p-6 space-y-8">
@@ -1063,6 +1317,15 @@ function AwsPlatformView({
 						</div>
 					</CardContent>
 				</Card>
+			) : null}
+
+			{canShowCost ? (
+				<EstimatedCostCard
+					hourlyCost={hourlyCost}
+					startTime={startTime}
+					resourceSummary={`Based on ${vcpu.toFixed(2)} vCPU + ${memoryGb.toFixed(1)} GB • AWS Fargate ARM64 (Spot)`}
+					isActive={isActive}
+				/>
 			) : null}
 
 			{platformIdentifier ? (
