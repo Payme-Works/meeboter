@@ -1,16 +1,29 @@
 /**
- * OrphanedDeployingStrategy - Recovers bots stuck in DEPLOYING with no platform
+ * OrphanedDeployingStrategy - Recovers ALL bots stuck in DEPLOYING status
  *
- * This catches bots where deployment failed BEFORE the platform was set:
- * 1. BotDeploymentService sets status = "DEPLOYING"
- * 2. HybridPlatformService.deployBot() fails (timeout, error, etc.)
- * 3. deploymentPlatform is never set, leaving bot orphaned
+ * ## Workflow
  *
- * These bots are not caught by platform-specific strategies since they have
- * NULL deploymentPlatform.
+ *   Bot with status = DEPLOYING
+ *              │
+ *              ▼
+ *   ┌─────────────────────────┐
+ *   │  createdAt > 15min ago? │
+ *   └────────────┬────────────┘
+ *          YES   │
+ *                ▼
+ *   ┌─────────────────────────┐
+ *   │    Mark bot as FATAL    │
+ *   └─────────────────────────┘
+ *
+ * ## Coverage (platform-agnostic safety net)
+ *
+ *   ✓ Deployment failed before platform was set
+ *   ✓ Platform deployment succeeded but bot process never started
+ *   ✓ Bot process started but never sent first heartbeat
+ *   ✓ Container running (HEALTHY slot) but bot stuck in DEPLOYING
  */
 
-import { and, eq, isNull, lt } from "drizzle-orm";
+import { and, eq, lt } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 
 import type * as schema from "@/server/database/schema";
@@ -34,7 +47,6 @@ export class OrphanedDeployingStrategy implements RecoveryStrategy {
 		const orphanedBots = await this.db.query.botsTable.findMany({
 			where: and(
 				eq(botsTable.status, "DEPLOYING"),
-				isNull(botsTable.deploymentPlatform),
 				lt(botsTable.createdAt, staleDeployingCutoff),
 			),
 			columns: {
@@ -48,7 +60,7 @@ export class OrphanedDeployingStrategy implements RecoveryStrategy {
 		}
 
 		console.log(
-			`[${this.name}] Found ${orphanedBots.length} bots stuck in DEPLOYING with no platform`,
+			`[${this.name}] Found ${orphanedBots.length} bots stuck in DEPLOYING status`,
 		);
 
 		for (const bot of orphanedBots) {

@@ -1,48 +1,33 @@
 /**
- * CoolifyPoolSlotSyncWorker - Synchronizes Coolify applications with database pool slots
+ * CoolifyPoolSlotSyncWorker - Synchronizes Coolify apps with database slots
  *
- * ## Purpose
+ * ## Workflow
  *
- * Ensures consistency between Coolify (infrastructure) and Database (state).
- * Drift can occur due to:
- *   - Failed slot creation (Coolify created, DB insert failed)
- *   - Manual Coolify deletions
- *   - Database migrations or manual cleanup
- *   - Crash during slot lifecycle operations
+ *   ┌─────────────────┐           ┌─────────────────┐
+ *   │  Coolify Apps   │           │  Database Slots │
+ *   │   (by UUID)     │           │   (by UUID)     │
+ *   └────────┬────────┘           └────────┬────────┘
+ *            │                             │
+ *            └──────────┬──────────────────┘
+ *                       ▼
+ *            ┌─────────────────────┐
+ *            │   Compare UUIDs     │
+ *            └──────────┬──────────┘
+ *                       │
+ *         ┌─────────────┴─────────────┐
+ *         ▼                           ▼
+ *   ┌───────────────┐         ┌───────────────┐
+ *   │ In Coolify    │         │ In Database   │
+ *   │ NOT in DB     │         │ NOT in Coolify│
+ *   └───────┬───────┘         └───────┬───────┘
+ *           ▼                         ▼
+ *   Delete from Coolify       Delete from Database
+ *                             (mark bot as FATAL)
  *
  * ## Sync Scenarios
  *
- * 1. COOLIFY ORPHANS (exist in Coolify, not in Database):
- *    - Example: Slot creation crashed after Coolify app created
- *    - Action: Delete from Coolify (clean up orphaned infrastructure)
- *
- * 2. DATABASE ORPHANS (exist in Database, not in Coolify):
- *    - Example: Coolify app manually deleted via UI
- *    - Action: Delete from Database (clean up stale records)
- *
- * ## Sync Process
- *
- *   1. Fetch all pool applications from Coolify
- *   2. Fetch all pool slots from Database
- *   3. Compare UUIDs to find orphans in each direction
- *   4. Delete Coolify orphans (infrastructure cleanup)
- *   5. Delete Database orphans (state cleanup)
- *
- * ## Detection Method
- *
- * Uses applicationUuid as the source of truth:
- *   - Coolify apps have unique UUIDs
- *   - Database slots store applicationUuid
- *   - Missing UUID in either direction = orphan
- *
- * ## Relationship with Other Workers
- *
- * - BotRecoveryWorker: Recovers stuck slots/resources (all platforms)
- * - BotHealthWorker: Monitors running bot health
- * - PoolSlotSyncWorker: Infrastructure ↔ Database consistency
- *
- * @see BotRecoveryWorker for slot/resource recovery
- * @see BotHealthWorker for bot health monitoring
+ *   Coolify orphan: Slot creation crashed after Coolify app created
+ *   Database orphan: Coolify app manually deleted via UI
  */
 
 import { eq } from "drizzle-orm";

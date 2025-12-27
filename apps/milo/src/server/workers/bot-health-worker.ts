@@ -1,47 +1,26 @@
 /**
  * BotHealthWorker - Monitors ACTIVE bot health via heartbeats
  *
- * ## Bot Status Flow
+ * ## Workflow
  *
- * Normal lifecycle:
- *   DEPLOYING → JOINING_CALL → IN_WAITING_ROOM → IN_CALL → LEAVING → DONE
+ *   ACTIVE bot (JOINING_CALL, IN_WAITING_ROOM, IN_CALL, LEAVING)
+ *                              │
+ *                              ▼
+ *              ┌───────────────────────────────┐
+ *              │  lastHeartbeat > 5 min ago?   │
+ *              └───────────────┬───────────────┘
+ *                     YES      │
+ *                              ▼
+ *              ┌───────────────────────────────┐
+ *              │      Mark bot as FATAL        │
+ *              │   Release platform resources  │
+ *              └───────────────────────────────┘
  *
- * Error scenarios handled by this worker:
- *   IN_CALL → [heartbeat stops >5min] → FATAL (marked + resources released)
- *   JOINING_CALL → [heartbeat stops >5min] → FATAL
- *   IN_WAITING_ROOM → [heartbeat stops >5min] → FATAL
- *   LEAVING → [heartbeat stops >5min] → FATAL
+ * ## Monitored vs Not Monitored
  *
- * ## Monitored Statuses (ACTIVE only)
- *
- * ACTIVE statuses where the bot container should be running and sending heartbeats:
- *   - JOINING_CALL: Bot is connecting to the meeting
- *   - IN_WAITING_ROOM: Bot is waiting to be admitted
- *   - IN_CALL: Bot is in the meeting (recording/participating)
- *   - LEAVING: Bot is gracefully exiting
- *
- * NOT monitored by this worker:
- *   - DEPLOYING: Handled by BotRecoveryWorker (has retry logic, slot recovery)
- *   - DONE/FATAL: Terminal states, no monitoring needed
- *   - CREATED: Not yet deployed
- *
- * ## Detection Criteria
- *
- * Active bots are considered crashed when:
- *   - Status is in ACTIVE_STATUSES (container should be running)
- *   - AND (lastHeartbeat > 5 minutes ago OR lastHeartbeat is NULL)
- *
- * ## Recovery Process
- *
- * For each stale bot:
- *   1. Mark bot status as FATAL
- *   2. Release platform resources (stop container via PlatformService)
- *
- * ## Relationship with Other Workers
- *
- * - BotRecoveryWorker: Handles DEPLOYING timeouts + platform resource cleanup
- * - PoolSlotSyncWorker: Handles Coolify ↔ Database consistency
- * - BotHealthWorker: Handles ACTIVE bot heartbeat monitoring only
+ *   ✓ JOINING_CALL, IN_WAITING_ROOM, IN_CALL, LEAVING (active, expects heartbeat)
+ *   ✗ DEPLOYING (handled by OrphanedDeployingStrategy)
+ *   ✗ DONE/FATAL (terminal states)
  */
 
 import { and, eq, inArray, isNull, lt, or } from "drizzle-orm";

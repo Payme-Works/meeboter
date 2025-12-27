@@ -1,9 +1,24 @@
 /**
  * K8sRecoveryStrategy - Recovers stuck bots on Kubernetes platform
  *
- * Handles:
- * 1. Stuck DEPLOYING bots - Bots deploying >15min with no heartbeat
- * 2. Orphaned Bots - Active bots whose K8s Jobs no longer exist
+ * ## Workflow
+ *
+ *   ┌─────────────────────────────────────────────────────────┐
+ *   │                  K8sRecoveryStrategy                    │
+ *   └────────────────────────┬────────────────────────────────┘
+ *                            │
+ *          ┌─────────────────┴─────────────────┐
+ *          ▼                                   ▼
+ *   Stuck DEPLOYING                      Orphaned Bots
+ *   (>15min, no heartbeat)               (Job doesn't exist)
+ *          │                                   │
+ *          ▼                                   ▼
+ *   ┌─────────────────┐                ┌─────────────────┐
+ *   │ Recent heartbeat│─YES─► JOINING  │  Check K8s API  │
+ *   └────────┬────────┘       _CALL    └────────┬────────┘
+ *       NO   │                            404   │
+ *            ▼                                  ▼
+ *   Stop Job + Mark FATAL               Mark bot as FATAL
  */
 
 import { and, eq, inArray, lt } from "drizzle-orm";

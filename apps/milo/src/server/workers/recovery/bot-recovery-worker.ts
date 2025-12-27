@@ -1,30 +1,31 @@
 /**
  * BotRecoveryWorker - Orchestrates recovery across all deployment platforms
  *
- * Uses the Strategy Pattern to delegate platform-specific recovery logic
- * to focused strategy classes. This improves:
- * - Testability: Each strategy can be tested in isolation
- * - Extensibility: Adding new platforms = adding new strategy class
- * - Maintainability: Each file is focused and small
+ * ## Workflow
  *
- * ## Recovery Strategies
+ *   ┌───────────────────────────────────────────────────────────────┐
+ *   │                    BotRecoveryWorker                          │
+ *   │                     (runs every 60s)                          │
+ *   └───────────────────────────────┬───────────────────────────────┘
+ *                                   │
+ *      ┌────────────────────────────┼────────────────────────────┐
+ *      ▼                            ▼                            ▼
+ *   Orphaned              Platform-Specific               Process Queue
+ *   Deploying             Recovery Strategies             (deploy waiting)
+ *      │                            │
+ *      │               ┌────────────┼────────────┐
+ *      │               ▼            ▼            ▼
+ *      │            Coolify       K8s          AWS
+ *      │            (slots)      (jobs)      (tasks)
+ *      ▼               ▼            ▼            ▼
+ *   Mark FATAL     Reset IDLE   Delete Job   Stop Task
  *
- * 1. OrphanedDeployingStrategy (platform-agnostic):
- *    - Bots stuck in DEPLOYING with NULL deploymentPlatform
+ * ## Strategies
  *
- * 2. K8sRecoveryStrategy:
- *    - Stuck DEPLOYING bots on K8s
- *    - Orphaned K8s Jobs for FATAL bots
- *
- * 3. AWSRecoveryStrategy:
- *    - Stuck DEPLOYING bots on AWS ECS
- *    - Orphaned ECS tasks for FATAL bots
- *
- * 4. CoolifyRecoveryStrategy:
- *    - Error slots, stale deploying slots, orphaned healthy slots
- *    - Deployment queue management
- *
- * @see docs/plans/2025-12-27-workers-oop-refactoring-design.md
+ *   OrphanedDeploying: ALL stuck DEPLOYING bots (>15min) → FATAL
+ *   CoolifyRecovery: ERROR/stale slots → reset to IDLE
+ *   K8sRecovery: Orphaned Jobs → delete, stuck bots → FATAL
+ *   AWSRecovery: Orphaned Tasks → stop, stuck bots → FATAL
  */
 
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
@@ -97,12 +98,7 @@ export class BotRecoveryWorker extends BaseWorker<AggregatedRecoveryResult> {
 			new OrphanedDeployingStrategy(db),
 			new K8sRecoveryStrategy(db, services.k8s),
 			new AWSRecoveryStrategy(db, services.aws),
-			new CoolifyRecoveryStrategy(
-				db,
-				services.coolify,
-				services.pool,
-				services.deploymentQueue,
-			),
+			new CoolifyRecoveryStrategy(db, services.coolify, services.pool),
 		];
 	}
 

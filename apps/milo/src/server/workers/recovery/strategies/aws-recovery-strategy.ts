@@ -1,9 +1,24 @@
 /**
  * AWSRecoveryStrategy - Recovers stuck bots on AWS ECS platform
  *
- * Handles:
- * 1. Stuck DEPLOYING bots - Bots deploying >15min with no heartbeat
- * 2. Orphaned Bots - Active bots whose ECS tasks no longer exist
+ * ## Workflow
+ *
+ *   ┌─────────────────────────────────────────────────────────┐
+ *   │                  AWSRecoveryStrategy                    │
+ *   └────────────────────────┬────────────────────────────────┘
+ *                            │
+ *          ┌─────────────────┴─────────────────┐
+ *          ▼                                   ▼
+ *   Stuck DEPLOYING                      Orphaned Bots
+ *   (>15min, no heartbeat)               (Task FAILED/STOPPED)
+ *          │                                   │
+ *          ▼                                   ▼
+ *   ┌─────────────────┐                ┌─────────────────┐
+ *   │ Recent heartbeat│─YES─► JOINING  │  Check ECS API  │
+ *   └────────┬────────┘       _CALL    └────────┬────────┘
+ *       NO   │                      FAILED/STOPPED│
+ *            ▼                                    ▼
+ *   Stop Task + Mark FATAL              Mark bot as FATAL
  */
 
 import { and, eq, inArray, lt } from "drizzle-orm";
