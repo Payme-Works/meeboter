@@ -75,57 +75,30 @@ const STATUS_PULSE: Record<BotActivityStatus, boolean> = {
 /**
  * Activity bars visualization - inline vertical bars showing actual bot sequence
  * Each bar represents one bot in its current status.
- * Responsive: bars scale based on bot count, no empty placeholders.
+ * Consistent sizing: all bars use same gap (0.5) and width (w-1).
  */
 function ActivityBars({ sequence }: { sequence: BotActivityStatus[] }) {
 	const maxBars = 100;
 	const displaySequence = sequence.slice(0, maxBars);
 	const hasOverflow = sequence.length > maxBars;
 
-	// Empty state - show subtle placeholder bars
-	// Uses same spacing as active state (gap-3 for ≤5 items, w-1 bar width)
+	// Empty state - show subtle placeholder bars (idle label handled by parent)
 	if (sequence.length === 0) {
 		return (
-			<div className="flex items-center justify-center h-5 w-full gap-3">
+			<div className="flex items-center gap-0.5 h-4">
 				{Array.from({ length: 5 }).map((_, i) => (
 					<div
 						key={`empty-${i}`}
-						className="w-1 h-5 rounded-full bg-muted/30"
+						className="w-1 h-1.5 rounded-full bg-muted/40"
 					/>
 				))}
 			</div>
 		);
 	}
 
-	// Calculate dynamic gap based on bot count for visual density
-	// Few bots = more spacing, many bots = tighter packing
-	const getGapClass = (count: number) => {
-		if (count <= 5) return "gap-3";
-
-		if (count <= 15) return "gap-2";
-
-		if (count <= 30) return "gap-1.5";
-
-		if (count <= 50) return "gap-1";
-
-		return "gap-0.5";
-	};
-
-	// Bar width scales inversely with count
-	const getBarWidth = (count: number) => {
-		if (count <= 10) return "w-1";
-
-		if (count <= 30) return "w-0.5";
-
-		return "w-px";
-	};
-
 	return (
 		<div
-			className={cn(
-				"flex items-center justify-center h-5 w-full",
-				getGapClass(displaySequence.length),
-			)}
+			className="flex items-center gap-0.5 h-4"
 			role="img"
 			aria-label={`${sequence.length} active bots`}
 		>
@@ -133,8 +106,7 @@ function ActivityBars({ sequence }: { sequence: BotActivityStatus[] }) {
 				<div
 					key={`bar-${i}`}
 					className={cn(
-						"h-5 rounded-full transition-all duration-300 shrink-0",
-						getBarWidth(displaySequence.length),
+						"w-1 h-4 rounded-full transition-all duration-300 shrink-0",
 						STATUS_COLORS[status],
 						STATUS_PULSE[status] && "animate-pulse",
 					)}
@@ -466,41 +438,52 @@ function InfrastructureCard({
 
 			{/* Content */}
 			<StatCardContent className="mb-0">
-				{/* Activity visualization */}
-				<div className="space-y-2.5 mb-3">
-					{/* Vertical bars - hero visualization */}
+				{/* Activity visualization - inline when < 30 bots, stacked when >= 30 */}
+				<div
+					className={cn(
+						"mb-3",
+						botSequence.length < 30 ? "flex items-center gap-4" : "space-y-2.5",
+					)}
+				>
+					{/* Vertical bars visualization */}
 					<ActivityBars sequence={botSequence} />
 
-					{/* Status counts row */}
-					<div className="flex items-center gap-3 text-xs">
-						<StatusIndicator
-							color="bg-blue-500"
-							count={deploying}
-							label="deploying"
-							shouldPulse
-						/>
-						<span className="text-muted-foreground/30">·</span>
-						<StatusIndicator
-							color="bg-amber-500"
-							count={joiningCall + inWaitingRoom}
-							label="joining"
-							shouldPulse
-						/>
-						<span className="text-muted-foreground/30">·</span>
-						<StatusIndicator
-							color="bg-green-500"
-							count={inCall}
-							label="in call"
-						/>
-						{queueDepth > 0 ? (
-							<>
-								<span className="text-muted-foreground/30">·</span>
-								<span className="text-amber-600 dark:text-amber-400 font-medium">
-									{queueDepth} queued
-								</span>
-							</>
-						) : null}
-					</div>
+					{/* Status counts / idle label */}
+					{botSequence.length === 0 ? (
+						<span className="text-xs text-muted-foreground/50 italic">
+							idle
+						</span>
+					) : (
+						<div className="flex items-center gap-3 text-xs">
+							<StatusIndicator
+								color="bg-blue-500"
+								count={deploying}
+								label="deploying"
+								shouldPulse
+							/>
+							<span className="text-muted-foreground/30">·</span>
+							<StatusIndicator
+								color="bg-amber-500"
+								count={joiningCall + inWaitingRoom}
+								label="joining"
+								shouldPulse
+							/>
+							<span className="text-muted-foreground/30">·</span>
+							<StatusIndicator
+								color="bg-green-500"
+								count={inCall}
+								label="in call"
+							/>
+							{queueDepth > 0 ? (
+								<>
+									<span className="text-muted-foreground/30">·</span>
+									<span className="text-amber-600 dark:text-amber-400 font-medium">
+										{queueDepth} queued
+									</span>
+								</>
+							) : null}
+						</div>
+					)}
 				</div>
 
 				{/* Daily Summary */}
