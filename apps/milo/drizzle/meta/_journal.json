@@ -148,6 +148,13 @@
 			"when": 1766761537702,
 			"tag": "0020_drop_bot_pool_queue_table",
 			"breakpoints": true
+		},
+		{
+			"idx": 21,
+			"version": "7",
+			"when": 1766818812235,
+			"tag": "0021_add_unique_constraint_assigned_bot_id",
+			"breakpoints": true
 		}
 	]
 }

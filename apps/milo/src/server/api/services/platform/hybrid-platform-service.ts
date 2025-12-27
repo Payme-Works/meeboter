@@ -1,4 +1,4 @@
-import { and, count, eq, inArray, lt } from "drizzle-orm";
+import { and, count, eq, inArray, isNull, lt } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 
 import { env } from "@/env";
@@ -304,16 +304,58 @@ export class HybridPlatformService {
 	 * Processes the global deployment queue
 	 */
 	async processQueue(): Promise<void> {
-		// Clean up expired entries
-		await this.db
-			.update(deploymentQueueTable)
-			.set({ status: "EXPIRED" })
+		// Delete expired entries (waiting entries past their timeout)
+		const expiredResult = await this.db
+			.delete(deploymentQueueTable)
 			.where(
 				and(
 					eq(deploymentQueueTable.status, "WAITING"),
 					lt(deploymentQueueTable.timeoutAt, new Date()),
 				),
+			)
+			.returning({ botId: deploymentQueueTable.botId });
+
+		if (expiredResult.length > 0) {
+			console.log(
+				`[HybridPlatformService] Cleaned up ${expiredResult.length} expired queue entries`,
 			);
+
+			// Mark expired bots as FATAL
+			for (const { botId } of expiredResult) {
+				await this.db
+					.update(botsTable)
+					.set({ status: "FATAL" })
+					.where(eq(botsTable.id, botId));
+			}
+		}
+
+		// Clean up orphaned PROCESSING entries (bot was deleted but queue entry wasn't)
+		const orphanedProcessing = await this.db
+			.select({
+				id: deploymentQueueTable.id,
+				botId: deploymentQueueTable.botId,
+			})
+			.from(deploymentQueueTable)
+			.leftJoin(botsTable, eq(deploymentQueueTable.botId, botsTable.id))
+			.where(
+				and(
+					eq(deploymentQueueTable.status, "PROCESSING"),
+					isNull(botsTable.id),
+				),
+			);
+
+		if (orphanedProcessing.length > 0) {
+			await this.db.delete(deploymentQueueTable).where(
+				inArray(
+					deploymentQueueTable.id,
+					orphanedProcessing.map((e) => e.id),
+				),
+			);
+
+			console.log(
+				`[HybridPlatformService] Cleaned up ${orphanedProcessing.length} orphaned PROCESSING entries`,
+			);
+		}
 
 		// Get next bot in queue
 		const nextInQueue = await this.db

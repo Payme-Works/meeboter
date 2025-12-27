@@ -135,6 +135,16 @@ export class BotRecoveryWorker extends BaseWorker<AggregatedRecoveryResult> {
 			}
 		}
 
+		// Process global deployment queue (cleans up expired entries, deploys waiting bots)
+		try {
+			await this.services.hybrid.processQueue();
+		} catch (error) {
+			console.error(
+				`[${this.name}] Failed to process deployment queue:`,
+				error,
+			);
+		}
+
 		return {
 			totalRecovered,
 			totalFailed,

@@ -5,6 +5,7 @@
  * 1. ERROR slots - Deployment failed, container crashed
  * 2. Stale DEPLOYING slots - Stuck >15min without heartbeat
  * 3. Orphaned HEALTHY slots - Bot deleted but slot still marked as busy
+ * 4. Stuck DEPLOYING bots - Bot stuck in DEPLOYING status with HEALTHY slot
  *
  * Recovery process:
  * - Check if bot has recent heartbeat before recovery
@@ -72,6 +73,7 @@ export class CoolifyRecoveryStrategy implements RecoveryStrategy {
 		this.logDeploymentQueueStats();
 
 		await this.recoverStuckSlots(result);
+		await this.recoverStuckDeployingBots(result);
 
 		return result;
 	}
@@ -155,6 +157,130 @@ export class CoolifyRecoveryStrategy implements RecoveryStrategy {
 
 			if (recoveryResult.deploymentQueueReleased) {
 				result.deploymentQueueReleased++;
+			}
+		}
+	}
+
+	// ─── Stuck DEPLOYING Bots ────────────────────────────────────────────────────
+
+	/**
+	 * Recovers bots stuck in DEPLOYING status with HEALTHY slots.
+	 *
+	 * This catches a gap where:
+	 * - Slot transitioned to HEALTHY (container started)
+	 * - But bot never sent a heartbeat (process crashed or failed to start)
+	 * - Bot remains in DEPLOYING status forever
+	 *
+	 * This is NOT caught by recoverStuckSlots because the slot is HEALTHY.
+	 */
+	private async recoverStuckDeployingBots(
+		result: CoolifyRecoveryResult,
+	): Promise<void> {
+		const staleDeployingCutoff = new Date(Date.now() - DEPLOYING_TIMEOUT_MS);
+
+		const heartbeatFreshnessCutoff = new Date(
+			Date.now() - HEARTBEAT_FRESHNESS_MS,
+		);
+
+		// Find HEALTHY slots where the assigned bot is stuck in DEPLOYING
+		const stuckBots = await this.db
+			.select({
+				botId: botsTable.id,
+				botCreatedAt: botsTable.createdAt,
+				botLastHeartbeat: botsTable.lastHeartbeat,
+				slotId: botPoolSlotsTable.id,
+				slotName: botPoolSlotsTable.slotName,
+				applicationUuid: botPoolSlotsTable.applicationUuid,
+			})
+			.from(botPoolSlotsTable)
+			.innerJoin(botsTable, eq(botPoolSlotsTable.assignedBotId, botsTable.id))
+			.where(
+				and(
+					eq(botPoolSlotsTable.status, "HEALTHY"),
+					eq(botsTable.status, "DEPLOYING"),
+					lt(botsTable.createdAt, staleDeployingCutoff),
+				),
+			);
+
+		if (stuckBots.length === 0) {
+			return;
+		}
+
+		console.log(
+			`[${this.name}] Found ${stuckBots.length} bots stuck in DEPLOYING with HEALTHY slots`,
+		);
+
+		for (const bot of stuckBots) {
+			// Skip if bot has recent heartbeat (it's alive, just status wasn't updated)
+			if (
+				bot.botLastHeartbeat &&
+				bot.botLastHeartbeat.getTime() > heartbeatFreshnessCutoff.getTime()
+			) {
+				console.log(
+					`[${this.name}] Bot ${bot.botId} has recent heartbeat, updating to JOINING_CALL`,
+				);
+
+				await this.db
+					.update(botsTable)
+					.set({ status: "JOINING_CALL" })
+					.where(eq(botsTable.id, bot.botId));
+
+				result.recovered++;
+
+				continue;
+			}
+
+			// Bot is truly stuck - mark as FATAL and recover slot
+			console.log(
+				`[${this.name}] Recovering stuck bot ${bot.botId} (slot: ${bot.slotName}, created: ${bot.botCreatedAt?.toISOString() ?? "unknown"})`,
+			);
+
+			try {
+				// Mark bot as FATAL
+				await this.db
+					.update(botsTable)
+					.set({ status: "FATAL" })
+					.where(eq(botsTable.id, bot.botId));
+
+				// Release from deployment queue
+				this.releaseFromDeploymentQueue(bot.botId);
+				result.deploymentQueueReleased++;
+
+				// Stop the Coolify container
+				await this.coolifyService?.stopApplication(bot.applicationUuid);
+
+				// Reset slot to IDLE
+				await this.db
+					.update(botPoolSlotsTable)
+					.set({
+						status: "IDLE",
+						assignedBotId: null,
+						errorMessage: null,
+						recoveryAttempts: 0,
+						lastUsedAt: new Date(),
+					})
+					.where(eq(botPoolSlotsTable.id, bot.slotId));
+
+				// Update Coolify description
+				const description = `[IDLE] Available - Last used: ${new Date().toISOString()}`;
+
+				await this.coolifyService?.updateDescription(
+					bot.applicationUuid,
+					description,
+				);
+
+				console.log(
+					`[${this.name}] Recovered stuck bot ${bot.botId} and released slot ${bot.slotName}`,
+				);
+
+				result.recovered++;
+			} catch (error) {
+				console.error(
+					`[${this.name}] Failed to recover stuck bot ${bot.botId}:`,
+					error,
+				);
+
+				result.failed++;
 			}
 		}
 	}

@@ -41,10 +41,12 @@ export const botPoolSlotsTable = pgTable(
 			.$type<PoolSlotStatus>()
 			.notNull()
 			.default("IDLE"),
-		/** Reference to the bot currently using this slot */
-		assignedBotId: integer("assigned_bot_id").references(() => botsTable.id, {
-			onDelete: "set null",
-		}),
+		/** Reference to the bot currently using this slot (unique to prevent double-assignment) */
+		assignedBotId: integer("assigned_bot_id")
+			.references(() => botsTable.id, {
+				onDelete: "set null",
+			})
+			.unique(),
 		/** When this slot was last used */
 		lastUsedAt: timestamp("last_used_at"),
 		/** Error message if slot is in error state */

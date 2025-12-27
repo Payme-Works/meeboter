@@ -47,7 +47,7 @@
 
 import { eq } from "drizzle-orm";
 
-import { botPoolSlotsTable } from "@/server/database/schema";
+import { botPoolSlotsTable, botsTable } from "@/server/database/schema";
 
 import { BaseWorker, type WorkerResult } from "./base-worker";
 
@@ -127,6 +127,19 @@ export class CoolifyPoolSlotSyncWorker extends BaseWorker<CoolifyPoolSlotSyncRes
 				);
 
 				try {
+					// Mark assigned bot as FATAL before deleting the slot
+					// (bot's infrastructure no longer exists)
+					if (slot.assignedBotId) {
+						await this.db
+							.update(botsTable)
+							.set({ status: "FATAL" })
+							.where(eq(botsTable.id, slot.assignedBotId));
+
+						console.log(
+							`[${this.name}] Marked bot ${slot.assignedBotId} as FATAL (slot infrastructure missing)`,
+						);
+					}
+
 					await this.db
 						.delete(botPoolSlotsTable)
 						.where(eq(botPoolSlotsTable.id, slot.id));

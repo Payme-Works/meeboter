@@ -1,0 +1,1 @@
+ALTER TABLE "bot_pool_slots" ADD CONSTRAINT "bot_pool_slots_assigned_bot_id_unique" UNIQUE("assigned_bot_id");
