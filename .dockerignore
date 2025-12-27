@@ -46,8 +46,21 @@ docker-compose*
 # Testing
 coverage/
 .nyc_output/
+playwright-report/
+test-results/
+**/.auth/
+**/e2e/.auth/
+
+# Turbo
+.turbo/
+
+# Documentation
+docs/
+*.md
+!README.md
 
 # Misc
 *.tgz
 *.tar.gz
 .cache/
+.bun/
