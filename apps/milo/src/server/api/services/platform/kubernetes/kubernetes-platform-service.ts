@@ -9,13 +9,13 @@ import {
 
 import { env } from "@/env";
 import type { BotConfig } from "@/server/database/schema";
-import type { ImagePullLockService } from "../image-pull-lock-service";
-import { K8sStatusMapper } from "./mappers/k8s-status-mapper";
+import type { ImagePullLockService } from "../../image-pull-lock-service";
+import { K8sStatusMapper } from "../mappers/k8s-status-mapper";
 import {
 	PlatformDeployError,
 	type PlatformDeployResult,
 	type PlatformService,
-} from "./platform-service";
+} from "../platform-service";
 
 /**
  * Kubernetes job status values (UPPERCASE convention)
@@ -303,19 +303,6 @@ export class KubernetesPlatformService
 
 			return "FAILED";
 		}
-	}
-
-	async releaseBot(_botId: number): Promise<void> {
-		// K8s Jobs are ephemeral with TTL auto-cleanup
-		// Nothing to release - the job will auto-delete after completion
-		console.log(
-			`[KubernetesPlatform] Release called for bot ${_botId} (no-op for K8s Jobs)`,
-		);
-	}
-
-	async processQueue(): Promise<void> {
-		// K8s doesn't have a queue concept
-		// Jobs are created on-demand, K8s scheduler handles resource allocation
 	}
 
 	/**

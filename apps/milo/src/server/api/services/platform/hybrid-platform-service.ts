@@ -284,7 +284,7 @@ export class HybridPlatformService {
 			const platform = bot.deploymentPlatform as DeploymentPlatform;
 			const config = this.platforms.get(platform);
 
-			if (config) {
+			if (config?.service.releaseBot) {
 				await config.service.releaseBot(botId);
 			}
 		}

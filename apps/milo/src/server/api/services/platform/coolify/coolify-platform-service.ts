@@ -1,12 +1,12 @@
 import type { BotConfig } from "@/server/database/schema";
-import type { BotPoolService } from "../bot-pool-service";
-import type { CoolifyService } from "../coolify-service";
-import { CoolifyStatusMapper } from "./mappers/coolify-status-mapper";
+import { CoolifyStatusMapper } from "../mappers/coolify-status-mapper";
 import {
 	PlatformDeployError,
 	type PlatformDeployResult,
 	type PlatformService,
-} from "./platform-service";
+} from "../platform-service";
+import type { BotPoolService } from "./bot-pool-service";
+import type { CoolifyService } from "./coolify-api-client";
 
 /**
  * Coolify slot status values (matches pool schema UPPERCASE convention)
@@ -86,9 +86,5 @@ export class CoolifyPlatformService
 
 	async releaseBot(botId: number): Promise<void> {
 		await this.poolService.releaseSlot(botId);
-	}
-
-	async processQueue(): Promise<void> {
-		await this.poolService.processQueueOnSlotRelease();
 	}
 }

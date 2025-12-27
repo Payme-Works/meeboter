@@ -1,4 +1,4 @@
-import type { AWSBotStatus } from "../aws-platform-service";
+import type { AWSBotStatus } from "../aws/aws-platform-service";
 
 /**
  * Maps between AWS ECS task status strings and domain AWSBotStatus

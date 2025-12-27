@@ -61,23 +61,36 @@ apps/milo/
 
 Meeboter supports multiple deployment platforms through a unified interface:
 
-| File | Description |
-|------|-------------|
-| `platform-service.ts` | Abstract platform interface |
-| `platform-factory.ts` | Creates platform service based on config |
-| `coolify-platform-service.ts` | Coolify pool-based deployment |
-| `aws-platform-service.ts` | AWS ECS task-based deployment |
-| `kubernetes-platform-service.ts` | Kubernetes pod-based deployment |
-| `local-platform-service.ts` | Local development mode |
+```
+platform/
+├── platform-service.ts           # Abstract platform interface
+├── hybrid-platform-service.ts    # Multi-platform coordinator with global queue
+├── coolify/
+│   ├── coolify-platform-service.ts   # Coolify pool-based deployment
+│   ├── coolify-api-client.ts         # Coolify API client
+│   └── bot-pool-service.ts           # Pool slot management
+├── kubernetes/
+│   └── kubernetes-platform-service.ts # K8s Job-based deployment
+├── aws/
+│   └── aws-platform-service.ts       # AWS ECS task-based deployment
+└── mappers/                          # Platform status mappers
+```
 
-### Bot Pool Service (`bot-pool-service.ts`)
+### Bot Pool Service (`platform/coolify/bot-pool-service.ts`)
 
 Manages the Coolify-based bot container pool:
 
 - **Slot allocation**: Assigns idle slots to incoming bots
-- **Queue management**: Queues bots when pool is exhausted
 - **Advisory locking**: Prevents race conditions with PostgreSQL locks
 - **Slot lifecycle**: Handles slot creation, configuration, and release
+
+### Hybrid Platform Service (`hybrid-platform-service.ts`)
+
+Coordinates deployments across multiple platforms:
+
+- **Multi-platform support**: Routes to K8s, AWS, or Coolify based on priority
+- **Global deployment queue**: Queues bots when all platforms are at capacity
+- **Failover**: Tries next platform if primary is unavailable
 
 ### Image Pull Lock Service (`image-pull-lock-service.ts`)
 
@@ -103,7 +116,7 @@ Monitors bot health through heartbeat signals:
 - Marks bots as failed if heartbeat timeout exceeded
 - Releases slots when bots become unresponsive
 
-### Coolify Service (`coolify-service.ts`)
+### Coolify API Client (`platform/coolify/coolify-api-client.ts`)
 
 Interfaces with the Coolify API for container management:
 
@@ -132,11 +145,12 @@ High-level orchestration of bot deployments:
 
 ### Deployment Queue Service (`deployment-queue-service.ts`)
 
-Manages queued bot deployments when pool is exhausted:
+Manages the global deployment queue across all platforms:
 
 - FIFO queue with priority support
 - Estimated wait time calculation
 - Timeout handling for stale requests
+- Limits concurrent Coolify deployments to prevent API overload
 
 ---
 
@@ -177,8 +191,8 @@ Manages queued bot deployments when pool is exhausted:
 
 ### Pool Management
 
-- Up to 100 concurrent bot slots
-- Queue system for overflow (FIFO with estimated wait time)
+- Up to 100 concurrent bot slots (Coolify platform)
+- Global deployment queue for all platforms when at capacity
 - Automatic slot recovery for failed deployments
 - Per-platform slot naming (google-meet-slot-001, etc.)
 

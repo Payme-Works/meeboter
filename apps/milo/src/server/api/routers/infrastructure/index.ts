@@ -386,13 +386,9 @@ async function getPlatformInfo(
 						maxSize: 100,
 					};
 
-			const queueStats = services.pool
-				? await services.pool.getQueueStats()
-				: { length: 0, oldestQueuedAt: null, avgWaitMs: 0 };
-
 			return {
 				platform: "coolify" as const,
-				queueDepth: queueStats.length,
+				queueDepth: 0, // Queue is now global, not Coolify-specific
 				IDLE: poolStats.IDLE,
 				DEPLOYING: poolStats.DEPLOYING,
 				HEALTHY: poolStats.HEALTHY,

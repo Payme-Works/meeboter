@@ -1,6 +1,6 @@
 import type { V1JobStatus } from "@kubernetes/client-node";
 
-import type { K8sBotStatus } from "../kubernetes-platform-service";
+import type { K8sBotStatus } from "../kubernetes/kubernetes-platform-service";
 
 /**
  * Maps between Kubernetes Job status and domain K8sBotStatus

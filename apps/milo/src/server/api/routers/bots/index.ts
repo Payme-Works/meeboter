@@ -1358,38 +1358,6 @@ export const botsRouter = createTRPCRouter({
 		}),
 
 	/**
-	 * Retrieves the current queue statistics for monitoring.
-	 * Shows queue length, oldest entry, and average wait time.
-	 * @returns Promise<QueueStats> Queue statistics
-	 */
-	getQueueStats: protectedProcedure
-		.meta({
-			openapi: {
-				method: "GET",
-				path: "/bots/queue/stats",
-				description: "Get bot queue statistics for monitoring",
-			},
-		})
-		.input(z.void())
-		.output(
-			z.object({
-				length: z.number(),
-				oldestQueuedAt: z.date().nullable(),
-				avgWaitMs: z.number(),
-			}),
-		)
-		.query(async () => {
-			if (!services.pool) {
-				throw new TRPCError({
-					code: "NOT_IMPLEMENTED",
-					message: "Queue stats are only available when using Coolify platform",
-				});
-			}
-
-			return await services.pool.getQueueStats();
-		}),
-
-	/**
 	 * Appends a screenshot to a bot's screenshots array.
 	 * Called by bot containers when capturing screenshots on errors or state changes.
 	 * @param input - Object containing bot ID and screenshot data

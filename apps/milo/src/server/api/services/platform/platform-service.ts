@@ -10,15 +10,6 @@ export interface PlatformDeployResult {
 
 	/** Slot name if deployed (Coolify only) */
 	slotName?: string;
-
-	/** Whether the bot was added to a queue */
-	queued?: boolean;
-
-	/** Position in queue if queued */
-	queuePosition?: number;
-
-	/** Estimated wait time in milliseconds if queued */
-	estimatedWaitMs?: number;
 }
 
 /**
@@ -64,14 +55,10 @@ export interface PlatformService<TStatus extends string = string> {
 	 * For K8s: Creates a Job with the bot configuration
 	 *
 	 * @param botConfig - Full bot configuration from database
-	 * @param queueTimeoutMs - How long to wait in queue if resources exhausted (Coolify only)
 	 * @returns Deploy result with identifier
 	 * @throws PlatformDeployError if deployment fails
 	 */
-	deployBot(
-		botConfig: BotConfig,
-		queueTimeoutMs?: number,
-	): Promise<PlatformDeployResult>;
+	deployBot(botConfig: BotConfig): Promise<PlatformDeployResult>;
 
 	/**
 	 * Stops a running bot
@@ -92,20 +79,12 @@ export interface PlatformService<TStatus extends string = string> {
 	getBotStatus(identifier: string): Promise<TStatus>;
 
 	/**
-	 * Releases resources after bot completion
+	 * Releases resources after bot completion (optional)
 	 *
 	 * For Coolify: Returns the slot to the pool for reuse
-	 * For AWS: Ensures task is stopped (no-op for ephemeral tasks)
+	 * For AWS/K8s: No-op (ephemeral resources cleaned up automatically)
 	 *
 	 * @param botId - The bot ID (used to find the slot in Coolify)
 	 */
-	releaseBot(botId: number): Promise<void>;
-
-	/**
-	 * Processes any queued bots when resources become available
-	 *
-	 * For Coolify: Checks queue and deploys next bot if slot available
-	 * For AWS: No-op (AWS doesn't have a queue concept)
-	 */
-	processQueue(): Promise<void>;
+	releaseBot?(botId: number): Promise<void>;
 }

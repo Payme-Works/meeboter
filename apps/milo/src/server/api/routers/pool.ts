@@ -9,7 +9,6 @@ import {
 } from "@/lib/pagination";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import {
-	botPoolQueueTable,
 	botPoolSlotsTable,
 	botsTable,
 	poolSlotStatus,
@@ -36,18 +35,7 @@ const poolSlotViewSchema = z.object({
 });
 
 /**
- * Output schema for queue entry view
- */
-const queueEntryViewSchema = z.object({
-	id: z.number(),
-	botId: z.number(),
-	priority: z.number(),
-	queuedAt: z.date(),
-	timeoutAt: z.date(),
-});
-
-/**
- * Statistics sub-router for pool and queue metrics
+ * Statistics sub-router for pool metrics
  */
 const statisticsRouter = createTRPCRouter({
 	/**
@@ -174,30 +162,6 @@ const statisticsRouter = createTRPCRouter({
 			counts.total = counts.joiningCall + counts.inWaitingRoom + counts.inCall;
 
 			return counts;
-		}),
-
-	/**
-	 * Get queue statistics (length, wait times)
-	 */
-	getQueue: protectedProcedure
-		.input(z.void())
-		.output(
-			z.object({
-				length: z.number(),
-				oldestQueuedAt: z.date().nullable(),
-				avgWaitMs: z.number(),
-			}),
-		)
-		.query(async () => {
-			if (!services.pool) {
-				throw new TRPCError({
-					code: "NOT_IMPLEMENTED",
-					message:
-						"Queue statistics are only available when using Coolify platform",
-				});
-			}
-
-			return await services.pool.getQueueStats();
 		}),
 });
 
@@ -369,62 +333,6 @@ const slotsRouter = createTRPCRouter({
 });
 
 /**
- * Queue sub-router for queue listing
- */
-const queueRouter = createTRPCRouter({
-	/**
-	 * List all queue entries with bot information
-	 */
-	list: protectedProcedure
-		.input(z.void())
-		.output(
-			z.array(
-				queueEntryViewSchema.extend({
-					bot: z
-						.object({
-							displayName: z.string(),
-							status: z.string(),
-						})
-						.nullable(),
-				}),
-			),
-		)
-		.query(async ({ ctx }) => {
-			const queueEntries = await ctx.db
-				.select({
-					id: botPoolQueueTable.id,
-					botId: botPoolQueueTable.botId,
-					priority: botPoolQueueTable.priority,
-					queuedAt: botPoolQueueTable.queuedAt,
-					timeoutAt: botPoolQueueTable.timeoutAt,
-				})
-				.from(botPoolQueueTable)
-				.orderBy(botPoolQueueTable.priority, botPoolQueueTable.queuedAt);
-
-			// Fetch bot details for each queue entry
-			const entriesWithBots = await Promise.all(
-				queueEntries.map(async (entry) => {
-					const botResult = await ctx.db
-						.select({
-							displayName: botsTable.displayName,
-							status: botsTable.status,
-						})
-						.from(botsTable)
-						.where(eq(botsTable.id, entry.botId))
-						.limit(1);
-
-					return {
-						...entry,
-						bot: botResult[0] ?? null,
-					};
-				}),
-			);
-
-			return entriesWithBots;
-		}),
-});
-
-/**
  * Output schema for sync result
  */
 const syncResultSchema = z.object({
@@ -439,16 +347,13 @@ const syncResultSchema = z.object({
  *
  * Structure:
  * - pool.statistics.getPool
- * - pool.statistics.getQueue
  * - pool.slots.list
  * - pool.slots.delete
- * - pool.queue.list
  * - pool.sync
  */
 export const poolRouter = createTRPCRouter({
 	statistics: statisticsRouter,
 	slots: slotsRouter,
-	queue: queueRouter,
 
 	/**
 	 * Manually trigger pool slot synchronization.

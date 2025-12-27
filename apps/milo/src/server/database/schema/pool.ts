@@ -67,35 +67,6 @@ const selectBotPoolSlotSchema = createSelectSchema(botPoolSlotsTable);
 
 export type SelectBotPoolSlotType = z.infer<typeof selectBotPoolSlotSchema>;
 
-/**
- * Database implementation for bot pool queue
- * Holds requests waiting for available pool slots
- */
-export const botPoolQueueTable = pgTable(
-	"bot_pool_queue",
-	{
-		/** Unique identifier for the queue entry */
-		id: serial("id").primaryKey(),
-		/** Reference to the bot waiting for a slot */
-		botId: integer("bot_id")
-			.references(() => botsTable.id, { onDelete: "cascade" })
-			.notNull()
-			.unique(),
-		/** Priority level (lower = higher priority) */
-		priority: integer("priority").notNull().default(100),
-		/** When the request was queued */
-		queuedAt: timestamp("queued_at").notNull().defaultNow(),
-		/** When the request should timeout */
-		timeoutAt: timestamp("timeout_at").notNull(),
-	},
-	(table) => [
-		index("bot_pool_queue_priority_queued_at_idx").on(
-			table.priority,
-			table.queuedAt,
-		),
-	],
-);
-
 // ─── Global Deployment Queue ────────────────────────────────────────────────
 
 /**

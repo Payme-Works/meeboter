@@ -4,16 +4,16 @@ import { env } from "@/env";
 import { db } from "@/server/database/db";
 import { parsePlatformPriority } from "@/utils/platform";
 import { BotDeploymentService } from "./bot-deployment-service";
-import { BotPoolService } from "./bot-pool-service";
-import { CoolifyService } from "./coolify-service";
 import { DeploymentQueueService } from "./deployment-queue-service";
 import { ImagePullLockService } from "./image-pull-lock-service";
 import {
 	type AWSBotEnvConfig,
 	type AWSPlatformConfig,
 	AWSPlatformService,
-} from "./platform/aws-platform-service";
-import { CoolifyPlatformService } from "./platform/coolify-platform-service";
+} from "./platform/aws/aws-platform-service";
+import { BotPoolService } from "./platform/coolify/bot-pool-service";
+import { CoolifyService } from "./platform/coolify/coolify-api-client";
+import { CoolifyPlatformService } from "./platform/coolify/coolify-platform-service";
 import {
 	type DeploymentPlatform,
 	HybridPlatformService,
@@ -21,7 +21,7 @@ import {
 import {
 	createKubernetesPlatformService,
 	type KubernetesPlatformService,
-} from "./platform/kubernetes-platform-service";
+} from "./platform/kubernetes/kubernetes-platform-service";
 import type { PlatformService } from "./platform/platform-service";
 
 // ─── Types ──────────────────────────────────────────────────────────────────

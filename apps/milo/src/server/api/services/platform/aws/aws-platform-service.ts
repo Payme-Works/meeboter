@@ -7,12 +7,12 @@ import {
 } from "@aws-sdk/client-ecs";
 
 import type { BotConfig } from "@/server/database/schema";
-import { AWSStatusMapper } from "./mappers/aws-status-mapper";
+import { AWSStatusMapper } from "../mappers/aws-status-mapper";
 import {
 	PlatformDeployError,
 	type PlatformDeployResult,
 	type PlatformService,
-} from "./platform-service";
+} from "../platform-service";
 
 /**
  * AWS ECS task status values (UPPERCASE convention)
@@ -183,20 +183,6 @@ export class AWSPlatformService implements PlatformService<AWSBotStatus> {
 
 			return "FAILED";
 		}
-	}
-
-	async releaseBot(_botId: number): Promise<void> {
-		// AWS tasks are ephemeral, nothing to release
-		// The task will be stopped when the bot completes its work
-		console.log(
-			`[AWSPlatform] Release called for bot ${_botId} (no-op for ECS)`,
-		);
-	}
-
-	async processQueue(): Promise<void> {
-		// AWS doesn't have a queue concept
-		// Tasks are created on-demand without resource limits
-		// (ECS handles scaling automatically)
 	}
 
 	/**

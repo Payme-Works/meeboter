@@ -1,4 +1,4 @@
-import type { CoolifyBotStatus } from "../coolify-platform-service";
+import type { CoolifyBotStatus } from "../coolify/coolify-platform-service";
 
 /**
  * Maps between Coolify API status strings and domain CoolifyBotStatus

@@ -1,5 +1,5 @@
 import type * as schema from "@/server/database/schema";
-import type { ImagePullLockService } from "./image-pull-lock-service";
+import type { ImagePullLockService } from "../../image-pull-lock-service";
 
 /**
  * Configuration for CoolifyService
