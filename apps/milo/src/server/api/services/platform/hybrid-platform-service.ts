@@ -179,8 +179,6 @@ export class HybridPlatformService {
 	 * @throws HybridDeployError if all platforms fail and queuing fails
 	 */
 	async deployBot(botConfig: BotConfig): Promise<HybridDeployResult> {
-		const attemptedPlatforms: DeploymentPlatform[] = [];
-
 		// Try each platform in priority order
 		for (const platform of this.priorityOrder) {
 			const config = this.platforms.get(platform);
@@ -200,8 +198,6 @@ export class HybridPlatformService {
 
 			// Got a slot, try to deploy
 			try {
-				attemptedPlatforms.push(platform);
-
 				const result = await this.tryDeployOnPlatform(
 					platform,
 					config.service,
