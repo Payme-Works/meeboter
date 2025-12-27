@@ -1,6 +1,10 @@
+import { TRPCError } from "@trpc/server";
+import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
+import { db } from "@/server/database/db";
+import { botsTable } from "@/server/database/schema";
 import { services } from "../../services";
 
 /**
@@ -80,8 +84,61 @@ export const awsRouter = createTRPCRouter({
 			}),
 		)
 		.output(z.array(awsTaskSchema))
-		.query(async () => {
-			// AWS doesn't have a central task listing - would need ECS API integration
-			return [];
+		.query(async ({ input }) => {
+			if (!services.aws) {
+				throw new TRPCError({
+					code: "NOT_IMPLEMENTED",
+					message: "AWS operations are only available when using AWS platform",
+				});
+			}
+
+			const tasks = await services.aws.listTasks({
+				status: input.status,
+				sort: input.sort,
+			});
+
+			// Get task ARNs to look up bot information
+			const taskArns = tasks.map((t) => t.taskArn);
+
+			// Look up bots from database by platformIdentifier (task ARN)
+			const bots =
+				taskArns.length > 0
+					? await db
+							.select({
+								id: botsTable.id,
+								displayName: botsTable.displayName,
+								platformIdentifier: botsTable.platformIdentifier,
+							})
+							.from(botsTable)
+							.where(
+								and(
+									inArray(botsTable.platformIdentifier, taskArns),
+									eq(botsTable.deploymentPlatform, "aws"),
+								),
+							)
+					: [];
+
+			// Create map for quick lookup: taskArn -> bot info
+			const botByTaskArn = new Map(
+				bots.map((bot) => [
+					bot.platformIdentifier,
+					{ id: bot.id, displayName: bot.displayName },
+				]),
+			);
+
+			// Merge task data with bot information
+			return tasks.map((task, index) => {
+				const bot = botByTaskArn.get(task.taskArn);
+
+				return {
+					id: bot?.id ?? index + 1,
+					taskArn: task.taskArn,
+					status: task.status,
+					botId: bot?.id ?? 0,
+					botName: bot?.displayName ?? null,
+					cluster: task.cluster,
+					createdAt: task.createdAt,
+				};
+			});
 		}),
 });

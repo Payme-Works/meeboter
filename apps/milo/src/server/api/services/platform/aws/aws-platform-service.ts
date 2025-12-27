@@ -305,6 +305,94 @@ export class AWSPlatformService implements PlatformService<AWSBotStatus> {
 	}
 
 	/**
+	 * Lists all ECS tasks with their status for table display
+	 * Returns task ARNs with status and creation time
+	 */
+	async listTasks(options?: {
+		status?: AWSBotStatus[];
+		sort?: string;
+	}): Promise<
+		{
+			taskArn: string;
+			status: AWSBotStatus;
+			cluster: string;
+			createdAt: Date;
+		}[]
+	> {
+		try {
+			// List all tasks in the cluster
+			const listResult = await this.ecsClient.send(
+				new ListTasksCommand({
+					cluster: this.config.cluster,
+				}),
+			);
+
+			const taskArns = listResult.taskArns ?? [];
+
+			if (taskArns.length === 0) {
+				return [];
+			}
+
+			// Describe tasks to get their statuses
+			const describeResult = await this.ecsClient.send(
+				new DescribeTasksCommand({
+					cluster: this.config.cluster,
+					tasks: taskArns,
+				}),
+			);
+
+			const tasks = (describeResult.tasks ?? [])
+				.map((task) => {
+					const status = AWSStatusMapper.toDomain(task.lastStatus);
+
+					const createdAt = task.createdAt
+						? new Date(task.createdAt)
+						: new Date();
+
+					return {
+						taskArn: task.taskArn ?? "",
+						status,
+						cluster: this.config.cluster,
+						createdAt,
+					};
+				})
+				.filter((task) => task.taskArn !== "")
+				.filter((task) => {
+					if (options?.status && options.status.length > 0) {
+						return options.status.includes(task.status);
+					}
+
+					return true;
+				});
+
+			// Sort tasks (default: age.desc = newest first)
+			const sortField = options?.sort ?? "age.desc";
+
+			if (sortField === "age.desc") {
+				tasks.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+			} else if (sortField === "age.asc") {
+				tasks.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+			}
+
+			return tasks;
+		} catch (error) {
+			// Log credential errors concisely without full stack trace
+			const isCredentialError =
+				error instanceof Error && error.name === "CredentialsProviderError";
+
+			if (isCredentialError) {
+				console.warn(
+					"[AWSPlatform] AWS credentials not configured, skipping task listing",
+				);
+			} else {
+				console.error("[AWSPlatform] Failed to list tasks:", error);
+			}
+
+			return [];
+		}
+	}
+
+	/**
 	 * Extracts region from cluster ARN or returns 'unknown'
 	 */
 	private getRegionFromCluster(): string {
