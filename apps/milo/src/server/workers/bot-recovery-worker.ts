@@ -227,6 +227,10 @@ export class BotRecoveryWorker extends BaseWorker<BotRecoveryResult> {
 	private async cleanupOrphanedBotResources(
 		result: BotRecoveryResult,
 	): Promise<void> {
+		// Clean up bots stuck in DEPLOYING with no platform assignment
+		// (deployment failed before platform was set)
+		await this.cleanupOrphanedDeployingBots(result);
+
 		// For K8s: Clean up stuck DEPLOYING bots and orphaned Jobs
 		if (this.services.k8s) {
 			await this.cleanupK8sStuckDeployingBots(result);
@@ -236,6 +240,58 @@ export class BotRecoveryWorker extends BaseWorker<BotRecoveryResult> {
 		// For AWS: Clean up ECS tasks for FATAL bots
 		if (this.services.aws) {
 			await this.cleanupAWSOrphanedTasks(result);
+		}
+	}
+
+	/**
+	 * Cleans up bots stuck in DEPLOYING state with no platform assignment.
+	 *
+	 * This catches bots where deployment failed BEFORE the platform was set:
+	 * 1. BotDeploymentService sets status = "DEPLOYING"
+	 * 2. HybridPlatformService.deployBot() fails (timeout, error, etc.)
+	 * 3. deploymentPlatform is never set, leaving bot orphaned
+	 *
+	 * These bots are not caught by platform-specific recovery since they have
+	 * NULL deploymentPlatform.
+	 */
+	private async cleanupOrphanedDeployingBots(
+		result: BotRecoveryResult,
+	): Promise<void> {
+		const staleDeployingCutoff = new Date(Date.now() - DEPLOYING_TIMEOUT_MS);
+
+		// Find bots stuck in DEPLOYING with no platform (deployment failed early)
+		const orphanedBots = await this.db.query.botsTable.findMany({
+			where: and(
+				eq(botsTable.status, "DEPLOYING"),
+				isNull(botsTable.deploymentPlatform),
+				lt(botsTable.createdAt, staleDeployingCutoff),
+			),
+			columns: {
+				id: true,
+				createdAt: true,
+				lastHeartbeat: true,
+			},
+		});
+
+		if (orphanedBots.length === 0) {
+			return;
+		}
+
+		console.log(
+			`[${this.name}] Found ${orphanedBots.length} bots stuck in DEPLOYING with no platform assignment`,
+		);
+
+		for (const bot of orphanedBots) {
+			console.log(
+				`[${this.name}] Marking orphaned DEPLOYING bot ${bot.id} as FATAL (created: ${bot.createdAt?.toISOString() ?? "unknown"}, no platform assigned)`,
+			);
+
+			await this.db
+				.update(botsTable)
+				.set({ status: "FATAL" })
+				.where(eq(botsTable.id, bot.id));
+
+			result.recovered++;
 		}
 	}
 
