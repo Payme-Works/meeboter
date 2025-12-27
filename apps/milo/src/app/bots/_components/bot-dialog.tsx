@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DataTable } from "@/components/custom/data-table";
 import ErrorAlert from "@/components/custom/error-alert";
 import { Badge } from "@/components/ui/badge";
@@ -114,6 +114,13 @@ export function BotDialog({ botId, onClose }: BotDialogProps) {
 	const [activeTab, setActiveTab] = useState<
 		"details" | "logs" | "screenshots" | "chat" | "platform"
 	>("details");
+
+	// Reset tab to "details" when dialog opens with a new bot
+	useEffect(() => {
+		if (botId) {
+			setActiveTab("details");
+		}
+	}, [botId]);
 
 	const {
 		data: bot,
