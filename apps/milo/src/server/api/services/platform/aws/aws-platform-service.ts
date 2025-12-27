@@ -82,18 +82,13 @@ export class AWSPlatformService implements PlatformService<AWSBotStatus> {
 					cluster: this.config.cluster,
 					taskDefinition,
 					// Use capacityProviderStrategy instead of launchType to enable Fargate Spot
-					// This respects the cluster's default capacity provider strategy (95% Spot, 5% On-Demand)
-					// Fargate Spot is up to 70% cheaper than on-demand
+					// 100% Spot for maximum cost savings (~70% cheaper than on-demand)
+					// If Spot capacity unavailable, task will fail to launch
 					capacityProviderStrategy: [
 						{
 							capacityProvider: "FARGATE_SPOT",
-							weight: 95,
+							weight: 100,
 							base: 0,
-						},
-						{
-							capacityProvider: "FARGATE",
-							weight: 5,
-							base: 1, // Ensure at least one task can run on-demand as fallback
 						},
 					],
 					networkConfiguration: {

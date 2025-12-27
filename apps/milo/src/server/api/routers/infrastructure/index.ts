@@ -134,20 +134,20 @@ const queueStatsSchema = z.object({
  * Savings vs x86_64 on-demand: ~67% ($219 → $73/month)
  */
 const PRICING = {
-	// AWS Fargate ARM64 blended rate (95% Spot / 5% On-Demand, us-east-2)
-	AWS_VCPU_PER_HOUR: 0.013,
-	AWS_GB_PER_HOUR: 0.00143,
+	// AWS Fargate ARM64 100% Spot rate (us-east-2)
+	AWS_VCPU_PER_HOUR: 0.01133,
+	AWS_GB_PER_HOUR: 0.00125,
 
 	// K8s uses same cloud-equivalent rates for comparison
-	K8S_VCPU_PER_HOUR: 0.013,
-	K8S_GB_PER_HOUR: 0.00143,
+	K8S_VCPU_PER_HOUR: 0.01133,
+	K8S_GB_PER_HOUR: 0.00125,
 
 	// Coolify flat rate (based on ~$90/mo for ~45,000 bot-hours)
 	COOLIFY_PER_HOUR: 0.002,
 
 	// Default resource allocation per bot (matches ECS task definition)
 	DEFAULT_VCPU: 0.5,
-	DEFAULT_GB: 2,
+	DEFAULT_GB: 1,
 } as const;
 
 /**

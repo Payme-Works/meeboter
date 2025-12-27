@@ -17,18 +17,12 @@ resource "aws_ecs_cluster_capacity_providers" "this" {
   cluster_name       = aws_ecs_cluster.this.name
   capacity_providers = ["FARGATE", "FARGATE_SPOT"]
 
-  # Cost optimization: 95% Spot for maximum savings (~$71/month at 500 bots/day)
+  # Cost optimization: 100% Spot for maximum savings (~$52/month at 500 bots/day)
   # Meeting bots are interruption-tolerant since they can rejoin if terminated
   default_capacity_provider_strategy {
     capacity_provider = "FARGATE_SPOT"
-    weight            = 95
+    weight            = 100
     base              = 0
-  }
-
-  default_capacity_provider_strategy {
-    capacity_provider = "FARGATE"
-    weight            = 5
-    base              = 1
   }
 }
 
@@ -39,7 +33,7 @@ resource "aws_ecs_task_definition" "google_meet_bot" {
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
   cpu                      = 512  # Cost optimization: 0.5 vCPU sufficient for browser automation
-  memory                   = 2048 # Keep 2 GB for Chromium/Playwright
+  memory                   = 1024 # Cost optimization: 1 GB sufficient for Chromium/Playwright
   execution_role_arn       = aws_iam_role.task_execution.arn
   task_role_arn            = aws_iam_role.bot_task.arn
 
@@ -81,7 +75,7 @@ resource "aws_ecs_task_definition" "zoom_bot" {
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
   cpu                      = 512  # Cost optimization: 0.5 vCPU sufficient for browser automation
-  memory                   = 2048 # Keep 2 GB for Chromium/Playwright
+  memory                   = 1024 # Cost optimization: 1 GB sufficient for Chromium/Playwright
   execution_role_arn       = aws_iam_role.task_execution.arn
   task_role_arn            = aws_iam_role.bot_task.arn
 
@@ -122,7 +116,7 @@ resource "aws_ecs_task_definition" "microsoft_teams_bot" {
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
   cpu                      = 512  # Cost optimization: 0.5 vCPU sufficient for browser automation
-  memory                   = 2048 # Keep 2 GB for Chromium/Playwright
+  memory                   = 1024 # Cost optimization: 1 GB sufficient for Chromium/Playwright
   execution_role_arn       = aws_iam_role.task_execution.arn
   task_role_arn            = aws_iam_role.bot_task.arn
 

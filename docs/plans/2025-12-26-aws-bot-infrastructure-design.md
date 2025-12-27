@@ -42,17 +42,17 @@ We use three optimizations to minimize costs:
 | Resource | Value |
 |----------|-------|
 | CPU | 0.5 vCPU (512 units) |
-| Memory | 2 GB |
+| Memory | 1 GB |
 | Architecture | ARM64 (Graviton2) |
 
 ### Per Bot Cost Calculation (ARM64 + 95% Spot)
 
 ```
 vCPU cost   = 0.5 vCPU × $0.01238/vCPU-hour = $0.00619/hour
-Memory cost = 2 GB × $0.00137/GB-hour       = $0.00274/hour
+Memory cost = 1 GB × $0.00137/GB-hour       = $0.00137/hour
 ─────────────────────────────────────────────────────────────
-Total per bot                               = $0.00893/hour
-                                            = $0.00447/30min
+Total per bot                               = $0.00756/hour
+                                            = $0.00378/30min
 ```
 
 ### Fixed Monthly Costs
@@ -80,12 +80,12 @@ Total per bot                               = $0.00893/hour
 
 | Daily Volume | Avg Duration | Daily Cost | Monthly Cost | vs x86 On-Demand |
 |--------------|--------------|------------|--------------|------------------|
-| 100 bots | 30 min | $0.45 | ~$13 | -$30/mo |
-| 500 bots | 30 min | $2.23 | ~$67 | -$151/mo |
-| 1000 bots | 30 min | $4.47 | ~$134 | -$303/mo |
-| 500 bots | 1 hour | $4.47 | ~$134 | -$303/mo |
+| 100 bots | 30 min | $0.38 | ~$11 | -$32/mo |
+| 500 bots | 30 min | $1.89 | ~$57 | -$162/mo |
+| 1000 bots | 30 min | $3.78 | ~$113 | -$324/mo |
+| 500 bots | 1 hour | $3.78 | ~$113 | -$324/mo |
 
-**Cost per meeting: ~$0.0045** (at 30 min average duration with ARM64 + 95% Spot)
+**Cost per meeting: ~$0.0038** (at 30 min average duration with ARM64 + 95% Spot + 1GB)
 
 ## Architecture
 
