@@ -3,8 +3,8 @@ import type { Services } from "@/server/api/services";
 import type * as schema from "@/server/database/schema";
 
 import { BotHealthWorker } from "./bot-health-worker";
-import { BotRecoveryWorker } from "./bot-recovery-worker";
 import { CoolifyPoolSlotSyncWorker } from "./coolify-pool-slot-sync-worker";
+import { BotRecoveryWorker } from "./recovery";
 
 /** Default interval for all workers (1 minute) */
 const DEFAULT_INTERVAL_MS = 60 * 1000;
