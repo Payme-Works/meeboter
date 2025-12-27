@@ -61,13 +61,14 @@ output "milo_aws_secret_access_key" {
 # ─── Milo Environment Configuration ───────────────────────────────────────────
 
 output "milo_env_config" {
-  description = "Environment variables for Milo (credentials shown separately)"
+  description = "Environment variables for Milo"
+  sensitive   = true
   value       = <<-EOT
 # AWS ECS Configuration (add to Milo .env)
 
 AWS_REGION=${var.aws_region}
 AWS_ACCESS_KEY_ID=${aws_iam_access_key.milo.id}
-AWS_SECRET_ACCESS_KEY=<run: terraform output -raw milo_aws_secret_access_key>
+AWS_SECRET_ACCESS_KEY=${aws_iam_access_key.milo.secret}
 AWS_ECS_CLUSTER=${aws_ecs_cluster.this.name}
 AWS_ECS_SUBNETS=${join(",", aws_subnet.public[*].id)}
 AWS_ECS_SECURITY_GROUPS=${aws_security_group.bot_tasks.id}
