@@ -34,7 +34,6 @@ concurrency:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_PREFIX: ${{ github.repository_owner }}/meeboter
 
 jobs:
   # ─── Build Each Image on Native Runners ─────────────────────────────────────
@@ -83,6 +82,10 @@ jobs:
             echo "release=true" >> $GITHUB_OUTPUT
           fi
 
+      - name: Set image prefix (lowercase)
+        id: vars
+        run: echo "image_prefix=${GITHUB_REPOSITORY_OWNER,,}/meeboter" >> $GITHUB_OUTPUT
+
       - name: Checkout repository
         if: steps.should_release.outputs.release == 'true'
         uses: actions/checkout@v4
@@ -104,7 +107,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-${{ matrix.image.name }}
+          images: ${{ env.REGISTRY }}/${{ steps.vars.outputs.image_prefix }}-${{ matrix.image.name }}
           tags: |
             type=sha,prefix=
             type=raw,value=latest
@@ -121,7 +124,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.image.name }}-${{ matrix.platform.arch }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image.name }}-${{ matrix.platform.arch }}
-          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-${{ matrix.image.name }},push-by-digest=true,name-canonical=true,push=true
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ steps.vars.outputs.image_prefix }}-${{ matrix.image.name }},push-by-digest=true,name-canonical=true,push=true
 
       - name: Export digest
         if: steps.should_release.outputs.release == 'true'
@@ -172,6 +175,10 @@ jobs:
             echo "release=true" >> $GITHUB_OUTPUT
           fi
 
+      - name: Set image prefix (lowercase)
+        id: vars
+        run: echo "image_prefix=${GITHUB_REPOSITORY_OWNER,,}/meeboter" >> $GITHUB_OUTPUT
+
       - name: Download amd64 digest
         if: steps.should_release.outputs.release == 'true'
         uses: actions/download-artifact@v4
@@ -203,7 +210,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-${{ matrix.image.name }}
+          images: ${{ env.REGISTRY }}/${{ steps.vars.outputs.image_prefix }}-${{ matrix.image.name }}
           tags: |
             type=sha,prefix=
             type=raw,value=latest
@@ -216,12 +223,12 @@ jobs:
           DOCKER_METADATA_OUTPUT_JSON: ${{ steps.meta.outputs.json }}
         run: |
           docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
-            $(printf '${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-${{ matrix.image.name }}@sha256:%s ' *)
+            $(printf '${{ env.REGISTRY }}/${{ steps.vars.outputs.image_prefix }}-${{ matrix.image.name }}@sha256:%s ' *)
 
       - name: Inspect image
         if: steps.should_release.outputs.release == 'true'
         run: |
-          docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-${{ matrix.image.name }}:latest
+          docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ steps.vars.outputs.image_prefix }}-${{ matrix.image.name }}:latest
 
   # ─── Release Summary ────────────────────────────────────────────────────────
   release-summary:
@@ -233,13 +240,13 @@ jobs:
       - name: Generate release summary
         env:
           REGISTRY: ghcr.io
-          IMAGE_PREFIX: ${{ github.repository_owner }}/meeboter
           COMMIT_SHA: ${{ github.sha }}
           BRANCH: ${{ github.ref_name }}
           ACTOR: ${{ github.actor }}
           RUN_ID: ${{ github.run_id }}
           REPO: ${{ github.repository }}
         run: |
+          IMAGE_PREFIX="${GITHUB_REPOSITORY_OWNER,,}/meeboter"
           SHORT_SHA="${COMMIT_SHA:0:7}"
           TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
 
