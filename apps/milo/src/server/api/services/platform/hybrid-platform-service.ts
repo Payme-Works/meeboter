@@ -209,17 +209,6 @@ export class HybridPlatformService {
 				);
 
 				if (result) {
-					// Defensive check: ensure identifier is present
-					if (!result.identifier) {
-						console.error(
-							`[HybridPlatformService] Platform '${platform}' returned success but identifier is missing for bot ${botConfig.id}`,
-							{ result },
-						);
-
-						// Treat as deployment failure, try next platform
-						continue;
-					}
-
 					// Success! Return result (slot released in finally)
 					return {
 						platform,
@@ -384,17 +373,6 @@ export class HybridPlatformService {
 				);
 
 				if (result) {
-					// Defensive check: ensure identifier is present
-					if (!result.identifier) {
-						console.error(
-							`[HybridPlatformService] Platform '${platform}' returned success but identifier is missing for queued bot ${bot.id}`,
-							{ result },
-						);
-
-						// Treat as deployment failure, try next platform
-						continue;
-					}
-
 					// Update bot with platform info
 					await this.db
 						.update(botsTable)
@@ -648,7 +626,10 @@ export class HybridPlatformService {
 	/**
 	 * Attempts to deploy on a specific platform
 	 *
-	 * @returns Deploy result on success, null on failure (allows fallback to next platform)
+	 * Validates that the result includes an identifier. Returns null if deployment
+	 * fails or identifier is missing, allowing fallback to next platform.
+	 *
+	 * @returns Deploy result with valid identifier on success, null on failure
 	 */
 	private async tryDeployOnPlatform(
 		platform: DeploymentPlatform,
@@ -657,6 +638,16 @@ export class HybridPlatformService {
 	): Promise<PlatformDeployResult | null> {
 		try {
 			const result = await service.deployBot(botConfig);
+
+			// Validate identifier is present
+			if (!result.identifier) {
+				console.error(
+					`[HybridPlatformService] Platform '${platform}' returned success but identifier is missing for bot ${botConfig.id}`,
+					{ result },
+				);
+
+				return null;
+			}
 
 			console.log(
 				`[HybridPlatformService] Successfully deployed bot ${botConfig.id} on '${platform}'`,
