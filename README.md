@@ -80,19 +80,21 @@ GET /events/bot/{botId}
 
 ## Deployment
 
-\- **[Coolify](DEPLOYMENT.md#coolify-deployment-pool-based):** Pool-based, ~$20-50/mo, self-hosted<br>
-\- **[Kubernetes](DEPLOYMENT.md#kubernetes-deployment-pod-based):** Pod-based, ~$50-200/mo, existing K8s<br>
-\- **[AWS ECS](DEPLOYMENT.md#aws-ecs-deployment-task-based):** Task-based, ~$100-500/mo, enterprise
+| Platform | Model | Cost | Best For |
+|----------|-------|------|----------|
+| **[Coolify](docs/DEPLOYMENT.md#coolify-deployment)** | Pool-based | ~$50-90/mo | Self-hosted, predictable workloads |
+| **[Kubernetes](docs/DEPLOYMENT.md#kubernetes-deployment)** | Pod-based | ~$60-200/mo | Existing K8s, multi-cloud |
+| **[AWS ECS](docs/DEPLOYMENT.md#aws-ecs-deployment)** | Task-based | ~$80-500/mo | Auto-scaling, pay-per-use |
 
-See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed setup guides.
+See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for setup guides and [ARCHITECTURE.md](ARCHITECTURE.md) for detailed cost analysis.
 
 <br />
 
 ## Architecture
 
 ```
-Your App → Meeboter API → Bot Pool → Meeting Platforms
-                ↓              ↓
+Your App → Meeboter API → Platform Service → Meeting Platforms
+                ↓               ↓
            PostgreSQL    S3 (recordings)
 ```
 
@@ -100,44 +102,53 @@ Your App → Meeboter API → Bot Pool → Meeting Platforms
 
 \- **API:** Next.js 15, tRPC, Drizzle ORM<br>
 \- **Bots:** Playwright (Meet), Puppeteer (Teams/Zoom), FFmpeg<br>
-\- **Database:** PostgreSQL<br>
-\- **Storage:** S3-compatible (MinIO, AWS S3)
+\- **Database:** PostgreSQL 15<br>
+\- **Storage:** S3-compatible (MinIO, AWS S3)<br>
+\- **Runtime:** Bun + Alpine Linux (ARM64/x86)
 
-**Platform Abstraction** — Deploy bots to any backend:
+**Multi-Platform Deployment:**
 
-\- **Coolify:** Pre-provisioned Docker containers, reused across meetings<br>
-\- **Kubernetes:** Ephemeral pods created per meeting, auto-cleanup<br>
-\- **AWS ECS:** Fargate tasks on-demand, pay-per-use
+| Platform | Model | Deploy Time | Cost Model |
+|----------|-------|-------------|------------|
+| Coolify | Pool-based | ~30s | Fixed server |
+| Kubernetes | Pod-based | ~30-60s | Fixed cluster |
+| AWS ECS | Task-based | ~60-90s | Pay-per-use |
+
+**Hybrid Mode** — Automatic failover across platforms with `PLATFORM_PRIORITY` configuration.
 
 <details>
-<summary><strong>Our Proxmox + Coolify + AWS Setup</strong></summary>
+<summary><strong>Reference Architecture: Proxmox + Coolify + AWS</strong></summary>
 
 <br />
 
 ```
-+-----------------------------------------------------------------------+
-|                      PROXMOX HOST (bare-metal)                        |
-|                                                                       |
-|  +------------------------+                                           |
-|  | CT 100: Coolify        |                                           |
-|  |                        |                                           |
-|  |  +------------------+  |     +----------------------------------+  |
-|  |  | Milo API Server  |------->|          AWS ECS Cluster         |  |
-|  |  | (Next.js + tRPC) |  |     |                                  |  |
-|  |  +--------+---------+  |     |  Meeting 1 --> [Task A] --> Done |  |
-|  |           |            |     |  Meeting 2 --> [Task B] --> Done |  |
-|  |  +--------+---------+  |     |  Meeting 3 --> [Task C] Running  |  |
-|  |  | PostgreSQL       |  |     |                                  |  |
-|  |  | MinIO (S3)       |  |     |  Ephemeral Fargate tasks         |  |
-|  |  | Bot Pool (20)    |  |     |  Up to 100 concurrent bots       |  |
-|  |  +------------------+  |     +----------------------------------+  |
-|  +------------------------+                                           |
-+-----------------------------------------------------------------------+
+┌─────────────────────────────────────────────────────────────────────────┐
+│                      PROXMOX HOST (bare-metal)                          │
+│                                                                         │
+│  ┌─────────────────────────────┐                                        │
+│  │     CT 100: Coolify         │                                        │
+│  │                             │                                        │
+│  │  ┌───────────────────────┐  │     ┌────────────────────────────────┐ │
+│  │  │ Milo API (Next.js)    │──┼────▶│        AWS ECS Cluster         │ │
+│  │  │ Port 3000             │  │     │                                │ │
+│  │  └───────────┬───────────┘  │     │  ┌──────┐ ┌──────┐ ┌──────┐   │ │
+│  │              │              │     │  │Task A│ │Task B│ │Task C│   │ │
+│  │  ┌───────────┴───────────┐  │     │  │ Done │ │ Done │ │ Run  │   │ │
+│  │  │ PostgreSQL │ MinIO    │  │     │  └──────┘ └──────┘ └──────┘   │ │
+│  │  └───────────────────────┘  │     │                                │ │
+│  │                             │     │  Fargate Spot (90%) + ARM64    │ │
+│  │  ┌───────────────────────┐  │     │  0.5 vCPU / 2 GB per task      │ │
+│  │  │ Bot Pool (20 slots)   │  │     │  Up to 100 concurrent bots     │ │
+│  │  │ ~30s deploy time      │  │     └────────────────────────────────┘ │
+│  │  └───────────────────────┘  │                                        │
+│  └─────────────────────────────┘                                        │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
-\- **Proxmox:** Bare-metal hypervisor running Coolify container<br>
-\- **Coolify (CT 100):** Hosts Milo API, PostgreSQL, MinIO, and bot pool (20 slots, ~30s deploy)<br>
-\- **AWS ECS:** Fargate overflow (up to 100 bots, pay-per-use)
+**Cost Breakdown:**
+\- Proxmox server (Hetzner AX52): ~$80/mo<br>
+\- AWS ECS (500 bots/day, 45 min avg): ~$100/mo<br>
+\- **Total: ~$180/mo** for hybrid setup with overflow capacity
 
 </details>
 
@@ -148,25 +159,29 @@ Your App → Meeboter API → Bot Pool → Meeting Platforms
 ```
 meeboter/
 ├── apps/
-│   ├── milo/           # API server (Next.js)
-│   └── bots/           # Bot engine
+│   ├── milo/                    # API server (Next.js + tRPC)
+│   │   ├── src/server/api/      # tRPC routers and services
+│   │   └── drizzle/             # Database migrations
+│   └── bots/                    # Bot engine
 │       └── providers/
-│           ├── google-meet/
-│           ├── microsoft-teams/
-│           └── zoom/
+│           ├── Dockerfile       # Shared base image
+│           ├── google-meet/     # Playwright-based
+│           ├── microsoft-teams/ # Puppeteer-based
+│           └── zoom/            # Puppeteer-based
 ├── terraform/
-│   └── bots/           # AWS ECS infrastructure
-└── docs/
+│   └── bots/                    # AWS ECS Fargate infrastructure
+├── packages/                    # Shared packages
+└── docs/                        # Documentation
 ```
 
 <br />
 
 ## Documentation
 
-\- **[DEPLOYMENT.md](DEPLOYMENT.md):** Deployment guides<br>
-\- **[ARCHITECTURE.md](ARCHITECTURE.md):** System design<br>
-\- **[apps/milo/README.md](apps/milo/README.md):** API server docs<br>
-\- **[apps/bots/README.md](apps/bots/README.md):** Bot engine docs<br>
+\- **[ARCHITECTURE.md](ARCHITECTURE.md):** System design and cost analysis<br>
+\- **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md):** Platform deployment guides<br>
+\- **[apps/milo/README.md](apps/milo/README.md):** API server documentation<br>
+\- **[apps/bots/ARCHITECTURE.md](apps/bots/ARCHITECTURE.md):** Bot engine and AWS infrastructure<br>
 \- **[API Docs](http://localhost:3000/docs):** OpenAPI/Scalar (when running)
 
 <br />

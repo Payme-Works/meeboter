@@ -273,26 +273,165 @@ K8S_BOT_LIMIT="80"
 
 ### Cost Estimation
 
-| Deployment | Monthly Cost | Includes |
+| Deployment | Monthly Cost | Best For |
 |------------|--------------|----------|
-| **Coolify (Self-hosted)** | ~$20-50/mo | VPS/bare-metal, fixed capacity |
-| **Kubernetes (K3s)** | ~$50-200/mo | Cluster hosting, fixed capacity |
-| **AWS ECS (Fargate)** | ~$100-500/mo | Pay-per-use, scales with demand |
+| **Coolify (Self-hosted)** | ~$20-80/mo | Predictable workloads, self-hosted |
+| **Kubernetes (K3s)** | ~$50-200/mo | Existing K8s, multi-cloud |
+| **AWS ECS (Fargate)** | ~$80-500/mo | Auto-scaling, pay-per-use |
 
-**Coolify (Pool-Based)**
-- Fixed monthly cost for server/VPS
-- Most cost-efficient at scale with consistent workload
-- Example: Hetzner dedicated server (~$50/mo) can handle 20+ concurrent bots
+---
 
-**Kubernetes (Pod-Based)**
-- Fixed cluster cost plus potential node auto-scaling
-- Cost-efficient when you have existing K8s infrastructure
-- Example: K3s on single node (~$50/mo) can handle 40-80 concurrent bots
+## Detailed Cost Analysis
 
-**AWS ECS (Task-Based)**
-- Pay only for actual bot runtime (vCPU-seconds + memory-seconds)
-- Best for unpredictable or spiky workloads
-- Example: 1000 bot-hours/month ≈ $50-100 (1 vCPU, 2GB RAM)
+### AWS ECS Fargate Costs
+
+Our AWS infrastructure is optimized for cost with these configurations:
+
+| Optimization | Savings | Implementation |
+|--------------|---------|----------------|
+| 90% Fargate Spot | ~70% compute savings | Capacity provider weights |
+| ARM64 Graviton | ~20% cheaper than x86 | Task runtime platform |
+| 0.5 vCPU tasks | 50% vs 1 vCPU | Right-sized for browser automation |
+| No NAT Gateway | ~$32/mo saved | Public subnets with IGW |
+| Container Insights off | ~$3/container saved | Cluster setting disabled |
+| 1-day log retention | Minimal log costs | CloudWatch configuration |
+
+#### Fargate Pricing (us-east-2, ARM64)
+
+| Resource | On-Demand | Spot (~70% off) |
+|----------|-----------|-----------------|
+| vCPU/hour | $0.03238 | ~$0.00971 |
+| GB RAM/hour | $0.00356 | ~$0.00107 |
+
+#### Per-Task Hourly Cost (0.5 vCPU + 2 GB RAM)
+
+| Launch Type | Calculation | Cost/Hour |
+|-------------|-------------|-----------|
+| On-Demand | (0.5 × $0.03238) + (2 × $0.00356) | $0.02331 |
+| Spot | (0.5 × $0.00971) + (2 × $0.00107) | $0.00700 |
+| **Blended (90/10)** | (0.9 × $0.00700) + (0.1 × $0.02331) | **$0.00863** |
+
+#### Monthly Cost by Usage (500 bots/day)
+
+| Meeting Duration | Bot-Hours/Day | Bot-Hours/Month | Compute Cost |
+|------------------|---------------|-----------------|--------------|
+| 30 min (short) | 250 | 7,500 | **~$65** |
+| 45 min (average) | 375 | 11,250 | **~$97** |
+| 60 min (standard) | 500 | 15,000 | **~$130** |
+| 90 min (extended) | 750 | 22,500 | **~$194** |
+
+#### Additional AWS Costs
+
+| Service | Monthly Cost | Notes |
+|---------|--------------|-------|
+| CloudWatch Logs | ~$0.50-2.00 | 1-day retention, ~1-5 GB ingested |
+| Secrets Manager | ~$0.40 | 1 secret (GHCR credentials) |
+| S3 Terraform State | ~$0.05 | State file only |
+| Data Transfer | ~$0.09/GB | Outbound to internet |
+| **Fixed Overhead** | **~$3/month** | Minimal baseline |
+
+#### Scaling Projections
+
+| Daily Bots | Avg Duration | Monthly Bot-Hours | Est. Cost |
+|------------|--------------|-------------------|-----------|
+| 100 | 45 min | 2,250 | ~$22 |
+| 500 | 45 min | 11,250 | ~$100 |
+| 1,000 | 45 min | 22,500 | ~$197 |
+| 2,000 | 45 min | 45,000 | ~$391 |
+| 5,000 | 45 min | 112,500 | ~$973 |
+
+---
+
+### Coolify (Self-Hosted) Costs
+
+Pool-based deployment with pre-provisioned containers.
+
+#### Server Options
+
+| Provider | Plan | Monthly Cost | Concurrent Bots |
+|----------|------|--------------|-----------------|
+| Hetzner AX41 | Dedicated | ~$50 | 20-30 |
+| Hetzner AX52 | Dedicated | ~$80 | 40-50 |
+| OVH Advance-2 | Dedicated | ~$90 | 40-50 |
+| Custom Proxmox | Bare-metal | Variable | Depends on specs |
+
+#### Resource Requirements
+
+| Component | Requirement | Notes |
+|-----------|-------------|-------|
+| CPU | 1 core per bot | Browser automation |
+| RAM | 2-3 GB per bot | Chromium/Playwright |
+| Storage | 50+ GB SSD | Docker images, recordings |
+| Network | 100+ Mbps | Video streaming |
+
+#### Cost Breakdown (Hetzner AX52 Example)
+
+| Item | Monthly Cost |
+|------|--------------|
+| Server (AX52) | $80 |
+| Bandwidth | Included (20 TB) |
+| Backups (optional) | $10 |
+| **Total** | **~$90/month** |
+
+**Capacity**: 40-50 concurrent bots = 40,000-50,000 bot-hours/month
+
+**Cost per bot-hour**: ~$0.002 (vs $0.00863 AWS)
+
+---
+
+### Kubernetes Costs
+
+Pod-based deployment on managed or self-hosted K8s.
+
+#### Managed Kubernetes (EKS/GKE/AKS)
+
+| Provider | Cluster Cost | Node Cost | Est. Total |
+|----------|--------------|-----------|------------|
+| AWS EKS | $72/mo | + EC2 nodes | $150-400/mo |
+| GKE Standard | $72/mo | + GCE nodes | $150-400/mo |
+| Azure AKS | Free | + VM nodes | $100-350/mo |
+
+#### Self-Hosted K3s (Recommended)
+
+| Setup | Monthly Cost | Concurrent Bots |
+|-------|--------------|-----------------|
+| Single node (4 vCPU, 16 GB) | ~$40-60 | 20-30 |
+| 3-node cluster | ~$120-180 | 60-90 |
+| 5-node cluster | ~$200-300 | 100-150 |
+
+---
+
+### Platform Cost Comparison
+
+#### For 500 bots/day, 45-min average meeting:
+
+| Platform | Monthly Cost | Cost/Bot-Hour | Pros |
+|----------|--------------|---------------|------|
+| **Coolify** | ~$80-90 | ~$0.007 | Lowest cost, full control |
+| **K8s (K3s)** | ~$60-120 | ~$0.005-0.011 | Portable, existing infra |
+| **AWS ECS** | ~$100-130 | ~$0.009 | Auto-scale, no ops |
+
+#### Break-Even Analysis
+
+| Scenario | Coolify Wins | AWS Wins |
+|----------|--------------|----------|
+| < 5,000 bot-hours/mo | ❌ AWS cheaper | ✅ Pay-per-use |
+| 5,000-15,000 bot-hours/mo | ≈ Similar | ≈ Similar |
+| > 15,000 bot-hours/mo | ✅ Fixed cost | ❌ Linear scaling |
+
+---
+
+### S3 Storage Costs (Recordings)
+
+If recording is enabled, factor in storage costs:
+
+| Recording Type | Size/Hour | Monthly (500 bots × 45 min) | S3 Cost |
+|----------------|-----------|------------------------------|---------|
+| Audio only | ~50 MB | ~19 GB | ~$0.44 |
+| Video (720p) | ~500 MB | ~188 GB | ~$4.32 |
+| Video (1080p) | ~1 GB | ~375 GB | ~$8.63 |
+
+S3 Standard pricing: ~$0.023/GB/month
 
 ---
 
