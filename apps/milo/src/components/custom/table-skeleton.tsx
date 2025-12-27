@@ -15,7 +15,7 @@ interface TableSkeletonProps {
 export default function TableSkeleton({ rows = 10 }: TableSkeletonProps) {
 	// Match DataTable height calculation for consistent layout
 	const headerHeight = 41;
-	const rowHeight = 37;
+	const rowHeight = 53;
 	const tableHeight = headerHeight + rowHeight * rows;
 
 	return (

@@ -77,19 +77,26 @@ const STATUS_PULSE: Record<BotActivityStatus, boolean> = {
  * Each bar represents one bot in its current status.
  * Consistent sizing: all bars use same gap (0.5) and width (w-1).
  */
-function ActivityBars({ sequence }: { sequence: BotActivityStatus[] }) {
+function ActivityBars({
+	sequence,
+	fillEmpty = false,
+}: {
+	sequence: BotActivityStatus[];
+	fillEmpty?: boolean;
+}) {
 	const maxBars = 100;
 	const displaySequence = sequence.slice(0, maxBars);
 	const hasOverflow = sequence.length > maxBars;
+	const emptySlots = fillEmpty ? maxBars - displaySequence.length : 0;
 
 	// Empty state - show subtle placeholder bars (idle label handled by parent)
 	if (sequence.length === 0) {
 		return (
-			<div className="flex items-center gap-0.5 h-4">
+			<div className="flex items-center gap-0.5 h-6">
 				{Array.from({ length: 5 }).map((_, i) => (
 					<div
 						key={`empty-${i}`}
-						className="w-1 h-1.5 rounded-full bg-muted/40"
+						className="w-1 h-2 rounded-full bg-muted/40"
 					/>
 				))}
 			</div>
@@ -98,7 +105,7 @@ function ActivityBars({ sequence }: { sequence: BotActivityStatus[] }) {
 
 	return (
 		<div
-			className="flex items-center gap-0.5 h-4"
+			className="flex items-center gap-0.5 h-6"
 			role="img"
 			aria-label={`${sequence.length} active bots`}
 		>
@@ -106,7 +113,7 @@ function ActivityBars({ sequence }: { sequence: BotActivityStatus[] }) {
 				<div
 					key={`bar-${i}`}
 					className={cn(
-						"w-1 h-4 rounded-full transition-all duration-300 shrink-0",
+						"w-1 h-6 rounded-full transition-all duration-300 shrink-0",
 						STATUS_COLORS[status],
 						STATUS_PULSE[status] && "animate-pulse",
 					)}
@@ -118,6 +125,16 @@ function ActivityBars({ sequence }: { sequence: BotActivityStatus[] }) {
 					title={status.replace("_", " ")}
 				/>
 			))}
+
+			{/* Empty slots to fill remaining space in stacked mode */}
+			{emptySlots > 0
+				? Array.from({ length: emptySlots }).map((_, i) => (
+						<div
+							key={`empty-${i}`}
+							className="w-1 h-2 rounded-full bg-muted/30 shrink-0"
+						/>
+					))
+				: null}
 
 			{/* Overflow indicator */}
 			{hasOverflow ? (
@@ -438,15 +455,20 @@ function InfrastructureCard({
 
 			{/* Content */}
 			<StatCardContent className="mb-0">
-				{/* Activity visualization - inline when < 30 bots, stacked when >= 30 */}
+				{/* Activity visualization - inline when <= 30 bots, stacked when > 30 */}
 				<div
 					className={cn(
 						"mb-3",
-						botSequence.length < 30 ? "flex items-center gap-4" : "space-y-2.5",
+						botSequence.length <= 30
+							? "flex items-center gap-4"
+							: "space-y-2.5",
 					)}
 				>
 					{/* Vertical bars visualization */}
-					<ActivityBars sequence={botSequence} />
+					<ActivityBars
+						sequence={botSequence}
+						fillEmpty={botSequence.length > 30}
+					/>
 
 					{/* Status counts / idle label */}
 					{botSequence.length === 0 ? (

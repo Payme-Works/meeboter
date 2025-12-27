@@ -219,9 +219,9 @@ export function DataTable<TData extends RowData, TValue>({
 
 	// Fixed height calculation to prevent layout shift during pagination
 	// Header: h-10 (40px) + 1px border = 41px
-	// Row: p-2 padding (16px) + text (~20px) + 1px border ≈ 37px
+	// Row: p-2 padding (16px) + content (~36px for badges/icons) + 1px border ≈ 53px
 	const headerHeight = 41;
-	const rowHeight = 37;
+	const rowHeight = 53;
 	const tableMinHeight = headerHeight + rowHeight * pagination.pageSize;
 
 	return (
