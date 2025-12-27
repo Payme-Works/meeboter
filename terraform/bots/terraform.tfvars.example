@@ -7,4 +7,5 @@
 
 # ─── GitHub Container Registry (Required) ─────────────────────────────────────
 
-ghcr_org = "your-github-org"
+ghcr_org   = "your-github-org"
+ghcr_token = ""  # GitHub PAT with read:packages scope - create at https://github.com/settings/tokens

@@ -46,6 +46,10 @@ resource "aws_ecs_task_definition" "google_meet_bot" {
     image     = "ghcr.io/${var.ghcr_org}/${var.project_name}-google-meet-bot:latest"
     essential = true
 
+    repositoryCredentials = {
+      credentialsParameter = aws_secretsmanager_secret.ghcr.arn
+    }
+
     # Environment variables set at runtime via container overrides
     environment = []
 
@@ -78,6 +82,10 @@ resource "aws_ecs_task_definition" "zoom_bot" {
     image     = "ghcr.io/${var.ghcr_org}/${var.project_name}-zoom-bot:latest"
     essential = true
 
+    repositoryCredentials = {
+      credentialsParameter = aws_secretsmanager_secret.ghcr.arn
+    }
+
     environment = []
 
     logConfiguration = {
@@ -108,6 +116,10 @@ resource "aws_ecs_task_definition" "microsoft_teams_bot" {
     name      = "microsoft-teams-bot"
     image     = "ghcr.io/${var.ghcr_org}/${var.project_name}-microsoft-teams-bot:latest"
     essential = true
+
+    repositoryCredentials = {
+      credentialsParameter = aws_secretsmanager_secret.ghcr.arn
+    }
 
     environment = []
 

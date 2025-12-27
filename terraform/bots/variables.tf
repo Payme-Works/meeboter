@@ -26,3 +26,9 @@ variable "ghcr_org" {
   type        = string
   description = "GitHub Container Registry organization"
 }
+
+variable "ghcr_token" {
+  type        = string
+  description = "GitHub Personal Access Token with read:packages scope for pulling container images"
+  sensitive   = true
+}

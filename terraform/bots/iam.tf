@@ -23,6 +23,38 @@ resource "aws_iam_role_policy_attachment" "task_execution" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
+resource "aws_iam_role_policy" "task_execution_ghcr" {
+  name = "ghcr-secret-access"
+  role = aws_iam_role.task_execution.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = [
+        "secretsmanager:GetSecretValue"
+      ]
+      Resource = aws_secretsmanager_secret.ghcr.arn
+    }]
+  })
+}
+
+# ─── GHCR Credentials Secret ─────────────────────────────────────────────────
+
+resource "aws_secretsmanager_secret" "ghcr" {
+  name        = "${local.name}/ghcr-credentials"
+  description = "GitHub Container Registry credentials for pulling bot images"
+  tags        = local.common_tags
+}
+
+resource "aws_secretsmanager_secret_version" "ghcr" {
+  secret_id = aws_secretsmanager_secret.ghcr.id
+  secret_string = jsonencode({
+    username = var.ghcr_org
+    password = var.ghcr_token
+  })
+}
+
 # ─── Task Role ────────────────────────────────────────────────────────────────
 # For bot application runtime permissions
 
