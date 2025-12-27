@@ -79,15 +79,12 @@ const STATUS_PULSE: Record<BotActivityStatus, boolean> = {
  */
 function ActivityBars({
 	sequence,
-	fillEmpty = false,
 }: {
 	sequence: BotActivityStatus[];
-	fillEmpty?: boolean;
 }) {
 	const maxBars = 100;
 	const displaySequence = sequence.slice(0, maxBars);
 	const hasOverflow = sequence.length > maxBars;
-	const emptySlots = fillEmpty ? maxBars - displaySequence.length : 0;
 
 	// Empty state - show subtle placeholder bars (idle label handled by parent)
 	if (sequence.length === 0) {
@@ -125,16 +122,6 @@ function ActivityBars({
 					title={status.replace("_", " ")}
 				/>
 			))}
-
-			{/* Empty slots to fill remaining space in stacked mode */}
-			{emptySlots > 0
-				? Array.from({ length: emptySlots }).map((_, i) => (
-						<div
-							key={`empty-${i}`}
-							className="w-1 h-2 rounded-full bg-muted/30 shrink-0"
-						/>
-					))
-				: null}
 
 			{/* Overflow indicator */}
 			{hasOverflow ? (
@@ -465,10 +452,7 @@ function InfrastructureCard({
 					)}
 				>
 					{/* Vertical bars visualization */}
-					<ActivityBars
-						sequence={botSequence}
-						fillEmpty={botSequence.length > 30}
-					/>
+					<ActivityBars sequence={botSequence} />
 
 					{/* Status counts / idle label */}
 					{botSequence.length === 0 ? (
