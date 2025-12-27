@@ -6,6 +6,7 @@ import {
 
 import type { LogEntry } from "@/server/database/schema";
 import { getBucketName, getS3ClientInstance } from "@/server/utils/s3";
+import { compressText, decompressText } from "@/server/utils/text-compression";
 
 /**
  * Configuration for log archival
@@ -141,9 +142,16 @@ class LogArchivalService {
 					});
 
 					const result = await s3Client.send(getCommand);
-					const body = await result.Body?.transformToString();
+					const bodyBytes = await result.Body?.transformToByteArray();
 
-					if (body) {
+					if (bodyBytes) {
+						// Detect compressed files by extension and decompress
+						const isCompressed = key.endsWith(".gz");
+
+						const body = isCompressed
+							? decompressText(bodyBytes)
+							: new TextDecoder().decode(bodyBytes);
+
 						const lines = body.trim().split("\n");
 
 						for (const line of lines) {
@@ -236,7 +244,7 @@ class LogArchivalService {
 	}
 
 	/**
-	 * Archives log entries to S3 in JSONL format.
+	 * Archives log entries to S3 in compressed JSONL format (.jsonl.gz).
 	 */
 	private async archiveEntries(
 		botId: number,
@@ -248,28 +256,35 @@ class LogArchivalService {
 		const s3Client = getS3ClientInstance();
 		const bucketName = getBucketName();
 
-		// Create S3 key: bots/{botId}/logs/{YYYY-MM-DD}/{timestamp}.jsonl
+		// Create S3 key: bots/{botId}/logs/{YYYY-MM-DD}/{timestamp}.jsonl.gz
 		const now = new Date();
 		const dateStr = now.toISOString().split("T")[0];
 		const timestamp = now.getTime();
 		const suffix = isFinal ? "-final" : "";
-		const key = `bots/${botId}/logs/${dateStr}/${timestamp}${suffix}.jsonl`;
+		const key = `bots/${botId}/logs/${dateStr}/${timestamp}${suffix}.jsonl.gz`;
 
 		// Convert entries to JSONL format
 		const jsonl = entries.map((entry) => JSON.stringify(entry)).join("\n");
+
+		// Compress using Bun's native gzip
+		const compressed = compressText(jsonl);
 
 		try {
 			const putCommand = new PutObjectCommand({
 				Bucket: bucketName,
 				Key: key,
-				Body: jsonl,
-				ContentType: "application/x-ndjson",
+				Body: compressed.data,
+				ContentType: "application/gzip",
+				ContentEncoding: "gzip",
 			});
 
 			await s3Client.send(putCommand);
 
+			const reductionPercent = ((1 - compressed.ratio) * 100).toFixed(0);
+
 			console.log(
-				`[LogArchivalService] Bot ${botId}: archived ${entries.length} entries to ${key}`,
+				`[LogArchivalService] Bot ${botId}: archived ${entries.length} entries to ${key} ` +
+					`(${compressed.originalSize} → ${compressed.compressedSize} bytes, ${reductionPercent}% reduction)`,
 			);
 		} catch (error) {
 			console.error(
