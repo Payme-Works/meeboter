@@ -37,13 +37,19 @@
  *    - Example: Bot was deleted (via API or user cascade), FK set
  *      assignedBotId to NULL but status remained "HEALTHY"
  *
- * 4. Stuck K8s DEPLOYING bots (Kubernetes only):
+ * 4. ORPHANED DEPLOYING bots (all platforms):
+ *    - Bot status = "DEPLOYING" AND deploymentPlatform IS NULL AND createdAt > 15 minutes ago
+ *    - Action: Mark bot as FATAL
+ *    - Example: Deployment failed between setting status to DEPLOYING and
+ *      HybridPlatformService setting deploymentPlatform (timeout, API error, etc.)
+ *
+ * 5. Stuck K8s DEPLOYING bots (Kubernetes only):
  *    - Bot status = "DEPLOYING" AND deploymentPlatform = "k8s" AND createdAt > 15 minutes ago
  *    - If bot has recent heartbeat → fix status to "JOINING_CALL" (bot is alive)
  *    - Otherwise → stop K8s Job, mark bot as FATAL
- *    - Example: Kueue queued the job, but pod never started or crashed on init
+ *    - Example: Queue system queued the job, but pod never started or crashed on init
  *
- * 5. Platform resource cleanup (all platforms):
+ * 6. Platform resource cleanup (all platforms):
  *    - Bots marked FATAL but platform resources not released
  *    - Action: Call platform.releaseBot() to clean up
  *
