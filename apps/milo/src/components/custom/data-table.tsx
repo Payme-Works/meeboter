@@ -284,13 +284,11 @@ export function DataTable<TData extends RowData, TValue>({
 												</TableRow>
 											))}
 											{Array.from({
-												length: pagination.pageSize - table.getRowModel().rows.length,
+												length:
+													pagination.pageSize - table.getRowModel().rows.length,
 											}).map((_, index) => (
 												<TableRow key={`empty-${index}`}>
-													<TableCell
-														colSpan={columns.length}
-														className="h-12"
-													>
+													<TableCell colSpan={columns.length} className="h-12">
 														&nbsp;
 													</TableCell>
 												</TableRow>
