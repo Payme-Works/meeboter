@@ -149,6 +149,20 @@ export class AWSPlatformService implements PlatformService<AWSBotStatus> {
 
 			console.log(`[AWSPlatform] Stopped task ${identifier}`);
 		} catch (error) {
+			// Task not found means it's already stopped/terminated (idempotent operation)
+			const isTaskNotFound =
+				error instanceof Error &&
+				error.name === "InvalidParameterException" &&
+				error.message.includes("not found");
+
+			if (isTaskNotFound) {
+				console.log(
+					`[AWSPlatform] Task ${identifier} already stopped (not found in ECS)`,
+				);
+
+				return;
+			}
+
 			console.error(`[AWSPlatform] Failed to stop task ${identifier}:`, error);
 
 			throw error;
