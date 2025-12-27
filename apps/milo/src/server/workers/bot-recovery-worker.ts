@@ -49,7 +49,13 @@
  *    - Otherwise → stop K8s Job, mark bot as FATAL
  *    - Example: Queue system queued the job, but pod never started or crashed on init
  *
- * 6. Platform resource cleanup (all platforms):
+ * 6. Stuck AWS DEPLOYING bots (AWS ECS only):
+ *    - Bot status = "DEPLOYING" AND deploymentPlatform = "aws" AND createdAt > 15 minutes ago
+ *    - If bot has recent heartbeat → fix status to "JOINING_CALL" (bot is alive)
+ *    - Otherwise → stop ECS task, mark bot as FATAL
+ *    - Example: ECS task started but bot failed to send heartbeats (crash, config error, etc.)
+ *
+ * 7. Platform resource cleanup (all platforms):
  *    - Bots marked FATAL but platform resources not released
  *    - Action: Call platform.releaseBot() to clean up
  *
@@ -243,8 +249,9 @@ export class BotRecoveryWorker extends BaseWorker<BotRecoveryResult> {
 			await this.cleanupK8sOrphanedJobs(result);
 		}
 
-		// For AWS: Clean up ECS tasks for FATAL bots
+		// For AWS: Clean up stuck DEPLOYING bots and orphaned tasks
 		if (this.services.aws) {
+			await this.cleanupAWSStuckDeployingBots(result);
 			await this.cleanupAWSOrphanedTasks(result);
 		}
 	}
@@ -450,15 +457,148 @@ export class BotRecoveryWorker extends BaseWorker<BotRecoveryResult> {
 	}
 
 	/**
+	 * Cleans up AWS bots stuck in DEPLOYING state.
+	 *
+	 * A bot is considered stuck if:
+	 * - Status is "DEPLOYING" and deploymentPlatform is "aws"
+	 * - No heartbeat received within HEARTBEAT_FRESHNESS_MS (5 minutes)
+	 * - Has been deploying longer than DEPLOYING_TIMEOUT_MS (15 minutes)
+	 *
+	 * Recovery actions:
+	 * 1. Stop the AWS ECS task (if it exists)
+	 * 2. Mark the bot as FATAL
+	 */
+	private async cleanupAWSStuckDeployingBots(
+		result: BotRecoveryResult,
+	): Promise<void> {
+		const awsService = this.services.aws;
+
+		if (!awsService) return;
+
+		const staleDeployingCutoff = new Date(Date.now() - DEPLOYING_TIMEOUT_MS);
+
+		const heartbeatFreshnessCutoff = new Date(
+			Date.now() - HEARTBEAT_FRESHNESS_MS,
+		);
+
+		// Find AWS bots stuck in DEPLOYING state
+		const stuckBots = await this.db.query.botsTable.findMany({
+			where: and(
+				eq(botsTable.status, "DEPLOYING"),
+				eq(botsTable.deploymentPlatform, "aws"),
+				lt(botsTable.createdAt, staleDeployingCutoff),
+			),
+			columns: {
+				id: true,
+				platformIdentifier: true,
+				lastHeartbeat: true,
+				createdAt: true,
+			},
+		});
+
+		if (stuckBots.length === 0) {
+			return;
+		}
+
+		console.log(
+			`[${this.name}] Found ${stuckBots.length} AWS bots stuck in DEPLOYING state`,
+		);
+
+		for (const bot of stuckBots) {
+			// Skip if bot has recent heartbeat (it's alive, just status wasn't updated)
+			if (
+				bot.lastHeartbeat &&
+				bot.lastHeartbeat.getTime() > heartbeatFreshnessCutoff.getTime()
+			) {
+				console.log(
+					`[${this.name}] Skipping AWS bot ${bot.id} - has recent heartbeat, updating status to JOINING_CALL`,
+				);
+
+				// Fix the status since the bot is clearly alive
+				await this.db
+					.update(botsTable)
+					.set({ status: "JOINING_CALL" })
+					.where(eq(botsTable.id, bot.id));
+
+				result.recovered++;
+
+				continue;
+			}
+
+			// Bot is truly stuck - clean up
+			console.log(
+				`[${this.name}] Cleaning up stuck AWS DEPLOYING bot ${bot.id} (created: ${bot.createdAt?.toISOString() ?? "unknown"}, lastHeartbeat: ${bot.lastHeartbeat?.toISOString() ?? "never"})`,
+			);
+
+			// Stop the AWS ECS task if it exists
+			if (bot.platformIdentifier) {
+				try {
+					await awsService.stopBot(bot.platformIdentifier);
+
+					console.log(
+						`[${this.name}] Stopped AWS ECS task ${bot.platformIdentifier} for stuck bot ${bot.id}`,
+					);
+				} catch {
+					// Task might not exist or already be stopped
+					console.log(
+						`[${this.name}] AWS ECS task ${bot.platformIdentifier} already stopped or not found`,
+					);
+				}
+			}
+
+			// Mark bot as FATAL
+			await this.db
+				.update(botsTable)
+				.set({ status: "FATAL" })
+				.where(eq(botsTable.id, bot.id));
+
+			console.log(`[${this.name}] Marked stuck AWS bot ${bot.id} as FATAL`);
+
+			result.recovered++;
+		}
+	}
+
+	/**
 	 * Cleans up orphaned AWS ECS tasks for bots that are FATAL.
 	 */
 	private async cleanupAWSOrphanedTasks(
-		_result: BotRecoveryResult,
+		result: BotRecoveryResult,
 	): Promise<void> {
-		// AWS ECS tasks are typically cleaned up automatically
-		// This is a placeholder for future AWS-specific cleanup logic
-		// The AWS platform service's stopBot() is called by BotHealthWorker
-		// when marking bots as FATAL
+		const awsService = this.services.aws;
+
+		if (!awsService) return;
+
+		// Find FATAL bots with AWS platform identifiers that might still have running tasks
+		const fatalBots = await this.db.query.botsTable.findMany({
+			where: and(
+				eq(botsTable.status, "FATAL"),
+				eq(botsTable.deploymentPlatform, "aws"),
+			),
+			columns: {
+				id: true,
+				platformIdentifier: true,
+			},
+		});
+
+		for (const bot of fatalBots) {
+			if (!bot.platformIdentifier) continue;
+
+			try {
+				// Try to stop the task - if it's already stopped this will just log
+				await awsService.stopBot(bot.platformIdentifier);
+
+				console.log(
+					`[${this.name}] Cleaned up orphaned AWS ECS task ${bot.platformIdentifier} for FATAL bot ${bot.id}`,
+				);
+
+				result.recovered++;
+			} catch {
+				// Task might already be stopped or not exist
+				console.log(
+					`[${this.name}] AWS ECS task ${bot.platformIdentifier} already cleaned up or not found`,
+				);
+			}
+		}
 	}
 
 	// ─── Coolify Slot Recovery Helpers ────────────────────────────────────────────
