@@ -424,8 +424,15 @@ function InfrastructureCard({
 
 	return (
 		<StatCard className="min-h-[180px] relative overflow-hidden">
-			{/* Live indicator */}
-			<LiveIndicator className="absolute top-4 right-4" />
+			{/* Header badges (positioned top-right) */}
+			<div className="absolute top-4 right-4 flex items-center gap-2">
+				{queueDepth > 0 ? (
+					<span className="px-1.5 py-0.5 text-xs font-medium bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded">
+						{queueDepth} queued
+					</span>
+				) : null}
+				<LiveIndicator />
+			</div>
 
 			{/* Header */}
 			<StatCardHeader className="justify-start gap-3 mb-4">
@@ -436,11 +443,6 @@ function InfrastructureCard({
 				{isMultiPlatform ? (
 					<span className="text-xs text-muted-foreground">
 						{platforms.length} platforms
-					</span>
-				) : null}
-				{queueDepth > 0 ? (
-					<span className="ml-auto mr-6 px-1.5 py-0.5 text-xs font-medium bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded">
-						{queueDepth} queued
 					</span>
 				) : null}
 			</StatCardHeader>

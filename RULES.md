@@ -289,6 +289,7 @@ z.record(z.string(), z.string())  // NOT z.record(z.string())
 - Don't push changes until tests pass
 - Always write code in English
 - **NEVER write obvious comments** - Comments should explain "why", not "what"
+- **Use parentheses/commas in comments** - Use `(context)` or `, context` instead of `- context` for clarifying context
 - **CRITICAL: Use box-drawing lines for section headings** - Use `// ─── Section Name ────────────────────` format
 - **Use react-hook-form + zod + shadcn** for all forms
 - **NEVER use `any` type** - Use `Record<string, unknown>`, `unknown`, or specific interfaces

@@ -398,6 +398,23 @@ Keep comments concise and helpful, focusing on the "why" rather than the "what".
 - ❌ Don't comment every line or obvious operations
 - ❌ Never add comments that describe what the next line of code does when it's self-evident
 
+### Comment Punctuation (MANDATORY)
+
+When adding clarifying context to comments, use **parentheses or commas** instead of hyphens. Hyphens can be confused with box-drawing section headings.
+
+```tsx
+// ✅ CORRECT: Parentheses for clarifying context
+{/* Header badges (positioned top-right) */}
+{/* Platform section (collapsible) */}
+
+// ✅ CORRECT: Commas for additional context
+{/* Platform section, shows all platforms for multi-platform */}
+
+// ❌ WRONG: Hyphens for clarifying context
+{/* Header badges - positioned top-right */}
+{/* Platform section - collapsible for multi-platform */}
+```
+
 ### Avoid Obvious Comments (MANDATORY)
 
 Never write comments that simply describe what the code does when the code is self-explanatory. Function names, variable names, and method calls should be descriptive enough to understand without comments.
