@@ -22,7 +22,9 @@ provider "aws" {
 }
 
 locals {
-  name = "${var.project_name}-bots"
+  # Production and default use no suffix, other environments get suffixed
+  is_production = contains(["production", "default"], terraform.workspace)
+  name          = local.is_production ? "${var.project_name}-bots" : "${var.project_name}-bots-${terraform.workspace}"
 
   common_tags = {
     Project     = var.project_name
