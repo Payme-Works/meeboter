@@ -10,8 +10,7 @@ const config = {
 		remotePatterns: [
 			{
 				protocol: "https",
-				hostname: "minio-coolify.HOSTNAME_PLACEHOLDER",
-				pathname: "/meeboter/**",
+				hostname: "**",
 			},
 		],
 	},
