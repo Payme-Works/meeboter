@@ -79,6 +79,7 @@ lerna-debug.log*
 !*.tfvars.example
 *.tfplan
 tfplan
+tfplan-*
 *.tfstate
 *.tfstate.backup
 .terraform.lock.hcl
