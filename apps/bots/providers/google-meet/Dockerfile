@@ -1,38 +1,24 @@
-# Build stage - Bun + Chromium only (optimized from 6GB to ~2GB)
-# Pin to Bun 1.2.5+ which fixes ARM64 hang bug (oven-sh/bun#16708)
-FROM oven/bun:1.2.5-debian AS base
+# Optimized Google Meet Bot Dockerfile - Bun + Alpine + System Chromium
+# Uses system Chromium instead of Playwright download for faster builds
+FROM oven/bun:alpine AS base
 
 WORKDIR /app
 
-# Install Chromium dependencies + utilities in single layer
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Install system dependencies in single layer
+# chromium: browser, xvfb-run: virtual display, ffmpeg: media processing
+RUN apk add --no-cache \
+    chromium \
     xvfb \
     ffmpeg \
-    x11-utils \
     pulseaudio \
-    x11-xserver-utils \
     fluxbox \
-    curl \
-    unzip \
-    # Playwright Chromium dependencies
-    libnss3 \
-    libatk1.0-0 \
-    libatk-bridge2.0-0 \
-    libcups2 \
-    libdrm2 \
-    libxkbcommon0 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxfixes3 \
-    libxrandr2 \
-    libgbm1 \
-    libasound2 \
-    libpango-1.0-0 \
-    libcairo2 \
-    libgtk-3-0 \
-    libdbus-1-3 \
-    libxtst6 \
-    && rm -rf /var/lib/apt/lists/*
+    nss \
+    freetype \
+    harfbuzz \
+    ca-certificates \
+    ttf-freefont \
+    bash \
+    && rm -rf /var/cache/apk/*
 
 # Copy workspace files (milo needed for type resolution during install)
 COPY package.json turbo.json bun.lock ./
@@ -41,60 +27,51 @@ COPY apps/milo/package.json ./apps/milo/package.json
 COPY apps/milo/src/ ./apps/milo/src/
 COPY packages/ ./packages/
 
-# Install deps + Chromium only (not all browsers)
-# --ignore-scripts: skip milo's postinstall (tsup build not needed, only types)
+# Skip Playwright/Puppeteer browser downloads - using system Chromium
 ENV PUPPETEER_SKIP_DOWNLOAD=true
-RUN bun install --production --ignore-scripts \
-    && bunx playwright install chromium --with-deps
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 
-# Runtime stage - Bun slim
-FROM oven/bun:1.2.5-debian AS runtime
+# --ignore-scripts: skip milo's postinstall (tsup build not needed, only types)
+RUN bun install --production --ignore-scripts
+
+# Runtime stage
+FROM oven/bun:alpine AS runtime
 
 ENV DOCKER_MEETING_PLATFORM=google-meet
 ENV DISPLAY=:99
-ENV PLAYWRIGHT_BROWSERS_PATH=/home/meetbot/.cache/ms-playwright
+ENV PUPPETEER_SKIP_DOWNLOAD=true
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+ENV PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
 WORKDIR /app
 
-# Runtime deps only (no build tools)
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Install runtime deps + create user in single layer
+RUN apk add --no-cache \
+    chromium \
     xvfb \
+    ffmpeg \
     pulseaudio \
-    pulseaudio-utils \
     fluxbox \
-    # Chromium runtime deps
-    libnss3 \
-    libatk1.0-0 \
-    libatk-bridge2.0-0 \
-    libcups2 \
-    libdrm2 \
-    libxkbcommon0 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxfixes3 \
-    libxrandr2 \
-    libgbm1 \
-    libasound2 \
-    libpango-1.0-0 \
-    libcairo2 \
-    libgtk-3-0 \
-    libdbus-1-3 \
-    libxtst6 \
-    && rm -rf /var/lib/apt/lists/* \
-    && useradd -ms /bin/bash meetbot
+    nss \
+    freetype \
+    harfbuzz \
+    ca-certificates \
+    ttf-freefont \
+    bash \
+    && rm -rf /var/cache/apk/* \
+    && addgroup -g 1001 -S meetbot \
+    && adduser -S meetbot -u 1001
 
 # Copy from build stage
 COPY --from=base --chown=meetbot:meetbot /app/node_modules ./node_modules
-COPY --from=base --chown=meetbot:meetbot /root/.cache/ms-playwright /home/meetbot/.cache/ms-playwright
 COPY --from=base --chown=meetbot:meetbot /app/apps/bots ./apps/bots
 COPY --from=base --chown=meetbot:meetbot /app/packages ./packages
 
-# Convert entrypoint to Unix line endings and make executable
-RUN sed -i 's/\r$//' /app/apps/bots/providers/google-meet/entrypoint.sh \
-    && chown -R meetbot:meetbot /home/meetbot/.cache
+# Convert entrypoint to Unix line endings
+RUN sed -i 's/\r$//' ./apps/bots/providers/google-meet/entrypoint.sh
 
 USER meetbot
 
-RUN chmod +x /app/apps/bots/providers/google-meet/entrypoint.sh
+RUN chmod +x ./apps/bots/providers/google-meet/entrypoint.sh
 
-CMD ["/app/apps/bots/providers/google-meet/entrypoint.sh"]
+CMD ["./apps/bots/providers/google-meet/entrypoint.sh"]

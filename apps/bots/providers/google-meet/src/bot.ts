@@ -1352,6 +1352,7 @@ export class GoogleMeetBot extends Bot {
 		this.browser = await chromium.launch({
 			headless,
 			args: this.browserArgs,
+			executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
 		});
 
 		this.logger.debug("[initializeBrowser] Browser launched", {
