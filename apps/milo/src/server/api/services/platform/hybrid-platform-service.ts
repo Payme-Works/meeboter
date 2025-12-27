@@ -205,6 +205,11 @@ export class HybridPlatformService {
 					.set({ deploymentPlatform: platform })
 					.where(eq(botsTable.id, botConfig.id));
 
+				// Release the pending reservation now that bot is tracked in DB.
+				// The DB count (via getDbBotCount) now tracks this bot's capacity usage,
+				// so we must release the pending slot to avoid double-counting.
+				this.releaseSlot(platform);
+
 				const result = await this.tryDeployOnPlatform(
 					platform,
 					config.service,
@@ -230,9 +235,12 @@ export class HybridPlatformService {
 					.update(botsTable)
 					.set({ deploymentPlatform: null })
 					.where(eq(botsTable.id, botConfig.id));
-			} finally {
-				// Release slot after attempt (DB already updated on success)
+			} catch (error) {
+				// On error, ensure pending slot is released if not already
+				// (releaseSlot is idempotent - won't go below 0)
 				this.releaseSlot(platform);
+
+				throw error;
 			}
 		}
 
@@ -427,6 +435,11 @@ export class HybridPlatformService {
 					.set({ deploymentPlatform: platform })
 					.where(eq(botsTable.id, bot.id));
 
+				// Release the pending reservation now that bot is tracked in DB.
+				// The DB count (via getDbBotCount) now tracks this bot's capacity usage,
+				// so we must release the pending slot to avoid double-counting.
+				this.releaseSlot(platform);
+
 				const result = await this.tryDeployOnPlatform(
 					platform,
 					config.service,
@@ -457,8 +470,12 @@ export class HybridPlatformService {
 					.update(botsTable)
 					.set({ deploymentPlatform: null })
 					.where(eq(botsTable.id, bot.id));
-			} finally {
+			} catch (error) {
+				// On error, ensure pending slot is released if not already
+				// (releaseSlot is idempotent - won't go below 0)
 				this.releaseSlot(platform);
+
+				throw error;
 			}
 		}
 
