@@ -141,4 +141,55 @@ export const awsRouter = createTRPCRouter({
 				};
 			});
 		}),
+
+	/**
+	 * Stop a single AWS ECS task
+	 */
+	stopTask: protectedProcedure
+		.input(z.object({ taskArn: z.string() }))
+		.output(z.object({ success: z.boolean() }))
+		.mutation(async ({ input }) => {
+			if (!services.aws) {
+				throw new TRPCError({
+					code: "NOT_IMPLEMENTED",
+					message: "AWS operations are only available when using AWS platform",
+				});
+			}
+
+			await services.aws.stopBot(input.taskArn);
+
+			return { success: true };
+		}),
+
+	/**
+	 * Stop multiple AWS ECS tasks (bulk operation)
+	 */
+	stopTasks: protectedProcedure
+		.input(z.object({ taskArns: z.array(z.string()) }))
+		.output(z.object({ succeeded: z.number(), failed: z.number() }))
+		.mutation(async ({ input }) => {
+			if (!services.aws) {
+				throw new TRPCError({
+					code: "NOT_IMPLEMENTED",
+					message: "AWS operations are only available when using AWS platform",
+				});
+			}
+
+			const awsService = services.aws;
+			let succeeded = 0;
+			let failed = 0;
+
+			await Promise.all(
+				input.taskArns.map(async (taskArn) => {
+					try {
+						await awsService.stopBot(taskArn);
+						succeeded++;
+					} catch {
+						failed++;
+					}
+				}),
+			);
+
+			return { succeeded, failed };
+		}),
 });

@@ -447,10 +447,45 @@ function CoolifyTable() {
 
 function AWSTable() {
 	const [selectedBotId, setSelectedBotId] = useState<number | null>(null);
+	const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 
 	const [queryState, setQueryState] = useQueryStates({
 		status: parseAsArrayOf(parseAsString).withDefault([]),
 		sort: parseAsString.withDefault("age.desc"),
+	});
+
+	const utils = api.useUtils();
+
+	const stopTaskMutation = api.infrastructure.aws.stopTask.useMutation({
+		onSuccess: () => {
+			toast.success("Task stopped");
+			void utils.infrastructure.aws.getTasks.invalidate();
+			void utils.infrastructure.aws.getStats.invalidate();
+		},
+		onError: (error) => {
+			toast.error(`Failed to stop task: ${error.message}`);
+		},
+	});
+
+	const stopTasksMutation = api.infrastructure.aws.stopTasks.useMutation({
+		onSuccess: (result) => {
+			if (result.failed > 0) {
+				toast.warning(
+					`Stopped ${result.succeeded} tasks, ${result.failed} failed`,
+				);
+			} else {
+				toast.success(
+					`Stopped ${result.succeeded} task${result.succeeded !== 1 ? "s" : ""}`,
+				);
+			}
+
+			setRowSelection({});
+			void utils.infrastructure.aws.getTasks.invalidate();
+			void utils.infrastructure.aws.getStats.invalidate();
+		},
+		onError: (error) => {
+			toast.error(`Failed to stop tasks: ${error.message}`);
+		},
 	});
 
 	const { data, isLoading, error } = api.infrastructure.aws.getTasks.useQuery(
@@ -498,8 +533,18 @@ function AWSTable() {
 		[setQueryState],
 	);
 
+	const handleStop = useCallback(
+		(taskArn: string) => {
+			stopTaskMutation.mutate({ taskArn });
+		},
+		[stopTaskMutation],
+	);
+
 	const columns = useMemo(
-		() => getInfrastructureColumns("aws", handleSort, currentSort),
+		() =>
+			getInfrastructureColumns("aws", handleSort, currentSort, {
+				enableRowSelection: true,
+			}),
 		[currentSort, handleSort],
 	);
 
@@ -519,13 +564,41 @@ function AWSTable() {
 	const tableMeta: InfrastructureTableMeta = useMemo(
 		() => ({
 			onView: (botId: number) => setSelectedBotId(botId),
+			onStop: handleStop,
 		}),
-		[],
+		[handleStop],
 	);
+
+	const itemsById = useMemo(() => {
+		return new Map(items.map((item) => [item.platformId, item]));
+	}, [items]);
+
+	const selectedItems = useMemo(() => {
+		return Object.keys(rowSelection)
+			.filter((key) => rowSelection[key])
+			.map((id) => itemsById.get(id))
+			.filter((item): item is InfrastructureItem => !!item);
+	}, [rowSelection, itemsById]);
+
+	const stoppableSelectedTasks = useMemo(() => {
+		return selectedItems
+			.filter(
+				(item) => item.status === "RUNNING" || item.status === "PROVISIONING",
+			)
+			.map((item) => item.platformId);
+	}, [selectedItems]);
+
+	const handleBulkStop = useCallback(() => {
+		if (stoppableSelectedTasks.length === 0) return;
+
+		stopTasksMutation.mutate({ taskArns: stoppableSelectedTasks });
+	}, [stoppableSelectedTasks, stopTasksMutation]);
 
 	if (!isLoading && items.length === 0 && queryState.status.length === 0) {
 		return <EmptyState platform="aws" />;
 	}
+
+	const isStopping = stopTaskMutation.isPending || stopTasksMutation.isPending;
 
 	return (
 		<>
@@ -539,11 +612,30 @@ function AWSTable() {
 							</span>
 						) : null}
 					</div>
-					<StatusFilter
-						platform="aws"
-						selectedStatuses={queryState.status}
-						onStatusChange={handleStatusChange}
-					/>
+					<div className="flex items-center gap-2">
+						{selectedItems.length > 0 ? (
+							<Button
+								variant="destructive"
+								size="sm"
+								className="h-8 gap-2"
+								onClick={handleBulkStop}
+								disabled={isStopping || stoppableSelectedTasks.length === 0}
+							>
+								{isStopping ? (
+									<Loader2 className="h-4 w-4 animate-spin" />
+								) : (
+									<Square className="h-4 w-4" />
+								)}
+								Stop {stoppableSelectedTasks.length} task
+								{stoppableSelectedTasks.length !== 1 ? "s" : ""}
+							</Button>
+						) : null}
+						<StatusFilter
+							platform="aws"
+							selectedStatuses={queryState.status}
+							onStatusChange={handleStatusChange}
+						/>
+					</div>
 				</div>
 				<DataTable
 					columns={columns}
@@ -551,6 +643,10 @@ function AWSTable() {
 					isLoading={isLoading}
 					errorMessage={error?.message}
 					meta={tableMeta}
+					enableRowSelection
+					rowSelection={rowSelection}
+					onRowSelectionChange={setRowSelection}
+					getRowId={(row) => row.platformId}
 				/>
 			</div>
 
