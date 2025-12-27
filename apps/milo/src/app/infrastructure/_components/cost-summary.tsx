@@ -100,7 +100,7 @@ function CostCard({
 			<CardContent>
 				<div
 					className={cn(
-						"text-2xl font-bold font-mono",
+						"text-2xl font-normal font-mono",
 						highlight
 							? "text-emerald-600 dark:text-emerald-400"
 							: "text-foreground",
@@ -193,7 +193,7 @@ export function CostSummary() {
 											<div className="text-muted-foreground text-xs">
 												Hourly Rate
 											</div>
-											<div className="font-semibold font-mono text-emerald-600 dark:text-emerald-400">
+											<div className="font-normal font-mono text-emerald-600 dark:text-emerald-400">
 												{formatCost(platform.currentHourlyCost)}/hr
 											</div>
 										</div>
@@ -201,7 +201,7 @@ export function CostSummary() {
 											<div className="text-muted-foreground text-xs">
 												Last 30 Days
 											</div>
-											<div className="font-semibold font-mono">
+											<div className="font-normal font-mono">
 												{formatCost(platform.last30dCost)}
 											</div>
 										</div>
@@ -209,7 +209,7 @@ export function CostSummary() {
 											<div className="text-muted-foreground text-xs">
 												Projected
 											</div>
-											<div className="font-semibold font-mono">
+											<div className="font-normal font-mono">
 												{formatCost(platform.projectedMonthlyCost)}/mo
 											</div>
 										</div>

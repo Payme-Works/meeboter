@@ -468,7 +468,7 @@ function EstimatedCostCard({
 						<div className="text-xs text-muted-foreground mb-1">
 							Hourly Rate
 						</div>
-						<div className="text-lg font-semibold font-mono text-emerald-600 dark:text-emerald-400">
+						<div className="text-lg font-normal font-mono text-emerald-600 dark:text-emerald-400">
 							{formatCost(hourlyCost)}/hr
 						</div>
 					</div>
@@ -477,7 +477,7 @@ function EstimatedCostCard({
 						<div className="text-xs text-muted-foreground mb-1">
 							Session Cost
 						</div>
-						<div className="text-lg font-semibold font-mono text-emerald-600 dark:text-emerald-400">
+						<div className="text-lg font-normal font-mono text-emerald-600 dark:text-emerald-400">
 							{sessionCost !== null ? formatCost(sessionCost) : "—"}
 							{duration ? (
 								<span className="text-sm font-normal text-muted-foreground ml-1">

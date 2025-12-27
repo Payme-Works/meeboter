@@ -217,11 +217,6 @@ export function DataTable<TData extends RowData, TValue>({
 		}
 	}, [table, onTableReady]);
 
-	// Fixed height: h-12 (48px) for rows, h-10 (40px) for header (matches TableRow/TableHead CSS)
-	const headerHeight = 40;
-	const rowHeight = 48;
-	const tableMinHeight = headerHeight + rowHeight * pagination.pageSize;
-
 	return (
 		<div>
 			{isLoading ? (
@@ -230,15 +225,8 @@ export function DataTable<TData extends RowData, TValue>({
 				<ErrorAlert errorMessage={errorMessage} />
 			) : (
 				<>
-					<div
-						className="border rounded-md overflow-hidden"
-						style={{
-							height: tableMinHeight,
-							minHeight: tableMinHeight,
-							maxHeight: tableMinHeight,
-						}}
-					>
-						<div className="overflow-x-auto overflow-y-hidden h-full">
+					<div className="border rounded-md overflow-hidden">
+						<div className="overflow-x-auto">
 							<Table className="min-w-[640px]">
 								<TableHeader>
 									{table &&
@@ -262,38 +250,52 @@ export function DataTable<TData extends RowData, TValue>({
 								</TableHeader>
 								<TableBody>
 									{table && columns && table.getRowModel().rows?.length ? (
-										table.getRowModel().rows.map((row) => (
-											<TableRow
-												key={row.id}
-												data-state={row.getIsSelected() && "selected"}
-												className={
-													onRowClick
-														? "cursor-pointer hover:bg-muted/50 transition-colors"
-														: undefined
-												}
-												onClick={(e) => {
-													if (!onRowClick) return;
+										<>
+											{table.getRowModel().rows.map((row) => (
+												<TableRow
+													key={row.id}
+													data-state={row.getIsSelected() && "selected"}
+													className={
+														onRowClick
+															? "cursor-pointer hover:bg-muted/50 transition-colors"
+															: undefined
+													}
+													onClick={(e) => {
+														if (!onRowClick) return;
 
-													const target = e.target as HTMLElement;
+														const target = e.target as HTMLElement;
 
-													const interactiveElements =
-														"button, a, input, [role=checkbox], [role=button], [data-no-row-click]";
+														const interactiveElements =
+															"button, a, input, [role=checkbox], [role=button], [data-no-row-click]";
 
-													if (target.closest(interactiveElements)) return;
+														if (target.closest(interactiveElements)) return;
 
-													onRowClick(row.original);
-												}}
-											>
-												{row.getVisibleCells().map((cell) => (
-													<TableCell key={cell.id}>
-														{flexRender(
-															cell.column.columnDef.cell,
-															cell.getContext(),
-														)}
+														onRowClick(row.original);
+													}}
+												>
+													{row.getVisibleCells().map((cell) => (
+														<TableCell key={cell.id}>
+															{flexRender(
+																cell.column.columnDef.cell,
+																cell.getContext(),
+															)}
+														</TableCell>
+													))}
+												</TableRow>
+											))}
+											{Array.from({
+												length: pagination.pageSize - table.getRowModel().rows.length,
+											}).map((_, index) => (
+												<TableRow key={`empty-${index}`}>
+													<TableCell
+														colSpan={columns.length}
+														className="h-12"
+													>
+														&nbsp;
 													</TableCell>
-												))}
-											</TableRow>
-										))
+												</TableRow>
+											))}
+										</>
 									) : (
 										<TableRow>
 											<TableCell
