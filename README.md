@@ -110,7 +110,7 @@ Your App → Meeboter API → Bot Pool → Meeting Platforms
 \- **AWS ECS:** Fargate tasks on-demand, pay-per-use
 
 <details>
-<summary><strong>Our Proxmox + Coolify + K3s Setup</strong></summary>
+<summary><strong>Our Proxmox + Coolify + AWS Setup</strong></summary>
 
 <br />
 
@@ -118,26 +118,26 @@ Your App → Meeboter API → Bot Pool → Meeting Platforms
 +-----------------------------------------------------------------------+
 |                      PROXMOX HOST (bare-metal)                        |
 |                                                                       |
-|  +------------------------+     +----------------------------------+  |
-|  | CT 100: Coolify        |     | VM 102: K3s Cluster              |  |
-|  |                        |     |                                  |  |
-|  |  +------------------+  |     |  +----------------------------+  |  |
-|  |  | Milo API Server  |<--------->| namespace: meeboter        |  |  |
-|  |  | (Next.js + tRPC) |  |     |  |                            |  |  |
-|  |  +--------+---------+  |     |  |  +-----+ +-----+ +-----+   |  |  |
-|  |           |            |     |  |  | Bot | | Bot | | Bot |   |  |  |
-|  |  +--------+---------+  |     |  |  +-----+ +-----+ +-----+   |  |  |
-|  |  | PostgreSQL       |  |     |  +----------------------------+  |  |
-|  |  | MinIO (S3)       |  |     |                                  |  |
-|  |  | Bot Pool (Docker)|  |     |  Ephemeral Jobs per meeting      |  |
-|  |  +------------------+  |     |  40-80 concurrent bots           |  |
-|  +------------------------+     +----------------------------------+  |
+|  +------------------------+                                           |
+|  | CT 100: Coolify        |                                           |
+|  |                        |                                           |
+|  |  +------------------+  |     +----------------------------------+  |
+|  |  | Milo API Server  |------->|          AWS ECS Cluster         |  |
+|  |  | (Next.js + tRPC) |  |     |                                  |  |
+|  |  +--------+---------+  |     |  Meeting 1 --> [Task A] --> Done |  |
+|  |           |            |     |  Meeting 2 --> [Task B] --> Done |  |
+|  |  +--------+---------+  |     |  Meeting 3 --> [Task C] Running  |  |
+|  |  | PostgreSQL       |  |     |                                  |  |
+|  |  | MinIO (S3)       |  |     |  Ephemeral Fargate tasks         |  |
+|  |  | Bot Pool (20)    |  |     |  Up to 100 concurrent bots       |  |
+|  |  +------------------+  |     +----------------------------------+  |
+|  +------------------------+                                           |
 +-----------------------------------------------------------------------+
 ```
 
-\- **Proxmox:** Bare-metal hypervisor running containers and VMs<br>
-\- **Coolify (CT 100):** Hosts Milo API, PostgreSQL, MinIO, and Docker bot pool<br>
-\- **K3s (VM 102):** Lightweight Kubernetes for ephemeral bot jobs (40-80 concurrent)
+\- **Proxmox:** Bare-metal hypervisor running Coolify container<br>
+\- **Coolify (CT 100):** Hosts Milo API, PostgreSQL, MinIO, and bot pool (20 slots, ~30s deploy)<br>
+\- **AWS ECS:** Fargate overflow (up to 100 bots, pay-per-use)
 
 </details>
 
