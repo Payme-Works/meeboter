@@ -37,16 +37,12 @@ env:
   IMAGE_PREFIX: ${{ github.repository_owner }}/meeboter
 
 jobs:
-  build-and-push:
-    runs-on: ubuntu-24.04-arm
-    permissions:
-      contents: read
-      packages: write
-
+  # ─── Build Each Image on Native Runners ─────────────────────────────────────
+  build:
     strategy:
       fail-fast: true
       matrix:
-        include:
+        image:
           - name: milo
             dockerfile: apps/milo/Dockerfile
             input_check: release_milo
@@ -59,13 +55,27 @@ jobs:
           - name: zoom-bot
             dockerfile: apps/bots/providers/zoom/Dockerfile
             input_check: release_zoom_bot
+        platform:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+
+    runs-on: ${{ matrix.platform.runner }}
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      # Pass image names to merge job
+      images: ${{ steps.set-output.outputs.images }}
 
     steps:
       - name: Check if should release
         id: should_release
         env:
           EVENT_NAME: ${{ github.event_name }}
-          INPUT_VALUE: ${{ github.event.inputs[matrix.input_check] }}
+          INPUT_VALUE: ${{ github.event.inputs[matrix.image.input_check] }}
         run: |
           if [ "$EVENT_NAME" == "workflow_dispatch" ]; then
             echo "release=$INPUT_VALUE" >> $GITHUB_OUTPUT
@@ -89,85 +99,133 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata (tags, labels)
+      - name: Extract metadata
         if: steps.should_release.outputs.release == 'true'
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-${{ matrix.name }}
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-${{ matrix.image.name }}
           tags: |
             type=sha,prefix=
             type=raw,value=latest
             type=ref,event=branch
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
 
-      - name: Build and push Docker image
+      - name: Build and push by digest
         if: steps.should_release.outputs.release == 'true'
         id: build
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ${{ matrix.dockerfile }}
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          file: ${{ matrix.image.dockerfile }}
+          platforms: linux/${{ matrix.platform.arch }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          platforms: linux/amd64,linux/arm64
+          cache-from: type=gha,scope=${{ matrix.image.name }}-${{ matrix.platform.arch }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image.name }}-${{ matrix.platform.arch }}
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-${{ matrix.image.name }},push-by-digest=true,name-canonical=true,push=true
 
-      - name: Generate build summary
+      - name: Export digest
         if: steps.should_release.outputs.release == 'true'
-        env:
-          IMAGE_NAME: ${{ matrix.name }}
-          REGISTRY: ghcr.io
-          IMAGE_PREFIX: ${{ github.repository_owner }}/meeboter
-          COMMIT_SHA: ${{ github.sha }}
-          BRANCH: ${{ github.ref_name }}
-          DIGEST: ${{ steps.build.outputs.digest }}
         run: |
-          # Determine description based on image type
-          case "$IMAGE_NAME" in
-            "milo") DESC="Core API Server" ;;
-            "google-meet-bot") DESC="Google Meet Bot" ;;
-            "microsoft-teams-bot") DESC="Microsoft Teams Bot" ;;
-            "zoom-bot") DESC="Zoom Bot" ;;
-            *) DESC="Container" ;;
-          esac
+          mkdir -p /tmp/digests/${{ matrix.image.name }}
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${{ matrix.image.name }}/${digest#sha256:}"
 
-          SHORT_SHA="${COMMIT_SHA:0:7}"
+      - name: Upload digest
+        if: steps.should_release.outputs.release == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ matrix.image.name }}-${{ matrix.platform.arch }}
+          path: /tmp/digests/${{ matrix.image.name }}/*
+          if-no-files-found: error
+          retention-days: 1
 
-          cat >> $GITHUB_STEP_SUMMARY << EOF
-          ### \`$IMAGE_NAME\` — $DESC
+  # ─── Merge Platform Images into Multi-arch Manifest ─────────────────────────
+  merge:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
 
-          | Property | Value |
-          |:---------|:------|
-          | **Image** | \`$REGISTRY/$IMAGE_PREFIX-$IMAGE_NAME\` |
-          | **Tags** | \`$SHORT_SHA\` \`latest\` \`$BRANCH\` |
-          | **Digest** | \`${DIGEST:0:20}...\` |
+    strategy:
+      matrix:
+        image:
+          - name: milo
+            input_check: release_milo
+          - name: google-meet-bot
+            input_check: release_google_meet_bot
+          - name: microsoft-teams-bot
+            input_check: release_microsoft_teams_bot
+          - name: zoom-bot
+            input_check: release_zoom_bot
 
-          <details>
-          <summary>Docker Pull Commands</summary>
+    steps:
+      - name: Check if should release
+        id: should_release
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_VALUE: ${{ github.event.inputs[matrix.image.input_check] }}
+        run: |
+          if [ "$EVENT_NAME" == "workflow_dispatch" ]; then
+            echo "release=$INPUT_VALUE" >> $GITHUB_OUTPUT
+          else
+            echo "release=true" >> $GITHUB_OUTPUT
+          fi
 
-          \`\`\`bash
-          # Pull by commit SHA (recommended for production)
-          docker pull $REGISTRY/$IMAGE_PREFIX-$IMAGE_NAME:$SHORT_SHA
+      - name: Download amd64 digest
+        if: steps.should_release.outputs.release == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: digests-${{ matrix.image.name }}-amd64
+          path: /tmp/digests/${{ matrix.image.name }}
 
-          # Pull latest
-          docker pull $REGISTRY/$IMAGE_PREFIX-$IMAGE_NAME:latest
+      - name: Download arm64 digest
+        if: steps.should_release.outputs.release == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: digests-${{ matrix.image.name }}-arm64
+          path: /tmp/digests/${{ matrix.image.name }}
 
-          # Pull by branch
-          docker pull $REGISTRY/$IMAGE_PREFIX-$IMAGE_NAME:$BRANCH
-          \`\`\`
+      - name: Set up Docker Buildx
+        if: steps.should_release.outputs.release == 'true'
+        uses: docker/setup-buildx-action@v3
 
-          </details>
+      - name: Log in to GitHub Container Registry
+        if: steps.should_release.outputs.release == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-          ---
+      - name: Extract metadata
+        if: steps.should_release.outputs.release == 'true'
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-${{ matrix.image.name }}
+          tags: |
+            type=sha,prefix=
+            type=raw,value=latest
+            type=ref,event=branch
 
-          EOF
+      - name: Create multi-arch manifest and push
+        if: steps.should_release.outputs.release == 'true'
+        working-directory: /tmp/digests/${{ matrix.image.name }}
+        env:
+          DOCKER_METADATA_OUTPUT_JSON: ${{ steps.meta.outputs.json }}
+        run: |
+          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf '${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-${{ matrix.image.name }}@sha256:%s ' *)
 
+      - name: Inspect image
+        if: steps.should_release.outputs.release == 'true'
+        run: |
+          docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-${{ matrix.image.name }}:latest
+
+  # ─── Release Summary ────────────────────────────────────────────────────────
   release-summary:
-    needs: build-and-push
+    needs: merge
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/bare-metal'
 
@@ -200,6 +258,7 @@ jobs:
           | **Commit** | [\`$SHORT_SHA\`](https://github.com/$REPO/commit/$COMMIT_SHA) |
           | **Triggered by** | @$ACTOR |
           | **Timestamp** | $TIMESTAMP |
+          | **Architectures** | \`linux/amd64\`, \`linux/arm64\` |
 
           ---
 
@@ -221,20 +280,5 @@ jobs:
           | Documentation | [View Docs](https://github.com/$REPO#readme) |
           | Container Registry | [GHCR Packages](https://github.com/orgs/${{ github.repository_owner }}/packages?repo_name=meeboter) |
           | Workflow Run | [View Details](https://github.com/$REPO/actions/runs/$RUN_ID) |
-
-          ---
-
-          <details>
-          <summary>Environment Configuration</summary>
-
-          \`\`\`bash
-          # Set these environment variables for your deployment
-          export MILO_IMAGE="$REGISTRY/$IMAGE_PREFIX-milo:$SHORT_SHA"
-          export GOOGLE_MEET_BOT_IMAGE="$REGISTRY/$IMAGE_PREFIX-google-meet-bot:$SHORT_SHA"
-          export MICROSOFT_TEAMS_BOT_IMAGE="$REGISTRY/$IMAGE_PREFIX-microsoft-teams-bot:$SHORT_SHA"
-          export ZOOM_BOT_IMAGE="$REGISTRY/$IMAGE_PREFIX-zoom-bot:$SHORT_SHA"
-          \`\`\`
-
-          </details>
 
           EOF
