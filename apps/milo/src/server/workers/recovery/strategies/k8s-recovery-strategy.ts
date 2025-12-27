@@ -3,10 +3,10 @@
  *
  * Handles:
  * 1. Stuck DEPLOYING bots - Bots deploying >15min with no heartbeat
- * 2. Orphaned Jobs - K8s Jobs for bots marked as FATAL
+ * 2. Orphaned Bots - Active bots whose K8s Jobs no longer exist
  */
 
-import { and, eq, lt } from "drizzle-orm";
+import { and, eq, inArray, lt } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 
 import type { KubernetesPlatformService } from "@/server/api/services/platform/kubernetes/kubernetes-platform-service";
@@ -142,37 +142,71 @@ export class K8sRecoveryStrategy implements RecoveryStrategy {
 
 	// ─── Orphaned Jobs ───────────────────────────────────────────────────────────
 
+	/**
+	 * Finds active bots whose K8s Jobs no longer exist and marks them as FATAL.
+	 * Does NOT process FATAL bots (they're already terminal).
+	 */
 	private async cleanupOrphanedJobs(result: K8sRecoveryResult): Promise<void> {
-		const fatalBots = await this.db.query.botsTable.findMany({
+		// Find active bots (not FATAL/DONE) that might have orphaned jobs
+		const activeBots = await this.db.query.botsTable.findMany({
 			where: and(
-				eq(botsTable.status, "FATAL"),
 				eq(botsTable.deploymentPlatform, "k8s"),
+				inArray(botsTable.status, [
+					"DEPLOYING",
+					"JOINING_CALL",
+					"IN_WAITING_ROOM",
+					"IN_CALL",
+					"LEAVING",
+				]),
 			),
 			columns: {
 				id: true,
 				platformIdentifier: true,
+				lastHeartbeat: true,
 			},
 		});
 
-		for (const bot of fatalBots) {
+		const staleHeartbeatThreshold = new Date(Date.now() - 5 * 60 * 1000);
+
+		for (const bot of activeBots) {
 			if (!bot.platformIdentifier) continue;
 
+			// Skip bots with recent heartbeat (job is alive)
+			if (bot.lastHeartbeat && bot.lastHeartbeat > staleHeartbeatThreshold) {
+				continue;
+			}
+
 			try {
+				// Check if job exists in K8s
 				const job = await this.k8sService?.getJob(bot.platformIdentifier);
 
-				if (job) {
+				// If job doesn't exist, mark bot as FATAL
+				if (!job) {
 					console.log(
-						`[${this.name}] Cleaning up orphaned Job ${bot.platformIdentifier} for bot ${bot.id}`,
+						`[${this.name}] Found orphaned bot ${bot.id} - job ${bot.platformIdentifier} no longer exists`,
 					);
 
-					await this.k8sService?.stopBot(bot.platformIdentifier);
+					await this.db
+						.update(botsTable)
+						.set({ status: "FATAL" })
+						.where(eq(botsTable.id, bot.id));
+
 					result.recovered++;
 					result.orphanedJobs++;
 				}
 			} catch {
+				// Job lookup failed - likely doesn't exist, mark as FATAL
 				console.log(
-					`[${this.name}] Job ${bot.platformIdentifier} already cleaned up`,
+					`[${this.name}] Found orphaned bot ${bot.id} - job ${bot.platformIdentifier} lookup failed`,
 				);
+
+				await this.db
+					.update(botsTable)
+					.set({ status: "FATAL" })
+					.where(eq(botsTable.id, bot.id));
+
+				result.recovered++;
+				result.orphanedJobs++;
 			}
 		}
 	}
