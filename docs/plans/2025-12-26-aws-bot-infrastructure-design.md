@@ -503,6 +503,7 @@ output "milo_env_config" {
   description = "Environment variables for Milo"
   value       = <<-EOT
     # AWS ECS Configuration (add to Milo .env)
+    
     AWS_REGION=${var.aws_region}
     AWS_ECS_CLUSTER=${aws_ecs_cluster.this.name}
     AWS_ECS_SUBNETS=${join(",", aws_subnet.public[*].id)}
@@ -766,6 +767,7 @@ After running `setup-aws.sh`, add outputs to Milo's `.env`:
 PLATFORM_PRIORITY=k8s,aws,coolify
 
 # AWS ECS Configuration
+
 AWS_REGION=us-east-2
 AWS_ECS_CLUSTER=meeboter-bots
 AWS_ECS_SUBNETS=subnet-xxx,subnet-yyy

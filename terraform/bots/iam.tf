@@ -45,3 +45,51 @@ resource "aws_iam_role" "bot_task" {
 
 # Note: S3 access is via access keys passed as env vars, not IAM role
 # This allows using external S3-compatible storage (MinIO, etc.)
+
+# ─── Milo API User ────────────────────────────────────────────────────────────
+# IAM user for Milo (running on Coolify) to manage ECS tasks
+
+resource "aws_iam_user" "milo" {
+  name = "${local.name}-milo-api"
+  tags = local.common_tags
+}
+
+resource "aws_iam_user_policy" "milo_ecs" {
+  name = "ecs-task-management"
+  user = aws_iam_user.milo.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "ECSTaskManagement"
+        Effect = "Allow"
+        Action = [
+          "ecs:RunTask",
+          "ecs:StopTask",
+          "ecs:DescribeTasks",
+          "ecs:ListTasks"
+        ]
+        Resource = "*"
+        Condition = {
+          ArnEquals = {
+            "ecs:cluster" = aws_ecs_cluster.this.arn
+          }
+        }
+      },
+      {
+        Sid    = "PassRoleToECS"
+        Effect = "Allow"
+        Action = "iam:PassRole"
+        Resource = [
+          aws_iam_role.task_execution.arn,
+          aws_iam_role.bot_task.arn
+        ]
+      }
+    ]
+  })
+}
+
+resource "aws_iam_access_key" "milo" {
+  user = aws_iam_user.milo.name
+}

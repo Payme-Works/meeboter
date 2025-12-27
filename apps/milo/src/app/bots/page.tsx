@@ -432,7 +432,7 @@ export default function BotsPage() {
 			},
 			{
 				accessorKey: "deploymentPlatform",
-				header: "Infra",
+				header: "Infrastructure",
 				cell: ({ row }) => {
 					const platform = row.original
 						.deploymentPlatform as DeploymentPlatform | null;

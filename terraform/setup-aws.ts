@@ -59,7 +59,9 @@ const ui = {
 		ui.blank();
 	},
 	keyValue: (key: string, value: string) => {
-		console.log(`${styleText("dim", `${key}:`)} ${styleText("cyan", value)}`);
+		console.log(
+			`${styleText("dim", `${key}=`)}${styleText("cyan", `"${value}"`)}`,
+		);
 	},
 	dim: (text: string) => {
 		console.log(styleText("dim", text));

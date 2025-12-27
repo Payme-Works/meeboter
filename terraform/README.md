@@ -37,7 +37,7 @@ terraform/
 
 ### Prerequisites
 
-1. AWS CLI configured with `meeboter` profile
+1. AWS CLI configured (default profile or specify with `--profile`)
 2. Terraform >= 1.0 installed
 3. Bun runtime installed
 
@@ -47,8 +47,8 @@ terraform/
 # Interactive mode (recommended)
 bun terraform/setup-aws.ts --interactive
 
-# Or with flags
-bun terraform/setup-aws.ts --profile meeboter --region us-east-2
+# Or with flags (uses default profile if not specified)
+bun terraform/setup-aws.ts --region us-east-2
 ```
 
 ### Manual Setup
@@ -75,7 +75,7 @@ terraform apply tfplan
 | Variable       | Default      | Required | Description                    |
 | -------------- | ------------ | -------- | ------------------------------ |
 | `project_name` | `meeboter`   | No       | Project name for resource tags |
-| `aws_profile`  | `meeboter`   | No       | AWS CLI profile                |
+| `aws_profile`  | `default`    | No       | AWS CLI profile                |
 | `aws_region`   | `us-east-2`  | No       | AWS region                     |
 | `ghcr_org`     | -            | Yes      | GitHub Container Registry org  |
 
