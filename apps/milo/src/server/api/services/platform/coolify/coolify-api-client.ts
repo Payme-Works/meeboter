@@ -597,12 +597,15 @@ export class CoolifyService {
 	 * rather than checking container status which can be unreliable during
 	 * deployment transitions.
 	 *
+	 * Note: Poll interval set to 15s to reduce API load on Coolify dashboard.
+	 * Lower values (5s) caused dashboard lag during concurrent deployments.
+	 *
 	 * @throws CoolifyDeploymentError on failure, cancellation, or timeout
 	 */
 	async waitForDeployment(
 		applicationUuid: string,
 		timeoutMs: number = 30 * 60 * 1000,
-		pollIntervalMs: number = 5 * 1000,
+		pollIntervalMs: number = 15 * 1000,
 	): Promise<DeploymentStatus> {
 		const startTime = Date.now();
 		let currentInterval = pollIntervalMs;
