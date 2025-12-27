@@ -325,6 +325,39 @@ export const main = async () => {
 			delayBetweenRestarts: RESTART_DELAY_MS,
 		},
 		{
+			shouldRestart: async () => {
+				// Check if user requested bot to leave (status = LEAVING)
+				// If so, don't restart - exit gracefully
+				try {
+					// Bot config query throws PRECONDITION_FAILED if status is terminal
+					await trpc.bots.getConfig.query({ botId });
+
+					// If we get here, bot is still active and we should restart
+					logger.debug("shouldRestart check passed, bot still active");
+
+					return true;
+				} catch (error) {
+					// PRECONDITION_FAILED means bot has finished (DONE/FATAL/LEAVING)
+					// In this case, don't restart
+					if (
+						error instanceof Error &&
+						error.message.includes("PRECONDITION_FAILED")
+					) {
+						logger.info(
+							"shouldRestart: Bot has terminal status, skipping restart",
+						);
+
+						return false;
+					}
+
+					// For other errors, log and allow restart
+					logger.warn("shouldRestart check failed, allowing restart", {
+						error: error instanceof Error ? error.message : String(error),
+					});
+
+					return true;
+				}
+			},
 			onRestart: async (attempt, error) => {
 				logger.warn(
 					`Bot failed, restarting (attempt ${attempt}/${MAX_RESTART_ATTEMPTS})`,

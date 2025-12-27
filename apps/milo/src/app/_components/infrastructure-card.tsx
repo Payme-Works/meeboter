@@ -120,7 +120,10 @@ function ActivityBars({ sequence }: { sequence: BotActivityStatus[] }) {
 
 			{/* Empty slots to fill remaining space */}
 			{Array.from({ length: maxBars - displaySequence.length }).map((_, i) => (
-				<div key={`empty-${i}`} className="w-0.5 h-2 rounded-full bg-muted/30" />
+				<div
+					key={`empty-${i}`}
+					className="w-0.5 h-2 rounded-full bg-muted/30"
+				/>
 			))}
 
 			{/* Overflow indicator */}

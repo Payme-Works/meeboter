@@ -698,6 +698,14 @@ export class GoogleMeetBot extends Bot {
 		// Run checks sequentially without delay: check -> check -> check
 		// Each check takes ~500-700ms with parallel selector detection
 		while (Date.now() - startTime < timeout) {
+			// Check if user requested leave (via heartbeat)
+			if (this.leaveRequested) {
+				this.logger.info("[waitForCallEntry] Leave requested, exiting wait");
+
+				// Return without throwing - let monitorCall handle the leave
+				return;
+			}
+
 			checkCount++;
 			const now = Date.now();
 			const elapsed = now - startTime;

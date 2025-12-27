@@ -67,7 +67,8 @@ export const botsRouter = createTRPCRouter({
 		.input(z.object({ botId: z.number() }))
 		.output(botConfigSchema)
 		.query(async ({ input, ctx }): Promise<typeof botConfigSchema._output> => {
-			const terminalStatuses = ["DONE", "FATAL"] as const;
+			// LEAVING included: user requested bot to leave, container should exit
+			const terminalStatuses = ["DONE", "FATAL", "LEAVING"] as const;
 
 			const bot = await ctx.db
 				.select()
@@ -423,9 +424,10 @@ export const botsRouter = createTRPCRouter({
 						status: input.status,
 					});
 
-					// Get bot info in one query (recording enabled + callback URL)
+					// Get bot info in one query (current status + recording enabled + callback URL)
 					const botRecord = await tx
 						.select({
+							status: botsTable.status,
 							recordingEnabled: botsTable.recordingEnabled,
 							callbackUrl: botsTable.callbackUrl,
 						})
@@ -435,6 +437,32 @@ export const botsRouter = createTRPCRouter({
 
 					if (!botRecord[0]) {
 						throw new Error("Bot not found");
+					}
+
+					// Prevent status changes when bot is LEAVING (user requested stop)
+					// Only allow transitions to terminal states (DONE, FATAL)
+					const terminalStatuses = ["DONE", "FATAL"];
+
+					if (
+						botRecord[0].status === "LEAVING" &&
+						!terminalStatuses.includes(input.status)
+					) {
+						console.log(
+							`[updateStatus] Ignoring status change from LEAVING to ${input.status} for bot ${input.id}`,
+						);
+
+						// Return current bot without updating
+						const currentBot = await tx
+							.select()
+							.from(botsTable)
+							.where(eq(botsTable.id, input.id))
+							.limit(1);
+
+						if (!currentBot[0]) {
+							throw new Error("Bot not found");
+						}
+
+						return currentBot[0];
 					}
 
 					// Validate recording requirement only if recording is enabled

@@ -21,6 +21,11 @@ interface AutoRestartCallbacks {
 	onRestart?: (attempt: number, error: Error) => Promise<void>;
 	/** Called when all retries are exhausted */
 	onFatalError?: (error: Error, totalAttempts: number) => Promise<void>;
+	/**
+	 * Called before restarting to check if restart should proceed.
+	 * Return false to skip restart and exit gracefully (e.g., when user requested leave).
+	 */
+	shouldRestart?: (error: Error) => Promise<boolean>;
 }
 
 /**
@@ -73,7 +78,7 @@ export async function withAutoRestart(
 	callbacks: AutoRestartCallbacks = {},
 ): Promise<AutoRestartResult> {
 	const { maxRestarts = 3, delayBetweenRestarts = 5000 } = config;
-	const { onRestart, onFatalError } = callbacks;
+	const { onRestart, onFatalError, shouldRestart } = callbacks;
 
 	let lastError: Error | undefined;
 	const totalAttempts = maxRestarts + 1; // Initial attempt + restarts
@@ -113,6 +118,32 @@ export async function withAutoRestart(
 			const hasMoreAttempts = attempt < totalAttempts;
 
 			if (hasMoreAttempts) {
+				// Check if restart should proceed (e.g., user may have requested leave)
+				if (shouldRestart) {
+					try {
+						const proceed = await shouldRestart(lastError);
+
+						if (!proceed) {
+							console.log(
+								"[withAutoRestart] Restart aborted by shouldRestart callback",
+								{ error: lastError.message },
+							);
+
+							// Exit gracefully without marking as failure
+							return {
+								success: true,
+								attempts: attempt,
+							};
+						}
+					} catch (callbackError) {
+						console.error(
+							"[withAutoRestart] shouldRestart callback failed:",
+							callbackError,
+						);
+						// Continue with restart on callback failure
+					}
+				}
+
 				// Notify about restart
 				if (onRestart) {
 					try {
