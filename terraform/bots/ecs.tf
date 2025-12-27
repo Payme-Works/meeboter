@@ -17,15 +17,17 @@ resource "aws_ecs_cluster_capacity_providers" "this" {
   cluster_name       = aws_ecs_cluster.this.name
   capacity_providers = ["FARGATE", "FARGATE_SPOT"]
 
+  # Cost optimization: 90% Spot for significant savings (~$78/month at 500 bots/day)
+  # Meeting bots are interruption-tolerant since they can rejoin if terminated
   default_capacity_provider_strategy {
     capacity_provider = "FARGATE_SPOT"
-    weight            = 70
+    weight            = 90
     base              = 0
   }
 
   default_capacity_provider_strategy {
     capacity_provider = "FARGATE"
-    weight            = 30
+    weight            = 10
     base              = 1
   }
 }
@@ -36,10 +38,16 @@ resource "aws_ecs_task_definition" "google_meet_bot" {
   family                   = "${var.project_name}-google-meet-bot"
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
-  cpu                      = 1024
-  memory                   = 2048
+  cpu                      = 512  # Cost optimization: 0.5 vCPU sufficient for browser automation
+  memory                   = 2048 # Keep 2 GB for Chromium/Playwright
   execution_role_arn       = aws_iam_role.task_execution.arn
   task_role_arn            = aws_iam_role.bot_task.arn
+
+  # Cost optimization: ARM64 Graviton is 20% cheaper than x86
+  runtime_platform {
+    operating_system_family = "LINUX"
+    cpu_architecture        = "ARM64"
+  }
 
   container_definitions = jsonencode([{
     name      = "google-meet-bot"
@@ -72,10 +80,16 @@ resource "aws_ecs_task_definition" "zoom_bot" {
   family                   = "${var.project_name}-zoom-bot"
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
-  cpu                      = 1024
-  memory                   = 2048
+  cpu                      = 512  # Cost optimization: 0.5 vCPU sufficient for browser automation
+  memory                   = 2048 # Keep 2 GB for Chromium/Playwright
   execution_role_arn       = aws_iam_role.task_execution.arn
   task_role_arn            = aws_iam_role.bot_task.arn
+
+  # Cost optimization: ARM64 Graviton is 20% cheaper than x86
+  runtime_platform {
+    operating_system_family = "LINUX"
+    cpu_architecture        = "ARM64"
+  }
 
   container_definitions = jsonencode([{
     name      = "zoom-bot"
@@ -107,10 +121,16 @@ resource "aws_ecs_task_definition" "microsoft_teams_bot" {
   family                   = "${var.project_name}-microsoft-teams-bot"
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
-  cpu                      = 1024
-  memory                   = 2048
+  cpu                      = 512  # Cost optimization: 0.5 vCPU sufficient for browser automation
+  memory                   = 2048 # Keep 2 GB for Chromium/Playwright
   execution_role_arn       = aws_iam_role.task_execution.arn
   task_role_arn            = aws_iam_role.bot_task.arn
+
+  # Cost optimization: ARM64 Graviton is 20% cheaper than x86
+  runtime_platform {
+    operating_system_family = "LINUX"
+    cpu_architecture        = "ARM64"
+  }
 
   container_definitions = jsonencode([{
     name      = "microsoft-teams-bot"

@@ -375,3 +375,202 @@ bun turbo test --filter=@meeboter/bots
 4. Add platform case to `bot-factory.ts` switch statement
 5. Create Docker image with required browser setup
 6. Add tests for new platform
+
+## AWS Infrastructure & Cost
+
+This section documents the AWS ECS Fargate infrastructure used to run meeting bots at scale, along with detailed cost analysis and optimization strategies.
+
+### Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              AWS Region (us-east-2)                         │
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐  │
+│  │                         VPC (10.0.0.0/16)                             │  │
+│  │                                                                       │  │
+│  │  ┌─────────────────────────┐    ┌─────────────────────────┐          │  │
+│  │  │  Public Subnet AZ-a    │    │  Public Subnet AZ-b    │          │  │
+│  │  │    (10.0.1.0/24)       │    │    (10.0.2.0/24)       │          │  │
+│  │  │                        │    │                        │          │  │
+│  │  │  ┌──────────────────┐  │    │  ┌──────────────────┐  │          │  │
+│  │  │  │  Fargate Tasks   │  │    │  │  Fargate Tasks   │  │          │  │
+│  │  │  │  (Bot Containers)│  │    │  │  (Bot Containers)│  │          │  │
+│  │  │  └────────┬─────────┘  │    │  └────────┬─────────┘  │          │  │
+│  │  └───────────┼────────────┘    └───────────┼────────────┘          │  │
+│  │              │                             │                        │  │
+│  │              └──────────────┬──────────────┘                        │  │
+│  │                             │                                       │  │
+│  │                    ┌────────▼────────┐                              │  │
+│  │                    │ Internet Gateway│                              │  │
+│  │                    └────────┬────────┘                              │  │
+│  └─────────────────────────────┼─────────────────────────────────────────┘  │
+│                                │                                             │
+└────────────────────────────────┼─────────────────────────────────────────────┘
+                                 │
+                    ┌────────────▼────────────┐
+                    │     External Services    │
+                    │  • GHCR (container images)│
+                    │  • Milo API (backend)    │
+                    │  • S3 (recordings)       │
+                    │  • Meeting platforms     │
+                    └──────────────────────────┘
+```
+
+### Infrastructure Components
+
+| Component | Configuration | Purpose |
+|-----------|---------------|---------|
+| **ECS Cluster** | Fargate-only (no EC2) | Serverless container orchestration |
+| **Task Definitions** | 3 (Google Meet, Zoom, Teams) | Platform-specific bot containers |
+| **VPC** | Public subnets only (no NAT) | Zero fixed monthly cost |
+| **CloudWatch Logs** | 1-day retention | Minimal log storage |
+| **Secrets Manager** | 1 secret (GHCR) | Container registry auth |
+| **S3** | Terraform state only | Infrastructure state backend |
+
+### Task Configuration
+
+All bot task definitions share the same optimized configuration:
+
+```hcl
+resource "aws_ecs_task_definition" "bot" {
+  cpu    = 512   # 0.5 vCPU (sufficient for browser automation)
+  memory = 2048  # 2 GB (required for Chromium/Playwright)
+
+  runtime_platform {
+    operating_system_family = "LINUX"
+    cpu_architecture        = "ARM64"  # Graviton (20% cheaper)
+  }
+}
+```
+
+### Capacity Provider Strategy
+
+Optimized for cost with Spot instance priority:
+
+```hcl
+default_capacity_provider_strategy {
+  capacity_provider = "FARGATE_SPOT"
+  weight            = 90   # 90% of tasks use Spot
+  base              = 0
+}
+
+default_capacity_provider_strategy {
+  capacity_provider = "FARGATE"
+  weight            = 10   # 10% fallback to On-Demand
+  base              = 1    # At least 1 On-Demand task
+}
+```
+
+**Why Spot is safe for bots:**
+- Meeting bots are interruption-tolerant (can rejoin if terminated)
+- Short task duration (typically 30-90 minutes) reduces interruption risk
+- 90% cost savings compared to On-Demand
+
+### Cost Analysis
+
+#### Fargate Pricing (us-east-2, December 2024)
+
+| Resource | On-Demand | Spot (~70% off) |
+|----------|-----------|-----------------|
+| vCPU/hour | $0.04048 | ~$0.01214 |
+| GB RAM/hour | $0.004445 | ~$0.00133 |
+
+#### Per-Task Hourly Cost (0.5 vCPU + 2 GB)
+
+| Launch Type | Calculation | Cost/Hour |
+|-------------|-------------|-----------|
+| On-Demand | (0.5 × $0.04048) + (2 × $0.004445) | $0.02913 |
+| Spot | (0.5 × $0.01214) + (2 × $0.00133) | $0.00873 |
+| **Blended (90/10)** | (0.9 × $0.00873) + (0.1 × $0.02913) | **$0.01077** |
+
+#### Monthly Cost Projections
+
+Based on 500 bots/day with varying meeting durations:
+
+| Meeting Duration | Bot-Hours/Day | Bot-Hours/Month | Monthly Cost |
+|------------------|---------------|-----------------|--------------|
+| 30 min (short) | 250 | 7,500 | **$81** |
+| 45 min (average) | 375 | 11,250 | **$121** |
+| 60 min (standard) | 500 | 15,000 | **$162** |
+| 90 min (extended) | 750 | 22,500 | **$242** |
+
+#### Additional Costs (Minimal)
+
+| Service | Monthly Cost | Notes |
+|---------|-------------|-------|
+| CloudWatch Logs | ~$0.50 | 1-day retention, ~1 GB ingested |
+| Secrets Manager | ~$0.40 | 1 secret for GHCR auth |
+| S3 (Terraform) | ~$0.05 | State file storage only |
+| **Total Other** | **~$1** | Negligible compared to compute |
+
+### Cost Optimization Strategies Applied
+
+| Optimization | Impact | Implementation |
+|--------------|--------|----------------|
+| **90% Spot** | ~70% savings vs On-Demand | Capacity provider weights |
+| **0.5 vCPU** | ~50% savings vs 1 vCPU | Task definition CPU units |
+| **ARM64 Graviton** | ~20% savings vs x86 | Runtime platform config |
+| **No NAT Gateway** | ~$32/month saved | Public subnets with IGW |
+| **Container Insights off** | ~$3/container saved | Cluster setting |
+| **1-day log retention** | Minimal log costs | CloudWatch config |
+
+### Scaling Considerations
+
+#### Linear Scaling
+Cost scales linearly with usage:
+- 1,000 bots/day → ~$242/month
+- 2,000 bots/day → ~$484/month
+- 5,000 bots/day → ~$1,210/month
+
+#### Concurrency Limits
+- Default concurrent deployments: 4
+- AWS_BOT_LIMIT environment variable controls max active tasks
+- No inherent Fargate limit (soft limit: 1,000 tasks/region)
+
+### Docker Image Requirements
+
+For ARM64 Graviton support, images must be built for `linux/arm64`:
+
+```bash
+# Single-arch build
+docker buildx build --platform linux/arm64 \
+  -t ghcr.io/org/meeboter-google-meet-bot:latest \
+  --push .
+
+# Multi-arch build (recommended for flexibility)
+docker buildx build --platform linux/amd64,linux/arm64 \
+  -t ghcr.io/org/meeboter-google-meet-bot:latest \
+  --push .
+```
+
+### Terraform Infrastructure Location
+
+All AWS infrastructure is defined in:
+```
+terraform/bots/
+├── main.tf          # Provider, backend, locals
+├── variables.tf     # Input variables
+├── ecs.tf           # Cluster, capacity providers, task definitions
+├── vpc.tf           # VPC, subnets, IGW, routes
+├── iam.tf           # Roles and policies
+├── security.tf      # Security groups
+├── logs.tf          # CloudWatch log group
+└── outputs.tf       # Environment variable outputs
+```
+
+### Cost Monitoring
+
+Monitor costs via:
+- **AWS Cost Explorer**: Filter by ECS service
+- **CloudWatch**: Track task count and duration metrics
+- **Application logs**: Bot duration logged per session
+
+### Future Optimization Opportunities
+
+| Opportunity | Potential Savings | Complexity |
+|-------------|-------------------|------------|
+| Graviton3 (when available) | ~5-10% | Low |
+| Savings Plans (1-year) | ~30% | Medium |
+| Reduce memory to 1 GB | ~50% on RAM | High risk |
+| Batch short meetings | Variable | High |
