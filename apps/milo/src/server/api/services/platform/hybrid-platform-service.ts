@@ -205,7 +205,16 @@ export class HybridPlatformService {
 				);
 
 				if (result) {
-					// Success! Return result (slot released in finally)
+					// Update bot with platform info BEFORE releasing slot
+					// This ensures the bot is counted in DB capacity checks
+					await this.db
+						.update(botsTable)
+						.set({
+							deploymentPlatform: platform,
+							platformIdentifier: result.identifier,
+						})
+						.where(eq(botsTable.id, botConfig.id));
+
 					return {
 						platform,
 						platformIdentifier: result.identifier,
@@ -215,9 +224,7 @@ export class HybridPlatformService {
 
 				// Deployment failed, continue to try next platform
 			} finally {
-				// Always release slot after attempt
-				// On success: DB is updated, so pending slot no longer needed
-				// On failure: Slot is no longer in use
+				// Release slot after attempt (DB already updated on success)
 				this.releaseSlot(platform);
 			}
 		}

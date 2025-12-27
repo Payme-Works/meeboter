@@ -143,33 +143,20 @@ export class BotDeploymentService {
 				};
 			}
 
-			// Deployed successfully, update platform info
+			// Deployed successfully
+			// Platform info (deploymentPlatform, platformIdentifier) is already
+			// updated by HybridPlatformService.deployBot() before returning
 			// Status stays as DEPLOYING, the bot itself will update to JOINING_CALL
 			// when it actually starts attempting to join the meeting
 
-			// Defensive check: warn if platform is set but identifier is missing
-			if (deployResult.platform && !deployResult.platformIdentifier) {
-				console.error(
-					`[BotDeploymentService] WARNING: Bot ${botId} deployed on '${deployResult.platform}' but platformIdentifier is missing!`,
-					{ deployResult },
-				);
-			}
-
-			const result = await this.db
-				.update(botsTable)
-				.set({
-					deploymentPlatform: deployResult.platform ?? null,
-					platformIdentifier: deployResult.platformIdentifier ?? null,
-				})
+			const deployedBot = await this.db
+				.select()
+				.from(botsTable)
 				.where(eq(botsTable.id, botId))
-				.returning();
-
-			const deployedBot = result[0];
+				.then((rows) => rows[0]);
 
 			if (!deployedBot) {
-				throw new BotDeploymentError(
-					"Failed to update bot after platform deployment",
-				);
+				throw new BotDeploymentError("Failed to retrieve deployed bot record");
 			}
 
 			const slotLabel = deployResult.slotName
