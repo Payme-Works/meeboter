@@ -198,6 +198,13 @@ export class HybridPlatformService {
 
 			// Got a slot, try to deploy
 			try {
+				// Set deploymentPlatform immediately so recovery workers can identify
+				// which platform the bot is targeting, even if deployment fails
+				await this.db
+					.update(botsTable)
+					.set({ deploymentPlatform: platform })
+					.where(eq(botsTable.id, botConfig.id));
+
 				const result = await this.tryDeployOnPlatform(
 					platform,
 					config.service,
@@ -205,14 +212,10 @@ export class HybridPlatformService {
 				);
 
 				if (result) {
-					// Update bot with platform info BEFORE releasing slot
-					// This ensures the bot is counted in DB capacity checks
+					// Update bot with platform identifier after successful deployment
 					await this.db
 						.update(botsTable)
-						.set({
-							deploymentPlatform: platform,
-							platformIdentifier: result.identifier,
-						})
+						.set({ platformIdentifier: result.identifier })
 						.where(eq(botsTable.id, botConfig.id));
 
 					return {
@@ -222,7 +225,11 @@ export class HybridPlatformService {
 					};
 				}
 
-				// Deployment failed, continue to try next platform
+				// Deployment failed - clear platform so next attempt can set it
+				await this.db
+					.update(botsTable)
+					.set({ deploymentPlatform: null })
+					.where(eq(botsTable.id, botConfig.id));
 			} finally {
 				// Release slot after attempt (DB already updated on success)
 				this.releaseSlot(platform);
@@ -371,6 +378,13 @@ export class HybridPlatformService {
 					callbackUrl: bot.callbackUrl ?? undefined,
 				};
 
+				// Set deploymentPlatform immediately so recovery workers can identify
+				// which platform the bot is targeting, even if deployment fails
+				await this.db
+					.update(botsTable)
+					.set({ deploymentPlatform: platform })
+					.where(eq(botsTable.id, bot.id));
+
 				const result = await this.tryDeployOnPlatform(
 					platform,
 					config.service,
@@ -378,13 +392,10 @@ export class HybridPlatformService {
 				);
 
 				if (result) {
-					// Update bot with platform info
+					// Update bot with platform identifier after successful deployment
 					await this.db
 						.update(botsTable)
-						.set({
-							deploymentPlatform: platform,
-							platformIdentifier: result.identifier,
-						})
+						.set({ platformIdentifier: result.identifier })
 						.where(eq(botsTable.id, bot.id));
 
 					// Remove from queue
@@ -398,6 +409,12 @@ export class HybridPlatformService {
 
 					return;
 				}
+
+				// Deployment failed - clear platform so next attempt can set it
+				await this.db
+					.update(botsTable)
+					.set({ deploymentPlatform: null })
+					.where(eq(botsTable.id, bot.id));
 			} finally {
 				this.releaseSlot(platform);
 			}
