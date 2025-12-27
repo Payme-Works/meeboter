@@ -204,3 +204,20 @@ utils/validators/
 - ✅ No barrel exports, direct imports only
 - ✅ Type guards for validation functions
 - ✅ Keep validation separate from formatting
+
+## Monetary Value Display
+
+When displaying monetary values in the UI, use different fonts for the currency symbol and the number:
+
+- **Currency symbol (`$`, `€`, etc.)** - Use `font-sans` for the dollar/money sign
+- **Numeric value** - Use `font-mono` for the number portion
+
+**Example:**
+```tsx
+<span>
+  <span className="font-sans">$</span>
+  <span className="font-mono">1,234.56</span>
+</span>
+```
+
+**Rationale:** Monospace fonts ensure consistent digit alignment for numbers, while the currency symbol looks better in the default sans-serif font.

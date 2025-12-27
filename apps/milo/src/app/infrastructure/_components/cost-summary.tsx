@@ -9,6 +9,7 @@ import {
 	TrendingUp,
 } from "lucide-react";
 
+import { formatMoneyValue, Money } from "@/components/money";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -17,28 +18,6 @@ import { api } from "@/trpc/react";
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const REFRESH_INTERVAL = 10000; // 10 seconds for cost data
-
-// ─── Cost Formatting ─────────────────────────────────────────────────────────
-
-/**
- * Formats cost with appropriate decimal places.
- * Shows more decimals for small amounts.
- */
-function formatCost(cost: number): string {
-	if (cost < 0.01) {
-		return `$${cost.toFixed(4)}`;
-	}
-
-	if (cost < 1) {
-		return `$${cost.toFixed(3)}`;
-	}
-
-	if (cost < 100) {
-		return `$${cost.toFixed(2)}`;
-	}
-
-	return `$${Math.round(cost).toLocaleString()}`;
-}
 
 // ─── Platform Icons ──────────────────────────────────────────────────────────
 
@@ -100,13 +79,16 @@ function CostCard({
 			<CardContent>
 				<div
 					className={cn(
-						"text-2xl font-normal font-mono",
+						"text-2xl font-normal",
 						highlight
 							? "text-emerald-600 dark:text-emerald-400"
 							: "text-foreground",
 					)}
 				>
-					{formatCost(value)}
+					<Money>
+						<Money.Symbol />
+						<Money.Value>{formatMoneyValue(value)}</Money.Value>
+					</Money>
 				</div>
 				{subtitle ? (
 					<p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
@@ -193,24 +175,41 @@ export function CostSummary() {
 											<div className="text-muted-foreground text-xs">
 												Hourly Rate
 											</div>
-											<div className="font-normal font-mono text-emerald-600 dark:text-emerald-400">
-												{formatCost(platform.currentHourlyCost)}/hr
+											<div className="font-normal text-emerald-600 dark:text-emerald-400">
+												<Money>
+													<Money.Symbol />
+													<Money.Value>
+														{formatMoneyValue(platform.currentHourlyCost)}
+													</Money.Value>
+													<Money.Suffix>/hr</Money.Suffix>
+												</Money>
 											</div>
 										</div>
 										<div>
 											<div className="text-muted-foreground text-xs">
 												Last 30 Days
 											</div>
-											<div className="font-normal font-mono">
-												{formatCost(platform.last30dCost)}
+											<div className="font-normal">
+												<Money>
+													<Money.Symbol />
+													<Money.Value>
+														{formatMoneyValue(platform.last30dCost)}
+													</Money.Value>
+												</Money>
 											</div>
 										</div>
 										<div>
 											<div className="text-muted-foreground text-xs">
 												Projected
 											</div>
-											<div className="font-normal font-mono">
-												{formatCost(platform.projectedMonthlyCost)}/mo
+											<div className="font-normal">
+												<Money>
+													<Money.Symbol />
+													<Money.Value>
+														{formatMoneyValue(platform.projectedMonthlyCost)}
+													</Money.Value>
+													<Money.Suffix>/mo</Money.Suffix>
+												</Money>
 											</div>
 										</div>
 									</div>

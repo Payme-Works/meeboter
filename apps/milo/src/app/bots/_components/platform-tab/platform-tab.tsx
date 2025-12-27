@@ -19,6 +19,7 @@ import {
 	XCircle,
 } from "lucide-react";
 
+import { formatMoneyValue, Money } from "@/components/money";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -232,22 +233,6 @@ function calculateSessionCost(hourlyCost: number, startTime: Date): number {
 	const durationHours = durationMs / (1000 * 60 * 60);
 
 	return hourlyCost * durationHours;
-}
-
-/**
- * Formats cost with appropriate decimal places.
- * Shows more decimals for small amounts.
- */
-function formatCost(cost: number): string {
-	if (cost < 0.01) {
-		return `$${cost.toFixed(4)}`;
-	}
-
-	if (cost < 1) {
-		return `$${cost.toFixed(3)}`;
-	}
-
-	return `$${cost.toFixed(2)}`;
 }
 
 /**
@@ -468,8 +453,12 @@ function EstimatedCostCard({
 						<div className="text-xs text-muted-foreground mb-1">
 							Hourly Rate
 						</div>
-						<div className="text-lg font-normal font-mono text-emerald-600 dark:text-emerald-400">
-							{formatCost(hourlyCost)}/hr
+						<div className="text-lg font-normal text-emerald-600 dark:text-emerald-400">
+							<Money>
+								<Money.Symbol />
+								<Money.Value>{formatMoneyValue(hourlyCost)}</Money.Value>
+								<Money.Suffix>/hr</Money.Suffix>
+							</Money>
 						</div>
 					</div>
 
@@ -477,8 +466,15 @@ function EstimatedCostCard({
 						<div className="text-xs text-muted-foreground mb-1">
 							Session Cost
 						</div>
-						<div className="text-lg font-normal font-mono text-emerald-600 dark:text-emerald-400">
-							{sessionCost !== null ? formatCost(sessionCost) : "—"}
+						<div className="text-lg font-normal text-emerald-600 dark:text-emerald-400">
+							{sessionCost !== null ? (
+								<Money>
+									<Money.Symbol />
+									<Money.Value>{formatMoneyValue(sessionCost)}</Money.Value>
+								</Money>
+							) : (
+								"—"
+							)}
 							{duration ? (
 								<span className="text-sm font-normal text-muted-foreground ml-1">
 									({duration})

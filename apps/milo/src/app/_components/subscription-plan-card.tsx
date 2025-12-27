@@ -1,4 +1,5 @@
 import { Check } from "lucide-react";
+import { Money } from "@/components/money";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,13 +21,26 @@ export default function SubscriptionPlanCard({
 		if (plan.monthlyPrice === 0) return "Free";
 
 		if (plan.monthlyPrice === null) {
-			if ("pricePerBot" in plan && plan.pricePerBot)
-				return `$${plan.pricePerBot}/bot`;
+			if ("pricePerBot" in plan && plan.pricePerBot) {
+				return (
+					<Money>
+						<Money.Symbol />
+						<Money.Value>{plan.pricePerBot}</Money.Value>
+						<Money.Suffix>/bot</Money.Suffix>
+					</Money>
+				);
+			}
 
 			return "Custom pricing";
 		}
 
-		return `$${plan.monthlyPrice}/month`;
+		return (
+			<Money>
+				<Money.Symbol />
+				<Money.Value>{plan.monthlyPrice}</Money.Value>
+				<Money.Suffix>/month</Money.Suffix>
+			</Money>
+		);
 	};
 
 	const formatBotLimit = () => {
