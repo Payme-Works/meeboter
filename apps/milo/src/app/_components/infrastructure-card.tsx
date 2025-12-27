@@ -77,37 +77,35 @@ const STATUS_PULSE: Record<BotActivityStatus, boolean> = {
  * Each bar represents one bot in its current status
  */
 function ActivityBars({ sequence }: { sequence: BotActivityStatus[] }) {
-	const maxBars = 20;
+	const maxBars = 100;
 	const displaySequence = sequence.slice(0, maxBars);
 	const hasOverflow = sequence.length > maxBars;
 
 	if (sequence.length === 0) {
 		return (
-			<div className="flex items-center gap-0.5 h-4">
-				{Array.from({ length: 5 }).map((_, i) => (
+			<div className="flex items-center justify-between h-5 w-full">
+				{Array.from({ length: maxBars }).map((_, i) => (
 					<div
 						key={`empty-${i}`}
-						className="w-1 h-1.5 rounded-full bg-muted/40"
+						className="w-0.5 h-2 rounded-full bg-muted/30"
 					/>
 				))}
-				<span className="ml-2 text-xs text-muted-foreground/50 italic">
-					idle
-				</span>
 			</div>
 		);
 	}
 
 	return (
 		<div
-			className="flex items-center gap-0.5 h-4"
+			className="flex items-center justify-between h-5 w-full"
 			role="img"
 			aria-label={`${sequence.length} active bots`}
 		>
+			{/* Active bars with fixed width */}
 			{displaySequence.map((status, i) => (
 				<div
 					key={`bar-${i}`}
 					className={cn(
-						"w-1 h-4 rounded-full transition-all duration-300",
+						"w-0.5 h-5 rounded-full transition-all duration-300",
 						STATUS_COLORS[status],
 						STATUS_PULSE[status] && "animate-pulse",
 					)}
@@ -120,9 +118,14 @@ function ActivityBars({ sequence }: { sequence: BotActivityStatus[] }) {
 				/>
 			))}
 
+			{/* Empty slots to fill remaining space */}
+			{Array.from({ length: maxBars - displaySequence.length }).map((_, i) => (
+				<div key={`empty-${i}`} className="w-0.5 h-2 rounded-full bg-muted/30" />
+			))}
+
 			{/* Overflow indicator */}
 			{hasOverflow ? (
-				<span className="ml-1 text-[10px] text-muted-foreground/60 tabular-nums">
+				<span className="ml-1 text-[10px] text-muted-foreground/60 tabular-nums shrink-0">
 					+{sequence.length - maxBars}
 				</span>
 			) : null}
@@ -145,10 +148,10 @@ function StatusIndicator({
 	shouldPulse?: boolean;
 }) {
 	return (
-		<span className="flex items-center gap-1.5">
+		<span className="inline-flex items-center gap-1.5">
 			<span
 				className={cn(
-					"w-2 h-2 rounded-full",
+					"size-2 rounded-full shrink-0",
 					color,
 					shouldPulse && count > 0 && "animate-pulse",
 					count === 0 && "opacity-40",
@@ -423,58 +426,56 @@ function InfrastructureCard({
 	const isMultiPlatform = platforms.length > 1;
 
 	return (
-		<StatCard className="min-h-[180px] relative overflow-hidden">
-			{/* Header badges (positioned top-right) */}
-			<div className="absolute top-4 right-4 flex items-center gap-2">
-				{queueDepth > 0 ? (
-					<span className="px-1.5 py-0.5 text-xs font-medium bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded">
-						{queueDepth} queued
-					</span>
-				) : null}
+		<StatCard className="min-h-[180px] relative">
+			{/* Live indicator - absolute positioned top-right */}
+			<div className="absolute top-4 right-4">
 				<LiveIndicator />
 			</div>
 
-			{/* Header */}
+			{/* Header - icon, title only */}
 			<StatCardHeader className="justify-start gap-3 mb-4">
 				<StatCardIcon>
 					<PlatformIcon platform={platform.platform} className="h-5 w-5" />
 				</StatCardIcon>
 				<StatCardTitle>Infrastructure</StatCardTitle>
-				{isMultiPlatform ? (
-					<span className="text-xs text-muted-foreground">
-						{platforms.length} platforms
-					</span>
-				) : null}
 			</StatCardHeader>
 
 			{/* Content */}
 			<StatCardContent className="mb-0">
-				{/* Activity Bars + Status inline */}
-				<div className="flex items-center gap-4 mb-3 overflow-x-auto scrollbar-hide">
-					{/* Vertical bars visualization - shows actual bot sequence */}
+				{/* Activity visualization */}
+				<div className="space-y-2.5 mb-3">
+					{/* Vertical bars - hero visualization */}
 					<ActivityBars sequence={botSequence} />
 
-					{/* Status counts inline */}
-					<div className="flex items-center gap-x-2 text-xs whitespace-nowrap">
+					{/* Status counts row */}
+					<div className="flex items-center gap-3 text-xs">
 						<StatusIndicator
 							color="bg-blue-500"
 							count={deploying}
 							label="deploying"
 							shouldPulse
 						/>
-						<span className="text-muted-foreground/40">·</span>
+						<span className="text-muted-foreground/30">·</span>
 						<StatusIndicator
 							color="bg-amber-500"
 							count={joiningCall + inWaitingRoom}
 							label="joining"
 							shouldPulse
 						/>
-						<span className="text-muted-foreground/40">·</span>
+						<span className="text-muted-foreground/30">·</span>
 						<StatusIndicator
 							color="bg-green-500"
 							count={inCall}
 							label="in call"
 						/>
+						{queueDepth > 0 ? (
+							<>
+								<span className="text-muted-foreground/30">·</span>
+								<span className="text-amber-600 dark:text-amber-400 font-medium">
+									{queueDepth} queued
+								</span>
+							</>
+						) : null}
 					</div>
 				</div>
 
