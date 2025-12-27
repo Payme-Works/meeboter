@@ -262,8 +262,10 @@ async function ensureWorkspace(environment: string): Promise<void> {
 	const s = spinner(`Setting up workspace: ${environment}`).start();
 
 	// List existing workspaces
-	const listResult =
-		await $`terraform -chdir=${TERRAFORM_DIR} workspace list`.quiet().nothrow();
+	const listResult = await $`terraform -chdir=${TERRAFORM_DIR} workspace list`
+		.quiet()
+		.nothrow();
+
 	const workspaces = listResult.stdout.toString();
 
 	if (workspaces.includes(environment)) {
@@ -271,6 +273,7 @@ async function ensureWorkspace(environment: string): Promise<void> {
 		await $`terraform -chdir=${TERRAFORM_DIR} workspace select ${environment}`
 			.quiet()
 			.nothrow();
+
 		s.succeed(`Workspace selected: ${environment}`);
 	} else {
 		// Create new workspace
@@ -326,6 +329,7 @@ const IMPORTABLE_RESOURCES: ImportableResource[] = [
 				await $`aws secretsmanager describe-secret --secret-id ${resourceName}/ghcr-credentials --profile ${profile} --query 'ARN' --output text`
 					.quiet()
 					.nothrow();
+
 			return result.exitCode === 0 ? result.stdout.toString().trim() : null;
 		},
 	},
@@ -342,6 +346,7 @@ async function importExistingResources(
 	tfVars: string[],
 ): Promise<void> {
 	const resourceName = getResourceName(environment);
+
 	const s = spinner(
 		`Checking for existing resources to import (${resourceName})`,
 	).start();
@@ -364,7 +369,9 @@ async function importExistingResources(
 					await $`aws iam get-role --role-name ${awsId} --profile ${profile}`
 						.quiet()
 						.nothrow();
+
 				exists = result.exitCode === 0;
+
 				break;
 			}
 			case "aws_iam_user": {
@@ -372,7 +379,9 @@ async function importExistingResources(
 					await $`aws iam get-user --user-name ${awsId} --profile ${profile}`
 						.quiet()
 						.nothrow();
+
 				exists = result.exitCode === 0;
+
 				break;
 			}
 			case "aws_cloudwatch_log_group": {
@@ -380,12 +389,15 @@ async function importExistingResources(
 					await $`aws logs describe-log-groups --log-group-name-prefix ${awsId} --profile ${profile} --query 'logGroups[0].logGroupName' --output text`
 						.quiet()
 						.nothrow();
+
 				exists =
 					result.exitCode === 0 && result.stdout.toString().trim() === awsId;
+
 				break;
 			}
 			case "aws_secretsmanager_secret": {
 				exists = awsId !== null && !awsId.includes("None");
+
 				break;
 			}
 			case "aws_ecs_cluster": {
@@ -393,9 +405,10 @@ async function importExistingResources(
 					await $`aws ecs describe-clusters --clusters ${awsId} --profile ${profile} --query 'clusters[0].status' --output text`
 						.quiet()
 						.nothrow();
+
 				exists =
-					result.exitCode === 0 &&
-					result.stdout.toString().trim() === "ACTIVE";
+					result.exitCode === 0 && result.stdout.toString().trim() === "ACTIVE";
+
 				break;
 			}
 		}

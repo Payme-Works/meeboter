@@ -117,6 +117,7 @@ export class BotHealthWorker extends BaseWorker<BotHealthResult> {
 					.update(botsTable)
 					.set({
 						status: "FATAL",
+						endTime: new Date(),
 					})
 					.where(eq(botsTable.id, bot.id));
 

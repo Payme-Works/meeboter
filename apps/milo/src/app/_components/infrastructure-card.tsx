@@ -105,7 +105,7 @@ function ActivityBars({
 
 	return (
 		<div
-			className="flex items-center gap-0.5 h-6 overflow-x-auto [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-muted [&::-webkit-scrollbar-thumb]:rounded-full"
+			className="flex items-center gap-0.5 h-6 overflow-x-auto scrollbar-none"
 			role="img"
 			aria-label={`${sequence.length} active bots`}
 		>
@@ -460,7 +460,7 @@ function InfrastructureCard({
 					className={cn(
 						"mb-3",
 						botSequence.length <= 30
-							? "flex items-center gap-4 overflow-x-auto [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-muted [&::-webkit-scrollbar-thumb]:rounded-full"
+							? "flex items-center gap-4 overflow-x-auto scrollbar-none"
 							: "space-y-2.5",
 					)}
 				>
@@ -509,7 +509,7 @@ function InfrastructureCard({
 				</div>
 
 				{/* Daily Summary */}
-				<div className="flex items-center gap-2 text-xs text-muted-foreground border-t border-border/30 pt-3 mb-1 overflow-x-auto [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-muted [&::-webkit-scrollbar-thumb]:rounded-full">
+				<div className="flex items-center gap-2 text-xs text-muted-foreground border-t border-border/30 pt-3 mb-1 overflow-x-auto scrollbar-none">
 					<span className="tabular-nums font-medium text-foreground/80">
 						{todayTotal}
 					</span>

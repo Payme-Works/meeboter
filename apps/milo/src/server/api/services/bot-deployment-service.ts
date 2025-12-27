@@ -181,6 +181,7 @@ export class BotDeploymentService {
 				.update(botsTable)
 				.set({
 					status: "FATAL",
+					endTime: new Date(),
 				})
 				.where(eq(botsTable.id, botId));
 

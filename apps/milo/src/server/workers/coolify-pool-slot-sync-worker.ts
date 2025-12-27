@@ -117,7 +117,7 @@ export class CoolifyPoolSlotSyncWorker extends BaseWorker<CoolifyPoolSlotSyncRes
 					if (slot.assignedBotId) {
 						await this.db
 							.update(botsTable)
-							.set({ status: "FATAL" })
+							.set({ status: "FATAL", endTime: new Date() })
 							.where(eq(botsTable.id, slot.assignedBotId));
 
 						console.log(

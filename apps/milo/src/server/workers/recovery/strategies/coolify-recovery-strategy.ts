@@ -247,7 +247,7 @@ export class CoolifyRecoveryStrategy implements RecoveryStrategy {
 			if (slot.assignedBotId) {
 				await this.db
 					.update(botsTable)
-					.set({ status: "FATAL" })
+					.set({ status: "FATAL", endTime: new Date() })
 					.where(eq(botsTable.id, slot.assignedBotId));
 
 				console.log(
@@ -310,7 +310,7 @@ export class CoolifyRecoveryStrategy implements RecoveryStrategy {
 		if (slot.assignedBotId) {
 			await this.db
 				.update(botsTable)
-				.set({ status: "FATAL" })
+				.set({ status: "FATAL", endTime: new Date() })
 				.where(eq(botsTable.id, slot.assignedBotId));
 
 			console.log(

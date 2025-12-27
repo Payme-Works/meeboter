@@ -332,7 +332,7 @@ export class HybridPlatformService {
 			for (const { botId } of expiredResult) {
 				await this.db
 					.update(botsTable)
-					.set({ status: "FATAL" })
+					.set({ status: "FATAL", endTime: new Date() })
 					.where(eq(botsTable.id, botId));
 			}
 		}

@@ -143,7 +143,7 @@ export class K8sRecoveryStrategy implements RecoveryStrategy {
 
 				await this.db
 					.update(botsTable)
-					.set({ status: "FATAL" })
+					.set({ status: "FATAL", endTime: new Date() })
 					.where(eq(botsTable.id, bot.id));
 
 				result.recovered++;
@@ -203,7 +203,7 @@ export class K8sRecoveryStrategy implements RecoveryStrategy {
 
 					await this.db
 						.update(botsTable)
-						.set({ status: "FATAL" })
+						.set({ status: "FATAL", endTime: new Date() })
 						.where(eq(botsTable.id, bot.id));
 
 					result.recovered++;
@@ -217,7 +217,7 @@ export class K8sRecoveryStrategy implements RecoveryStrategy {
 
 				await this.db
 					.update(botsTable)
-					.set({ status: "FATAL" })
+					.set({ status: "FATAL", endTime: new Date() })
 					.where(eq(botsTable.id, bot.id));
 
 				result.recovered++;
