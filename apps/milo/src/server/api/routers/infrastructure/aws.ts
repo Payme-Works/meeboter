@@ -41,6 +41,32 @@ const awsTaskSchema = z.object({
 });
 
 /**
+ * AWS task container schema
+ */
+const awsContainerSchema = z.object({
+	name: z.string(),
+	status: z.string(),
+	cpu: z.string().nullable(),
+	memory: z.string().nullable(),
+	memoryReservation: z.string().nullable(),
+});
+
+/**
+ * AWS task details schema (for single task view)
+ */
+const awsTaskDetailsSchema = z.object({
+	taskArn: z.string(),
+	taskId: z.string(),
+	status: awsTaskStatusSchema,
+	cluster: z.string(),
+	createdAt: z.date(),
+	stoppedAt: z.date().nullable(),
+	cpu: z.string().nullable(),
+	memory: z.string().nullable(),
+	containers: z.array(awsContainerSchema),
+});
+
+/**
  * AWS platform sub-router
  *
  * @see rules/ROUTER_STRUCTURE.md
@@ -140,6 +166,23 @@ export const awsRouter = createTRPCRouter({
 					createdAt: task.createdAt,
 				};
 			});
+		}),
+
+	/**
+	 * Get detailed information about a single AWS ECS task
+	 */
+	getTask: protectedProcedure
+		.input(z.object({ taskArn: z.string() }))
+		.output(awsTaskDetailsSchema.nullable())
+		.query(async ({ input }) => {
+			if (!services.aws) {
+				throw new TRPCError({
+					code: "NOT_IMPLEMENTED",
+					message: "AWS operations are only available when using AWS platform",
+				});
+			}
+
+			return services.aws.getTask(input.taskArn);
 		}),
 
 	/**

@@ -815,66 +815,255 @@ interface AwsPlatformViewProps {
 	isActive: boolean;
 }
 
+/**
+ * Formats ECS CPU units to human-readable values.
+ * ECS uses CPU units where 1024 = 1 vCPU
+ */
+function formatEcsCpu(cpu: string | number | null | undefined): string {
+	if (cpu === null || cpu === undefined) return "—";
+
+	const units = typeof cpu === "string" ? Number.parseInt(cpu, 10) : cpu;
+
+	if (Number.isNaN(units)) return "—";
+
+	if (units >= 1024) {
+		const vcpu = units / 1024;
+
+		return vcpu === Math.floor(vcpu)
+			? `${vcpu} vCPU`
+			: `${vcpu.toFixed(2)} vCPU`;
+	}
+
+	return `${units} units`;
+}
+
+/**
+ * Formats ECS memory in MiB to human-readable values.
+ */
+function formatEcsMemory(memory: string | number | null | undefined): string {
+	if (memory === null || memory === undefined) return "—";
+
+	const mib = typeof memory === "string" ? Number.parseInt(memory, 10) : memory;
+
+	if (Number.isNaN(mib)) return "—";
+
+	if (mib >= 1024) {
+		const gib = mib / 1024;
+
+		return gib === Math.floor(gib) ? `${gib} GiB` : `${gib.toFixed(2)} GiB`;
+	}
+
+	return `${mib} MiB`;
+}
+
 function AwsPlatformView({
 	platformIdentifier,
 	isActive,
 }: AwsPlatformViewProps) {
-	// Parse task ARN to extract useful info
-	// Format: arn:aws:ecs:region:account:task/cluster/task-id
+	const {
+		data: ecsTask,
+		isLoading,
+		isRefetching,
+		refetch,
+	} = api.infrastructure.aws.getTask.useQuery(
+		{ taskArn: platformIdentifier ?? "" },
+		{
+			enabled: !!platformIdentifier,
+			refetchInterval: isActive ? 5000 : false,
+		},
+	);
+
+	// Parse task ARN to extract region (fallback if API fails)
 	const taskArn = platformIdentifier ?? "";
 	const arnParts = taskArn.split(":");
 	const region = arnParts[3] ?? "—";
-	const taskPath = arnParts[5]?.split("/") ?? [];
-	const cluster = taskPath[1] ?? "—";
-	const taskId = taskPath[2] ?? platformIdentifier ?? "—";
+
+	if (!platformIdentifier) {
+		return (
+			<div className="p-6 h-full">
+				<PlatformHeader>
+					<PlatformHeaderIcon>
+						<Cloud className="h-5 w-5 text-muted-foreground" />
+					</PlatformHeaderIcon>
+
+					<PlatformHeaderTitle>AWS ECS</PlatformHeaderTitle>
+				</PlatformHeader>
+
+				<div className="flex flex-col items-center justify-center py-8 text-muted-foreground h-full">
+					<AlertCircle className="h-8 w-8 mb-2 opacity-50" />
+					<p className="text-sm">No task identifier available</p>
+				</div>
+			</div>
+		);
+	}
+
+	if (isLoading) {
+		return (
+			<div className="p-6 space-y-8">
+				<PlatformHeader>
+					<PlatformHeaderIcon>
+						<Cloud className="h-5 w-5 text-muted-foreground" />
+					</PlatformHeaderIcon>
+
+					<PlatformHeaderTitle>AWS ECS</PlatformHeaderTitle>
+				</PlatformHeader>
+
+				<Skeleton className="h-32 w-full" />
+				<Skeleton className="h-24 w-full" />
+			</div>
+		);
+	}
+
+	// Use API data if available, otherwise parse from ARN
+	const taskId = ecsTask?.taskId ?? taskArn.split("/").pop() ?? "—";
+	const cluster = ecsTask?.cluster ?? arnParts[5]?.split("/")[1] ?? "—";
+	const status = ecsTask?.status ?? (isActive ? "RUNNING" : "STOPPED");
+	const cpu = ecsTask?.cpu;
+	const memory = ecsTask?.memory;
+	const container = ecsTask?.containers?.[0];
 
 	return (
 		<div className="p-6 space-y-8">
-			<PlatformHeader>
-				<PlatformHeaderIcon>
-					<Cloud className="h-5 w-5 text-muted-foreground" />
-				</PlatformHeaderIcon>
+			<div className="flex items-center justify-between">
+				<PlatformHeader>
+					<PlatformHeaderIcon>
+						<Cloud className="h-5 w-5 text-muted-foreground" />
+					</PlatformHeaderIcon>
 
-				<PlatformHeaderTitle>AWS ECS</PlatformHeaderTitle>
-			</PlatformHeader>
+					<PlatformHeaderTitle>AWS ECS</PlatformHeaderTitle>
+				</PlatformHeader>
 
-			<Card>
-				<CardHeader className="pb-2">
-					<CardTitle className="text-sm flex items-center gap-2">
-						<Container className="h-4 w-4" />
-						ECS Task
-					</CardTitle>
-				</CardHeader>
-				<CardContent className="space-y-2 text-sm">
-					<div className="flex justify-between">
-						<span className="text-muted-foreground">Task ID</span>
-						<span className="font-mono text-xs truncate max-w-[200px]">
-							{taskId}
-						</span>
-					</div>
-					<div className="flex justify-between">
-						<span className="text-muted-foreground">Cluster</span>
-						<span className="font-mono text-xs">{cluster}</span>
-					</div>
-					<div className="flex justify-between">
-						<span className="text-muted-foreground">Region</span>
-						<span className="font-mono text-xs">{region}</span>
-					</div>
-					<div className="flex justify-between">
-						<span className="text-muted-foreground">Status</span>
-						<Badge
-							variant="outline"
-							className={cn(
-								isActive
-									? "bg-green-50 text-green-700 border-transparent dark:bg-green-950 dark:text-green-400"
-									: "bg-muted text-muted-foreground border-transparent",
-							)}
-						>
-							{isActive ? "RUNNING" : "STOPPED"}
-						</Badge>
-					</div>
-				</CardContent>
-			</Card>
+				<Button
+					variant="ghost"
+					size="sm"
+					onClick={() => refetch()}
+					disabled={isRefetching}
+				>
+					<RefreshCw
+						className={cn("h-4 w-4", isRefetching && "animate-spin")}
+					/>
+				</Button>
+			</div>
+
+			<div className="grid grid-cols-2 gap-4">
+				<Card className="gap-1.5">
+					<CardHeader className="pb-2">
+						<CardTitle className="text-sm flex items-center gap-2">
+							<Container className="h-4 w-4" />
+							ECS Task
+						</CardTitle>
+					</CardHeader>
+					<CardContent className="space-y-2 text-sm">
+						<div className="flex justify-between">
+							<span className="text-muted-foreground">Task ID</span>
+							<span className="font-mono text-xs truncate max-w-[180px]">
+								{taskId}
+							</span>
+						</div>
+						<div className="flex justify-between">
+							<span className="text-muted-foreground">Cluster</span>
+							<span className="font-mono text-xs">{cluster}</span>
+						</div>
+						<div className="flex justify-between">
+							<span className="text-muted-foreground">Region</span>
+							<span className="font-mono text-xs">{region}</span>
+						</div>
+						<div className="flex justify-between">
+							<span className="text-muted-foreground">Status</span>
+							<AwsTaskStatusBadge status={status} />
+						</div>
+					</CardContent>
+				</Card>
+
+				{container ? (
+					<Card className="gap-1.5">
+						<CardHeader className="pb-2">
+							<CardTitle className="text-sm flex items-center gap-2">
+								<Box className="h-4 w-4" />
+								Container
+							</CardTitle>
+						</CardHeader>
+						<CardContent className="space-y-2 text-sm">
+							<div className="flex justify-between">
+								<span className="text-muted-foreground">Name</span>
+								<span className="font-mono text-xs truncate max-w-[180px]">
+									{container.name}
+								</span>
+							</div>
+							<div className="flex justify-between">
+								<span className="text-muted-foreground">Status</span>
+								<span>{container.status}</span>
+							</div>
+						</CardContent>
+					</Card>
+				) : null}
+			</div>
+
+			{cpu || memory ? (
+				<Card className="gap-1.5">
+					<CardHeader className="pb-2">
+						<CardTitle className="text-sm flex items-center gap-2">
+							<Cpu className="h-4 w-4" />
+							Resources
+						</CardTitle>
+					</CardHeader>
+
+					<CardContent>
+						<div className="grid grid-cols-2 gap-10">
+							<div className="space-y-2 text-sm">
+								<div className="flex items-center gap-2 text-muted-foreground mb-2">
+									<Cpu className="h-3.5 w-3.5" />
+									<span className="font-medium">CPU</span>
+								</div>
+
+								<div className="flex justify-between">
+									<span className="text-muted-foreground">Task Limit</span>
+									<span className="font-mono text-xs">{formatEcsCpu(cpu)}</span>
+								</div>
+								{container?.cpu !== null && container?.cpu !== undefined ? (
+									<div className="flex justify-between">
+										<span className="text-muted-foreground">Container</span>
+										<span className="font-mono text-xs">
+											{formatEcsCpu(container.cpu)}
+										</span>
+									</div>
+								) : null}
+							</div>
+
+							<div className="space-y-2 text-sm">
+								<div className="flex items-center gap-2 text-muted-foreground mb-2">
+									<MemoryStick className="h-3.5 w-3.5" />
+									<span className="font-medium">Memory</span>
+								</div>
+								<div className="flex justify-between">
+									<span className="text-muted-foreground">Task Limit</span>
+									<span className="font-mono text-xs">
+										{formatEcsMemory(memory)}
+									</span>
+								</div>
+								{container?.memory !== null &&
+								container?.memory !== undefined ? (
+									<div className="flex justify-between">
+										<span className="text-muted-foreground">Hard Limit</span>
+										<span className="font-mono text-xs">
+											{formatEcsMemory(container.memory)}
+										</span>
+									</div>
+								) : null}
+								{container?.memoryReservation !== null &&
+								container?.memoryReservation !== undefined ? (
+									<div className="flex justify-between">
+										<span className="text-muted-foreground">Soft Limit</span>
+										<span className="font-mono text-xs">
+											{formatEcsMemory(container.memoryReservation)}
+										</span>
+									</div>
+								) : null}
+							</div>
+						</div>
+					</CardContent>
+				</Card>
+			) : null}
 
 			{platformIdentifier ? (
 				<div className="text-xs text-muted-foreground">
@@ -882,6 +1071,43 @@ function AwsPlatformView({
 				</div>
 			) : null}
 		</div>
+	);
+}
+
+function AwsTaskStatusBadge({ status }: { status: string }) {
+	const config: Record<
+		string,
+		{ bg: string; text: string; icon: React.ReactNode }
+	> = {
+		PROVISIONING: {
+			bg: "bg-amber-50 dark:bg-amber-950",
+			text: "text-amber-700 dark:text-amber-400",
+			icon: <Clock className="h-3 w-3" />,
+		},
+		RUNNING: {
+			bg: "bg-green-50 dark:bg-green-950",
+			text: "text-green-700 dark:text-green-400",
+			icon: <Loader2 className="h-3 w-3 animate-spin" />,
+		},
+		STOPPED: {
+			bg: "bg-muted",
+			text: "text-muted-foreground",
+			icon: <CheckCircle className="h-3 w-3" />,
+		},
+		FAILED: {
+			bg: "bg-red-50 dark:bg-red-950",
+			text: "text-red-700 dark:text-red-400",
+			icon: <XCircle className="h-3 w-3" />,
+		},
+	};
+
+	const c = config[status] ?? config.STOPPED;
+
+	return (
+		<Badge variant="outline" className={cn(c.bg, c.text, "border-transparent")}>
+			{c.icon}
+			<span className="ml-1">{status}</span>
+		</Badge>
 	);
 }
 

@@ -12,7 +12,7 @@ export function StatCard({ children, className }: StatCardProps) {
 	return (
 		<div
 			className={cn(
-				"border bg-card p-4 flex flex-col h-full min-h-[148px]",
+				"rounded-lg border bg-card p-4 flex flex-col h-full min-h-[148px]",
 				className,
 			)}
 		>

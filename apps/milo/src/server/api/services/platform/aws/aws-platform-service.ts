@@ -305,6 +305,76 @@ export class AWSPlatformService implements PlatformService<AWSBotStatus> {
 	}
 
 	/**
+	 * Gets detailed task information including resource configuration
+	 */
+	async getTask(taskArn: string): Promise<{
+		taskArn: string;
+		taskId: string;
+		status: AWSBotStatus;
+		cluster: string;
+		createdAt: Date;
+		stoppedAt: Date | null;
+		cpu: string | null;
+		memory: string | null;
+		containers: Array<{
+			name: string;
+			status: string;
+			cpu: string | null;
+			memory: string | null;
+			memoryReservation: string | null;
+		}>;
+	} | null> {
+		try {
+			const result = await this.ecsClient.send(
+				new DescribeTasksCommand({
+					cluster: this.config.cluster,
+					tasks: [taskArn],
+				}),
+			);
+
+			const task = result.tasks?.[0];
+
+			if (!task) {
+				return null;
+			}
+
+			// Extract task ID from ARN (last segment)
+			const taskId = task.taskArn?.split("/").pop() ?? "";
+
+			return {
+				taskArn: task.taskArn ?? "",
+				taskId,
+				status: AWSStatusMapper.toDomain(task.lastStatus),
+				cluster: this.config.cluster,
+				createdAt: task.createdAt ? new Date(task.createdAt) : new Date(),
+				stoppedAt: task.stoppedAt ? new Date(task.stoppedAt) : null,
+				cpu: task.cpu ?? null,
+				memory: task.memory ?? null,
+				containers: (task.containers ?? []).map((container) => ({
+					name: container.name ?? "",
+					status: container.lastStatus ?? "UNKNOWN",
+					cpu: container.cpu ?? null,
+					memory: container.memory ?? null,
+					memoryReservation: container.memoryReservation ?? null,
+				})),
+			};
+		} catch (error) {
+			const isCredentialError =
+				error instanceof Error && error.name === "CredentialsProviderError";
+
+			if (isCredentialError) {
+				console.warn(
+					"[AWSPlatform] AWS credentials not configured, skipping task fetch",
+				);
+			} else {
+				console.error("[AWSPlatform] Failed to get task:", error);
+			}
+
+			return null;
+		}
+	}
+
+	/**
 	 * Lists all ECS tasks with their status for table display
 	 * Returns task ARNs with status and creation time
 	 */

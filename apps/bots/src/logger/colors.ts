@@ -1,4 +1,11 @@
 /**
+ * Detect if colors should be enabled.
+ * Disabled in non-TTY environments (AWS CloudWatch, Docker logs, etc.)
+ */
+const COLORS_ENABLED =
+	process.stdout.isTTY === true && process.env.NO_COLOR === undefined;
+
+/**
  * ANSI color codes for terminal output
  */
 const COLORS = {
@@ -18,9 +25,13 @@ const COLORS = {
 } as const;
 
 /**
- * Wraps text with ANSI color codes
+ * Wraps text with ANSI color codes (only when colors are enabled)
  */
 function colorize(text: string, ...codes: string[]): string {
+	if (!COLORS_ENABLED) {
+		return text;
+	}
+
 	return `${codes.join("")}${text}${COLORS.reset}`;
 }
 
