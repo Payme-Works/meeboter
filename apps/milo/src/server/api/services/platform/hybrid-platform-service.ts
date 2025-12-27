@@ -349,11 +349,13 @@ export class HybridPlatformService {
 					.then((rows) => rows[0]);
 
 				if (!bot) {
+					// Bot was deleted, remove from queue and exit
+					// No point trying other platforms for a non-existent bot
 					await this.db
 						.delete(deploymentQueueTable)
 						.where(eq(deploymentQueueTable.id, nextInQueue.id));
 
-					continue;
+					return;
 				}
 
 				const botConfig: BotConfig = {
