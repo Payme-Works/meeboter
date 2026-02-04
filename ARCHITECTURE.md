@@ -277,9 +277,9 @@ K8S_BOT_LIMIT="80"
 |------------|----------------------------|----------|
 | **Coolify (Self-hosted)** | ~$80-90/mo | Predictable workloads, self-hosted |
 | **Kubernetes (K3s)** | ~$60-120/mo | Existing K8s, multi-cloud |
-| **AWS ECS (Fargate)** | ~$70-130/mo | Auto-scaling, pay-per-use |
+| **AWS ECS (Fargate)** | ~$90-105/mo | Auto-scaling, pay-per-use |
 
-> AWS costs optimized with ARM64 + 100% Fargate Spot + 1GB memory (~76% savings vs x86 on-demand)
+> AWS costs optimized with ARM64 + 100% Fargate Spot + no NAT Gateway (~76% savings vs x86 on-demand)
 
 ---
 
@@ -326,11 +326,12 @@ Our AWS infrastructure is optimized for cost with these configurations:
 
 | Service | Monthly Cost | Notes |
 |---------|--------------|-------|
+| VPC (idle) | ~$9-12 | Internet Gateway, route tables (no NAT) |
 | CloudWatch Logs | ~$0.50-2.00 | 1-day retention, ~1-5 GB ingested |
 | Secrets Manager | ~$0.40 | 1 secret (GHCR credentials) |
 | S3 Terraform State | ~$0.05 | State file only |
 | Data Transfer | ~$0.09/GB | Outbound to internet |
-| **Fixed Overhead** | **~$3/month** | Minimal baseline |
+| **Fixed Overhead** | **~$12-15/month** | When no bots running |
 
 #### Scaling Projections (ARM64 + 100% Spot)
 
@@ -413,9 +414,9 @@ Pod-based deployment on managed or self-hosted K8s.
 |----------|--------------|---------------|------|
 | **Coolify** | ~$80-90 | ~$0.007 | Fixed cost, full control |
 | **K8s (K3s)** | ~$60-120 | ~$0.005-0.011 | Portable, existing infra |
-| **AWS ECS** | ~$110-130 | ~$0.010 | Auto-scale, no ops |
+| **AWS ECS** | ~$90-105 | ~$0.008 | Auto-scale, no ops |
 
-> AWS ECS uses ARM64 + 100% Fargate Spot for optimal pricing
+> AWS ECS uses ARM64 + 100% Fargate Spot + no NAT Gateway for optimal pricing (~76% savings vs x86 on-demand)
 
 #### Break-Even Analysis
 
