@@ -1,16 +1,8 @@
+import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { createTRPCRouter, publicProcedure } from "@/server/api/trpc";
-
-// Message queue for bot chat message processing
-const botChatMessageQueues = new Map<
-	number,
-	Array<{
-		messageText: string;
-		templateId?: number;
-		userId: string;
-	}>
->();
+import { botChatMessagesTable } from "@/server/database/schema";
 
 /**
  * Chat sub-router for bot chat operations
@@ -19,7 +11,8 @@ const botChatMessageQueues = new Map<
  */
 export const chatSubRouter = createTRPCRouter({
 	/**
-	 * Gets the next queued message for a specific bot and removes it from the queue.
+	 * Gets the next queued message for a specific bot and marks it as sent.
+	 * Reads from the database to ensure messages persist across server restarts.
 	 * @param input - Object containing the bot ID
 	 * @returns Promise<QueuedMessage | null> Next queued message or null if none
 	 */
@@ -45,13 +38,63 @@ export const chatSubRouter = createTRPCRouter({
 				})
 				.nullable(),
 		)
-		.query(async ({ input }) => {
-			const queue = botChatMessageQueues.get(parseInt(input.botId, 10));
+		.query(async ({ input, ctx }) => {
+			const botId = parseInt(input.botId, 10);
 
-			if (!queue || queue.length === 0) {
-				return null;
-			}
+			// Use transaction to prevent race conditions (concurrent bot instances could
+			// otherwise read the same message before either marks it as sent)
+			return await ctx.db.transaction(async (tx) => {
+				// Find the oldest queued message for this bot
+				const queuedMessages = await tx
+					.select({
+						id: botChatMessagesTable.id,
+						messageText: botChatMessagesTable.messageText,
+						templateId: botChatMessagesTable.templateId,
+						userId: botChatMessagesTable.userId,
+					})
+					.from(botChatMessagesTable)
+					.where(
+						and(
+							eq(botChatMessagesTable.botId, botId),
+							eq(botChatMessagesTable.status, "queued"),
+						),
+					)
+					.orderBy(asc(botChatMessagesTable.sentAt))
+					.limit(1);
 
-			return queue.shift() || null;
+				const candidate = queuedMessages[0];
+
+				if (!candidate) {
+					return null;
+				}
+
+				// Atomically update only if status is still "queued" (prevents duplicates)
+				const updated = await tx
+					.update(botChatMessagesTable)
+					.set({ status: "sent" })
+					.where(
+						and(
+							eq(botChatMessagesTable.id, candidate.id),
+							eq(botChatMessagesTable.status, "queued"),
+						),
+					)
+					.returning({
+						messageText: botChatMessagesTable.messageText,
+						templateId: botChatMessagesTable.templateId,
+						userId: botChatMessagesTable.userId,
+					});
+
+				const message = updated[0];
+
+				if (!message) {
+					return null;
+				}
+
+				return {
+					messageText: message.messageText,
+					templateId: message.templateId ?? undefined,
+					userId: message.userId,
+				};
+			});
 		}),
 });

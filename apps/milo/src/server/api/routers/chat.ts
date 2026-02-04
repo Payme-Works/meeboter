@@ -16,16 +16,6 @@ import {
 	selectMessageTemplateSchema,
 } from "@/server/database/schema";
 
-// Message queue for bot message processing
-const messageQueues = new Map<
-	number,
-	Array<{
-		messageText: string;
-		templateId?: number;
-		userId: string;
-	}>
->();
-
 /**
  * TRPC router implementation for chat functionality.
  * Provides endpoints for managing message templates and sending messages to bots.
@@ -268,18 +258,7 @@ export const chatRouter = createTRPCRouter({
 					const randomMessage =
 						messages[Math.floor(Math.random() * messages.length)];
 
-					// Queue message for the bot
-					if (!messageQueues.has(botId)) {
-						messageQueues.set(botId, []);
-					}
-
-					messageQueues.get(botId)?.push({
-						messageText: randomMessage,
-						templateId: input.templateId,
-						userId: ctx.session.user.id,
-					});
-
-					// Record in database
+					// Insert into database (bot will poll for queued messages)
 					await ctx.db.insert(botChatMessagesTable).values({
 						botId,
 						userId: ctx.session.user.id,
@@ -353,17 +332,7 @@ export const chatRouter = createTRPCRouter({
 			// Send the same message to each bot
 			for (const botId of validBotIds) {
 				try {
-					// Queue message for the bot
-					if (!messageQueues.has(botId)) {
-						messageQueues.set(botId, []);
-					}
-
-					messageQueues.get(botId)?.push({
-						messageText: input.messageText,
-						userId: ctx.session.user.id,
-					});
-
-					// Record in database
+					// Insert into database (bot will poll for queued messages)
 					await ctx.db.insert(botChatMessagesTable).values({
 						botId,
 						userId: ctx.session.user.id,
@@ -422,42 +391,5 @@ export const chatRouter = createTRPCRouter({
 				.from(botChatMessagesTable)
 				.where(eq(botChatMessagesTable.botId, parseInt(input.botId, 10)))
 				.orderBy(botChatMessagesTable.sentAt);
-		}),
-
-	/**
-	 * Gets the next queued message for a specific bot (used by bot implementations).
-	 * @param input - Object containing the bot ID
-	 * @returns Promise<QueuedMessage | null> Next queued message or null if none
-	 */
-	getNextQueuedMessage: protectedProcedure
-		.meta({
-			openapi: {
-				method: "GET",
-				path: "/chat/queue/{botId}",
-				description: "Get the next queued message for a bot",
-			},
-		})
-		.input(
-			z.object({
-				botId: z.string(),
-			}),
-		)
-		.output(
-			z
-				.object({
-					messageText: z.string(),
-					templateId: z.number().optional(),
-					userId: z.string(),
-				})
-				.nullable(),
-		)
-		.query(async ({ input }) => {
-			const queue = messageQueues.get(parseInt(input.botId, 10));
-
-			if (!queue || queue.length === 0) {
-				return null;
-			}
-
-			return queue.shift() || null;
 		}),
 });
